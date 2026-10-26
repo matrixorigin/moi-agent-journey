@@ -218,11 +218,12 @@ def pi_structural(case, outputs, session):
             required={"primary_procurement_move","immediate_slots","next_wave_gel_basics","conditional_backup_lab_support",
                 "deferred_route_tied_confirmation","confirmation_action","fallback_if_no_reply","draft_corrections"}
             checks.append(check("采购计划独立决策字段",required.issubset(data)))
-            serialized=json.dumps(data.get("immediate_slots"),ensure_ascii=False).lower()
-            for item in ['Target-gene primers','Sealing film','RNase-free filter tips','CCK-8 reagent','96-well cell plates','Carbomer 940','Triethanolamine','Propylene Glycol']:
-                checks.append(check("立即采购具体物料："+item,item.lower() in serialized))
-            for item in ['Aluminum Tube','Airless Pump Bottle','Phenoxyethanol','Hydroxyethyl Cellulose','FBS','Trypsin','0.22']:
-                checks.append(check("延期/备选不能进入立即采购："+item,item.lower() not in serialized))
+            slots=data.get('immediate_slots')
+            valid=isinstance(slots,list) and all(isinstance(s,dict) and isinstance(s.get('item'),str) for s in slots)
+            expected={'Target-gene primers','Sealing film','RNase-free filter tips','CCK-8 reagent','96-well cell plates','Carbomer 940','Triethanolamine','Propylene Glycol'}
+            items=[s['item'] for s in slots] if valid else []
+            checks.append(check('立即采购为指定的八种物料且无重复',valid and set(items)==expected and len(items)==len(set(items)),
+                                json.dumps({'expected':sorted(expected),'actual':items})))
         else:
             import csv
             file=outputs/("gel_procurement_draft.csv" if session.endswith("016") else "qpcr_procurement_draft.csv")

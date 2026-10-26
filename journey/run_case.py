@@ -225,6 +225,7 @@ class Execution:
                         inputs["prior_outputs/" + previous["id"] + "/" + file.relative_to(prior).as_posix()] = file.read_text()
             source = self.evidence.root / "sessions" / session["id"] / "outputs"
             outputs = {p.relative_to(source).as_posix(): p.read_text() for p in source.rglob("*") if p.is_file()}
+            reply=json.loads((source.parent/'reply.json').read_text())['text']
             criteria = {f"C{i+1:02}": text for i, text in enumerate(session["rubric"])}
             prompt = (
                 "You are an independent benchmark evaluator. Evaluate actual delivered files against every criterion. "
@@ -232,9 +233,10 @@ class Execution:
                 "Do not alter files or help repair the answer. Do not accept a claim of completion as evidence. "
                 "Return only a JSON object with key checks, an array containing every criterion ID. "
                 "Each item must have id, passed (boolean), reason, and evidence_quote. "
-                "For a passed criterion, evidence_quote MUST be an exact nonempty substring of an actual OUTPUT file. "
+                "For a passed criterion, evidence_quote MUST be an exact nonempty substring of an actual OUTPUT file or FINAL_REPLY. "
+                "Evaluate file-specific requirements against OUTPUTS, and final-reply structure against FINAL_REPLY. "
                 "A criterion unsupported by the delivered files must fail. Brand factual accuracy may be checked using web search.\n"
-                + json.dumps({"CRITERIA": criteria, "INPUTS": inputs, "OUTPUTS": outputs}, ensure_ascii=False))
+                + json.dumps({"CRITERIA": criteria, "INPUTS": inputs, "OUTPUTS": outputs,"FINAL_REPLY":reply}, ensure_ascii=False))
             cid = self.conversation("judge-" + session["id"])
             _, task = self.send(cid, "judge:" + session["id"], prompt)
             text = final_reply(task)
@@ -246,7 +248,7 @@ class Execution:
                 for item in checks:
                     if type(item["passed"]) is not bool or not isinstance(item["reason"], str):
                         raise ValueError("invalid_verdict_type")
-                    if item["passed"] and (not item["evidence_quote"] or not any(item["evidence_quote"] in value for value in outputs.values())):
+                    if item["passed"] and (not item["evidence_quote"] or not any(item["evidence_quote"] in value for value in [*outputs.values(),reply])):
                         raise ValueError("judge_evidence_not_in_deliverable")
                 verdicts.append({"session": session["id"], "criteria": criteria, "checks": checks})
                 self.evidence.write("semantic-verdicts.json", verdicts)
@@ -335,6 +337,8 @@ class Execution:
                         prompt += "\n现在请把最终交付文件打包为 journey-output.zip，并发布为本轮可下载附件。"
                     entry, task = self.send(cid, session["id"] + ":" + turn["phase"], prompt,
                                             [upload] if turn_index == 0 else [])
+                if self.case['source']['benchmark']=='π-Bench':
+                    self.evidence.write('sessions/'+session['id']+'/reply.json',{'task_id':entry['task_id'],'text':final_reply(task)})
                 bundle = self.collect_artifacts(cid, entry)
                 destination = self.evidence.root / "sessions" / session["id"] / "outputs"
                 try:

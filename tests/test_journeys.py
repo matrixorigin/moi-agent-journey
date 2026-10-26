@@ -16,6 +16,7 @@ from journey.a2a import final_reply
 from journey.evidence import Evidence, safe_extract
 from journey.report import aggregate, finish_case, scan
 from journey.run_case import Execution
+from judge.verify import pi_structural
 
 
 @contextlib.contextmanager
@@ -120,6 +121,20 @@ def qa_fixture(mode):
 
 
 class JourneyTests(unittest.TestCase):
+    def test_procurement_checks_selected_items_instead_of_words_in_reasons(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            data={key:'' for key in ['primary_procurement_move','next_wave_gel_basics','conditional_backup_lab_support',
+                'deferred_route_tied_confirmation','confirmation_action','fallback_if_no_reply','draft_corrections']}
+            names=['Target-gene primers','Sealing film','RNase-free filter tips','CCK-8 reagent','96-well cell plates','Carbomer 940','Triethanolamine','Propylene Glycol']
+            data['immediate_slots']=[{'item':name,'why_earns_immediate_slot':'FBS, Trypsin and 0.22 um filters are deferred.'} for name in names]
+            file=root/'merged_procurement_plan.json';file.write_text(json.dumps(data))
+            checks,_=pi_structural({'id':'J1-17'},root,'pharmacist_task_019')
+            self.assertTrue(all(c['passed'] for c in checks))
+            data['immediate_slots'][-1]['item']='FBS';file.write_text(json.dumps(data))
+            checks,_=pi_structural({'id':'J1-17'},root,'pharmacist_task_019')
+            self.assertFalse(all(c['passed'] for c in checks))
+
     def test_final_reply_excludes_timeline_text_from_structured_answer(self):
         answer='{"checks":[{"id":"C01","passed":true}]}'
         task={'status':{'state':'completed','message':{'role':'agent','parts':[
