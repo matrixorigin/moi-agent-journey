@@ -177,6 +177,15 @@ class JourneyTests(unittest.TestCase):
             self.assertEqual(result['status'],'awaiting_validation')
             self.assertTrue(result['capture_complete'])
 
+    def test_task_latency_does_not_include_semantic_judge_latency(self):
+        with qa_fixture('success') as (execution,state):
+            execution.case['source']['benchmark']='π-Bench'
+            with patch.object(execution,'judge_pi',side_effect=lambda:time.sleep(0.03)):
+                result=execution.run()
+            self.assertEqual(result['status'],'awaiting_validation')
+            self.assertGreaterEqual(result['semantic_judge_seconds'],0.02)
+            self.assertGreater(result['qa_seconds'],result['task_seconds'])
+
     def test_deadline_cancels_and_keeps_the_failure(self):
         with qa_fixture('timeout') as (execution,state):
             result=execution.run()

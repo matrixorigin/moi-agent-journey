@@ -107,11 +107,11 @@ def aggregate(source, destination):
     (destination / "summary.json").write_text(json.dumps(report, ensure_ascii=False, indent=2)+"\n")
     with (destination / "summary.csv").open("w", newline="") as stream:
         writer=csv.writer(stream)
-        writer.writerow(["workspace","case_id","title","status","harness_status","task_seconds","preparation_seconds","validation_seconds","cleanup_seconds","total_seconds","trace_ids","failure_reasons"])
+        writer.writerow(["workspace","case_id","title","status","harness_status","task_seconds","semantic_judge_seconds","preparation_seconds","validation_seconds","cleanup_seconds","total_seconds","trace_ids","failure_reasons"])
         for row in rows:
             reasons = row.get("failures",[]) + row.get("harness_errors",[])
             writer.writerow([row["workspace"],row["case_id"],row["title"],row["status"],row.get("harness_status","error"),
-                row.get("task_seconds"),row.get('preparation_seconds'),row.get("validation",{}).get("seconds"),row.get('cleanup_seconds'),row.get("total_seconds"),
+                row.get("task_seconds"),row.get('semantic_judge_seconds'),row.get('preparation_seconds'),row.get("validation",{}).get("seconds"),row.get('cleanup_seconds'),row.get("total_seconds"),
                 ";".join(t.get("trace_id","") for t in row.get("tasks",[])),json.dumps(reasons,ensure_ascii=False)])
     lines=["# MOI agent journeys", "",f"**通过 {passed}/{total}（{passed/total:.1%}）**" if total else "未配置任务", "",
            f"任务不通过：{report['failed']}；超时：{report['timeout']}；执行/证据错误：{errors}。", "",

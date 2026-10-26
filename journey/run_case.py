@@ -352,9 +352,14 @@ class Execution:
                     "final_task_id": entry["task_id"], "outputs": {p.relative_to(destination).as_posix(): sha256(p)
                         for p in destination.rglob("*") if p.is_file()}})
                 self.checkpoint()
+            self.report['task_seconds']=round(time.monotonic()-self.started,3)
             if self.case["source"]["benchmark"] == "π-Bench":
                 self.report["stage"] = "semantic_judge"
-                self.judge_pi()
+                judge_started=time.monotonic()
+                try:
+                    self.judge_pi()
+                finally:
+                    self.report['semantic_judge_seconds']=round(time.monotonic()-judge_started,3)
             self.report["status"] = "awaiting_validation"
             self.report["stage"] = "validation"
         except Failure as error:
@@ -366,7 +371,9 @@ class Execution:
             self.report["harness_errors"].append({"stage": self.report["stage"], "reason": type(error).__name__ + ":" + str(error)})
         finally:
             signal.alarm(0)
-            self.report["task_seconds"] = round(time.monotonic() - self.started, 3)
+            self.report['qa_seconds']=round(time.monotonic()-self.started,3)
+            if 'task_seconds' not in self.report:
+                self.report['task_seconds']=self.report['qa_seconds']
             cleanup_started = time.monotonic()
             if self.root:
                 self.cleanup()
