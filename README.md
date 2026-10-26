@@ -72,6 +72,7 @@ summary.csv                   # 任务结果、耗时、trace ID、失败原因
 summary.md                    # 与 GitHub Summary 一致的报告
 cases/J1-XX/
   result.json                 # 所有轮次 task/trace ID、耗时、失败阶段与原因
+  publication.json            # 公开包完整性；隔离文件的路径、哈希与原因
   preparation.json            # 输入与 oracle 的来源及哈希，或准备失败原因
   dialogue.jsonl              # 实际用户输入和附件引用
   http.jsonl                  # 脱敏后的产品请求/响应和耗时
@@ -92,7 +93,7 @@ cases/J1-XX/
 
 采集 QA 产品公开事件 API 返回的全部事件，包括可用的 thinking/推理片段、文本增量、工具调用、工具结果、生命周期和产物事件。服务端私有 rollout 不在公开 API 范围；某个模型没有输出 thinking 时不会伪造。公开事件序号可以因私有事件而有间隔，按 API 游标读取，不能以序号连续性判断遗漏。每轮结束和取消后再读取持久化事件；结果中明确记录 capture_complete。
 
-不把凭据放进提示词或材料，HTTP 认证头不写日志。文本记录脱敏；上传前递归检查 ZIP/Office 文件中是否包含已知凭据，并拒绝指向 runner 文件的符号链接。公开仓库的 artifact 也应视为公开数据：本套只使用公开 benchmark 材料，请勿接入客户私有文件。会话归档后仍保留在 QA，输入文件和产物也保留供诊断；周期运行会占用 QA 存储，后续需根据保留策略清理这些专用工作区。
+不把凭据放进提示词或材料，HTTP 认证头不写日志。文本记录脱敏；上传前递归检查 ZIP/Office 文件中是否包含已知凭据。含凭据、损坏或无法检查的产物及符号链接不会进入公开包；publication.json 记录路径、哈希和隔离原因，汇总报告显示隔离数量。原始任务判定保持不变，安全的 trace、事件和结果继续上传；受认证保护的 QA 文件引用仍在 inventory.json 中，可回 QA 诊断。公开仓库的 artifact 也应视为公开数据：本套只使用公开 benchmark 材料，请勿接入客户私有文件。会话归档后仍保留在 QA，输入文件和产物也保留供诊断；周期运行会占用 QA 存储，后续需根据保留策略清理这些专用工作区。
 
 ## 本地验证
 
@@ -112,7 +113,7 @@ docker build -t moi-journey-judge -f judge/Dockerfile .
 python3 -m journey.run_case J1-01
 python3 -m journey.validate J1-01
 python3 -m journey.report case J1-01
-python3 -m journey.report scan results
+python3 -m journey.publish
 ```
 
 原 `python3 -m journey.hello` 冒烟入口及其测试仍保留，模型变量为 `MOI_MODEL`。

@@ -2,6 +2,7 @@ import contextlib
 import io
 import json
 import os
+import struct
 import tempfile
 import threading
 import time
@@ -16,6 +17,7 @@ from journey.a2a import final_reply
 from journey.evidence import Evidence, safe_extract
 from journey.report import aggregate, finish_case, scan
 from journey.run_case import Execution
+from journey.publish import prepare_publication
 from judge.verify import pi_structural
 
 
@@ -121,6 +123,38 @@ def qa_fixture(mode):
 
 
 class JourneyTests(unittest.TestCase):
+    def test_unreadable_archive_is_isolated_without_losing_trace_records(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);case=root/'results/J1-16';case.mkdir(parents=True)
+            (case/'result.json').write_text(json.dumps({'case_id':'J1-16','status':'failed','harness_status':'ok'}))
+            trace='{"task_id":"task-16","seq":7,"kind":"tool_result","payload":{"result":"bad ZIP"}}\n'
+            (case/'events.jsonl').write_text(trace)
+            stream=io.BytesIO()
+            with zipfile.ZipFile(stream,'w') as bundle:bundle.writestr('paper.pdf','public content')
+            data=bytearray(stream.getvalue());end=data.rfind(b'PK\x05\x06')
+            offset=struct.unpack_from('<L',data,end+16)[0]
+            struct.pack_into('<L',data,end+16,offset+188743680)
+            payload=case/'artifacts/context/file/journey-output.zip';payload.parent.mkdir(parents=True);payload.write_bytes(data)
+            rejected=prepare_publication(root/'results',root/'public',[])
+            self.assertEqual((root/'public/J1-16/events.jsonl').read_text(),trace)
+            self.assertFalse((root/'public/J1-16/artifacts/context/file/journey-output.zip').exists())
+            result=json.loads((root/'public/J1-16/result.json').read_text())
+            self.assertEqual(result['status'],'failed')
+            self.assertEqual(result['publication']['status'],'partial')
+            self.assertTrue(rejected[0]['reason'].startswith('archive_not_inspectable:'))
+
+    def test_publication_redacts_records_and_withholds_secret_payload(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);case=root/'results/J1-01';case.mkdir(parents=True)
+            (case/'result.json').write_text(json.dumps({'case_id':'J1-01','status':'failed'}))
+            (case/'events.jsonl').write_text('{"text":"private-qa-key"}\n')
+            payload=case/'sessions/office/outputs/config.txt';payload.parent.mkdir(parents=True);payload.write_text('private-qa-key')
+            rejected=prepare_publication(root/'results',root/'public',['private-qa-key'])
+            self.assertIn('[REDACTED]',(root/'public/J1-01/events.jsonl').read_text())
+            self.assertFalse((root/'public/J1-01/sessions/office/outputs/config.txt').exists())
+            self.assertEqual(rejected[0]['reason'],'credential_detected_in_artifact')
+            self.assertTrue(all(b'private-qa-key' not in p.read_bytes() for p in (root/'public').rglob('*') if p.is_file()))
+
     def test_procurement_checks_selected_items_instead_of_words_in_reasons(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)

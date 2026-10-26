@@ -75,19 +75,19 @@ jobs:
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ secrets.MOI_PAT }}
         run: python3 -m journey.report case "$CASE_ID"
-      - name: Check downloadable evidence for credentials
+      - name: Prepare safe public evidence and isolate uninspectable files
         id: scan
         if: always() && matrix.case != 'EMPTY'
         env:
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ secrets.MOI_PAT }}
-        run: python3 -m journey.report scan results
+        run: python3 -m journey.publish
       - name: Upload case evidence even on failure
         if: always() && matrix.case != 'EMPTY' && steps.scan.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: case-${{ matrix.case }}-attempt-${{ github.run_attempt }}
-          path: results/
+          path: published-results/
           if-no-files-found: error
           retention-days: 1
           compression-level: 6

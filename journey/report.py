@@ -10,7 +10,7 @@ import zipfile
 from pathlib import Path
 
 from .catalog import ROOT, load_case
-from .evidence import Evidence, utc_now
+from .evidence import Evidence, utc_now,TOKEN_BYTES
 
 FINAL = {"passed", "failed", "timeout", "error"}
 
@@ -46,27 +46,39 @@ def finish_case(case_id, directory):
     return result
 
 
-def scan(directory, secrets):
-    """Inspect nested Office/ZIP contents too; GitHub log masking does not protect artifacts."""
-    forbidden = tuple(s.encode() for s in secrets if s)
-    token = re.compile(rb"\bsk-(?:uca-v1-|sa-v1-)[A-Za-z0-9_-]{16,}")
-    def inspect(data, depth=0):
-        if any(s in data for s in forbidden) or token.search(data):
-            raise ValueError("credential_detected_in_artifact")
-        if zipfile.is_zipfile(io.BytesIO(data)):
-            if depth >= 5:
-                raise ValueError("artifact_nested_archive_limit")
+class ArtifactRejected(ValueError):
+    pass
+
+
+def inspect_payload(data, secrets, depth=0,name=''):
+    """A failure is an explicit withholding decision, never permission to publish."""
+    if any(s.encode() in data for s in secrets if s) or TOKEN_BYTES.search(data):
+        raise ArtifactRejected("credential_detected_in_artifact")
+    if re.search(r'\.(?:z\d{2}|zip\.\d{3})$',name,re.I):
+        raise ArtifactRejected('split_archive_volume_not_inspectable')
+    container=Path(name).suffix.lower() in {'.zip','.docx','.xlsx','.pptx','.xlsm','.docm','.pptm'}
+    if container or data.startswith(b'PK\x03\x04') or zipfile.is_zipfile(io.BytesIO(data)):
+        if depth>=5:raise ArtifactRejected("artifact_nested_archive_limit")
+        try:
             with zipfile.ZipFile(io.BytesIO(data)) as archive:
-                if sum(f.file_size for f in archive.infolist()) > 1_000_000_000:
-                    raise ValueError("artifact_archive_expansion_limit")
+                if sum(f.file_size for f in archive.infolist())>1_000_000_000:
+                    raise ArtifactRejected("artifact_archive_expansion_limit")
                 for member in archive.infolist():
-                    if not member.is_dir():
-                        inspect(archive.read(member), depth+1)
+                    inspect_payload(member.filename.encode(),secrets,depth+1)
+                    if not member.is_dir():inspect_payload(archive.read(member),secrets,depth+1,member.filename)
+        except ArtifactRejected:
+            raise
+        except (zipfile.BadZipFile,ValueError,RuntimeError,NotImplementedError) as error:
+            raise ArtifactRejected("archive_not_inspectable:"+type(error).__name__+":"+str(error)) from error
+
+
+def scan(directory, secrets):
+    """Strict diagnostic scan, also used by offline tests."""
     for file in Path(directory).rglob("*"):
         if file.is_symlink():
-            raise ValueError("artifact_symlink_not_allowed")
+            raise ArtifactRejected("artifact_symlink_not_allowed")
         if file.is_file():
-            inspect(file.read_bytes())
+            inspect_payload(file.read_bytes(),secrets,name=file.name)
 
 
 def aggregate(source, destination):
@@ -103,7 +115,8 @@ def aggregate(source, destination):
         "github_run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT"), "commit": os.environ.get("GITHUB_SHA"),
         "total": total, "passed": passed, "failed": sum(r["status"] == "failed" for r in rows),
         "timeout": sum(r["status"] == "timeout" for r in rows), "harness_errors": errors,
-        "success_rate": passed / total if total else None, "journeys": suites, "cases": rows}
+        "success_rate": passed / total if total else None, "journeys": suites, "cases": rows,
+        "withheld_files":sum(len(r.get('publication',{}).get('withheld_files',[])) for r in rows)}
     (destination / "summary.json").write_text(json.dumps(report, ensure_ascii=False, indent=2)+"\n")
     with (destination / "summary.csv").open("w", newline="") as stream:
         writer=csv.writer(stream)
@@ -114,7 +127,7 @@ def aggregate(source, destination):
                 row.get("task_seconds"),row.get('semantic_judge_seconds'),row.get('preparation_seconds'),row.get("validation",{}).get("seconds"),row.get('cleanup_seconds'),row.get("total_seconds"),
                 ";".join(t.get("trace_id","") for t in row.get("tasks",[])),json.dumps(reasons,ensure_ascii=False)])
     lines=["# MOI agent journeys", "",f"**通过 {passed}/{total}（{passed/total:.1%}）**" if total else "未配置任务", "",
-           f"任务不通过：{report['failed']}；超时：{report['timeout']}；执行/证据错误：{errors}。", "",
+           f"任务不通过：{report['failed']}；超时：{report['timeout']}；执行/证据错误：{errors}；隔离产物：{report['withheld_files']}。", "",
            "空工作区不计入分母；任务失败不会阻止其他任务。执行框架和证据错误会使工作流失败。", "",
            "| 工作区 | 用例 | 结果 | 任务耗时（秒） | 不通过/错误原因 |", "|---|---|---|---:|---|"]
     def cell(value):

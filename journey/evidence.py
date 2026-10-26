@@ -7,6 +7,8 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+TOKEN_PATTERN=re.compile(r"\b(?:sk-(?:uca-v1-|sa-v1-)?[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{16,}|eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)")
+TOKEN_BYTES=re.compile(TOKEN_PATTERN.pattern.encode('ascii'))
 
 def utc_now():
     return datetime.now(timezone.utc).isoformat()
@@ -27,9 +29,8 @@ class Evidence:
         for secret in self.secrets:
             for form in (secret, urllib.parse.quote(secret, safe="")):
                 value = value.replace(form, "[REDACTED]")
-        value = re.sub(r"\bsk-(?:uca-v1-|sa-v1-)?[A-Za-z0-9_-]{16,}", "[REDACTED]", value)
+        value = TOKEN_PATTERN.sub("[REDACTED]",value)
         value = re.sub(r"(?i)(Bearer\s+)[A-Za-z0-9._~+/=-]+", r"\1[REDACTED]", value)
-        value = re.sub(r"\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", "[REDACTED]", value)
         value = re.sub(r'(?i)(["\'](?:access_token|refresh_token|api_key|client_secret|password)["\']\s*:\s*["\'])[^"\']*', r'\1[REDACTED]', value)
         value = re.sub(r"(?i)([?&](?:token|access_token|api_key|key|sig|signature|x-amz-signature|x-amz-credential|x-amz-security-token|x-goog-signature|x-goog-credential|credential|secret)=)[^&\s\"<>]+", r"\1[REDACTED]", value)
         return value

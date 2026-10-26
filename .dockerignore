@@ -1,6 +1,7 @@
 .git
 work
 results
+published-results
 downloaded-results
 bundle
 .venv
