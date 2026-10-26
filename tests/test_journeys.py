@@ -135,13 +135,16 @@ class JourneyTests(unittest.TestCase):
             offset=struct.unpack_from('<L',data,end+16)[0]
             struct.pack_into('<L',data,end+16,offset+188743680)
             payload=case/'artifacts/context/file/journey-output.zip';payload.parent.mkdir(parents=True);payload.write_bytes(data)
+            for suffix in ['.01','.002']:
+                payload.with_name(payload.name+suffix).write_bytes(b'opaque middle volume')
             rejected=prepare_publication(root/'results',root/'public',[])
             self.assertEqual((root/'public/J1-16/events.jsonl').read_text(),trace)
             self.assertFalse((root/'public/J1-16/artifacts/context/file/journey-output.zip').exists())
             result=json.loads((root/'public/J1-16/result.json').read_text())
             self.assertEqual(result['status'],'failed')
             self.assertEqual(result['publication']['status'],'partial')
-            self.assertTrue(rejected[0]['reason'].startswith('archive_not_inspectable:'))
+            self.assertTrue(any(r['reason'].startswith('archive_not_inspectable:') for r in rejected))
+            self.assertEqual(sum(r['reason']=='split_archive_volume_not_inspectable' for r in rejected),2)
 
     def test_publication_redacts_records_and_withholds_secret_payload(self):
         with tempfile.TemporaryDirectory() as directory:

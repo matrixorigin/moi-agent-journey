@@ -54,7 +54,7 @@ def inspect_payload(data, secrets, depth=0,name=''):
     """A failure is an explicit withholding decision, never permission to publish."""
     if any(s.encode() in data for s in secrets if s) or TOKEN_BYTES.search(data):
         raise ArtifactRejected("credential_detected_in_artifact")
-    if re.search(r'\.(?:z\d{2}|zip\.\d{3})$',name,re.I):
+    if re.search(r'\.(?:z\d{2,}|zip\.\d+)$',name,re.I):
         raise ArtifactRejected('split_archive_volume_not_inspectable')
     container=Path(name).suffix.lower() in {'.zip','.docx','.xlsx','.pptx','.xlsm','.docm','.pptm'}
     if container or data.startswith(b'PK\x03\x04') or zipfile.is_zipfile(io.BytesIO(data)):
