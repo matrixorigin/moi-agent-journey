@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 import re
+import time
 import urllib.request
 from pathlib import Path
 
@@ -78,14 +79,17 @@ def main():
         return 0
     case = load_case(args.case_id)
     evidence = Evidence(Path("results") / case["id"])
-    evidence.write("preparation.json", {"status": "running", "started_at": utc_now()})
+    started_at, started = utc_now(), time.monotonic()
+    evidence.write("preparation.json", {"status": "running", "started_at": started_at})
     try:
         prepare(case, args.work)
         evidence.write("preparation.json", {"status": "completed", "assets": case["assets"],
-                                             "oracles": case["oracles"], "finished_at": utc_now()})
+            "oracles": case["oracles"], "started_at": started_at, "finished_at": utc_now(),
+            "seconds": round(time.monotonic()-started,3)})
         return 0
     except Exception as error:
-        evidence.write("preparation.json", {"status": "error", "reason": str(error), "type": type(error).__name__})
+        evidence.write("preparation.json", {"status": "error", "reason": str(error), "type": type(error).__name__,
+            "started_at": started_at,"finished_at":utc_now(),"seconds":round(time.monotonic()-started,3)})
         return 1
 
 

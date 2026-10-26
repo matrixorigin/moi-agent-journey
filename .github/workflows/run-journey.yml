@@ -86,7 +86,7 @@ jobs:
         if: always() && matrix.case != 'EMPTY' && steps.scan.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: case-${{ matrix.case }}
+          name: case-${{ matrix.case }}-attempt-${{ github.run_attempt }}
           path: results/
           if-no-files-found: error
           retention-days: 1

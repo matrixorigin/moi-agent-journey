@@ -24,6 +24,7 @@ def qa_fixture(mode):
     with zipfile.ZipFile(stream, "w") as bundle:
         bundle.writestr("answer.txt", "actual result")
     binary = stream.getvalue()
+    if mode=='corrupt_archive':binary=b'PK\x03\x04invalid archive'
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):pass
@@ -49,17 +50,35 @@ def qa_fixture(mode):
                 response={"code":"OK","data":{"file_id":"input","original_name":"input.zip","catalog_file":{"workspace_id":"ws","volume_id":9,"file_id":"input"}}}
             elif self.path=='/agents/a2a':
                 method=body['method']
-                if method=='message/send':
+                if method in {'message/send','message/stream'}:
                     tid='task-'+str(len(state['tasks'])+1)
                     terminal='failed' if mode=='agent_failure' and tid=='task-2' else 'completed'
                     state['tasks'][tid]={"state":terminal,"read":0}
-                    if mode=='timeout':state['client'].deadline=time.monotonic()+0.05
+                    if mode in {'timeout','async_cancel'}:state['client'].deadline=time.monotonic()+0.05
                 else:tid=body['params']['id']
                 task=state['tasks'][tid]
-                if method=='tasks/cancel':task['state']='canceled'
+                if method=='tasks/cancel':
+                    task['state']='working' if mode=='async_cancel' else 'canceled'
+                    task['cancel_requested']=True
+                if method=='tasks/get' and task.get('cancel_requested') and mode=='async_cancel':
+                    task['read']+=1
+                    if task['read']>=2:task['state']='canceled'
                 phase=task['state']
-                if mode=='timeout' and method!='tasks/cancel':phase='working'
+                if mode in {'timeout','async_cancel'} and not task.get('cancel_requested'):phase='working'
                 response={"jsonrpc":"2.0","id":body['id'],"result":{"kind":"task","id":tid,"contextId":state['conversation'],"status":{"state":phase,"message":{"role":"agent","parts":[{"kind":"text","text":"done"}]}}}}
+                if method=='message/stream':
+                    self.send_response(200);self.send_header('Content-Type','text/event-stream');self.end_headers()
+                    initial=json.loads(json.dumps(response));initial['result']['status']['state']='working'
+                    if mode!='task_snapshot':
+                        initial['result']={'kind':'status-update','taskId':tid,'contextId':state['conversation'],
+                            'status':{'state':'working'},'final':False}
+                    self.wfile.write(('id: 1\nevent: message\ndata: '+json.dumps(initial)+'\n\n').encode());self.wfile.flush()
+                    if mode in {'timeout','async_cancel'}:
+                        time.sleep(0.1)
+                        self.wfile.write(b': heartbeat\n\n');self.wfile.flush();return
+                    final={'jsonrpc':'2.0','id':body['id'],'result':{'kind':'status-update','taskId':tid,
+                        'contextId':state['conversation'],'status':{'state':phase},'final':True}}
+                    self.wfile.write(('id: 8\nevent: message\ndata: '+json.dumps(final)+'\n\n').encode());self.wfile.flush();return
             elif '/agent-runtime-tasks/' in self.path:
                 tid=self.path.split('/agent-runtime-tasks/')[1].split('/')[0].split('?')[0]
                 task=state['tasks'][tid]
@@ -126,6 +145,12 @@ class JourneyTests(unittest.TestCase):
             self.assertEqual([t['state'] for t in result['tasks']],['completed','failed'])
             self.assertTrue((execution.evidence.root/'artifacts'/state['conversation']/'inventory.json').is_file())
 
+    def test_initial_task_snapshot_is_also_a_valid_a2a_stream(self):
+        with qa_fixture('task_snapshot') as (execution,state):
+            result=execution.run()
+            self.assertEqual(result['status'],'awaiting_validation')
+            self.assertTrue(result['capture_complete'])
+
     def test_deadline_cancels_and_keeps_the_failure(self):
         with qa_fixture('timeout') as (execution,state):
             result=execution.run()
@@ -133,7 +158,7 @@ class JourneyTests(unittest.TestCase):
             self.assertEqual(result['tasks'][0]['state'],'canceled')
             self.assertTrue(result['capture_complete'])
             self.assertTrue(state['archived'])
-            sends=[b for _,p,b in state['methods'] if p=='/agents/a2a' and b['method']=='message/send']
+            sends=[b for _,p,b in state['methods'] if p=='/agents/a2a' and b['method']=='message/stream']
             self.assertEqual(len(sends),1)
 
     def test_evidence_failure_is_a_harness_error(self):
@@ -141,6 +166,23 @@ class JourneyTests(unittest.TestCase):
             result=execution.run()
             self.assertFalse(result['capture_complete'])
             self.assertTrue(result['harness_errors'])
+
+    def test_asynchronous_cancellation_is_confirmed_before_archive(self):
+        with qa_fixture('async_cancel') as (execution,state):
+            result=execution.run()
+            self.assertEqual(result['status'],'timeout')
+            self.assertEqual(result['tasks'][0]['state'],'canceled')
+            self.assertTrue(result['capture_complete'])
+            self.assertEqual(result['harness_errors'],[])
+            self.assertTrue(state['archived'])
+
+    def test_corrupt_deliverable_is_a_task_failure_with_evidence(self):
+        with qa_fixture('corrupt_archive') as (execution,state):
+            result=execution.run()
+            self.assertEqual(result['status'],'failed')
+            self.assertTrue(result['failures'][0]['reason'].startswith('invalid_output_archive'))
+            self.assertEqual(result['harness_errors'],[])
+            self.assertTrue(result['capture_complete'])
 
     def test_nested_credentials_are_blocked_and_traversal_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:

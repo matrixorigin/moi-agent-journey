@@ -1,5 +1,6 @@
 """Trusted verification, executed with no network or QA credentials in Docker."""
 import argparse
+import copy
 import importlib.util
 import json
 import os
@@ -122,9 +123,19 @@ def lbo(oracle, inputs, outputs):
         c = get_column_letter(col)
         targets[("Financials", f"{c}18")] = [f"{c}12", f"{c}15", f"{c}16", f"{c}17"]
     with tempfile.TemporaryDirectory() as directory:
+        # LBO interest/debt is circular by design. Set a deterministic calculation
+        # environment on a verification copy; never alter the submitted workbook.
+        scenario = Path(directory)/'scenario'
+        calculated_dir = Path(directory)/'calculated'
+        scenario.mkdir(); calculated_dir.mkdir()
+        calculation_copy = scenario/'09_01_repaired.xlsx'
+        fixed.calculation.iterate=True
+        fixed.calculation.iterateCount=1000
+        fixed.calculation.iterateDelta=1e-8
+        fixed.save(calculation_copy)
         result = subprocess.run(["libreoffice", "-env:UserInstallation=" + (Path(directory)/"profile").as_uri(),
-            "--headless", "--convert-to", "xlsx", "--outdir", directory, str(outputs/"09_01_repaired.xlsx")], capture_output=True, text=True, timeout=120)
-        calculated = Path(directory) / "09_01_repaired.xlsx"
+            "--headless", "--convert-to", "xlsx", "--outdir", str(calculated_dir), str(calculation_copy)], capture_output=True, text=True, timeout=120)
+        calculated = calculated_dir / "09_01_repaired.xlsx"
         if result.returncode or not calculated.exists():
             raise RuntimeError("lbo_recalculation_failed:" + result.stderr)
         values = load_workbook(calculated, data_only=True)
@@ -144,7 +155,7 @@ def lbo(oracle, inputs, outputs):
                     if (sheet.title, cell.coordinate) in targets:
                         continue
                     actual = fixed[sheet.title][cell.coordinate]
-                    same_style = all(getattr(cell, key) == getattr(actual, key)
+                    same_style = all(copy.copy(getattr(cell, key)) == copy.copy(getattr(actual, key))
                         for key in ['font','fill','border','alignment','protection','number_format'])
                     if cell.value != actual.value or not same_style:
                         checks.append(check("保留非目标单元格："+sheet.title+"!"+cell.coordinate,False))
@@ -152,6 +163,26 @@ def lbo(oracle, inputs, outputs):
                 for cell in row:
                     if cell.data_type == "e":
                         checks.append(check("重算无错误："+sheet.title+"!"+cell.coordinate,False,str(cell.value)))
+        values.close()
+        # Change independent drivers to distinguish dynamic relations from formulas
+        # that simply return the correct constant for this one fixed snapshot.
+        drivers = {(sheet,ref) for (sheet,_),refs in targets.items() for ref in refs} - set(targets)
+        for index,(sheet,ref) in enumerate(sorted(drivers)):
+            fixed[sheet][ref] = 101 + index * 3
+        fixed.save(calculation_copy)
+        calculated.unlink()
+        mutated = subprocess.run(["libreoffice", "-env:UserInstallation=" + (Path(directory)/"mutation-profile").as_uri(),
+            "--headless", "--convert-to", "xlsx", "--outdir", str(calculated_dir), str(calculation_copy)],capture_output=True,text=True,timeout=120)
+        if mutated.returncode or not calculated.exists():
+            raise RuntimeError("lbo_mutation_recalculation_failed:"+mutated.stderr)
+        values=load_workbook(calculated,data_only=True)
+        for (sheet,cell),refs in targets.items():
+            terms=[values[sheet][ref].value for ref in refs]
+            actual=values[sheet][cell].value
+            numeric=all(isinstance(term,(int,float)) for term in terms)
+            expected=(terms[0]-sum(terms[1:]) if sheet=='Financials' else sum(terms)) if numeric else None
+            checks.append(check(sheet+'!'+cell+' 输入变化后仍正确计算',numeric and isinstance(actual,(int,float)) and abs(actual-expected)<1e-7,
+                                json.dumps({'actual':actual,'expected':expected})))
         values.close()
     checks.append(check("打开自动重算", fixed.calculation.calcMode in (None,"auto") and fixed.calculation.fullCalcOnLoad))
     source.close(); fixed.close()
@@ -247,7 +278,8 @@ def main():
         if family=='OfficeVal':checks,raw=officeval(oracle,outputs)
         elif family=='SkillsBench':checks,raw=skills(case,oracle,inputs,outputs)
         elif family=='π-Bench':checks,raw=pi_structural(case,outputs,args.session)
-        else:checks,raw=evo(case,oracle,inputs,outputs)
+        elif family in {'EvoCowork','SpreadsheetBench 2 经 EvoCowork 改编'}:checks,raw=evo(case,oracle,inputs,outputs)
+        else:raise ValueError('unsupported_benchmark_validator:'+family)
         checks+=render_outputs(outputs,Path('/verification/rendered'))
         result={"status":"completed","checks":checks,"upstream_result":raw,
                 "passed":bool(checks) and all(c['passed'] for c in checks)}

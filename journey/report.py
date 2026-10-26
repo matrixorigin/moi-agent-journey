@@ -33,6 +33,14 @@ def finish_case(case_id, directory):
     if (result.get("tasks") or result["status"] == "passed") and not result.get("capture_complete"):
         result["harness_errors"].append({"stage": "evidence", "reason": "incomplete_trace_or_events"})
     result["harness_status"] = "error" if result["harness_errors"] else "ok"
+    preparation=evidence.root/'preparation.json'
+    if preparation.exists():
+        result['preparation_seconds']=json.loads(preparation.read_text()).get('seconds')
+    durations=[value for value in [result.get('preparation_seconds'),result.get('elapsed_seconds'),
+        result.get('validation',{}).get('seconds')] if isinstance(value,(int,float))]
+    result['total_seconds']=round(sum(durations),3) if durations else None
+    result['github_run_id']=os.environ.get('GITHUB_RUN_ID')
+    result['github_run_attempt']=os.environ.get('GITHUB_RUN_ATTEMPT')
     result["finalized_at"] = utc_now()
     evidence.write("result.json", result)
     return result
@@ -97,11 +105,11 @@ def aggregate(source, destination):
     (destination / "summary.json").write_text(json.dumps(report, ensure_ascii=False, indent=2)+"\n")
     with (destination / "summary.csv").open("w", newline="") as stream:
         writer=csv.writer(stream)
-        writer.writerow(["workspace","case_id","title","status","harness_status","task_seconds","validation_seconds","elapsed_seconds","trace_ids","failure_reasons"])
+        writer.writerow(["workspace","case_id","title","status","harness_status","task_seconds","preparation_seconds","validation_seconds","cleanup_seconds","total_seconds","trace_ids","failure_reasons"])
         for row in rows:
             reasons = row.get("failures",[]) + row.get("harness_errors",[])
             writer.writerow([row["workspace"],row["case_id"],row["title"],row["status"],row.get("harness_status","error"),
-                row.get("task_seconds"),row.get("validation",{}).get("seconds"),row.get("elapsed_seconds"),
+                row.get("task_seconds"),row.get('preparation_seconds'),row.get("validation",{}).get("seconds"),row.get('cleanup_seconds'),row.get("total_seconds"),
                 ";".join(t.get("trace_id","") for t in row.get("tasks",[])),json.dumps(reasons,ensure_ascii=False)])
     lines=["# MOI agent journeys", "",f"**通过 {passed}/{total}（{passed/total:.1%}）**" if total else "未配置任务", "",
            f"任务不通过：{report['failed']}；超时：{report['timeout']}；执行/证据错误：{errors}。", "",
@@ -112,7 +120,9 @@ def aggregate(source, destination):
     for row in rows:
         reasons=[r.get('reason','') for r in row.get('failures',[])+row.get('harness_errors',[])]
         if row.get('validation',{}).get('failed_checks'):
-            reasons += [r['rule'] for r in row['validation']['failed_checks']]
+            failed_checks=row['validation']['failed_checks']
+            reasons += [r['rule'] for r in failed_checks[:5]]
+            if len(failed_checks)>5:reasons.append(f"共 {len(failed_checks)} 项，完整明细见 result.json")
         lines.append(f"| {row['workspace']} | {row['case_id']} {cell(row['title'])} | {row['status']} | {row.get('task_seconds','—')} | {cell('; '.join(reasons))} |")
     for suite in suites:
         if suite['status']=='empty':lines.append(f"| {suite['workspace']} | 待配置 | empty | — | 不计入成功率 |")

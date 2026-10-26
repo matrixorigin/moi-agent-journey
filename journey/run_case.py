@@ -1,5 +1,6 @@
 """Run one real QA journey. Product failures are data; evidence failures are errors."""
 import argparse
+import contextlib
 import json
 import mimetypes
 import os
@@ -61,6 +62,8 @@ class Execution:
         trace = runtime.get("trace_id")
         if trace:
             entry["trace_id"] = trace
+        if runtime.get('error'):
+            entry['runtime_error']=runtime['error']
         self.evidence.write("tasks/" + tid + "/runtime.json", runtime)
         # Public sequence numbers may have gaps: private rollout facts are not exposed.
         while True:
@@ -107,27 +110,46 @@ class Execution:
         self.pending_conversation = cid
         self.checkpoint()
         started = time.monotonic()
-        task = self.client.rpc(self.selector, "message/send", params)
-        state = task_state(task, cid)
-        entry = {"task_id": task["id"], "conversation_id": cid, "message_id": message_id,
-                 "phase": phase, "started_at": utc_now(), "state": state,
-                 "event_cursor": 0, "event_count": 0, "event_kinds": {}, "capture_complete": False}
-        self.tasks.append(entry)
-        self.pending_conversation = None
-        self.checkpoint()
-        while True:
-            task = self.client.rpc(self.selector, "tasks/get", {"id": entry["task_id"]})
-            state = task_state(task, cid, entry["task_id"])
-            entry["state"] = state
-            self.evidence.write("tasks/" + entry["task_id"] + "/a2a.json", task)
-            self.capture(entry, final=state not in {"submitted", "working"})
-            if state not in {"submitted", "working"}:
-                break
-            time.sleep(min(3, max(0, self.client.deadline - time.monotonic())))
+        entry = None
+        with contextlib.closing(self.client.stream_rpc(self.selector, params)) as stream:
+            for envelope in stream:
+                frame = envelope["result"]
+                self.evidence.append("stream.jsonl", {"recorded_at": utc_now(), "phase": phase,
+                                                       "conversation_id": cid, **envelope})
+                if entry is None:
+                    if frame.get('kind') == 'status-update':
+                        identity={'kind':'task','id':frame['taskId'],'contextId':frame['contextId'],'status':frame['status']}
+                    elif frame.get('kind') == 'task':
+                        identity=frame
+                    else:
+                        raise Failure('unexpected_initial_stream_event')
+                    state = task_state(identity, cid)
+                    entry = {"task_id": identity["id"], "conversation_id": cid, "message_id": message_id,
+                             "phase": phase, "started_at": utc_now(), "state": state,
+                             "event_cursor": 0, "event_count": 0, "event_kinds": {}, "capture_complete": False}
+                    self.tasks.append(entry)
+                    self.pending_conversation = None
+                    self.capture(entry)
+                else:
+                    if frame.get("taskId", frame.get("id")) != entry["task_id"] or frame.get("contextId", cid) != cid:
+                        raise Failure("stream_task_identity_mismatch")
+                    if frame.get("kind") == "status-update":
+                        entry["state"] = frame["status"]["state"]
+                self.checkpoint()
+        if entry is None:
+            raise Failure("stream_ended_without_task")
+        # The stream is live evidence; the persisted product task remains the result authority.
+        task = self.client.rpc(self.selector, "tasks/get", {"id": entry["task_id"]})
+        state = task_state(task, cid, entry["task_id"])
+        entry["state"] = state
+        self.evidence.write("tasks/" + entry["task_id"] + "/a2a.json", task)
+        self.capture(entry, final=state not in {"submitted", "working"})
+        if state in {"submitted", "working"}:
+            raise Failure("stream_closed_before_terminal")
         entry["seconds"] = round(time.monotonic() - started, 3)
         self.checkpoint()
         if state != "completed":
-            raise Failure("agent_" + state)
+            raise Failure("agent_" + state,details={'task_id':entry['task_id'],'runtime_error':entry.get('runtime_error')})
         return entry, task
 
     def session_input(self, session, index):
@@ -257,12 +279,24 @@ class Execution:
                 if task["state"] not in TERMINAL:
                     stopped = self.client.rpc(self.selector, "tasks/cancel", {"id": task["task_id"]})
                     task["state"] = task_state(stopped, task["conversation_id"], task["task_id"])
-                    if task["state"] not in TERMINAL:
-                        raise Failure("cancel_not_confirmed")
+                    cancel_deadline=min(self.client.deadline-30,time.monotonic()+40)
+                    while task["state"] not in TERMINAL and time.monotonic()<cancel_deadline:
+                        self.capture(task)
+                        time.sleep(min(1,max(0,self.client.deadline-time.monotonic())))
+                        stopped = self.client.rpc(self.selector, "tasks/get", {"id": task["task_id"]})
+                        task["state"] = task_state(stopped, task["conversation_id"], task["task_id"])
+                    if task['state'] not in TERMINAL:
+                        raise Failure('cancel_not_confirmed')
                 self.capture(task, final=True)
             except Exception as error:
                 task["capture_complete"] = False
                 self.report["harness_errors"].append({"stage": "final_capture", "task_id": task["task_id"], "reason": str(error)})
+                # Cancellation and evidence are independent obligations. A failed
+                # cancellation must not prevent downloading the available events.
+                try:
+                    self.capture(task, final=False)
+                except Exception as capture_error:
+                    self.report["harness_errors"].append({"stage": "partial_capture", "task_id":task["task_id"],"reason":str(capture_error)})
         for conversation in self.conversations:
             cid = conversation["id"]
             try:
@@ -322,15 +356,17 @@ class Execution:
         except Failure as error:
             self.report["status"] = "timeout" if error.code in {"case_timeout", "deadline_exceeded"} else "failed"
             self.report["failures"].append({"stage": self.report["stage"], "reason": error.code,
-                                            "http_status": error.http_status})
+                                            "http_status": error.http_status,"details":error.details})
         except Exception as error:
             self.report["status"] = "error"
             self.report["harness_errors"].append({"stage": self.report["stage"], "reason": type(error).__name__ + ":" + str(error)})
         finally:
             signal.alarm(0)
             self.report["task_seconds"] = round(time.monotonic() - self.started, 3)
+            cleanup_started = time.monotonic()
             if self.root:
                 self.cleanup()
+            self.report["cleanup_seconds"] = round(time.monotonic()-cleanup_started,3)
             self.report["capture_complete"] = bool(self.tasks) and all(t["capture_complete"] for t in self.tasks)
             self.report["finished_at"] = utc_now()
             self.checkpoint()
@@ -345,9 +381,10 @@ def main():
     case = load_case(args.case_id)
     evidence = Evidence(Path("results") / case["id"], [os.environ.get("MOI_PAT", ""), os.environ.get("MOI_BASE_URL", "")])
     def timeout(_signum, _frame):
-        raise Failure("case_timeout")
+        raise Failure("case_timeout" if _signum==signal.SIGALRM else "runner_canceled")
     signal.signal(signal.SIGALRM, timeout)
     signal.signal(signal.SIGTERM, timeout)
+    signal.signal(signal.SIGINT, timeout)
     signal.alarm(case["timeout_seconds"])
     try:
         client = Client(os.environ["MOI_BASE_URL"], os.environ["MOI_PAT"], timeout=case["timeout_seconds"], observer=evidence.observe)

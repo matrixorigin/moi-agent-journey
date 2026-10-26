@@ -16,7 +16,12 @@ class Evidence:
     def __init__(self, directory, secrets=()):
         self.root = Path(directory)
         self.root.mkdir(parents=True, exist_ok=True)
-        self.secrets = tuple(s for s in secrets if s)
+        expanded = [s for s in secrets if s]
+        for secret in list(expanded):
+            parsed = urllib.parse.urlsplit(secret)
+            if parsed.scheme in {'http','https'} and parsed.netloc:
+                expanded.append(parsed.scheme+'://'+parsed.netloc)
+        self.secrets = tuple(sorted(set(expanded),key=len,reverse=True))
 
     def text(self, value):
         for secret in self.secrets:
@@ -26,13 +31,13 @@ class Evidence:
         value = re.sub(r"(?i)(Bearer\s+)[A-Za-z0-9._~+/=-]+", r"\1[REDACTED]", value)
         value = re.sub(r"\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", "[REDACTED]", value)
         value = re.sub(r'(?i)(["\'](?:access_token|refresh_token|api_key|client_secret|password)["\']\s*:\s*["\'])[^"\']*', r'\1[REDACTED]', value)
-        value = re.sub(r"(?i)([?&](?:token|key|signature|x-amz-signature|x-amz-credential|credential|secret)=)[^&\s\"<>]+", r"\1[REDACTED]", value)
+        value = re.sub(r"(?i)([?&](?:token|access_token|api_key|key|sig|signature|x-amz-signature|x-amz-credential|x-amz-security-token|x-goog-signature|x-goog-credential|credential|secret)=)[^&\s\"<>]+", r"\1[REDACTED]", value)
         return value
 
     def clean(self, value):
         if isinstance(value, dict):
             return {k: "[REDACTED]" if re.fullmatch(
-                r"authorization|cookie|set-cookie|x-api-key|api[_-]?key|(?:access|refresh|id)[_-]?token|client[_-]?secret|password",
+                r"authorization|cookie|set-cookie|x-api-key|api[_-]?key|token|(?:access|refresh|id)[_-]?token|client[_-]?secret|password",
                 k, re.I) else self.clean(v) for k, v in value.items()}
         if isinstance(value, list):
             return [self.clean(v) for v in value]

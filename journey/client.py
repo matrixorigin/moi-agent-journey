@@ -1,6 +1,7 @@
 """MOI HTTP transport. Errors deliberately exclude remote bodies and credentials."""
 
 import json
+import http.client
 import socket
 import time
 import urllib.error
@@ -10,10 +11,11 @@ import uuid
 
 
 class Failure(Exception):
-    def __init__(self, code, http_status=None):
+    def __init__(self, code, http_status=None, details=None):
         super().__init__(code)
         self.code = code
         self.http_status = http_status
+        self.details = details
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -112,10 +114,78 @@ class Client:
         if result.get("jsonrpc") != "2.0" or result.get("id") != request_id:
             raise Failure("invalid_rpc_response")
         if "error" in result:
-            raise Failure("rpc_error")
+            raise Failure("rpc_error", details=result["error"])
         if not isinstance(result.get("result"), dict):
             raise Failure("invalid_rpc_response")
         return result["result"]
+
+    def stream_rpc(self, selector, params):
+        """The official streaming admission returns a durable task before execution ends."""
+        request_id = str(uuid.uuid4())
+        body = {"jsonrpc": "2.0", "id": request_id, **selector,
+                "method": "message/stream", "params": params}
+        remaining = self.deadline - time.monotonic()
+        if remaining <= 0:
+            raise Failure("deadline_exceeded")
+        headers = {**self.headers, "Accept": "text/event-stream", "Content-Type": "application/json"}
+        request = urllib.request.Request(self.base_url + "/agents/a2a", data=json.dumps(body).encode(),
+                                         headers=headers, method="POST")
+        self.requests += 1
+        try:
+            with self.opener.open(request, timeout=remaining) as response:
+                if self.observer:
+                    self.observer({"method": "POST", "path": "/agents/a2a", "request": body,
+                        "status": response.status, "response": {"stream": True}, "headers": {}, "seconds": 0})
+                if response.headers.get_content_type() != "text/event-stream":
+                    if self.observer:
+                        self.observer({"method":"POST","path":"/agents/a2a","status":response.status,
+                            "response":{"error_body":response.read(65536).decode('utf-8',errors='replace')}})
+                    raise Failure("invalid_stream_content_type")
+                data, sequence = [], None
+                while True:
+                    if time.monotonic() >= self.deadline:
+                        raise Failure("deadline_exceeded")
+                    line = response.readline(2_000_001)
+                    if not line:
+                        if data:
+                            raise Failure("incomplete_stream_frame")
+                        return
+                    if len(line) > 2_000_000:
+                        raise Failure("stream_frame_too_large")
+                    text = line.decode("utf-8").rstrip("\r\n")
+                    if not text:
+                        if not data:
+                            continue
+                        frame = json.loads("\n".join(data))
+                        if frame.get("jsonrpc") != "2.0" or frame.get("id") != request_id:
+                            raise Failure("invalid_rpc_response")
+                        if "error" in frame:
+                            if self.observer:
+                                self.observer({"method":"POST","path":"/agents/a2a","status":response.status,"response":frame})
+                            raise Failure("rpc_error",details=frame["error"])
+                        if not isinstance(frame.get("result"), dict):
+                            raise Failure("invalid_rpc_response")
+                        yield {"sequence": sequence, "result": frame["result"]}
+                        data, sequence = [], None
+                    elif text.startswith("data:"):
+                        data.append(text[5:].lstrip(" "))
+                        if sum(len(part) for part in data) > 2_000_000:
+                            raise Failure("stream_frame_too_large")
+                    elif text.startswith("id:"):
+                        sequence = text[3:].strip()
+        except urllib.error.HTTPError as error:
+            status = error.code
+            if self.observer:
+                self.observer({"method":"POST","path":"/agents/a2a","status":status,
+                    "response":{"error_body":error.read(65536).decode('utf-8',errors='replace')}})
+            error.close()
+            raise Failure("http_error", status) from None
+        except (TimeoutError, socket.timeout):
+            raise Failure("deadline_exceeded") from None
+        except (urllib.error.URLError, OSError, http.client.HTTPException):
+            raise Failure("transport_error") from None
+        except (ValueError, UnicodeError):
+            raise Failure("invalid_stream_response") from None
 
     def upload(self, root, path):
         """Use the same private-Catalog upload contract as the product UI."""
