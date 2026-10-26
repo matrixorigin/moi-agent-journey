@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from journey.client import Client
+from journey.a2a import final_reply
 from journey.evidence import Evidence, safe_extract
 from journey.report import aggregate, finish_case, scan
 from journey.run_case import Execution
@@ -119,6 +120,16 @@ def qa_fixture(mode):
 
 
 class JourneyTests(unittest.TestCase):
+    def test_final_reply_excludes_timeline_text_from_structured_answer(self):
+        answer='{"checks":[{"id":"C01","passed":true}]}'
+        task={'status':{'state':'completed','message':{'role':'agent','parts':[
+            {'kind':'data','data':{'type':'matrixflow.explore.llm_call','status':'started'}},
+            {'kind':'text','text':'Interim progress while using tools'},
+            {'kind':'text','text':answer},
+            {'kind':'data','data':{'type':'matrixflow.explore.llm_call','status':'completed'}},
+            {'kind':'text','text':answer}]}}}
+        self.assertEqual(json.loads(final_reply(task)),{'checks':[{'id':'C01','passed':True}]})
+
     def test_multi_turn_real_wire_capture_and_download(self):
         with qa_fixture('success') as (execution,state):
             result=execution.run()
@@ -215,6 +226,14 @@ class JourneyTests(unittest.TestCase):
                 self.assertEqual(report['success_rate'],0.5)
                 self.assertEqual(report['harness_errors'],1)
                 self.assertEqual(report['cases'][1]['harness_errors'][0]['reason'],'case_artifact_missing')
+
+    def test_artifact_scan_never_follows_links_to_runner_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);evidence=root/'evidence';evidence.mkdir()
+            private=root/'runner-private.txt';private.write_text('runner-only-data')
+            (evidence/'leak.txt').symlink_to(private)
+            with self.assertRaisesRegex(ValueError,'artifact_symlink_not_allowed'):
+                scan(evidence,[])
 
     def test_killed_case_is_not_reported_as_a_product_failure(self):
         with tempfile.TemporaryDirectory() as directory:

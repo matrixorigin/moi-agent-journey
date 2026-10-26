@@ -7,6 +7,7 @@ import urllib.parse
 import uuid
 
 from .client import Client, Failure, segment
+from .a2a import final_reply
 
 TERMINAL = {"completed", "failed", "canceled", "rejected"}
 ACTIVE = {"submitted", "working", "input-required", "auth-required"}
@@ -58,14 +59,7 @@ def task_state(task, conversation_id, task_id=None):
 
 
 def assert_reply(task, marker):
-    if task["status"]["state"] != "completed":
-        raise Failure("task_not_completed")
-    message = task["status"].get("message", {})
-    if message.get("role") != "agent":
-        raise Failure("missing_agent_reply")
-    text = "".join(p["text"] for p in message.get("parts", [])
-                   if p.get("kind") == "text" and isinstance(p.get("text"), str))
-    if marker not in text:
+    if marker not in final_reply(task):
         raise Failure("reply_mismatch")
 
 

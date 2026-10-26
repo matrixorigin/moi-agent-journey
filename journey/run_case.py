@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from .catalog import load_case
+from .a2a import final_reply
 from .client import Client, Failure, segment
 from .evidence import Evidence, safe_extract, sha256, utc_now
 from .hello import TERMINAL, discover, task_state
@@ -236,8 +237,7 @@ class Execution:
                 + json.dumps({"CRITERIA": criteria, "INPUTS": inputs, "OUTPUTS": outputs}, ensure_ascii=False))
             cid = self.conversation("judge-" + session["id"])
             _, task = self.send(cid, "judge:" + session["id"], prompt)
-            reply = task["status"].get("message", {})
-            text = "".join(p["text"] for p in reply.get("parts", []) if p.get("kind") == "text")
+            text = final_reply(task)
             try:
                 result = json.loads(text)
                 checks = result["checks"]

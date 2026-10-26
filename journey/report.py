@@ -63,6 +63,8 @@ def scan(directory, secrets):
                     if not member.is_dir():
                         inspect(archive.read(member), depth+1)
     for file in Path(directory).rglob("*"):
+        if file.is_symlink():
+            raise ValueError("artifact_symlink_not_allowed")
         if file.is_file():
             inspect(file.read_bytes())
 
