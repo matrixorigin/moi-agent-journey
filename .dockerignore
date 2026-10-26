@@ -1,0 +1,8 @@
+.git
+work
+results
+downloaded-results
+bundle
+.venv
+__pycache__
+**/__pycache__

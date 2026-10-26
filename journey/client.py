@@ -28,7 +28,7 @@ def segment(value):
 
 
 class Client:
-    def __init__(self, base_url, pat, timeout=180):
+    def __init__(self, base_url, pat, timeout=180, observer=None):
         parsed = urllib.parse.urlsplit(base_url)
         if (parsed.scheme != "https" or not parsed.hostname or parsed.username
                 or parsed.password or parsed.query or parsed.fragment
@@ -39,8 +39,10 @@ class Client:
         self.deadline = time.monotonic() + timeout
         self.opener = urllib.request.build_opener(NoRedirect())
         self.requests = 0
+        self.observer = observer
 
-    def request(self, method, path, body=None):
+    def request(self, method, path, body=None, *, raw=None, content_type=None,
+                binary=False, max_bytes=32_000_000):
         remaining = self.deadline - time.monotonic()
         if remaining <= 0:
             raise Failure("deadline_exceeded")
@@ -49,22 +51,41 @@ class Client:
         if body is not None:
             data = json.dumps(body).encode()
             headers["Content-Type"] = "application/json"
+        if raw is not None:
+            data = raw
+            headers["Content-Type"] = content_type
         req = urllib.request.Request(self.base_url + path, data=data,
                                      headers=headers, method=method)
         self.requests += 1
+        started = time.monotonic()
+        def observe(status, response, response_headers):
+            if self.observer:
+                self.observer({"method": method, "path": path, "request": body,
+                               "status": status, "response": response,
+                               "headers": {k: v for k, v in response_headers.items()
+                                           if k.lower() in {"x-trace-id", "x-request-id", "traceparent"}},
+                               "seconds": round(time.monotonic() - started, 3)})
         try:
             with self.opener.open(req, timeout=remaining) as response:
-                raw = response.read(2_000_001)
+                response_headers = dict(response.headers)
+                status = response.status
+                payload = response.read(max_bytes + 1)
             if time.monotonic() > self.deadline:
                 raise Failure("deadline_exceeded")
-            if len(raw) > 2_000_000:
+            if len(payload) > max_bytes:
                 raise Failure("response_too_large")
-            result = json.loads(raw)
+            if binary:
+                observe(status, {"bytes": len(payload)}, response_headers)
+                return payload
+            result = json.loads(payload)
+            observe(status, result, response_headers)
             if not isinstance(result, dict):
                 raise Failure("invalid_response")
             return result
         except urllib.error.HTTPError as error:
             status = error.code
+            payload = error.read(65536).decode("utf-8", errors="replace")
+            observe(status, {"error_body": payload}, dict(error.headers))
             error.close()
             raise Failure("http_error", status) from None
         except (TimeoutError, socket.timeout):
@@ -95,3 +116,20 @@ class Client:
         if not isinstance(result.get("result"), dict):
             raise Failure("invalid_rpc_response")
         return result["result"]
+
+    def upload(self, root, path):
+        """Use the same private-Catalog upload contract as the product UI."""
+        import mimetypes
+        boundary = "journey-" + uuid.uuid4().hex
+        name = path.name
+        if any(c in name for c in '\r\n"'):
+            raise Failure("invalid_upload_name")
+        mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
+        raw = (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; '
+               f'filename="{name}"\r\nContent-Type: {mime}\r\n\r\n').encode()
+        raw += path.read_bytes() + f"\r\n--{boundary}--\r\n".encode()
+        result = self.request("POST", root + "/catalog-files/uploads", raw=raw,
+                              content_type="multipart/form-data; boundary=" + boundary)
+        if result.get("code") != "OK" or not isinstance(result.get("data"), dict):
+            raise Failure("upload_product_error")
+        return result["data"]

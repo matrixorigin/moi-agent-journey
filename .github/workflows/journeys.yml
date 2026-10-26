@@ -1,0 +1,54 @@
+name: Agent journeys QA
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: agent-journeys-qa
+  cancel-in-progress: false
+jobs:
+  journeys:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        workspace: [journey-1, journey-2, journey-3, journey-4, journey-5]
+    uses: ./.github/workflows/run-journey.yml
+    with:
+      workspace: ${{ matrix.workspace }}
+    secrets: inherit
+  report:
+    needs: journeys
+    if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Download all case evidence
+        id: download
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: case-*
+          merge-multiple: true
+          path: downloaded-results
+      - name: Account for every configured case
+        if: always()
+        run: python3 -m journey.report aggregate
+      - name: Upload consolidated results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: journey-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: bundle/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 6

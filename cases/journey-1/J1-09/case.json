@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "id": "J1-09",
+  "title": "库存安全线与交期约束补货预测",
+  "workspace": "journey-1",
+  "source": {
+    "benchmark": "EvoCowork",
+    "task": "xlsx/cowork-bench-insales-inventory-reorder-forecast",
+    "revision": "73985b35da686daa03e4fbf5996e21abeb6000c7",
+    "instruction_url": "https://github.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/blob/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/xlsx/cowork-bench-insales-inventory-reorder-forecast/instruction.md",
+    "oracle_url": "https://github.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/blob/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/xlsx/cowork-bench-insales-inventory-reorder-forecast/tests/judge.py"
+  },
+  "assets": [
+    {
+      "path": "reorder_policy.pdf",
+      "source_path": "tasks/xlsx/cowork-bench-insales-inventory-reorder-forecast/data/input_files/reorder_policy.pdf",
+      "size_bytes_from_inventory": 38729,
+      "git_blob_oid": "b943dbe28e10a84c30322f5746265bbe2d5eba0e",
+      "url": "https://raw.githubusercontent.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/xlsx/cowork-bench-insales-inventory-reorder-forecast/data/input_files/reorder_policy.pdf",
+      "sha256": "623817dbdd74d876f409f7214ce9acf776bb97a8de4e0da55e9a4ab82bd7b3de",
+      "size_bytes": 38729
+    },
+    {
+      "path": "sales_velocity.xlsx",
+      "source_path": "tasks/xlsx/cowork-bench-insales-inventory-reorder-forecast/data/input_files/sales_velocity.xlsx",
+      "size_bytes_from_inventory": 4907,
+      "git_blob_oid": "769069e3a1eb6a11fed550ce909859f6648ba512",
+      "url": "https://raw.githubusercontent.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/xlsx/cowork-bench-insales-inventory-reorder-forecast/data/input_files/sales_velocity.xlsx",
+      "sha256": "b33eb3f9c2d9d1b12bab4692f89938fe62f84a831996fc11b9549c021a8b7183",
+      "size_bytes": 4907
+    },
+    {
+      "path": "snapshot_date.txt",
+      "source_path": "tasks/xlsx/cowork-bench-insales-inventory-reorder-forecast/data/input_files/snapshot_date.txt",
+      "size_bytes_from_inventory": 11,
+      "git_blob_oid": "22dc279479abea6a9ae72965034656b820e68279",
+      "url": "https://raw.githubusercontent.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/xlsx/cowork-bench-insales-inventory-reorder-forecast/data/input_files/snapshot_date.txt",
+      "sha256": "6dbe997331c8846eb24631dc39833916a796f8cf36236d558e072f185aa3d4e8",
+      "size_bytes": 11
+    },
+    {
+      "path": "store_orders.json",
+      "source_path": "tasks/xlsx/cowork-bench-insales-inventory-reorder-forecast/data/input_files/store_orders.json",
+      "size_bytes_from_inventory": 140011,
+      "git_blob_oid": "b27d3f427200081e7ad7966dc6c089fb0dba91c2",
+      "url": "https://raw.githubusercontent.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/xlsx/cowork-bench-insales-inventory-reorder-forecast/data/input_files/store_orders.json",
+      "sha256": "e34e4f591a4dc04620f8986d2d339f1865c32d1f0fd4ab3c498be6a1b294baa3",
+      "size_bytes": 140011
+    },
+    {
+      "path": "store_products.json",
+      "source_path": "tasks/xlsx/cowork-bench-insales-inventory-reorder-forecast/data/input_files/store_products.json",
+      "size_bytes_from_inventory": 30032,
+      "git_blob_oid": "8816d73d017cc46aa302f0bf9122fa86bf9f36ef",
+      "url": "https://raw.githubusercontent.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/xlsx/cowork-bench-insales-inventory-reorder-forecast/data/input_files/store_products.json",
+      "sha256": "4ef055016ee64285773250bbafb7413ab2c04c6c19a93b2a9d6d31fd2b3124aa",
+      "size_bytes": 30032
+    },
+    {
+      "path": "supplier_lead_times.json",
+      "source_path": "tasks/xlsx/cowork-bench-insales-inventory-reorder-forecast/data/input_files/supplier_lead_times.json",
+      "size_bytes_from_inventory": 236,
+      "git_blob_oid": "80374dcb2ffa1f2c60cec3b118b3c596358086c4",
+      "url": "https://raw.githubusercontent.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/xlsx/cowork-bench-insales-inventory-reorder-forecast/data/input_files/supplier_lead_times.json",
+      "sha256": "19bc0c90c627aa5ef284c0a69cb0d9dbf9521cb4435775aba236330ccaa76f0c",
+      "size_bytes": 236
+    }
+  ],
+  "oracles": [
+    {
+      "path": "judge.py",
+      "url": "https://raw.githubusercontent.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/xlsx/cowork-bench-insales-inventory-reorder-forecast/tests/judge.py",
+      "sha256": "0dbe2fdbb9dbf6c185ff8935ebe060cec0527a88a384a7d616dce69b619aa8e4"
+    }
+  ],
+  "expected_files": [
+    "Inventory_Forecast.xlsx"
+  ],
+  "assertions": [
+    "只统计允许的商品和订单状态，销售区间口径正确",
+    "无销量、安全库存、90 天窗口和交期分支正确",
+    "两张工作表互相对应，日期以固定基准计算；不创建真实日历"
+  ],
+  "dialogue_origin": "upstream_single_task_with_proposed_moi_dialogue_extension",
+  "sessions": [
+    {
+      "id": "office",
+      "turns": [
+        {
+          "phase": "plan",
+          "prompt": "请先阅读本轮材料，核对文件是否齐全，说明你将如何完成下面的任务。先给出计划，等我确认后再修改或生成交付文件。\n\n请阅读 `reorder_policy.pdf`，使用固定商店快照完成库存补货预测，并将最终工作簿保存为：\n\n- `/app/output/Inventory_Forecast.xlsx`\n\n这是 Cowork-Bench `insales-inventory-reorder-forecast` 的离线静态改造版。上游原题需要调用 InSales 和 Google Calendar；本题把同一上游 mock 数据库快照固化为文件，不执行任何外部写操作。\n\n输入文件的责任如下：\n\n- `store_products.json`：上游 `wc.products` 的 82 个产品快照；仅筛选 `status=publish` 且 `current_stock>0` 的产品。\n- `store_orders.json`：上游 `wc.orders` 的 150 个订单快照；销量仅统计 `completed` 和 `processing` 订单的 `line_items`。\n- `supplier_lead_times.json`：供应商品类交付期，按产品第一个品类名精确匹配。\n- `snapshot_date.txt`：固定计算日期 `2026-03-07`，用它代替动态的“今天”。\n- `sales_velocity.xlsx`：上游给定的销售速度表头模板，可作为中间计算参考，不是最终交付物。\n\n按原政策执行以下计算：\n\n- 订单历史天数等于符合状态的最晚订单日期减最早订单日期，不额外加 1。\n- `Avg_Daily_Sales = Total_Sold / Days_Period`，保留 4 位小数。\n- 有效库存为 `max(Current_Stock - 5, 0)`。\n- 无销售历史时，`Days_Until_Safety_Stock` 记为 `999`，且不补货；否则用有效库存除以平均日销量，保留 1 位小数。\n- 有销售历史且距安全库存不超过 90 天时，`Needs_Reorder=Yes`。\n- 补货日期为固定计算日期 + `floor(Days_Until_Safety_Stock)` - 交付期；若结果不晚于计算日期，改为次日。\n\n工作簿必须包含两张可编辑工作表：\n\n- `Stock Analysis`：`Product_ID, Product_Name, Category, Current_Stock, Avg_Daily_Sales, Days_Until_Safety_Stock, Lead_Time, Needs_Reorder, Reorder_Date`；包含全部符合库存条件的产品。\n- `Reorder Schedule`：`Product_Name, Category, Current_Stock, Reorder_Date, Lead_Time_Days`；只包含需要补货的产品。\n\n不需要在真实日历中创建事件；`Reorder Schedule` 就是本离线版的可回放日程交付物。\n"
+        },
+        {
+          "phase": "execute",
+          "prompt": "确认，按刚才的完整要求执行。所有交付物放进你本轮隔离目录的 outputs/，文件名以交付清单为准。不要访问任何参考答案。"
+        },
+        {
+          "phase": "review",
+          "prompt": "请重新打开实际生成的文件，逐项复核以下要求，必要时修正文件，然后发布最终交付包。\n- 只统计允许的商品和订单状态，销售区间口径正确\n- 无销量、安全库存、90 天窗口和交期分支正确\n- 两张工作表互相对应，日期以固定基准计算；不创建真实日历"
+        }
+      ],
+      "expected_files": [
+        "Inventory_Forecast.xlsx"
+      ]
+    }
+  ]
+}

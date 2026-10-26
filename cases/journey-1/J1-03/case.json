@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "J1-03",
+  "title": "PDF 收支台账录入 Word 模板",
+  "workspace": "journey-1",
+  "source": {
+    "benchmark": "OfficeVal",
+    "task": "officeval_036",
+    "revision": "8e19c575b5be64c8a2964a4e28aafb696490c2ae",
+    "instruction_url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/tree/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_036",
+    "oracle_url": "https://github.com/baidu-frontier-research/OmegaUse-OfficeVal/blob/5f3da616ac6a0bc30ca35e9678f8f1eb255bd91a/verifiers/officeval_036_verifier.py"
+  },
+  "assets": [
+    {
+      "path": "Cedarline_Statement_2025DEC_reordered.pdf",
+      "source_path": "task_files/officeval_036/Cedarline_Statement_2025DEC_reordered.pdf",
+      "size_bytes_from_inventory": 6382,
+      "url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/resolve/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_036/Cedarline_Statement_2025DEC_reordered.pdf",
+      "sha256": "34e4e7818a08dfe4adb6a57b3214c3ea62498d6ce09b3e22d27ce41fae70ed0b",
+      "size_bytes": 6382
+    },
+    {
+      "path": "public_ready_statement.docx",
+      "source_path": "task_files/officeval_036/public_ready_statement.docx",
+      "size_bytes_from_inventory": 4302872,
+      "url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/resolve/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_036/public_ready_statement.docx",
+      "sha256": "5293b5f65ef9d8ae4f9e86e9dd1b22da210be638fdd033fbba7a2dce71abdf24",
+      "size_bytes": 4302872
+    }
+  ],
+  "oracles": [
+    {
+      "path": "judge.py",
+      "url": "https://raw.githubusercontent.com/baidu-frontier-research/OmegaUse-OfficeVal/5f3da616ac6a0bc30ca35e9678f8f1eb255bd91a/verifiers/officeval_036_verifier.py",
+      "sha256": "0d336fa72e17a3187ee5300bb812858845fe66d10d616e6534694a1634be283d"
+    }
+  ],
+  "expected_files": [
+    "statement.docx"
+  ],
+  "assertions": [
+    "记录逐笔对应原 PDF，无漏行、重复、金额或日期错位",
+    "保留模板已有记录；行高、列宽、金额格式满足要求",
+    "交付为原生 Word 表格，可继续编辑"
+  ],
+  "dialogue_origin": "upstream_single_task_with_proposed_moi_dialogue_extension",
+  "sessions": [
+    {
+      "id": "office",
+      "turns": [
+        {
+          "phase": "plan",
+          "prompt": "请先阅读本轮材料，核对文件是否齐全，说明你将如何完成下面的任务。先给出计划，等我确认后再修改或生成交付文件。\n\nOrganize the income and expense records from the PDF into the Word document, ensuring that every record row has the same height."
+        },
+        {
+          "phase": "execute",
+          "prompt": "确认，按刚才的完整要求执行。所有交付物放进你本轮隔离目录的 outputs/，文件名以交付清单为准。不要访问任何参考答案。"
+        },
+        {
+          "phase": "review",
+          "prompt": "请重新打开实际生成的文件，逐项复核以下要求，必要时修正文件，然后发布最终交付包。\n- 记录逐笔对应原 PDF，无漏行、重复、金额或日期错位\n- 保留模板已有记录；行高、列宽、金额格式满足要求\n- 交付为原生 Word 表格，可继续编辑"
+        }
+      ],
+      "expected_files": [
+        "statement.docx"
+      ]
+    }
+  ]
+}

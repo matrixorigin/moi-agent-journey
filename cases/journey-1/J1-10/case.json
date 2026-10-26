@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "id": "J1-10",
+  "title": "图片流程图重建为可编辑 PPT",
+  "workspace": "journey-1",
+  "source": {
+    "benchmark": "OfficeVal",
+    "task": "officeval_055",
+    "revision": "8e19c575b5be64c8a2964a4e28aafb696490c2ae",
+    "instruction_url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/tree/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_055",
+    "oracle_url": "https://github.com/baidu-frontier-research/OmegaUse-OfficeVal/blob/5f3da616ac6a0bc30ca35e9678f8f1eb255bd91a/verifiers/officeval_055_verifier.py"
+  },
+  "assets": [
+    {
+      "path": "website_outage_editable_flow .png",
+      "source_path": "task_files/officeval_055/website_outage_editable_flow .png",
+      "size_bytes_from_inventory": 1152360,
+      "url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/resolve/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_055/website_outage_editable_flow%20.png",
+      "sha256": "80bca602124e0cd54203937d2d46817062e7c61849cc05c911e64345be1c6add",
+      "size_bytes": 1152360
+    }
+  ],
+  "oracles": [
+    {
+      "path": "judge.py",
+      "url": "https://raw.githubusercontent.com/baidu-frontier-research/OmegaUse-OfficeVal/5f3da616ac6a0bc30ca35e9678f8f1eb255bd91a/verifiers/officeval_055_verifier.py",
+      "sha256": "1f979805b1a60af8fbc48ed78bd4b83dfc5719742ed9a7adfb82629730ef633c"
+    }
+  ],
+  "expected_files": [
+    "flow.pptx"
+  ],
+  "assertions": [
+    "节点、连接关系和文字对应原图",
+    "完成 assessment→check 及结束节点内容更新",
+    "流程图由原生文本与形状组成，禁止整页图片代替；布局不溢出"
+  ],
+  "dialogue_origin": "upstream_single_task_with_proposed_moi_dialogue_extension",
+  "sessions": [
+    {
+      "id": "office",
+      "turns": [
+        {
+          "phase": "plan",
+          "prompt": "请先阅读本轮材料，核对文件是否齐全，说明你将如何完成下面的任务。先给出计划，等我确认后再修改或生成交付文件。\n\nTurn this image into an editable PPT, not an image.\nAlso make the following adjustments:\n1. Replace the word “assessment” in the second section of the image with “check”.\n2. Replace the content in the “finish” section of the image with The site was back up and stable within 10 minutes, order submissions resumed, and a post-incident review has been scheduled for 4:00 PM this afternoon."
+        },
+        {
+          "phase": "execute",
+          "prompt": "确认，按刚才的完整要求执行。所有交付物放进你本轮隔离目录的 outputs/，文件名以交付清单为准。不要访问任何参考答案。"
+        },
+        {
+          "phase": "review",
+          "prompt": "请重新打开实际生成的文件，逐项复核以下要求，必要时修正文件，然后发布最终交付包。\n- 节点、连接关系和文字对应原图\n- 完成 assessment→check 及结束节点内容更新\n- 流程图由原生文本与形状组成，禁止整页图片代替；布局不溢出"
+        }
+      ],
+      "expected_files": [
+        "flow.pptx"
+      ]
+    }
+  ]
+}

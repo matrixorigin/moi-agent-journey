@@ -1,0 +1,1 @@
+Add a new slide at the end of the PPT and create a table from “Various PPT-Related Data Tables” that matches the tables on the preceding slides. Then add another new slide after the table slide and create a line chart (refer to the preceding slides).

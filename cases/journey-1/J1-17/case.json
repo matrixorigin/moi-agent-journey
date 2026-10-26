@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "id": "J1-17",
+  "title": "两项目采购草稿修订后合并限额计划",
+  "workspace": "journey-1",
+  "source": {
+    "benchmark": "π-Bench",
+    "task": "pharmacist_task_016 + 018 → 019",
+    "revision": "4f545be5d289b28ff022d2904d455007358ed3b7",
+    "instruction_url": "https://github.com/Simplified-Reasoning/Pi-Bench/blob/4f545be5d289b28ff022d2904d455007358ed3b7/data/pharmacist/tasks/pharmacist_task_019/task.yaml",
+    "oracle_url": "https://github.com/Simplified-Reasoning/Pi-Bench/blob/4f545be5d289b28ff022d2904d455007358ed3b7/src/evaluation/checklist_evaluator.py"
+  },
+  "assets": [
+    {
+      "path": "candidate_excipient_pool.csv",
+      "source_path": "data/pharmacist/tasks/pharmacist_task_016/candidate_excipient_pool.csv",
+      "size_bytes_from_inventory": 1043,
+      "git_blob_oid": "d2a5642a60b4abe3b3df8c74be9d780e35c87947",
+      "url": "https://raw.githubusercontent.com/Simplified-Reasoning/Pi-Bench/4f545be5d289b28ff022d2904d455007358ed3b7/data/pharmacist/tasks/pharmacist_task_016/candidate_excipient_pool.csv",
+      "available_from_task": "pharmacist_task_016",
+      "sha256": "e2f98cee4ed6d213c8ddbe3c60e540ea486b308db243ebe8b7c8e118bc757a96",
+      "size_bytes": 1043
+    },
+    {
+      "path": "gel_procurement_draft.csv",
+      "source_path": "data/pharmacist/tasks/pharmacist_task_016/gel_procurement_draft.csv",
+      "size_bytes_from_inventory": 2875,
+      "git_blob_oid": "f814b1a2588fbc9e8992380cea76d8aa9fcd60ca",
+      "url": "https://raw.githubusercontent.com/Simplified-Reasoning/Pi-Bench/4f545be5d289b28ff022d2904d455007358ed3b7/data/pharmacist/tasks/pharmacist_task_016/gel_procurement_draft.csv",
+      "available_from_task": "pharmacist_task_016",
+      "sha256": "301581c0b0c035cb314018b8555785d2874978f5453ec4aab995486776754a7d",
+      "size_bytes": 2875
+    },
+    {
+      "path": "route_assumptions.txt",
+      "source_path": "data/pharmacist/tasks/pharmacist_task_016/route_assumptions.txt",
+      "size_bytes_from_inventory": 768,
+      "git_blob_oid": "983d091af9cae2b66d613c1282c8bf181af19332",
+      "url": "https://raw.githubusercontent.com/Simplified-Reasoning/Pi-Bench/4f545be5d289b28ff022d2904d455007358ed3b7/data/pharmacist/tasks/pharmacist_task_016/route_assumptions.txt",
+      "available_from_task": "pharmacist_task_016",
+      "sha256": "ceb218771e70f02cd37fde5dbbf919a717893be5d9fadc592bd3cebdace671a0",
+      "size_bytes": 768
+    },
+    {
+      "path": "supplier_notes.md",
+      "source_path": "data/pharmacist/tasks/pharmacist_task_016/supplier_notes.md",
+      "size_bytes_from_inventory": 954,
+      "git_blob_oid": "92520ee9a4a601333782c816b8edd416e334e61b",
+      "url": "https://raw.githubusercontent.com/Simplified-Reasoning/Pi-Bench/4f545be5d289b28ff022d2904d455007358ed3b7/data/pharmacist/tasks/pharmacist_task_016/supplier_notes.md",
+      "available_from_task": "pharmacist_task_016",
+      "sha256": "9f0e2e83c2e76dc6946b9b13f0a1e3c748f008372e25ea5dd947143120df1e96",
+      "size_bytes": 954
+    },
+    {
+      "path": "inventory_checklist.md",
+      "source_path": "data/pharmacist/tasks/pharmacist_task_018/inventory_checklist.md",
+      "size_bytes_from_inventory": 1066,
+      "git_blob_oid": "a1d079a7f9ff173d88eca8ca80e46c46b3748f40",
+      "url": "https://raw.githubusercontent.com/Simplified-Reasoning/Pi-Bench/4f545be5d289b28ff022d2904d455007358ed3b7/data/pharmacist/tasks/pharmacist_task_018/inventory_checklist.md",
+      "available_from_task": "pharmacist_task_018",
+      "sha256": "86af6e751ade009608523f94b42da4705a81e5bdd3d424aea6fe60703948d25b",
+      "size_bytes": 1066
+    },
+    {
+      "path": "missing_reagents.csv",
+      "source_path": "data/pharmacist/tasks/pharmacist_task_018/missing_reagents.csv",
+      "size_bytes_from_inventory": 1399,
+      "git_blob_oid": "ea87f0908001d17f2ffcbf86e13c66ba9d74acce",
+      "url": "https://raw.githubusercontent.com/Simplified-Reasoning/Pi-Bench/4f545be5d289b28ff022d2904d455007358ed3b7/data/pharmacist/tasks/pharmacist_task_018/missing_reagents.csv",
+      "available_from_task": "pharmacist_task_018",
+      "sha256": "4b2e04d66b50bf8f16423f2425b406ae58d8678dd1a843cc917a46294aab49d1",
+      "size_bytes": 1399
+    },
+    {
+      "path": "next_week_experiment_plan.txt",
+      "source_path": "data/pharmacist/tasks/pharmacist_task_018/next_week_experiment_plan.txt",
+      "size_bytes_from_inventory": 779,
+      "git_blob_oid": "da1266641566d175ae5c1bed892ef47fc9e4d64f",
+      "url": "https://raw.githubusercontent.com/Simplified-Reasoning/Pi-Bench/4f545be5d289b28ff022d2904d455007358ed3b7/data/pharmacist/tasks/pharmacist_task_018/next_week_experiment_plan.txt",
+      "available_from_task": "pharmacist_task_018",
+      "sha256": "589d7265f4aa07b0b34364285eb07d9a10299c51e76bb604922bc2ea20e9a5e1",
+      "size_bytes": 779
+    },
+    {
+      "path": "qpcr_procurement_draft.csv",
+      "source_path": "data/pharmacist/tasks/pharmacist_task_018/qpcr_procurement_draft.csv",
+      "size_bytes_from_inventory": 3804,
+      "git_blob_oid": "bea58aca433416f2d7eadfce3eb1bbfe655a7b9e",
+      "url": "https://raw.githubusercontent.com/Simplified-Reasoning/Pi-Bench/4f545be5d289b28ff022d2904d455007358ed3b7/data/pharmacist/tasks/pharmacist_task_018/qpcr_procurement_draft.csv",
+      "available_from_task": "pharmacist_task_018",
+      "sha256": "aadb1700d2d9ef066d6006d5c68e2e6c239c7e905178d42bf092cfbaeb86fb55",
+      "size_bytes": 3804
+    },
+    {
+      "path": "confirmation_note.md",
+      "source_path": "data/pharmacist/tasks/pharmacist_task_019/confirmation_note.md",
+      "size_bytes_from_inventory": 834,
+      "git_blob_oid": "a0ab94a0ef18cfad4b64ce468ce93b6aed814d23",
+      "url": "https://raw.githubusercontent.com/Simplified-Reasoning/Pi-Bench/4f545be5d289b28ff022d2904d455007358ed3b7/data/pharmacist/tasks/pharmacist_task_019/confirmation_note.md",
+      "available_from_task": "pharmacist_task_019",
+      "sha256": "fb0f88b7884f3265f1be03973b530c12bf57ab31bca097f2d77a773f77e39063",
+      "size_bytes": 834
+    },
+    {
+      "path": "gel_procurement_reference.csv",
+      "source_path": "data/pharmacist/tasks/pharmacist_task_019/gel_procurement_reference.csv",
+      "size_bytes_from_inventory": 1172,
+      "git_blob_oid": "b34c3b6d9158ee208ab9684301e455644a356781",
+      "url": "https://raw.githubusercontent.com/Simplified-Reasoning/Pi-Bench/4f545be5d289b28ff022d2904d455007358ed3b7/data/pharmacist/tasks/pharmacist_task_019/gel_procurement_reference.csv",
+      "available_from_task": "pharmacist_task_019",
+      "sha256": "99f7b4c5448df884cb60ddd1cd010b89c6716c5f59cb80d001bfe21d08531edf",
+      "size_bytes": 1172
+    },
+    {
+      "path": "merged_procurement_plan.json",
+      "source_path": "data/pharmacist/tasks/pharmacist_task_019/merged_procurement_plan.json",
+      "size_bytes_from_inventory": 18968,
+      "git_blob_oid": "361eaed8e38e37e89bb4f2de1aef219a0d222ff9",
+      "url": "https://raw.githubusercontent.com/Simplified-Reasoning/Pi-Bench/4f545be5d289b28ff022d2904d455007358ed3b7/data/pharmacist/tasks/pharmacist_task_019/merged_procurement_plan.json",
+      "available_from_task": "pharmacist_task_019",
+      "sha256": "e24ad4e0711ae97770c050057158686cca83f0efc2aa7079f92649f706699c67",
+      "size_bytes": 18968
+    },
+    {
+      "path": "qpcr_procurement_reference.csv",
+      "source_path": "data/pharmacist/tasks/pharmacist_task_019/qpcr_procurement_reference.csv",
+      "size_bytes_from_inventory": 878,
+      "git_blob_oid": "7d8a052566013cb783f5d0f94ea6e2900c7a879a",
+      "url": "https://raw.githubusercontent.com/Simplified-Reasoning/Pi-Bench/4f545be5d289b28ff022d2904d455007358ed3b7/data/pharmacist/tasks/pharmacist_task_019/qpcr_procurement_reference.csv",
+      "available_from_task": "pharmacist_task_019",
+      "sha256": "150c6117198c49a0b1deb64fc02e8f59afa5bf750a7f52d728ff211902f68164",
+      "size_bytes": 878
+    },
+    {
+      "path": "triage_constraints.json",
+      "source_path": "data/pharmacist/tasks/pharmacist_task_019/triage_constraints.json",
+      "size_bytes_from_inventory": 3273,
+      "git_blob_oid": "e4bb03bef14dccd05b0a96083f1a29cc00030898",
+      "url": "https://raw.githubusercontent.com/Simplified-Reasoning/Pi-Bench/4f545be5d289b28ff022d2904d455007358ed3b7/data/pharmacist/tasks/pharmacist_task_019/triage_constraints.json",
+      "available_from_task": "pharmacist_task_019",
+      "sha256": "d99c3e5498cb3000b678a6f813143d0cf5214717c7211816708403d80ba3df01",
+      "size_bytes": 3273
+    },
+    {
+      "path": "triage_rules.md",
+      "source_path": "data/pharmacist/tasks/pharmacist_task_019/triage_rules.md",
+      "size_bytes_from_inventory": 1840,
+      "git_blob_oid": "cea827a131b0c63de0b5091c9124a57c631bbdad",
+      "url": "https://raw.githubusercontent.com/Simplified-Reasoning/Pi-Bench/4f545be5d289b28ff022d2904d455007358ed3b7/data/pharmacist/tasks/pharmacist_task_019/triage_rules.md",
+      "available_from_task": "pharmacist_task_019",
+      "sha256": "b0db89a6ae4351a2e4671496cdbfc86f1be8e2cab68c6fcbfb288f38c3c15044",
+      "size_bytes": 1840
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "gel_procurement_draft.csv",
+    "qpcr_procurement_draft.csv",
+    "merged_procurement_plan.json"
+  ],
+  "assertions": [
+    "先分别修订两项目草稿，再处理八个立即采购名额",
+    "阻塞实验项优先，重复物料和备选项不挤占名额",
+    "合并 JSON 可解析，立即/延期/待确认决策清晰；原题 reference CSV 与前轮真实成果分别记录"
+  ],
+  "dialogue_origin": "native_multi_session_chain",
+  "sessions": [
+    {
+      "id": "pharmacist_task_016",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "First read `candidate_excipient_pool.csv`, `supplier_notes.md`, `route_assumptions.txt`, and `gel_procurement_draft.csv` in the current task directory; if anything is missing, say so first. Then revise the current procurement draft instead of starting from zero. Please update `gel_procurement_draft.csv` and briefly summarize what you changed after you finish."
+        }
+      ],
+      "rubric": [
+        "Treat `gel_procurement_draft.csv` as a flawed draft to be corrected rather than as a trusted order sheet.",
+        "First organize the list around the candidate pool, supplier notes, and route assumptions in the directory, and do not invent an oversized list detached from the current inputs.",
+        "Keep a comparison-friendly organization style instead of throwing out a raw list of shopping nouns.",
+        "Distinguish what should be bought now from what can wait until the formulation route is clearer.",
+        "Add a separate place for items that should be deferred for heavy purchasing or should not have the specification locked yet, rather than only using an immediate versus later split.",
+        "If the specification, route fit, or use case is still uncertain, mark the item as to be confirmed directly.",
+        "Correct any draft tendency to buy packaging-like or route-tightly-bound items too early.",
+        "Suggest the version that makes the most sense as the default first-round procurement plan and explain what problem each category is mainly meant to solve."
+      ],
+      "expected_files": [
+        "gel_procurement_draft.csv"
+      ]
+    },
+    {
+      "id": "pharmacist_task_018",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "First read `inventory_checklist.md`, `missing_reagents.csv`, `next_week_experiment_plan.txt`, and `qpcr_procurement_draft.csv` in the current task directory; if anything is missing, say so first. Then revise the current procurement draft instead of starting from zero. Please update `qpcr_procurement_draft.csv` and briefly summarize what you changed after you finish."
+        }
+      ],
+      "rubric": [
+        "Treat `qpcr_procurement_draft.csv` as a flawed draft to be corrected rather than as a trusted procurement sheet.",
+        "First infer the procurement gaps from the inventory, missing-item table, and next week's schedule, and do not generate a generic list of common consumables detached from the current inputs.",
+        "Organize the items by experiment step or function instead of piling together supplies from unrelated stages.",
+        "Rank first by what will block next week's schedule most seriously, and only then give the complete grouping; do not rank only by product category.",
+        "Distinguish must-buy items from backup items.",
+        "Directly flag omissions that could affect controls, replicates, or result interpretation.",
+        "Separate things that are substitutable from things that should not be substituted casually.",
+        "Correct any draft tendency to rank by category instead of by blocker severity.",
+        "Give a more convenient default procurement order."
+      ],
+      "expected_files": [
+        "qpcr_procurement_draft.csv"
+      ]
+    },
+    {
+      "id": "pharmacist_task_019",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "First read `gel_procurement_reference.csv`, `qpcr_procurement_reference.csv`, `triage_rules.md`, `triage_constraints.json`, `confirmation_note.md`, and `merged_procurement_plan.json` in the current task directory; if anything is missing, say so first. Then revise `merged_procurement_plan.json` rather than starting from zero, and keep it valid JSON. The revised JSON should use separated fields for `primary_procurement_move`, `immediate_slots`, `next_wave_gel_basics`, `conditional_backup_lab_support`, `deferred_route_tied_confirmation`, `confirmation_action`, `fallback_if_no_reply`, and `draft_corrections`. In your final reply, use exactly these blocks in this order: `Primary Procurement Move`, `Immediate Slot Allocation`, `Merged Decision Table`, `Confirmation Needed`, `Deferred On Purpose`, `Fallback If No Reply`, `Draft Corrections`. The `Immediate Slot Allocation` block must be a markdown table with columns `Slot | Item | Strand | Why It Earns Immediate Slot`, and the `Merged Decision Table` must be a markdown table with columns `Bucket | Items | Reason`.\n\n\nMOI 跨会话扩展：请实际读取 prior_outputs/ 中前两轮的真实成果。额外交付 source_lineage.json，格式为 {\"sources\":[{\"session_id\":\"前轮会话任务名\",\"path\":\"前轮文件名\",\"sha256\":\"实际读取文件的 SHA256\"}]}。引用原题 reference 文件时，应与前轮真实成果区分；本轮方案必须使用前轮真实成果。"
+        }
+      ],
+      "rubric": [
+        "Carry forward both upstream procurement artifacts instead of writing a fresh generic shopping list.",
+        "Put qPCR / cell blockers first because they can break the next experiment.",
+        "Apply the eight-slot immediate-order cap instead of expanding the immediate bucket until every useful item is included.",
+        "Keep carbomer-baseline gel pilot items available, but do not let final packaging, preservative, alternative-route items, backup cell-culture items, or ambiguous duplicate filter needs enter the immediate purchase bucket.",
+        "Treat `merged_procurement_plan.json` as a flawed draft to repair, not as a trusted plan and not as a file to ignore.",
+        "Correct the draft's packaging-first, universal-cart, duplicated-filter, backup-as-immediate, and route-tied-buy-now tendencies.",
+        "Use one concise confirmation action to resolve the few decisions that change purchasing, instead of asking every open question.",
+        "Keep packaging, preservative, alternative gel-base choices, and capacity-limited next-wave basics intentionally deferred unless confirmation changes the plan.",
+        "Preserve progress if no reply arrives by ordering the exact eight-slot plan instead of waiting for confirmation before ordering everything.",
+        "The final reply must contain the seven required top-level blocks in this exact order: `Primary Procurement Move`, `Immediate Slot Allocation`, `Merged Decision Table`, `Confirmation Needed`, `Deferred On Purpose`, `Fallback If No Reply`, and `Draft Corrections`. A trailing completion marker such as `Complete` is acceptable, but extra analytical sections are not.",
+        "The `Primary Procurement Move` block must state that the first move is a capped eight-slot order led by qPCR / cell blockers, explain that the next qPCR run or CCK-8 / 96-well viability screen would be blocked if those items are delayed, and explicitly reject the draft's packaging-first or buy-everything-first approach.",
+        "The `Immediate Slot Allocation` block must be a markdown table with exactly these columns in this order: `Slot | Item | Strand | Why It Earns Immediate Slot`. It must contain exactly 8 item rows, not 7 or 9+, and the slots must be numbered 1 through 8.",
+        "The exact five qPCR / cell immediate-slot items must be `Target-gene primers`, `Sealing film`, `RNase-free filter tips`, `CCK-8 reagent`, and `96-well cell plates`. These five must all appear in `Immediate Slot Allocation`, and `FBS`, `Trypsin`, and `0.22 um sterile filter` must not appear there as immediate-slot items.",
+        "The exact three gel immediate-slot items must be `Carbomer 940`, `Triethanolamine`, and `Propylene Glycol`. These three must appear in `Immediate Slot Allocation`, and `Glycerin`, `Disodium EDTA / Citric Acid` or `EDTA / Citric Acid`, `0.22 um filter`, and `Spatula and Ointment Jar` must not appear there as immediate-slot items.",
+        "The `Merged Decision Table` block must be a markdown table with exactly these columns in this order: `Bucket | Items | Reason`. It must include at least four distinct buckets: `Immediate 8-slot order`, `Next-wave gel basics`, `Conditional / backup lab support`, and `Deferred route-tied confirmation` or wording with the same four meanings.",
+        "The `Merged Decision Table` or `Deferred On Purpose` block must keep `Aluminum Tube`, `Airless Pump Bottle`, `Phenoxyethanol` or `preservative system`, and `Hydroxyethyl Cellulose` out of immediate buy-now status, and must place them in deferred or confirmation-only logic.",
+        "The `Confirmation Needed` block must give exactly one concise confirmation action that covers all three decisions: whether the top qPCR / cell blockers are the five immediate-slot blockers or should be reprioritized, whether carbomer baseline remains the default gel route, and whether next-wave gel basics plus packaging / preservative decisions should stay postponed. It must not ask every open question or ask for a full procurement meeting.",
+        "The `Deferred On Purpose` block must explain both types of deferral: at least two route-tied deferrals from `Aluminum Tube`, `Airless Pump Bottle`, `Phenoxyethanol`, `preservative system`, `Hydroxyethyl Cellulose`, or `alternative gel base`, and at least one capacity-limited non-route deferral from `Glycerin`, `Disodium EDTA / Citric Acid`, `EDTA / Citric Acid`, `0.22 um filter`, `0.22 um sterile filter`, `Spatula and Ointment Jar`, `FBS`, or `Trypsin`.",
+        "The reply must explicitly resolve the duplicate-filter trap: it must state that `0.22 um filter` / `0.22 um sterile filter` should not be counted as two separate immediate buys, and it must place the filter need in next-wave, conditional, or confirmation logic rather than in `Immediate Slot Allocation`.",
+        "The `Fallback If No Reply` block must say not to freeze the plan: proceed with the exact eight immediate slots (`Target-gene primers`, `Sealing film`, `RNase-free filter tips`, `CCK-8 reagent`, `96-well cell plates`, `Carbomer 940`, `Triethanolamine`, and `Propylene Glycol`) while keeping backup culture items, next-wave gel basics, packaging, preservative, and alternative-route choices deferred.",
+        "The `Draft Corrections` block must identify at least four repaired mistakes from the flawed JSON draft, including `packaging first`, `universal purchase bucket` or `buy everything at once`, `preservative treated as buy-now`, and either `FBS / Trypsin / filter treated as immediate despite the slot cap`, `empty deferred or confirmation bucket`, or `wait for reply before ordering everything`."
+      ],
+      "expected_files": [
+        "merged_procurement_plan.json",
+        "source_lineage.json"
+      ]
+    }
+  ],
+  "adaptation_note": "保留上游任务与语义判据；MOI 扩展使用独立会话、真实产物传递和 source_lineage.json 字节溯源。"
+}

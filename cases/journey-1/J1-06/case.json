@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "id": "J1-06",
+  "title": "60 个异构子表汇总到总表",
+  "workspace": "journey-1",
+  "source": {
+    "benchmark": "OfficeVal",
+    "task": "officeval_090",
+    "revision": "8e19c575b5be64c8a2964a4e28aafb696490c2ae",
+    "instruction_url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/tree/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_090",
+    "oracle_url": "https://github.com/baidu-frontier-research/OmegaUse-OfficeVal/blob/5f3da616ac6a0bc30ca35e9678f8f1eb255bd91a/verifiers/officeval_090_verifier.py"
+  },
+  "assets": [
+    {
+      "path": "子表数据提取到汇总表.xlsx",
+      "source_path": "task_files/officeval_090/子表数据提取到汇总表.xlsx",
+      "size_bytes_from_inventory": 255288,
+      "url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/resolve/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_090/%E5%AD%90%E8%A1%A8%E6%95%B0%E6%8D%AE%E6%8F%90%E5%8F%96%E5%88%B0%E6%B1%87%E6%80%BB%E8%A1%A8.xlsx",
+      "sha256": "fad1409b1b0d8cb9f7ef08a482d1c2102eef277b6ca0a68753e9b88ad2bc12ed",
+      "size_bytes": 255288
+    }
+  ],
+  "oracles": [
+    {
+      "path": "judge.py",
+      "url": "https://raw.githubusercontent.com/baidu-frontier-research/OmegaUse-OfficeVal/5f3da616ac6a0bc30ca35e9678f8f1eb255bd91a/verifiers/officeval_090_verifier.py",
+      "sha256": "5624ac6ffb8f1343f2b49d91a6fec2f389fe610e90ecfed17ee2df7876259ffa"
+    }
+  ],
+  "expected_files": [
+    "summary.xlsx"
+  ],
+  "assertions": [
+    "每个真实子表恰对应一行，不能补出不存在的 Sheet11",
+    "区分混凝土体积、重量、明细重量与合计，不固定取错位置",
+    "保留非目标表内容、数值精度和汇总公式"
+  ],
+  "dialogue_origin": "upstream_single_task_with_proposed_moi_dialogue_extension",
+  "sessions": [
+    {
+      "id": "office",
+      "turns": [
+        {
+          "phase": "plan",
+          "prompt": "请先阅读本轮材料，核对文件是否齐全，说明你将如何完成下面的任务。先给出计划，等我确认后再修改或生成交付文件。\n\nExtract the total weight sums and concrete volume data from all individual worksheets into the Summary worksheet."
+        },
+        {
+          "phase": "execute",
+          "prompt": "确认，按刚才的完整要求执行。所有交付物放进你本轮隔离目录的 outputs/，文件名以交付清单为准。不要访问任何参考答案。"
+        },
+        {
+          "phase": "review",
+          "prompt": "请重新打开实际生成的文件，逐项复核以下要求，必要时修正文件，然后发布最终交付包。\n- 每个真实子表恰对应一行，不能补出不存在的 Sheet11\n- 区分混凝土体积、重量、明细重量与合计，不固定取错位置\n- 保留非目标表内容、数值精度和汇总公式"
+        }
+      ],
+      "expected_files": [
+        "summary.xlsx"
+      ]
+    }
+  ]
+}
