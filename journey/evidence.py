@@ -9,6 +9,8 @@ from pathlib import Path
 
 TOKEN_PATTERN=re.compile(r"\b(?:sk-(?:uca-v1-|sa-v1-)?[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{16,}|eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)")
 TOKEN_BYTES=re.compile(TOKEN_PATTERN.pattern.encode('ascii'))
+SENSITIVE_KEY=re.compile(r'(?:authorization|cookie|setcookie|apikey|token|clientsecret|password|secret)$', re.I)
+SHELL_SECRET=re.compile(r'''(?i)(\b(?:[a-z][a-z0-9_]*_)?(?:api_key|access_token|refresh_token|token|client_secret|password|secret)\s*=\s*|--(?:api[-_]?key|access[-_]?token|refresh[-_]?token|token|client[-_]?secret|password|secret)(?:=|\s+))(?:"[^"]*"|'[^']*'|[^\s;&]+)''')
 
 def utc_now():
     return datetime.now(timezone.utc).isoformat()
@@ -31,15 +33,16 @@ class Evidence:
                 value = value.replace(form, "[REDACTED]")
         value = TOKEN_PATTERN.sub("[REDACTED]",value)
         value = re.sub(r"(?i)(Bearer\s+)[A-Za-z0-9._~+/=-]+", r"\1[REDACTED]", value)
+        value = re.sub(r"(?i)(Authorization\s*:\s*Basic\s+)[A-Za-z0-9._~+/=-]+", r"\1[REDACTED]", value)
         value = re.sub(r'(?i)(["\'](?:access_token|refresh_token|api_key|client_secret|password)["\']\s*:\s*["\'])[^"\']*', r'\1[REDACTED]', value)
         value = re.sub(r"(?i)([?&](?:token|access_token|api_key|key|sig|signature|x-amz-signature|x-amz-credential|x-amz-security-token|x-goog-signature|x-goog-credential|credential|secret)=)[^&\s\"<>]+", r"\1[REDACTED]", value)
+        value = SHELL_SECRET.sub(r'\1[REDACTED]', value)
         return value
 
     def clean(self, value):
         if isinstance(value, dict):
-            return {k: "[REDACTED]" if re.fullmatch(
-                r"authorization|cookie|set-cookie|x-api-key|api[_-]?key|token|(?:access|refresh|id)[_-]?token|client[_-]?secret|password",
-                k, re.I) else self.clean(v) for k, v in value.items()}
+            return {k: "[REDACTED]" if (re.fullmatch(r'token|id[_-]?token', k, re.I) or
+                    SENSITIVE_KEY.search(re.sub(r'[_\-.]', '', k))) else self.clean(v) for k, v in value.items()}
         if isinstance(value, list):
             return [self.clean(v) for v in value]
         return self.text(value) if isinstance(value, str) else value

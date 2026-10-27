@@ -4,17 +4,29 @@ import csv
 import hashlib
 import io
 import json
+import math
 import os
 import re
 import shutil
+import statistics
 import zipfile
+from collections import Counter, defaultdict
 from pathlib import Path
 
 from .catalog import ROOT, load_case
-from .diagnostics import observed_tool_errors
+from .diagnostics import analyze_events, success_rate
 from .evidence import Evidence, utc_now,TOKEN_BYTES
+from .outcomes import assess
 
 FINAL = {"passed", "failed", "timeout", "error"}
+AGENT_LABELS = {'completed': '请求正常结束', 'abnormal': '请求异常', 'timeout': '超时', 'unknown': '无法确认'}
+TASK_LABELS = {'completed': '正常结束并交付', 'abnormal': '非正常结束', 'timeout': '超时',
+               'not_delivered': '未正常交付', 'unknown': '无法确认'}
+DELIVERY_LABELS = {'delivered': '已交付', 'partial': '部分交付', 'not_delivered': '未交付',
+                   'incomplete': '交付不完整', 'ambiguous': '交付对象不明确', 'unknown': '无法确认'}
+TEST_LABELS = {'completed': '正常完成', 'error': '执行、验收或取证出错'}
+QUALITY_REASONS = {'validator_error': '验收器异常', 'not_evaluated': '尚未完成验收',
+                   'no_validated_delivery': '没有完整可验收的交付'}
 
 
 def cell(value, limit=1000):
@@ -22,24 +34,53 @@ def cell(value, limit=1000):
     return value if len(value) <= limit else value[:limit] + '…（完整内容见 result.json）'
 
 
+def _unavailable_tools():
+    return {'state': 'unavailable', 'metrics': None, 'errors': [], 'judge_errors': [], 'runtime_sessions': {}}
+
+
 def case_summary(result):
-    status = result['status']
-    labels = {'passed': '通过', 'failed': '未通过', 'timeout': '超时', 'error': '未得出判定'}
-    verdict = labels[status]
-    if result['harness_status'] == 'error':
-        verdict = '无法确认：执行、验收或取证出错'
+    test_status = TEST_LABELS[result['test_status']]
+    agent, delivery, quality, tools = (result[key] for key in ('agent', 'delivery', 'quality', 'tools'))
     lines = [f"# {cell(result['case_id'])} {cell(result['title'])}", '',
-             f"**结果：{verdict}**", '',
-             f"- 任务结果：`{status}`；执行/取证状态：`{result['harness_status']}`。",
+             f"**测试框架：{test_status}**", '',
+             f"- 任务结果：{TASK_LABELS[result['task']['state']]}。",
+             f"- 智能体：{AGENT_LABELS[agent['state']]}；完成请求轮次 {agent['completed_turns']}/{agent['expected_turns']}。",
+             f"- 交付：{DELIVERY_LABELS[delivery['state']]}；完成会话交付 {delivery['completed_sessions']}/{delivery['expected_sessions']}。",
              f"- 工作区：{cell(result['workspace'])}。",
-             f"- 任务耗时：{cell(result.get('task_seconds'))} 秒；准备、QA 和验收合计：{cell(result.get('total_seconds'))} 秒。"]
-    checks = result.get('validation', {}).get('checks', [])
-    if checks:
-        lines.append(f"- 验收项：通过 {sum(bool(item.get('passed')) for item in checks)}/{len(checks)}。")
+             f"- 端到端任务耗时：{cell(result.get('task_seconds'))} 秒；准备、QA、验收和清理合计：{cell(result.get('total_seconds'))} 秒。",
+             f"- 语义评审耗时：{cell(result.get('semantic_judge_seconds'))} 秒；不计入端到端任务耗时。"]
+    if quality['state'] in {'checked', 'partial'}:
+        qualifier = '部分检查（验收器异常）' if quality['state'] == 'partial' else '检查'
+        lines.append(f"- 交付质量：{qualifier}通过 {quality['passed_checks']}/{quality['total_checks']}，"
+                     f"未通过 {len(quality['failed_checks'])} 项；判据仍需结合证据复核。")
+    else:
+        lines.append(f"- 交付质量：无法评价（{cell(QUALITY_REASONS.get(quality.get('reason'), quality.get('reason')))}）。")
+    if tools['state'] == 'available':
+        metrics = tools['metrics']
+        denominator = metrics['succeeded'] + metrics['failed']
+        rate = f"{metrics['success_rate']:.1%}" if metrics['success_rate'] is not None else '不可计算'
+        lines.append(f"- 工具：识别到 {metrics['calls']} 次调用、{metrics['tool_rounds']} 个可识别轮次；"
+                     f"成功 {metrics['succeeded']}、失败 {metrics['failed']}、跳过 {metrics['skipped']}、"
+                     f"结果不明确 {metrics['unknown']}。调用成功率 {rate}（{metrics['succeeded']}/{denominator}）。")
+        if metrics['round_unmapped_calls']:
+            lines.append(f"- 其中 {metrics['round_unmapped_calls']} 次调用无法关联到模型轮次。")
+        if metrics['unidentified_events']:
+            lines.append(f"- {metrics['unidentified_events']} 条工具事件缺少调用 ID，无法准确去重计数。")
+        if not tools['complete']:
+            lines.append('- 工具统计仅基于已采集到的部分事件。')
+        lines.append('- 调用成功率依据公开事件中的执行状态；跳过及结果不明确的调用不计入分母，不代表工具结果的业务正确性。')
+        if metrics['by_tool']:
+            lines += ['', '| 工具 | 调用 | 成功 | 失败 | 跳过 | 不明确 | 成功率 |', '|---|---:|---:|---:|---:|---:|---:|']
+            for item in metrics['by_tool']:
+                item_rate = f"{item['success_rate']:.1%}" if item['success_rate'] is not None else '—'
+                lines.append(f"| {cell(item['tool'])} | {item['calls']} | {item['succeeded']} | {item['failed']} | "
+                             f"{item['skipped']} | {item['unknown']} | {item_rate} |")
+    else:
+        lines.append('- 工具：没有可用的事件数据。')
     failures = result.get('failures', [])
     errors = result.get('harness_errors', [])
     if failures or errors:
-        lines += ['', '## 不通过或错误原因', '']
+        lines += ['', '## 任务和测试框架事件', '']
         for kind, items in [('任务', failures), ('执行/验收/取证', errors)]:
             for item in items:
                 detail = item.get('details')
@@ -47,25 +88,47 @@ def case_summary(result):
                     detail = json.dumps(detail, ensure_ascii=False)
                 suffix = f"；详情：{cell(detail)}" if detail else ''
                 lines.append(f"- {kind} / {cell(item.get('stage'))}：{cell(item.get('reason'))}{suffix}")
-    checks = result.get('validation', {}).get('failed_checks', [])
+    checks = quality.get('failed_checks', [])
     if checks:
         lines += ['', f"## 未通过的验收项（{len(checks)} 项）", '']
-        for check in checks[:20]:
-            lines.append(f"- {cell(check.get('session'))} / {cell(check.get('rule'))}：{cell(check.get('detail'))}")
-        if len(checks) > 20:
-            lines.append(f"- 其余 {len(checks) - 20} 项见 result.json。")
+        for check in checks:
+            detail = check.get('detail') or '验收器未提供具体原因，需结合原始产物复核'
+            lines.append(f"- {cell(check.get('session'))} / {cell(check.get('rule'))}：{cell(detail)}")
     tasks = result.get('tasks', [])
-    if tasks:
-        lines += ['', '## 任务与 trace', '', '| 阶段 | Task ID | Trace ID | 事件数 |', '|---|---|---|---:|']
+    conversations = result.get('conversations', [])
+    if tasks or conversations:
+        lines += ['', '## 会话与 trace', '',
+                  '| 阶段 | MOI 会话 ID | Task ID | Trace ID | 运行时 Session ID | 耗时（秒） |',
+                  '|---|---|---|---|---|---:|']
         for task in tasks:
-            lines.append(f"| {cell(task.get('phase'))} | {cell(task.get('task_id'))} | {cell(task.get('trace_id'))} | {cell(task.get('event_count'))} |")
+            session = tools.get('runtime_sessions', {}).get(task.get('task_id'), {})
+            runtime_ids = ', '.join(session.get('ids', [])) or ('接口已脱敏' if session.get('redacted') else '未获取')
+            lines.append(f"| {cell(task.get('phase'))} | {cell(task.get('conversation_id'))} | "
+                         f"{cell(task.get('task_id'))} | {cell(task.get('trace_id'))} | "
+                         f"{cell(runtime_ids)} | {cell(task.get('seconds'))} |")
+        task_conversations = {task.get('conversation_id') for task in tasks}
+        for conversation in conversations:
+            if conversation.get('id') not in task_conversations:
+                lines.append(f"| {cell(conversation.get('purpose'))} | {cell(conversation.get('id'))} | "
+                             '未获取 | 未获取 | 未获取 | — |')
         lines += ['', f"事件与 trace 采集完整：{'是' if result.get('capture_complete') else '否'}。"]
-    observed = result.get('observed_tool_errors', [])
-    if observed:
-        lines += ['', f"运行中观察到 {len(observed)} 条工具错误；这不一定是最终失败原因，详见 result.json 和 events.jsonl。"]
+    else:
+        lines += ['', '## 会话与 trace', '', '未获取会话或 trace ID。']
+    for label, observed in [('智能体', tools.get('errors', [])), ('评审', tools.get('judge_errors', []))]:
+        if not observed:
+            continue
+        lines += ['', f"## {label}工具错误（{len(observed)} 次调用）", '',
+                  '| 阶段 | 工具 | 参数 | 错误 | 事件序号 |', '|---|---|---|---|---|']
+        for call in observed:
+            args = json.dumps(call.get('arguments'), ensure_ascii=False) if call.get('arguments') is not None else '未获取'
+            details = '; '.join(str(item.get('code') or item.get('kind')) + ': ' + str(item.get('detail') or '')
+                                for item in call['errors'])
+            lines.append(f"| {cell(call.get('phase'))} | {cell(call.get('tool'))} | {cell(args)} | "
+                         f"{cell(details)} | {cell(', '.join(map(str, call['seqs'])))} |")
+        lines += ['', '表中参数和错误可能截断；原始已脱敏事件见 events.jsonl。']
     lines += ['', '完整判词、逐轮事件与产物见本 case artifact 中的 result.json、events.jsonl 和其他证据文件；'
               '公开包中被隔离的文件见 publication.json。', '',
-              '通过与否反映当前验收判据，需结合判词和证据复核。', '']
+              '智能体问题和质量检查不改变测试框架状态；质量判据需结合原始证据复核。', '']
     return '\n'.join(lines)
 
 
@@ -75,6 +138,12 @@ def finish_case(case_id, directory):
     path = evidence.root / "result.json"
     if path.exists():
         result = json.loads(path.read_text())
+        if ('status' not in result and result.get('case_id') == case_id and
+                result.get('workspace') == case['workspace'] and _valid_case_result(result)):
+            result = evidence.clean(result)
+            evidence.write('result.json', result)
+            (evidence.root / 'case-summary.md').write_text(evidence.text(case_summary(result)), encoding='utf-8')
+            return result
     else:
         result = {"case_id": case_id, "workspace": case["workspace"], "title": case["title"],
                   "status": "error", "tasks": [], "failures": [], "harness_errors": []}
@@ -84,20 +153,47 @@ def finish_case(case_id, directory):
     result.setdefault('case_id', case_id)
     result.setdefault('workspace', case['workspace'])
     result.setdefault('title', case['title'])
-    if result["status"] not in FINAL:
+    result.setdefault('tasks', [])
+    result.setdefault('failures', [])
+    result.setdefault('harness_errors', [])
+    raw_status = result.get('status')
+    if raw_status not in FINAL:
         result["harness_errors"].append({"stage": result.get("stage"), "reason": "case_did_not_reach_final_verdict"})
-        result["status"] = "error"
-    if (result.get("tasks") or result["status"] == "passed") and not result.get("capture_complete"):
+    if raw_status == 'error' and not result['harness_errors']:
+        result['harness_errors'].append({'stage': result.get('stage'), 'reason': 'case_error_without_details'})
+    if (result.get("tasks") or raw_status == "passed") and not result.get("capture_complete"):
         result["harness_errors"].append({"stage": "evidence", "reason": "incomplete_trace_or_events"})
+    if raw_status == 'passed' and not result.get('validation', {}).get('checks'):
+        result['harness_errors'].append({'stage': 'validation', 'reason': 'quality_checks_missing'})
+    if (raw_status == 'failed' and any(item.get('reason') == 'acceptance_checks_failed'
+                                       for item in result['failures']) and
+            not result.get('validation', {}).get('checks')):
+        result['harness_errors'].append({'stage': 'validation', 'reason': 'quality_checks_missing'})
+    checks = result.get('validation', {}).get('checks', [])
+    if checks and any(not isinstance(item, dict) or type(item.get('passed')) is not bool for item in checks):
+        result['harness_errors'].append({'stage': 'validation', 'reason': 'invalid_quality_checks'})
+        result.pop('validation', None)
+    elif raw_status == 'passed' and any(not item['passed'] for item in checks):
+        result['harness_errors'].append({'stage': 'validation', 'reason': 'contradictory_quality_verdict'})
+    elif (raw_status == 'failed' and checks and
+          any(item.get('reason') == 'acceptance_checks_failed' for item in result['failures']) and
+          all(item['passed'] for item in checks)):
+        result['harness_errors'].append({'stage': 'validation', 'reason': 'contradictory_quality_verdict'})
     events = evidence.root / 'events.jsonl'
     if events.exists():
         try:
-            result['observed_tool_errors'] = observed_tool_errors(events)
-        except (OSError, ValueError, UnicodeError) as error:
+            analysis = analyze_events(events, result.get('tasks', []))
+            result['tools'] = {'state': 'available', 'complete': bool(result.get('capture_complete')), **analysis}
+        except (OSError, ValueError, TypeError, UnicodeError) as error:
             result['harness_errors'].append({'stage': 'evidence', 'reason': 'invalid_event_log:' + str(error)})
+            result['tools'] = _unavailable_tools()
     elif any(task.get('event_count', 0) for task in result.get('tasks', [])):
         result['harness_errors'].append({'stage': 'evidence', 'reason': 'recorded_events_missing'})
-    result["harness_status"] = "error" if result["harness_errors"] else "ok"
+        result['tools'] = _unavailable_tools()
+    else:
+        result['tools'] = _unavailable_tools()
+    result['task'], result['agent'], result['delivery'], result['quality'] = assess(case, result, raw_status)
+    result['test_status'] = 'error' if result['harness_errors'] else 'completed'
     preparation=evidence.root/'preparation.json'
     if preparation.exists():
         result['preparation_seconds']=json.loads(preparation.read_text()).get('seconds')
@@ -110,6 +206,7 @@ def finish_case(case_id, directory):
     specification=json.dumps(case,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode('utf-8')
     result['case_spec_sha256']=hashlib.sha256(specification).hexdigest()
     result["finalized_at"] = utc_now()
+    result.pop('status', None)
     result = evidence.clean(result)
     evidence.write("result.json", result)
     (evidence.root / 'case-summary.md').write_text(evidence.text(case_summary(result)), encoding='utf-8')
@@ -151,81 +248,265 @@ def scan(directory, secrets):
             inspect_payload(file.read_bytes(),secrets,name=file.name)
 
 
+def _time_stats(values):
+    values = [value for value in values if isinstance(value, (int, float)) and not isinstance(value, bool)
+              and math.isfinite(value) and value >= 0]
+    if not values:
+        return {'count': 0, 'mean': None, 'median': None, 'min': None, 'max': None}
+    return {'count': len(values), 'mean': round(statistics.mean(values), 3),
+            'median': round(statistics.median(values), 3), 'min': min(values), 'max': max(values)}
+
+
+def _group_summary(rows):
+    tasks = Counter(row['task']['state'] for row in rows)
+    agents = Counter(row['agent']['state'] for row in rows)
+    deliveries = Counter(row['delivery']['state'] for row in rows)
+    quality = Counter(row['quality']['state'] if row['quality']['state'] != 'checked' else
+                      ('issues' if row['quality']['failed_checks'] else 'all_checks_passed') for row in rows)
+    metrics = [row['tools']['metrics'] for row in rows if row['tools']['state'] == 'available']
+    tools = {key: sum(item[key] for item in metrics)
+             for key in ('calls', 'succeeded', 'failed', 'skipped', 'unknown', 'tool_rounds',
+                         'round_unmapped_calls', 'unidentified_events')}
+    grouped = defaultdict(Counter)
+    for item in metrics:
+        for entry in item['by_tool']:
+            for key in ('calls', 'succeeded', 'failed', 'skipped', 'unknown'):
+                grouped[entry['tool']][key] += entry[key]
+    per_tool = []
+    for name, counts in sorted(grouped.items()):
+        item = {'tool': name, **{key: counts[key] for key in ('calls', 'succeeded', 'failed', 'skipped', 'unknown')}}
+        item['success_rate'] = success_rate(item['succeeded'], item['failed'])
+        per_tool.append(item)
+    tools.update({'success_rate': success_rate(tools['succeeded'], tools['failed']),
+                  'cases_unavailable': len(rows) - len(metrics),
+                  'cases_incomplete': sum(row['tools']['state'] == 'available' and not row['tools']['complete']
+                                          for row in rows), 'by_tool': per_tool})
+    return {'total': len(rows),
+            'test_errors': sum(row['test_status'] == 'error' for row in rows),
+            'task': {key: tasks[key] for key in ('completed', 'abnormal', 'timeout', 'not_delivered', 'unknown')},
+            'confirmed_completion_rate': tasks['completed'] / len(rows) if rows else None,
+            'agent': {key: agents[key] for key in ('completed', 'abnormal', 'timeout', 'unknown')},
+            'delivery': {key: deliveries[key] for key in
+                         ('delivered', 'partial', 'not_delivered', 'incomplete', 'ambiguous', 'unknown')},
+            'quality': {key: quality[key] for key in ('all_checks_passed', 'issues', 'partial', 'unavailable')},
+            'task_seconds': _time_stats(row.get('task_seconds') for row in rows),
+            'completed_task_seconds': _time_stats(row.get('task_seconds') for row in rows
+                                                  if row['task']['state'] == 'completed'),
+            'tools': tools}
+
+
+def _missing_case(case, workspace, reason):
+    return {'case_id': case['id'], 'workspace': workspace, 'title': case['title'], 'test_status': 'error',
+            'tasks': [], 'failures': [], 'harness_errors': [{'stage': 'aggregation', 'reason': reason}],
+            'task': {'state': 'unknown'},
+            'agent': {'state': 'unknown', 'completed_turns': 0, 'expected_turns': 0},
+            'delivery': {'state': 'unknown', 'completed_sessions': 0, 'expected_sessions': 0},
+            'quality': {'state': 'unavailable', 'passed_checks': None, 'total_checks': None, 'failed_checks': []},
+            'tools': _unavailable_tools()}
+
+
+def _valid_case_result(result):
+    if (not isinstance(result, dict) or not isinstance(result.get('title'), str) or
+            not isinstance(result.get('test_status'), str) or
+            result['test_status'] not in TEST_LABELS):
+        return False
+    required = {'task': TASK_LABELS, 'agent': AGENT_LABELS, 'delivery': DELIVERY_LABELS}
+    if any(not isinstance(result.get(key), dict) or not isinstance(result[key].get('state'), str) or
+           result[key]['state'] not in labels
+           for key, labels in required.items()):
+        return False
+    for key, names in [('agent', ('completed_turns', 'expected_turns')),
+                       ('delivery', ('completed_sessions', 'expected_sessions'))]:
+        if (any(type(result[key].get(name)) is not int or result[key][name] < 0 for name in names) or
+                result[key][names[0]] > result[key][names[1]]):
+            return False
+    quality, tools = result.get('quality'), result.get('tools')
+    if (not isinstance(quality, dict) or not isinstance(quality.get('state'), str) or
+            quality['state'] not in {'checked', 'partial', 'unavailable'} or
+            not isinstance(quality.get('failed_checks'), list) or not isinstance(tools, dict) or
+            not isinstance(tools.get('state'), str) or tools['state'] not in {'available', 'unavailable'} or
+            not isinstance(tools.get('errors'), list) or
+            not isinstance(tools.get('judge_errors'), list) or not isinstance(tools.get('runtime_sessions'), dict)):
+        return False
+    if quality['state'] in {'checked', 'partial'} and any(type(quality.get(key)) is not int or quality[key] < 0
+                                             for key in ('passed_checks', 'total_checks')):
+        return False
+    if quality['state'] in {'checked', 'partial'} and (quality['total_checks'] == 0 or
+            quality['passed_checks'] + len(quality['failed_checks']) != quality['total_checks']):
+        return False
+    if any(not isinstance(call, dict) or not isinstance(call.get('task_id'), str) or not call['task_id'] or
+           not isinstance(call.get('call_id'), str) or not call['call_id'] or
+           not isinstance(call.get('errors'), list) or not isinstance(call.get('seqs'), list) or
+           any(not isinstance(item, dict) for item in call['errors'])
+           for call in tools['errors'] + tools['judge_errors']):
+        return False
+    if tools['state'] == 'available':
+        metrics = tools.get('metrics')
+        keys = ('calls', 'succeeded', 'failed', 'skipped', 'unknown', 'tool_rounds',
+                'round_unmapped_calls', 'unidentified_events')
+        if (not isinstance(metrics, dict) or type(tools.get('complete')) is not bool or
+                any(type(metrics.get(key)) is not int or metrics[key] < 0 for key in keys)):
+            return False
+        if metrics['calls'] != sum(metrics[key] for key in ('succeeded', 'failed', 'skipped', 'unknown')):
+            return False
+        if metrics.get('success_rate') != success_rate(metrics['succeeded'], metrics['failed']):
+            return False
+        if (not isinstance(metrics.get('by_tool'), list) or
+                any(not isinstance(item, dict) or not isinstance(item.get('tool'), str) or
+                    any(type(item.get(key)) is not int or item[key] < 0
+                        for key in ('calls', 'succeeded', 'failed', 'skipped', 'unknown'))
+                    for item in metrics['by_tool']) or
+                any(item['calls'] != sum(item[key] for key in ('succeeded', 'failed', 'skipped', 'unknown'))
+                    for item in metrics['by_tool']) or
+                any(item.get('success_rate') != success_rate(item['succeeded'], item['failed'])
+                    for item in metrics['by_tool']) or
+                any(sum(item[key] for item in metrics['by_tool']) != metrics[key]
+                    for key in ('calls', 'succeeded', 'failed', 'skipped', 'unknown'))):
+            return False
+    return all(isinstance(result.get(key, []), list) and
+               all(isinstance(item, dict) for item in result.get(key, []))
+               for key in ('tasks', 'conversations', 'failures', 'harness_errors'))
+
+
 def aggregate(source, destination):
-    config = json.loads((ROOT / "suites.json").read_text())
+    config = json.loads((ROOT / 'suites.json').read_text())
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
-    rows = []
-    suites = []
-    for suite in config["journeys"]:
+    rows, suites = [], []
+    for suite in config['journeys']:
         current = []
-        for case_id in suite["cases"]:
+        for case_id in suite['cases']:
             case = load_case(case_id)
-            file = Path(source) / case_id / "result.json"
+            file = Path(source) / case_id / 'result.json'
             if file.exists():
-                result = json.loads(file.read_text())
-                if result.get("case_id") != case_id or result.get("workspace") != suite["workspace"]:
-                    raise ValueError("result_identity_mismatch")
+                try:
+                    result = json.loads(file.read_text(encoding='utf-8'))
+                except (OSError, ValueError, UnicodeError):
+                    result = _missing_case(case, suite['workspace'], 'case_result_unreadable')
+                if not isinstance(result, dict) or result.get('case_id') != case_id or result.get('workspace') != suite['workspace']:
+                    result = _missing_case(case, suite['workspace'], 'case_result_identity_mismatch')
+                elif not _valid_case_result(result):
+                    result = _missing_case(case, suite['workspace'], 'case_result_incomplete')
             else:
-                result = {"case_id": case_id, "workspace": suite["workspace"], "title": case["title"],
-                    "status": "error", "harness_status": "error", "tasks": [], "failures": [],
-                    "harness_errors": [{"stage": "aggregation", "reason": "case_artifact_missing"}]}
-            if result.get("harness_status") != "ok" or result.get("status") not in FINAL:
-                result["status"] = "error"
+                result = _missing_case(case, suite['workspace'], 'case_artifact_missing')
             rows.append(result)
             current.append(result)
-        passed = sum(r["status"] == "passed" for r in current)
-        suites.append({"workspace": suite["workspace"], "concurrency": suite["concurrency"],
-            "status": "empty" if not current else "configured", "total": len(current), "passed": passed,
-            "success_rate": passed / len(current) if current else None})
-    total = len(rows)
-    passed = sum(r["status"] == "passed" for r in rows)
-    errors = sum(r["status"] == "error" for r in rows)
-    report = {"generated_at": utc_now(), "github_run_id": os.environ.get("GITHUB_RUN_ID"),
-        "github_run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT"), "commit": os.environ.get("GITHUB_SHA"),
-        "total": total, "passed": passed, "failed": sum(r["status"] == "failed" for r in rows),
-        "timeout": sum(r["status"] == "timeout" for r in rows), "harness_errors": errors,
-        "success_rate": passed / total if total else None, "journeys": suites, "cases": rows,
-        "withheld_files":sum(len(r.get('publication',{}).get('withheld_files',[])) for r in rows)}
-    (destination / "summary.json").write_text(json.dumps(report, ensure_ascii=False, indent=2)+"\n")
-    with (destination / "summary.csv").open("w", newline="") as stream:
-        writer=csv.writer(stream)
-        writer.writerow(["workspace","case_id","title","status","harness_status","task_seconds","semantic_judge_seconds","preparation_seconds","validation_seconds","cleanup_seconds","total_seconds","trace_ids","failure_reasons","observed_tool_errors"])
-        for row in rows:
-            reasons = row.get("failures",[]) + row.get("harness_errors",[])
-            writer.writerow([row["workspace"],row["case_id"],row["title"],row["status"],row.get("harness_status","error"),
-                row.get("task_seconds"),row.get('semantic_judge_seconds'),row.get('preparation_seconds'),row.get("validation",{}).get("seconds"),row.get('cleanup_seconds'),row.get("total_seconds"),
-                ";".join(t.get("trace_id","") for t in row.get("tasks",[])),json.dumps(reasons,ensure_ascii=False),
-                json.dumps(row.get('observed_tool_errors',[]),ensure_ascii=False)])
-    lines=["# MOI agent journeys", "",f"**通过 {passed}/{total}（{passed/total:.1%}）**" if total else "未配置任务", "",
-           f"任务不通过：{report['failed']}；超时：{report['timeout']}；执行/证据错误：{errors}；隔离产物：{report['withheld_files']}。", "",
-           "空工作区不计入分母；任务不通过、超时或执行/验收/取证错误会使对应 job 和工作流失败，但不会阻止其他任务及结果上传。", "",
-           "通过率反映当前检查器的判定；部分上游判据尚待校准，请结合判词和原始证据复核。", "",
-           "| 工作区 | 用例 | 结果 | 任务耗时（秒） | 不通过/错误原因 |", "|---|---|---|---:|---|"]
+        suites.append({'workspace': suite['workspace'], 'concurrency': suite['concurrency'],
+                       'status': 'configured' if current else 'empty', **_group_summary(current)})
+    totals = _group_summary(rows)
+    task_errors, tool_errors = defaultdict(set), defaultdict(set)
     for row in rows:
-        reasons=[r.get('reason','') for r in row.get('failures',[])+row.get('harness_errors',[])]
-        if row.get('validation',{}).get('failed_checks'):
-            failed_checks=row['validation']['failed_checks']
-            reasons += [r['rule'] for r in failed_checks[:5]]
-            if len(failed_checks)>5:reasons.append(f"共 {len(failed_checks)} 项，完整明细见 result.json")
-        if row['status'] != 'passed':
-            observed = row.get('observed_tool_errors', [])
-            reasons.extend('观察到工具错误: ' + str(item.get('code') or item.get('error_kind') or 'failed')
-                           for item in observed[:3])
-            if len(observed) > 3:reasons.append(f"共观察到 {len(observed)} 条，完整明细见 result.json")
-        lines.append(f"| {row['workspace']} | {row['case_id']} {cell(row['title'])} | {row['status']} | {row.get('task_seconds','—')} | {cell('; '.join(reasons))} |")
+        for item in row.get('failures', []) + row.get('harness_errors', []):
+            task_errors[(str(item.get('stage') or 'unknown'), str(item.get('reason') or 'unknown'))].add(row['case_id'])
+        for scope, calls in [('agent', row['tools'].get('errors', [])), ('judge', row['tools'].get('judge_errors', []))]:
+            for call in calls:
+                for item in call['errors']:
+                    tool_errors[(scope, str(call.get('tool') or 'unknown'), str(item.get('code') or item.get('kind')))].add(
+                        (row['case_id'], call['task_id'], call['call_id']))
+    report = {'generated_at': utc_now(), 'github_run_id': os.environ.get('GITHUB_RUN_ID'),
+              'github_run_attempt': os.environ.get('GITHUB_RUN_ATTEMPT'), 'commit': os.environ.get('GITHUB_SHA'),
+              **totals, 'journeys': suites, 'cases': rows,
+              'task_errors': [{'stage': stage, 'reason': reason, 'cases': sorted(cases)}
+                              for (stage, reason), cases in sorted(task_errors.items())],
+              'tool_errors': [{'scope': scope, 'tool': tool, 'code': code, 'calls': len(calls),
+                               'cases': sorted({case_id for case_id, _, _ in calls})}
+                              for (scope, tool, code), calls in sorted(tool_errors.items())],
+              'withheld_files': sum(len(row.get('publication', {}).get('withheld_files', [])) for row in rows)}
+    (destination / 'summary.json').write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n')
+    with (destination / 'summary.csv').open('w', newline='', encoding='utf-8') as stream:
+        writer = csv.writer(stream)
+        writer.writerow(['workspace', 'case_id', 'title', 'test_status', 'task_state', 'agent_state', 'delivery_state',
+                         'quality_state', 'checks_passed', 'checks_total', 'task_seconds', 'semantic_judge_seconds',
+                         'preparation_seconds', 'validation_seconds', 'cleanup_seconds', 'total_seconds',
+                         'tool_calls', 'tool_rounds', 'tool_succeeded', 'tool_failed', 'tool_skipped', 'tool_unknown',
+                         'unidentified_tool_events',
+                         'tool_success_rate', 'conversation_ids', 'trace_ids', 'failure_reasons', 'tool_errors',
+                         'judge_tool_errors'])
+        for row in rows:
+            metrics = row['tools'].get('metrics') or {}
+            writer.writerow([row['workspace'], row['case_id'], row['title'], row['test_status'], row['task']['state'], row['agent']['state'],
+                row['delivery']['state'], row['quality']['state'], row['quality'].get('passed_checks'),
+                row['quality'].get('total_checks'), row.get('task_seconds'), row.get('semantic_judge_seconds'),
+                row.get('preparation_seconds'), row.get('validation', {}).get('seconds'), row.get('cleanup_seconds'),
+                row.get('total_seconds'), metrics.get('calls'), metrics.get('tool_rounds'), metrics.get('succeeded'),
+                metrics.get('failed'), metrics.get('skipped'), metrics.get('unknown'), metrics.get('unidentified_events'),
+                metrics.get('success_rate'),
+                ';'.join(dict.fromkeys(
+                    [str(c['id']) for c in row.get('conversations', []) if c.get('id')] +
+                    [str(t['conversation_id']) for t in row.get('tasks', []) if t.get('conversation_id')])),
+                ';'.join(str(t['trace_id']) for t in row.get('tasks', []) if t.get('trace_id')),
+                json.dumps(row.get('failures', []) + row.get('harness_errors', []), ensure_ascii=False),
+                json.dumps(row['tools'].get('errors', []), ensure_ascii=False),
+                json.dumps(row['tools'].get('judge_errors', []), ensure_ascii=False)])
+    task, agent, delivery, quality, tools = (report[key] for key in ('task', 'agent', 'delivery', 'quality', 'tools'))
+    rate = f"{tools['success_rate']:.1%}" if tools['success_rate'] is not None else '不可计算'
+    completion = f"{report['confirmed_completion_rate']:.1%}" if report['confirmed_completion_rate'] is not None else '不可计算'
+    lines = ['# MOI agent journeys', '',
+        f"**{report['total']} 个任务：确认正常结束并交付 {task['completed']}/{report['total']}（{completion}），"
+        f"非正常 {task['abnormal']}，"
+        f"超时 {task['timeout']}，未正常交付 {task['not_delivered']}，无法确认 {task['unknown']}。**", '',
+        '正常结束并交付的比例以本批全部配置的 case 为分母，包含结果无法确认的 case；交付质量另看逐项检查。', '',
+        f"智能体请求：正常结束 {agent['completed']}，异常 {agent['abnormal']}，超时 {agent['timeout']}，"
+        f"无法确认 {agent['unknown']}；请求正常结束不代表已交付或质量合格。", '',
+        f"交付：完整 {delivery['delivered']}；部分 {delivery['partial']}；未交付 {delivery['not_delivered']}；"
+        f"交付不完整 {delivery['incomplete']}；对象不明确 {delivery['ambiguous']}；无法确认 {delivery['unknown']}。", '',
+        f"质量：检查全部符合 {quality['all_checks_passed']}；存在未通过项 {quality['issues']}；"
+        f"仅完成部分检查 {quality['partial']}；无法评价 {quality['unavailable']}。检查结果需结合原始证据复核。", '',
+        f"工具：{tools['calls']} 次调用、{tools['tool_rounds']} 个可识别轮次；成功 {tools['succeeded']}、"
+        f"失败 {tools['failed']}、跳过 {tools['skipped']}、结果不明确 {tools['unknown']}；调用成功率 {rate}。", '',
+        f"无法关联调用 ID 的工具事件：{tools['unidentified_events']} 条，不计入调用次数和成功率。", '',
+        f"测试框架错误：{report['test_errors']}；无工具事件数据的 case：{tools['cases_unavailable']}；"
+        f"工具事件不完整的 case：{tools['cases_incomplete']}；隔离产物：{report['withheld_files']}。", '',
+        f"端到端任务耗时（{report['task_seconds']['count']} 个已记录）：中位数 "
+        f"{cell(report['task_seconds']['median'])} 秒，最长 {cell(report['task_seconds']['max'])} 秒。", '',
+        f"其中正常结束并交付的任务（{report['completed_task_seconds']['count']} 个）：中位数 "
+        f"{cell(report['completed_task_seconds']['median'])} 秒。", '',
+        '工具成功率依据公开事件中的执行状态；跳过及结果不明确的调用不计入分母，不代表业务正确率。', '',
+        '| 工作区 | Case | 框架 | 任务 | 智能体请求 | 交付 | 质量检查 | 耗时（秒） | 工具成功/已判定 |',
+        '|---|---|---|---|---|---|---|---:|---|']
+    for row in rows:
+        q, m = row['quality'], row['tools'].get('metrics') or {}
+        quality_text = ((('部分检查 ' if q['state'] == 'partial' else
+                         '存在未通过项 ' if q['failed_checks'] else '全部符合 ') +
+                         f"{q['passed_checks']}/{q['total_checks']}")
+                        if q['state'] in {'checked', 'partial'} else '无法评价')
+        tool_text = f"{m['succeeded']}/{m['succeeded'] + m['failed']}" if m else '不可用'
+        lines.append(f"| {cell(row['workspace'])} | {cell(row['case_id'])} {cell(row['title'])} | "
+                     f"{cell(TEST_LABELS[row['test_status']])} | {cell(TASK_LABELS[row['task']['state']])} | "
+                     f"{cell(AGENT_LABELS[row['agent']['state']])} | "
+                     f"{cell(DELIVERY_LABELS[row['delivery']['state']])} | "
+                     f"{cell(quality_text)} | {cell(row.get('task_seconds'))} | {cell(tool_text)} |")
     for suite in suites:
-        if suite['status']=='empty':lines.append(f"| {suite['workspace']} | 待配置 | empty | — | 不计入成功率 |")
-    lines += ["", "每个 case 的 result.json 包含逐轮 task ID、trace ID、事件数量与种类、验收失败明细；events.jsonl 保存公开事件原始字段（凭据已脱敏）。", "",
-        "任务预算为每 case 3600 秒，包含全部对话及 Pi-Bench 语义评分。准备、确定性验收和最终取证另计。", "",
-        "下载本次运行的 journey-run-* artifact，即可得到 summary.json、summary.csv 和全部 case 证据。Artifact 保留 1 天。"]
-    markdown="\n".join(lines)+"\n"
-    (destination/'summary.md').write_text(markdown)
+        if suite['status'] == 'empty':
+            lines.append(f"| {cell(suite['workspace'])} | 待配置 | empty | — | — | — | — | — | — |")
+    if tools['by_tool']:
+        lines += ['', '## 智能体工具调用统计', '', '| 工具 | 调用 | 成功 | 失败 | 跳过 | 不明确 | 成功率 |',
+                  '|---|---:|---:|---:|---:|---:|---:|']
+        for item in tools['by_tool']:
+            item_rate = f"{item['success_rate']:.1%}" if item['success_rate'] is not None else '—'
+            lines.append(f"| {cell(item['tool'])} | {item['calls']} | {item['succeeded']} | {item['failed']} | "
+                         f"{item['skipped']} | {item['unknown']} | {item_rate} |")
+    if report['task_errors']:
+        lines += ['', '## 任务和测试框架错误', '']
+        for item in report['task_errors']:
+            lines.append(f"- {cell(item['stage'])} / {cell(item['reason'])}：{cell(', '.join(item['cases']))}")
+    if report['tool_errors']:
+        lines += ['', '## 工具错误统计', '']
+        for item in report['tool_errors']:
+            scope = '智能体' if item['scope'] == 'agent' else '评审'
+            lines.append(f"- {scope} / {cell(item['tool'])} / {cell(item['code'])}：{item['calls']} 次调用，"
+                         f"涉及 {cell(', '.join(item['cases']))}。")
+    lines += ['', '单个 case 的报告和 result.json 包含会话 ID、trace ID、质量判词、工具参数和错误；'
+              'events.jsonl 保存公开事件（凭据已脱敏）。', '',
+              '智能体异常、超时、交付或质量问题不使 job 变红；执行、验收或取证错误会使 job 变红。', '',
+              '下载 journey-run-* artifact 获取完整报告与证据；artifact 保留 1 天。']
+    markdown = '\n'.join(lines)+'\n'
+    (destination/'summary.md').write_text(markdown, encoding='utf-8')
     if os.environ.get('GITHUB_STEP_SUMMARY'):
-        with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as output:output.write(markdown)
-    # Keep relative per-case paths intact in the consolidated download.
+        with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
+            output.write(markdown)
     if Path(source).exists():
-        shutil.copytree(source,destination/'cases',dirs_exist_ok=True)
+        shutil.copytree(source, destination/'cases', dirs_exist_ok=True)
     return report
 
 
@@ -243,13 +524,13 @@ def main():
         if os.environ.get('GITHUB_STEP_SUMMARY'):
             with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
                 output.write(markdown)
-        return 0 if result['status']=='passed' and result['harness_status']=='ok' else 1
+        return 0 if result['test_status'] == 'completed' else 1
     if args.command=='scan':
         scan(args.directory,[os.environ.get('MOI_PAT',''),os.environ.get('MOI_BASE_URL','')])
         return 0
     report=aggregate(args.root,args.out)
-    print(json.dumps({k:report[k] for k in ['total','passed','failed','timeout','harness_errors','success_rate']}))
-    return 1 if report['failed'] or report['timeout'] or report['harness_errors'] else 0
+    print(json.dumps({k: report[k] for k in ['total', 'test_errors', 'task', 'agent', 'delivery', 'quality', 'tools']}))
+    return 1 if report['test_errors'] else 0
 
 
 if __name__=='__main__':

@@ -47,6 +47,12 @@ def validate(case, work, evidence):
     if not link.exists():
         link.symlink_to("../inputs", target_is_directory=True)
     checks = []
+    def checkpoint_checks():
+        result["validation"] = {"checks": list(checks),
+            "failed_checks": [item for item in checks if not item["passed"]],
+            "seconds": round(time.monotonic()-started,3)}
+        evidence.write("result.json", result)
+
     for session in result["sessions"]:
         source = evidence.root / "sessions" / session["id"] / "outputs"
         destination = evidence.root / "sessions" / session["id"] / "verification"
@@ -71,6 +77,7 @@ def validate(case, work, evidence):
         if process.returncode:
             raise RuntimeError("validator_process_error:" + session["id"] + ":exit=" + str(process.returncode))
         checks += [{"session": session["id"], **item} for item in verdict["checks"]]
+        checkpoint_checks()
     if case["source"]["benchmark"] == "π-Bench":
         verdicts = json.loads((evidence.root / "semantic-verdicts.json").read_text())
         checks += [{"session": v["session"], "rule": item["id"] + ":" + v["criteria"][item["id"]],
@@ -83,7 +90,7 @@ def validate(case, work, evidence):
             lineage = None
         checks += lineage_checks(lineage, result['sessions'][:-1], final['id'])
     failed = [item for item in checks if not item["passed"]]
-    result["validation"] = {"checks": checks, "failed_checks": failed, "seconds": round(time.monotonic()-started,3)}
+    checkpoint_checks()
     result["status"] = "failed" if failed else "passed"
     if failed:
         result["failures"].append({"stage": "validation", "reason": "acceptance_checks_failed", "checks": failed})

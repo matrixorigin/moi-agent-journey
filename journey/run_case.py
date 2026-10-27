@@ -18,6 +18,14 @@ from .evidence import Evidence, safe_extract, sha256, utc_now
 from .hello import TERMINAL, discover, task_state
 
 
+def task_outcome_failure(error):
+    """Recognize failures that actually describe an agent or its deliverable."""
+    return (error.code in {'agent_failed', 'agent_canceled', 'agent_rejected',
+                           'agent_input-required', 'agent_auth-required',
+                           'final_output_bundle_not_unique', 'missing_agent_reply', 'missing_final_reply'} or
+            error.code.startswith(('missing_deliverables:', 'invalid_output_archive:')))
+
+
 class Execution:
     def __init__(self, client, case, evidence, work, model):
         self.client, self.case, self.evidence = client, case, evidence
@@ -207,7 +215,9 @@ class Execution:
         candidates = [a for a in artifacts if a["file_name"] == "journey-output.zip"
                       and a["task_id"] == entry["task_id"]]
         if len(candidates) != 1:
-            raise Failure("final_output_bundle_not_unique")
+            raise Failure("final_output_bundle_not_unique", details={
+                "candidate_count": len(candidates),
+                "candidate_artifact_ids": [item["artifact_id"] for item in candidates]})
         return self.evidence.root / candidates[0]["local_path"]
 
     def judge_pi(self):
@@ -365,11 +375,14 @@ class Execution:
         except Failure as error:
             failure = {"stage": self.report["stage"], "reason": error.code,
                        "http_status": error.http_status, "details": error.details}
-            if self.report["stage"] == "semantic_judge":
+            timeout = error.code in {"case_timeout", "deadline_exceeded"}
+            task_started = bool(self.tasks) or self.pending_conversation is not None
+            if (self.report["stage"] == "semantic_judge" or
+                    not (task_outcome_failure(error) or (timeout and task_started))):
                 self.report["status"] = "error"
                 self.report["harness_errors"].append(failure)
             else:
-                self.report["status"] = "timeout" if error.code in {"case_timeout", "deadline_exceeded"} else "failed"
+                self.report["status"] = "timeout" if timeout else "failed"
                 self.report["failures"].append(failure)
         except Exception as error:
             self.report["status"] = "error"

@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import struct
 import subprocess
 import sys
@@ -20,8 +21,10 @@ from unittest.mock import patch
 from journey.client import Client, Failure
 from journey.catalog import load_case
 from journey.a2a import final_reply
+from journey.diagnostics import analyze_events
 from journey.evidence import Evidence, safe_extract
-from journey.report import aggregate, finish_case, main as report_main, scan
+from journey.outcomes import assess
+from journey.report import aggregate, case_summary, finish_case, main as report_main, scan
 from journey.run_case import Execution
 from journey.publish import prepare_publication
 from journey.validate import lineage_checks, validate
@@ -133,6 +136,22 @@ def qa_fixture(mode):
 
 
 class JourneyTests(unittest.TestCase):
+    @staticmethod
+    def finished_result(case_id, *, task_state='completed', test_status='completed'):
+        agent_state = {'completed':'completed', 'abnormal':'abnormal', 'timeout':'timeout',
+                       'not_delivered':'completed', 'unknown':'unknown'}[task_state]
+        return {'case_id':case_id, 'workspace':'journey-1', 'title':case_id, 'test_status':test_status,
+                'task':{'state':task_state}, 'agent':{'state':agent_state,'completed_turns':1,'expected_turns':1},
+                'delivery':{'state':'delivered' if task_state=='completed' else 'unknown',
+                            'completed_sessions':1 if task_state=='completed' else 0,'expected_sessions':1},
+                'quality':{'state':'checked','passed_checks':1,'total_checks':1,'failed_checks':[]},
+                'tools':{'state':'available','complete':True,
+                    'metrics':{'calls':2,'succeeded':1,'failed':1,'skipped':0,'unknown':0,
+                               'tool_rounds':1,'round_unmapped_calls':0,'unidentified_events':0,'success_rate':0.5,
+                               'by_tool':[{'tool':'bash','calls':2,'succeeded':1,'failed':1,'skipped':0,'unknown':0,'success_rate':0.5}]},
+                    'errors':[],'judge_errors':[],'runtime_sessions':{}},
+                'tasks':[], 'failures':[], 'harness_errors':[], 'task_seconds':10}
+
     def test_lineage_accepts_real_archive_paths_and_rejects_duplicates_or_wrong_data(self):
         sessions = [{'id':'session-a', 'outputs':{'one.csv':'hash-one'}},
                     {'id':'session-b', 'outputs':{'nested/two.csv':'hash-two'}}]
@@ -168,12 +187,14 @@ class JourneyTests(unittest.TestCase):
     def test_observed_tool_errors_record_evidence_without_changing_case_outcome(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory); evidence=Evidence(root/'J1-01', ['private-token'])
-            evidence.write('result.json', {'case_id':'J1-01', 'status':'failed', 'tasks':[{'event_count':6}],
+            evidence.write('result.json', {'case_id':'J1-01', 'status':'failed',
+                'tasks':[{'task_id':'task-1','phase':'office:plan','event_count':6}],
                 'failures':[], 'harness_errors':[], 'capture_complete':True})
             events=[
                 {'task_id':'task-1','seq':0,'kind':'lifecycle','payload':{'type':'tool_transport_failed',
                     'tool':'bash','call_id':'a','error_kind':'stream_transport','error':'connection failed'}},
                 {'task_id':'task-1','seq':1,'kind':'tool_result','payload':{'tool':'bash','call_id':'a',
+                    'arguments':{'command':'run --token private-token','OPENAI_API_KEY':'example-key'},
                     'success':False,'status':'failed','error_kind':'stream_transport','error':'TOOL_EXECUTION_FAILED',
                     'output':'connection failed: private-token'}},
                 {'task_id':'task-1','seq':2,'kind':'tool_result','payload':{'tool':'bash','call_id':'b',
@@ -190,16 +211,21 @@ class JourneyTests(unittest.TestCase):
             for event in events:evidence.append('events.jsonl',event)
             with patch.dict(os.environ, {'GITHUB_SHA':'test-commit'}):
                 report=finish_case('J1-01',root)
-            self.assertEqual(report['status'],'failed')
-            self.assertEqual(report['harness_status'],'ok')
+            self.assertEqual(report['test_status'],'completed')
             self.assertEqual(report['workflow_commit'], 'test-commit')
             specification=json.dumps(load_case('J1-01'),ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()
             self.assertEqual(report['case_spec_sha256'], hashlib.sha256(specification).hexdigest())
-            self.assertEqual([item['kind'] for item in report['observed_tool_errors']],
-                             ['tool_transport_failed','tool_failure','tool_output_http_error','tool_output_failure'])
-            self.assertEqual(report['observed_tool_errors'][2]['request_id'],'r1')
-            self.assertEqual(report['observed_tool_errors'][3]['code'],'QUOTA_EXCEEDED')
+            metrics=report['tools']['metrics']; self.assertEqual(
+                {key:metrics[key] for key in ('calls','succeeded','failed','skipped','unknown')},
+                {'calls':5,'succeeded':1,'failed':2,'skipped':1,'unknown':1})
+            errors={item['call_id']:item for item in report['tools']['errors']}
+            self.assertEqual(len(errors['a']['errors']),2)
+            self.assertEqual(errors['b']['errors'][0]['request_id'],'r1')
+            self.assertEqual(errors['d']['errors'][0]['code'],'QUOTA_EXCEEDED')
             self.assertNotIn('private-token',(evidence.root/'result.json').read_text())
+            self.assertNotIn('example-key',(evidence.root/'result.json').read_text())
+            self.assertIn('bash',(evidence.root/'case-summary.md').read_text())
+            self.assertIn('connection failed',(evidence.root/'case-summary.md').read_text())
 
     def test_invalid_event_log_is_a_framework_error(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -208,8 +234,121 @@ class JourneyTests(unittest.TestCase):
                 'failures':[], 'harness_errors':[], 'capture_complete':True})
             (evidence.root/'events.jsonl').write_text('not-json\n')
             report=finish_case('J1-01',root)
-            self.assertEqual(report['harness_status'],'error')
+            self.assertEqual(report['test_status'],'error')
             self.assertTrue(report['harness_errors'][0]['reason'].startswith('invalid_event_log:'))
+
+    def test_tool_metrics_deduplicate_and_exclude_judge_calls_and_unknowns(self):
+        events = [
+            {'task_id':'main','seq':1,'kind':'lifecycle','payload':{'type':'session_info',
+                'session_id':'[redacted]','external_session_id':'[redacted]'}},
+            {'task_id':'main','seq':2,'kind':'lifecycle','payload':{'type':'llm_finished','call_id':'round-1'}},
+            {'task_id':'main','seq':3,'kind':'tool_call','payload':{'call_id':'good','tool_id':'bash','arguments':{'command':'ok'}}},
+            {'task_id':'main','seq':4,'kind':'tool_call','payload':{'call_id':'bad','tool_id':'bash','arguments':{'command':'bad'}}},
+            {'task_id':'main','seq':5,'kind':'tool_result','payload':{'call_id':'good','success':True,
+                'output':{'output':{'exit_code':0,'stdout':'ok'}}}},
+            {'task_id':'main','seq':6,'kind':'lifecycle','payload':{'type':'tool_transport_failed','call_id':'bad','error':'lost'}},
+            {'task_id':'main','seq':7,'kind':'tool_result','payload':{'call_id':'bad','success':False,
+                'status':'failed','error':'TOOL_FAILED','output':'lost'}},
+            {'task_id':'main','seq':8,'kind':'lifecycle','payload':{'type':'llm_finished','call_id':'round-2'}},
+            {'task_id':'main','seq':9,'kind':'tool_call','payload':{'call_id':'skipped','tool_id':'bash'}},
+            {'task_id':'main','seq':10,'kind':'tool_result','payload':{'call_id':'skipped','success':False,'status':'skipped'}},
+            {'task_id':'main','seq':11,'kind':'tool_call','payload':{'call_id':'partial','tool_id':'bash',
+                'arguments':{'command':'upload'}}},
+            {'task_id':'main','seq':12,'kind':'tool_result','payload':{'call_id':'partial','success':True,
+                'output':{'output':{'exit_code':0,'stdout':'Error: [upload_denied] Request Entity Too Large'}}}},
+            {'task_id':'main','seq':13,'kind':'tool_call','payload':{'call_id':'pending','tool_id':'bash'}},
+            {'task_id':'judge','seq':1,'kind':'tool_call','payload':{'call_id':'judge-call','tool_id':'search'}},
+            {'task_id':'judge','seq':2,'kind':'tool_result','payload':{'call_id':'judge-call','success':True}},
+            {'task_id':'judge','seq':3,'kind':'tool_call','payload':{'call_id':'judge-bad','tool_id':'search',
+                'arguments':{'query':'source'}}},
+            {'task_id':'judge','seq':4,'kind':'tool_result','payload':{'call_id':'judge-bad','success':False,
+                'status':'failed','error':'quota','output':'quota exhausted'}},
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'events.jsonl';path.write_text(''.join(json.dumps(e)+'\n' for e in events))
+            result=analyze_events(path,[{'task_id':'main','phase':'office:execute','event_count':13},
+                                       {'task_id':'judge','phase':'judge:office','event_count':4}])
+        m=result['metrics']
+        self.assertEqual({k:m[k] for k in ('calls','succeeded','failed','skipped','unknown','tool_rounds')},
+                         {'calls':5,'succeeded':1,'failed':1,'skipped':1,'unknown':2,'tool_rounds':2})
+        self.assertEqual(m['success_rate'],0.5)
+        self.assertEqual((m['by_tool'][0]['tool'],m['by_tool'][0]['success_rate']),('bash',0.5))
+        errors={item['call_id']:item for item in result['errors']}
+        self.assertEqual(len(errors['bad']['errors']),2)
+        self.assertEqual(errors['bad']['arguments'],{'command':'bad'})
+        self.assertEqual(errors['partial']['outcome'],'unknown')
+        self.assertEqual(errors['partial']['errors'][0]['code'],'upload_denied')
+        self.assertTrue(result['runtime_sessions']['main']['redacted'])
+        self.assertEqual(result['judge_errors'][0]['arguments'],{'query':'source'})
+        self.assertEqual(result['judge_errors'][0]['errors'][0]['code'],'quota')
+
+    def test_tool_parameters_redact_secrets_but_keep_diagnostic_arguments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            evidence=Evidence(Path(directory),['actual-private-pat'])
+            args={'OPENAI_API_KEY':'not-a-known-token', 'nested':{'clientSecret':'hidden-secret'},
+                  'command':'UPLOAD_TOKEN=third-party-token tool --api-key other-key --limit 25 actual-private-pat',
+                  'header':'Authorization: Basic encoded-credential'}
+            cleaned=evidence.clean(args)
+            self.assertEqual(cleaned['OPENAI_API_KEY'],'[REDACTED]')
+            self.assertEqual(cleaned['nested']['clientSecret'],'[REDACTED]')
+            for secret in ('third-party-token','other-key','actual-private-pat'):
+                self.assertNotIn(secret,cleaned['command'])
+            self.assertIn('--limit 25',cleaned['command'])
+            self.assertNotIn('encoded-credential',cleaned['header'])
+
+    def test_missing_call_ids_are_not_double_counted_or_reported_as_success(self):
+        events=[{'task_id':'t','seq':1,'kind':'tool_call','payload':{'tool_id':'bash'}},
+                {'task_id':'t','seq':2,'kind':'tool_result','payload':{'tool_id':'bash','success':True}}]
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'events.jsonl';path.write_text(''.join(json.dumps(e)+'\n' for e in events))
+            metrics=analyze_events(path,[{'task_id':'t','phase':'office:execute','event_count':2}])['metrics']
+        self.assertEqual(metrics['calls'],0)
+        self.assertEqual(metrics['unidentified_events'],2)
+        self.assertIsNone(metrics['success_rate'])
+
+    def test_delivery_and_quality_are_independent_of_request_completion(self):
+        case=load_case('J1-01')
+        tasks=[{'task_id':str(i),'phase':'office:'+turn['phase'],'state':'completed'}
+               for i,turn in enumerate(case['sessions'][0]['turns'])]
+        result={'tasks':tasks,'sessions':[],'harness_errors':[],
+                'failures':[{'reason':'final_output_bundle_not_unique','details':{'candidate_count':0}}]}
+        task,agent,delivery,quality=assess(case,result,'failed')
+        self.assertEqual((task['state'],agent['state'],delivery['state'],quality['state']),
+                         ('not_delivered','completed','not_delivered','unavailable'))
+        result['failures'][0]['details']['candidate_count']=2
+        task,_,delivery,_=assess(case,result,'failed')
+        self.assertEqual((task['state'],delivery['state']),('unknown','ambiguous'))
+        result['sessions']=[{'id':'office','outputs':{'contract-accepted.docx':'digest'}}]
+        result['validation']={'checks':[{'rule':'content','passed':False}]}
+        task,_,delivery,quality=assess(case,result,'failed')
+        self.assertEqual((task['state'],delivery['state'],quality['state'],quality['passed_checks']),
+                         ('completed','delivered','checked',0))
+        result['harness_errors']=[{'stage':'validation','reason':'validator_crashed'}]
+        _,_,_,quality=assess(case,result,'error')
+        self.assertEqual(quality['state'],'partial')
+        result['sessions']=[]
+        result['tasks']=tasks[:1]
+        result['failures']=[{'reason':'agent_failed'}]
+        task,agent,delivery,_=assess(case,result,'failed')
+        self.assertEqual((task['state'],agent['state'],delivery['state']),
+                         ('abnormal','abnormal','unknown'))
+        result['failures']=[]
+        result['tasks']=[{**tasks[0], 'state':'failed'}]
+        task,agent,_,_=assess(case,result,'error')
+        self.assertEqual((task['state'],agent['state']),('abnormal','abnormal'))
+
+    def test_quality_report_states_when_the_checker_gave_no_reason(self):
+        result=self.finished_result('J1-02')
+        result['quality']={'state':'checked', 'passed_checks':0, 'total_checks':1,
+                           'failed_checks':[{'session':'office','rule':'字体格式','detail':''}]}
+        self.assertIn('验收器未提供具体原因', case_summary(result))
+
+    def test_case_report_keeps_conversation_without_an_admitted_task(self):
+        result=self.finished_result('J1-01')
+        result['conversations']=[{'id':'conversation-before-send','purpose':'office'}]
+        markdown=case_summary(result)
+        self.assertIn('conversation-before-send',markdown)
+        self.assertIn('未获取',markdown)
 
     def test_validator_failure_retains_the_specific_evaluator_reason(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -226,6 +365,27 @@ class JourneyTests(unittest.TestCase):
             with patch('journey.validate.subprocess.run', side_effect=run):
                 with self.assertRaisesRegex(RuntimeError, 'validator_error:upstream_oracle_incomplete'):
                     validate(case, work, evidence)
+
+    def test_validator_error_keeps_checks_completed_in_previous_sessions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); evidence=Evidence(root/'results', [])
+            evidence.write('result.json', {'status':'awaiting_validation', 'sessions':[{'id':'first'}, {'id':'second'}]})
+            for session in ('first', 'second'):
+                (evidence.root/'sessions'/session/'outputs').mkdir(parents=True)
+            work=root/'work'; work.mkdir()
+            case={'id':'J1-17', 'workspace':'journey-1'}
+            def run(command, **kwargs):
+                session=command[command.index('--session')+1]
+                verdict=({'status':'completed', 'checks':[{'rule':'first check','passed':True}]} if session=='first'
+                         else {'status':'error', 'reason':'checker_crashed'})
+                (evidence.root/'sessions'/session/'verification/verdict.json').write_text(json.dumps(verdict))
+                return SimpleNamespace(returncode=0 if session=='first' else 1, stdout='', stderr='')
+            with patch('journey.validate.subprocess.run', side_effect=run):
+                with self.assertRaisesRegex(RuntimeError, 'validator_error:checker_crashed'):
+                    validate(case, work, evidence)
+            result=json.loads((evidence.root/'result.json').read_text())
+            self.assertEqual(result['validation']['checks'],
+                             [{'session':'first','rule':'first check','passed':True}])
 
     def test_inventory_invalid_workbook_is_task_failure_not_evaluator_error(self):
         module = SimpleNamespace(evaluate=lambda _: {'criterion_results': [
@@ -264,7 +424,8 @@ class JourneyTests(unittest.TestCase):
 01 Dec. Insurance 20.00 80.00
 02 Dec. Sales 50.00 130.00
 02 Dec. Closing totals 20.00 50.00 130.00'''
-        records, _ = pdf_records(statement)
+        records, _, opening = pdf_records(statement)
+        self.assertEqual((opening[0], str(opening[1])), ((12, 1), '100.00'))
         original = normalize_row(['Mar 22', 'Old transaction', '', '$10.00', '$70.00'])
         rows = [normalize_row(['01 Dec', 'Insurance', '-$20.00', '', '$80.00']),
                 normalize_row(['02 Dec', 'Sales', '', '$50.00', '$130.00']), original]
@@ -310,6 +471,11 @@ class JourneyTests(unittest.TestCase):
             capture.result(0)
         with self.assertRaisesRegex(RuntimeError,'executed_no_checks'):
             PytestCapture().result(0)
+        capture=PytestCapture()
+        capture.record(SimpleNamespace(nodeid='fixture_failure',when='setup',
+            skipped=False,failed=True,passed=False,longrepr='fixture crashed',outcome='failed'))
+        with self.assertRaisesRegex(RuntimeError,'oracle_setup_or_teardown_error'):
+            capture.result(1)
 
     def test_unreadable_archive_is_isolated_without_losing_trace_records(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -440,6 +606,31 @@ class JourneyTests(unittest.TestCase):
             self.assertFalse(result['capture_complete'])
             self.assertTrue(result['harness_errors'])
 
+    def test_unstarted_agent_and_unavailable_artifact_are_not_agent_failures(self):
+        with qa_fixture('success') as (execution, _):
+            with patch('journey.run_case.discover', side_effect=Failure('http_error', 401)):
+                result=execution.run()
+            self.assertEqual(result['status'], 'error')
+            self.assertEqual(result['failures'], [])
+            self.assertEqual(result['harness_errors'][0]['reason'], 'http_error')
+            task, agent, delivery, _ = assess(execution.case, result, result['status'])
+            self.assertEqual((task['state'], agent['state'], delivery['state']),
+                             ('unknown', 'unknown', 'unknown'))
+
+        with qa_fixture('success') as (execution, _):
+            collect = execution.collect_artifacts
+            def fail_download(cid, entry=None):
+                if entry is not None:
+                    raise Failure('transport_error')
+                return collect(cid, entry)
+            with patch.object(execution, 'collect_artifacts', side_effect=fail_download):
+                result=execution.run()
+            self.assertEqual(result['status'], 'error')
+            self.assertEqual(result['harness_errors'][0]['reason'], 'transport_error')
+            task, agent, delivery, _ = assess(execution.case, result, result['status'])
+            self.assertEqual((task['state'], agent['state'], delivery['state']),
+                             ('unknown', 'completed', 'unknown'))
+
     def test_asynchronous_cancellation_is_confirmed_before_archive(self):
         with qa_fixture('async_cancel') as (execution,state):
             result=execution.run()
@@ -469,43 +660,58 @@ class JourneyTests(unittest.TestCase):
                 safe_extract(archive,root/'outputs')
             self.assertFalse((root/'escape.txt').exists())
 
-    def test_missing_case_cannot_inflate_success_rate(self):
+    def test_missing_case_is_unknown_and_a_framework_error(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);source=root/'source';destination=root/'bundle'
             config={'journeys':[{'workspace':'journey-1','concurrency':3,'cases':['J1-01','J1-02']},
                                {'workspace':'journey-2','concurrency':3,'cases':[]}]}
             (root/'suites.json').write_text(json.dumps(config))
-            for cid,status in [('J1-01','passed'),('J1-02','failed')]:
+            for cid,state in [('J1-01','completed'),('J1-02','abnormal')]:
                 evidence=Evidence(source/cid)
-                evidence.write('result.json',{'case_id':cid,'workspace':'journey-1','title':cid,'status':status,
-                    'harness_status':'ok','tasks':[],'failures':[],'harness_errors':[]})
+                evidence.write('result.json',self.finished_result(cid,task_state=state))
             with patch('journey.report.ROOT',root):
                 report=aggregate(source,destination)
-                self.assertEqual(report['success_rate'],0.5)
+                self.assertEqual(report['task']['completed'],1)
+                self.assertEqual(report['task']['abnormal'],1)
+                self.assertEqual(report['confirmed_completion_rate'],0.5)
+                self.assertEqual(report['tools']['success_rate'],0.5)
                 self.assertEqual(report['journeys'][1]['status'],'empty')
                 (source/'J1-02/result.json').unlink()
                 report=aggregate(source,destination)
-                self.assertEqual(report['success_rate'],0.5)
-                self.assertEqual(report['harness_errors'],1)
+                self.assertEqual(report['task']['completed'],1)
+                self.assertEqual(report['task']['unknown'],1)
+                self.assertEqual(report['confirmed_completion_rate'],0.5)
+                self.assertEqual(report['test_errors'],1)
                 self.assertEqual(report['cases'][1]['harness_errors'][0]['reason'],'case_artifact_missing')
+                (source/'J1-02/result.json').write_text('{invalid')
+                report=aggregate(source,destination)
+                self.assertEqual(report['task']['completed'],1)
+                self.assertEqual(report['cases'][1]['harness_errors'][0]['reason'],'case_result_unreadable')
 
     def test_case_cli_reports_actual_verdict_and_publishes_evidence_on_failure(self):
-        for status, harness_error, expected_code in [('passed', False, 0), ('failed', False, 1),
-                                                      ('timeout', False, 1), ('error', True, 1),
+        for status, harness_error, expected_code in [('passed', False, 0), ('failed', False, 0),
+                                                      ('timeout', False, 0), ('error', True, 1),
                                                       ('passed', True, 1)]:
             with self.subTest(status=status, harness_error=harness_error), tempfile.TemporaryDirectory() as directory:
                 root=Path(directory); case=root/'results/J1-01'; case.mkdir(parents=True)
                 private='example-private-qa-token'
+                turns=['plan','execute','review'] if status != 'timeout' else ['plan']
+                tasks=[{'phase':'office:'+phase,'task_id':'task-'+str(i),'trace_id':'trace-'+str(i),
+                        'conversation_id':'conversation-123','state':'completed' if status != 'timeout' else 'canceled',
+                        'event_count':1} for i,phase in enumerate(turns)]
                 result={'case_id':'J1-01', 'workspace':'journey-1', 'title':'办公用例', 'status':status,
                     'task_seconds':12.5, 'elapsed_seconds':14, 'capture_complete':True,
-                    'tasks':[{'phase':'office/turn-1','task_id':'task-123','trace_id':'trace-123','event_count':1}],
+                    'tasks':tasks,
+                    'sessions':[{'id':'office','outputs':{'contract-accepted.docx':'digest'}}] if status != 'timeout' else [],
                     'failures': [{'stage':'validation','reason':'acceptance_checks_failed','details':private}]
                         if status=='failed' else ([{'stage':'execute','reason':'case_timeout'}] if status=='timeout' else []),
                     'harness_errors':[{'stage':'semantic_judge','reason':'invalid_semantic_judge_verdict'}] if harness_error else [],
-                    'validation':{'checks':[{'rule':'数据完整','passed':status=='passed','detail':'核对输出'}],
+                    'validation':{'checks':[{'session':'office','rule':'数据完整','passed':status=='passed',
+                                             'detail':'缺少数据' if status=='failed' else '核对输出'}],
                                   'failed_checks':[{'session':'office','rule':'数据完整','detail':'缺少数据'}] if status=='failed' else []}}
                 (case/'result.json').write_text(json.dumps(result, ensure_ascii=False))
-                (case/'events.jsonl').write_text(json.dumps({'task_id':'task-123','seq':1,'kind':'lifecycle','payload':{}})+'\n')
+                (case/'events.jsonl').write_text(''.join(json.dumps({'task_id':task['task_id'],'seq':1,
+                    'kind':'lifecycle','payload':{}})+'\n' for task in tasks))
                 summary_path=root/'github-summary.md'
                 env={**os.environ,'MOI_PAT':private,'MOI_BASE_URL':'','GITHUB_STEP_SUMMARY':str(summary_path)}
                 process=subprocess.run([sys.executable,'-m','journey.report','case','J1-01','--root',str(root/'results')],
@@ -514,14 +720,15 @@ class JourneyTests(unittest.TestCase):
                 markdown=(case/'case-summary.md').read_text()
                 self.assertEqual(markdown,summary_path.read_text())
                 self.assertIn(markdown,process.stdout)
-                self.assertIn('trace-123',markdown)
-                self.assertIn('任务耗时：12.5 秒',markdown)
+                self.assertIn('trace-0',markdown)
+                self.assertIn('conversation-123',markdown)
+                self.assertIn('端到端任务耗时：12.5 秒',markdown)
                 self.assertNotIn(private,markdown)
                 if status=='failed':
                     self.assertIn('数据完整：缺少数据',markdown)
                     self.assertIn('[REDACTED]',markdown)
                 if status=='timeout':self.assertIn('case_timeout',markdown)
-                if harness_error:self.assertIn('无法确认：执行、验收或取证出错',markdown)
+                if harness_error:self.assertIn('测试框架：执行、验收或取证出错',markdown)
                 published=root/'published'
                 self.assertEqual(prepare_publication(root/'results',published,[private]),[])
                 self.assertEqual((published/'J1-01/case-summary.md').read_text(),markdown)
@@ -535,22 +742,74 @@ class JourneyTests(unittest.TestCase):
             process=subprocess.run([sys.executable,'-m','journey.report','case','J1-01','--root',str(root)],
                 cwd=Path(__file__).resolve().parents[1],env=env,capture_output=True,text=True)
             self.assertEqual(process.returncode,1,process.stderr)
-            self.assertIn('无法确认：执行、验收或取证出错',process.stdout)
+            self.assertIn('测试框架：执行、验收或取证出错',process.stdout)
             self.assertIn('input_checksum_mismatch',process.stdout)
+            self.assertIn('未获取会话或 trace ID',process.stdout)
             self.assertTrue((case/'case-summary.md').exists())
 
-    def test_aggregate_exit_follows_verdict_and_keeps_all_evidence(self):
+    def test_agent_failure_is_a_green_case_with_an_abnormal_report(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);case=root/'J1-01';case.mkdir()
+            result={'status':'failed','capture_complete':True,'task_seconds':5,
+                'tasks':[{'task_id':'task-1','conversation_id':'conversation-1','trace_id':'trace-1',
+                          'phase':'office:plan','state':'failed','event_count':1}],
+                'failures':[{'stage':'session:office','reason':'agent_failed',
+                             'details':{'error':'inference unavailable'}}], 'harness_errors':[]}
+            (case/'result.json').write_text(json.dumps(result))
+            (case/'events.jsonl').write_text(json.dumps({'task_id':'task-1','seq':1,
+                'kind':'lifecycle','payload':{'type':'session_info','session_id':'[redacted]'}})+'\n')
+            env={**os.environ,'GITHUB_STEP_SUMMARY':''}
+            process=subprocess.run([sys.executable,'-m','journey.report','case','J1-01','--root',str(root)],
+                cwd=Path(__file__).resolve().parents[1],env=env,capture_output=True,text=True)
+            self.assertEqual(process.returncode,0,process.stderr)
+            report=json.loads((case/'result.json').read_text())
+            self.assertEqual((report['test_status'],report['task']['state'],report['agent']['state'],
+                              report['delivery']['state'],report['quality']['state']),
+                             ('completed','abnormal','abnormal','not_delivered','unavailable'))
+            self.assertIn('inference unavailable',process.stdout)
+            self.assertIn('conversation-1',process.stdout)
+            self.assertIn('trace-1',process.stdout)
+            self.assertIn('接口已脱敏',process.stdout)
+            # A finalized report can be generated again without changing its result.
+            self.assertEqual(finish_case('J1-01',root)['test_status'],'completed')
+
+    def test_real_runner_failure_is_reported_without_failing_the_case_job(self):
+        with qa_fixture('agent_failure') as (execution,_):
+            raw=execution.run()
+            self.assertEqual(raw['status'],'failed')
+            case_root=execution.work/'finalized'
+            shutil.copytree(execution.evidence.root,case_root/'J1-01')
+            with patch('journey.report.load_case',return_value=execution.case), \
+                 patch.object(sys,'argv',['journey.report','case','J1-01','--root',str(case_root)]), \
+                 patch.dict(os.environ,{'GITHUB_STEP_SUMMARY':''}), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(report_main(),0)
+            result=json.loads((case_root/'J1-01/result.json').read_text())
+            self.assertEqual((result['test_status'],result['agent']['state'],result['task']['state']),
+                             ('completed','abnormal','abnormal'))
+            self.assertEqual(result['delivery']['state'],'not_delivered')
+            self.assertTrue(result['capture_complete'])
+
+    def test_finished_report_requires_actual_quality_checks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);evidence=Evidence(root/'J1-01')
+            evidence.write('result.json',{'status':'passed','capture_complete':True,'tasks':[],
+                'failures':[],'harness_errors':[],'validation':{'checks':[]}})
+            result=finish_case('J1-01',root)
+            self.assertEqual(result['test_status'],'error')
+            self.assertIn('quality_checks_missing',[e['reason'] for e in result['harness_errors']])
+            self.assertEqual(result['quality']['state'],'unavailable')
+
+    def test_aggregate_exit_follows_framework_status_and_keeps_all_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory); source=root/'source'; destination=root/'bundle'
             config={'journeys':[{'workspace':'journey-1','concurrency':3,'cases':['J1-01','J1-02']}]}
             (root/'suites.json').write_text(json.dumps(config))
-            for status, harness_status, expected_code in [('passed','ok',0),('failed','ok',1),
-                                                          ('timeout','ok',1),('error','error',1)]:
-                with self.subTest(status=status):
-                    for case_id, case_status, case_harness in [('J1-01','passed','ok'),('J1-02',status,harness_status)]:
+            for task_state, test_status, expected_code in [('completed','completed',0),('abnormal','completed',0),
+                                                            ('timeout','completed',0),('unknown','error',1)]:
+                with self.subTest(task_state=task_state):
+                    for case_id, state, framework in [('J1-01','completed','completed'),('J1-02',task_state,test_status)]:
                         evidence=Evidence(source/case_id)
-                        evidence.write('result.json',{'case_id':case_id,'workspace':'journey-1','title':case_id,
-                            'status':case_status,'harness_status':case_harness,'tasks':[], 'failures':[], 'harness_errors':[]})
+                        evidence.write('result.json',self.finished_result(case_id,task_state=state,test_status=framework))
                         (evidence.root/'events.jsonl').write_text('')
                     args=['journey.report','aggregate','--root',str(source),'--out',str(destination)]
                     with patch('journey.report.ROOT',root), patch.object(sys,'argv',args), \
@@ -558,9 +817,40 @@ class JourneyTests(unittest.TestCase):
                         self.assertEqual(report_main(),expected_code)
                     summary=json.loads((destination/'summary.json').read_text())
                     self.assertEqual(summary['total'],2)
-                    self.assertEqual(summary['passed'],2 if status=='passed' else 1)
+                    self.assertEqual(summary['task']['completed'],2 if task_state=='completed' else 1)
+                    self.assertEqual(summary['test_errors'],1 if test_status=='error' else 0)
+                    self.assertEqual(summary['tools']['calls'],4)
+                    self.assertEqual(summary['tools']['success_rate'],0.5)
+                    self.assertEqual(summary['task_seconds']['median'],10)
                     self.assertTrue((destination/'cases/J1-01/events.jsonl').exists())
                     self.assertTrue((destination/'cases/J1-02/events.jsonl').exists())
+
+    def test_aggregate_uses_call_weighted_rate_and_summarizes_errors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);source=root/'source';destination=root/'bundle'
+            (root/'suites.json').write_text(json.dumps({'journeys':[{'workspace':'journey-1','concurrency':3,
+                                                                     'cases':['J1-01','J1-02']}]}))
+            first=self.finished_result('J1-01')
+            first['tools']['metrics'].update(calls=10,succeeded=9,failed=1,success_rate=0.9)
+            first['tools']['metrics']['by_tool']=[{'tool':'bash','calls':10,'succeeded':9,'failed':1,'skipped':0,'unknown':0,'success_rate':0.9}]
+            first['tools']['errors']=[{'tool':'bash','task_id':'t1','call_id':'c1','seqs':[1],
+                                       'errors':[{'code':'upload_denied'}]}]
+            second=self.finished_result('J1-02',task_state='timeout')
+            second['tasks']=[{'conversation_id':None,'trace_id':None}]
+            second['tools']['metrics'].update(calls=3,succeeded=0,failed=1,skipped=1,unknown=1,success_rate=0.0)
+            second['tools']['metrics']['by_tool']=[{'tool':'bash','calls':3,'succeeded':0,'failed':1,'skipped':1,'unknown':1,'success_rate':0.0}]
+            second['failures']=[{'stage':'session:office','reason':'case_timeout'}]
+            for result in (first,second):Evidence(source/result['case_id']).write('result.json',result)
+            with patch('journey.report.ROOT',root):
+                report=aggregate(source,destination)
+            self.assertEqual(report['tools']['success_rate'],9/11)
+            self.assertEqual(report['tools']['by_tool'][0]['success_rate'],9/11)
+            self.assertEqual((report['tools']['skipped'],report['tools']['unknown']),(1,1))
+            self.assertEqual(report['task']['timeout'],1)
+            self.assertEqual(report['tool_errors'][0]['code'],'upload_denied')
+            self.assertEqual(report['tool_errors'][0]['cases'],['J1-01'])
+            self.assertEqual(report['task_errors'][0]['reason'],'case_timeout')
+            self.assertIn('upload_denied',(destination/'summary.md').read_text())
 
     def test_artifact_scan_never_follows_links_to_runner_files(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -576,8 +866,8 @@ class JourneyTests(unittest.TestCase):
             evidence.write('result.json',{'case_id':'J1-01','status':'running','tasks':[],
                 'failures':[],'harness_errors':[],'stage':'execute'})
             report=finish_case('J1-01',directory)
-            self.assertEqual(report['status'],'error')
-            self.assertEqual(report['harness_status'],'error')
+            self.assertEqual(report['test_status'],'error')
+            self.assertEqual(report['task']['state'],'unknown')
 
 
 if __name__=='__main__':unittest.main()
