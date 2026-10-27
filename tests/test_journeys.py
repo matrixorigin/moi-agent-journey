@@ -22,7 +22,7 @@ from journey.evidence import Evidence, safe_extract
 from journey.report import aggregate, finish_case, scan
 from journey.run_case import Execution
 from journey.publish import prepare_publication
-from journey.validate import validate
+from journey.validate import lineage_checks, validate
 from judge.verify import PytestCapture, evo, pi_structural, render_outputs
 from judge.inventory import date_status
 from judge.statement import normalize_row, pdf_records, record_difference
@@ -131,6 +131,25 @@ def qa_fixture(mode):
 
 
 class JourneyTests(unittest.TestCase):
+    def test_lineage_accepts_real_archive_paths_and_rejects_duplicates_or_wrong_data(self):
+        sessions = [{'id':'session-a', 'outputs':{'one.csv':'hash-one'}},
+                    {'id':'session-b', 'outputs':{'nested/two.csv':'hash-two'}}]
+        sources = [{'session_id':'session-a', 'path':'one.csv', 'sha256':'hash-one'},
+                   {'session_id':'session-b', 'path':'nested/two.csv', 'sha256':'hash-two'}]
+        self.assertTrue(lineage_checks({'sources':sources}, sessions, 'final')[0]['passed'])
+        actual_paths = [{**entry, 'path':'prior_outputs/'+entry['session_id']+'/'+entry['path']} for entry in sources]
+        self.assertTrue(lineage_checks({'sources':actual_paths}, sessions, 'final')[0]['passed'])
+        dotted = [dict(entry) for entry in actual_paths]; dotted[0]['path']='./'+dotted[0]['path']
+        self.assertTrue(lineage_checks({'sources':dotted}, sessions, 'final')[0]['passed'])
+        self.assertFalse(lineage_checks({'sources':actual_paths+[actual_paths[0]]}, sessions, 'final')[0]['passed'])
+        changed = [dict(entry) for entry in actual_paths]; changed[0]['sha256']='wrong'
+        self.assertFalse(lineage_checks({'sources':changed}, sessions, 'final')[0]['passed'])
+        changed = [dict(entry) for entry in actual_paths]; changed[0]['path']='prior_outputs/session-b/one.csv'
+        self.assertFalse(lineage_checks({'sources':changed}, sessions, 'final')[0]['passed'])
+        changed = [dict(entry) for entry in actual_paths]; changed[0]['path']='prior_outputs/session-a/../one.csv'
+        self.assertFalse(lineage_checks({'sources':changed}, sessions, 'final')[0]['passed'])
+        self.assertFalse(lineage_checks(None, sessions, 'final')[0]['passed'])
+
     def test_office_tool_crash_is_a_harness_error_not_a_failed_deliverable(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory); outputs=root/'outputs'; outputs.mkdir()

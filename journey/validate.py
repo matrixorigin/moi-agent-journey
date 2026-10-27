@@ -4,10 +4,36 @@ import json
 import os
 import subprocess
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from .catalog import ROOT, load_case
 from .evidence import Evidence
+
+
+def lineage_checks(lineage, previous_sessions, session_id):
+    valid = isinstance(lineage, dict) and isinstance(lineage.get('sources'), list) and all(
+        isinstance(entry, dict) and all(isinstance(entry.get(key), str) for key in ('session_id', 'path', 'sha256'))
+        for entry in lineage['sources'])
+    if not valid:
+        return [{'session': session_id, 'rule': '跨会话溯源 JSON 结构', 'passed': False,
+                 'detail': 'sources 必须是包含 session_id、path、sha256 字符串字段的对象列表'}]
+    expected = {(session['id'], name, digest) for session in previous_sessions
+                for name, digest in session['outputs'].items()}
+    entries = []
+    for source in lineage['sources']:
+        name = source['path']
+        relative = PurePosixPath(name)
+        if not relative.is_absolute() and '..' not in relative.parts:
+            name = relative.as_posix()
+        prefix = 'prior_outputs/' + source['session_id'] + '/'
+        if name.startswith(prefix):
+            name = name[len(prefix):]
+        entries.append((source['session_id'], name, source['sha256']))
+    actual = set(entries)
+    valid_entries = len(entries) == len(actual) and actual == expected
+    return [{'session': session_id, 'rule': '跨会话前序真实产物的文件名和 SHA256', 'passed': valid_entries,
+             'detail': json.dumps({'expected': sorted(expected), 'actual': sorted(actual),
+                                   'duplicate_entries': len(entries) - len(actual)})}]
 
 
 def validate(case, work, evidence):
@@ -51,19 +77,11 @@ def validate(case, work, evidence):
                     "passed": item["passed"], "detail": item["reason"]} for v in verdicts for item in v["checks"]]
         final = result["sessions"][-1]
         lineage_path = evidence.root / "sessions" / final["id"] / "outputs/source_lineage.json"
-        lineage = json.loads(lineage_path.read_text())
-        valid = isinstance(lineage, dict) and isinstance(lineage.get("sources"), list) and all(
-            isinstance(entry, dict) and all(isinstance(entry.get(key), str) for key in ["session_id","path","sha256"])
-            for entry in lineage["sources"])
-        expected = {(s["id"], name, digest) for s in result["sessions"][:-1] for name, digest in s["outputs"].items()}
-        if not valid:
-            checks.append({"session": final["id"], "rule": "跨会话溯源 JSON 结构", "passed": False,
-                           "detail": "sources 必须是包含 session_id、path、sha256 字符串字段的对象列表"})
-            actual = None
-        else:
-            actual = {(entry["session_id"], entry["path"], entry["sha256"]) for entry in lineage["sources"]}
-        checks.append({"session": final["id"], "rule": "跨会话前序真实产物的文件名和 SHA256", "passed": actual == expected,
-                       "detail": json.dumps({"expected": sorted(expected), "actual": sorted(actual) if valid else None})})
+        try:
+            lineage = json.loads(lineage_path.read_text())
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            lineage = None
+        checks += lineage_checks(lineage, result['sessions'][:-1], final['id'])
     failed = [item for item in checks if not item["passed"]]
     result["validation"] = {"checks": checks, "failed_checks": failed, "seconds": round(time.monotonic()-started,3)}
     result["status"] = "failed" if failed else "passed"
