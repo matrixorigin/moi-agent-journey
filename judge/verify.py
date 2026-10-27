@@ -32,18 +32,24 @@ class PytestCapture:
         self.checks = []
         self.skipped = []
         self.unexpected_skips = []
+        self.execution_errors = []
 
     def record(self, report):
         if report.skipped:
             item = {"rule": report.nodeid, "detail": str(report.longrepr)}
             (self.skipped if report.nodeid in self.allowed_skips else self.unexpected_skips).append(item)
-        elif report.when == "call" or report.failed:
+        elif report.failed and report.when != 'call':
+            self.execution_errors.append({'rule': report.nodeid, 'stage': report.when, 'detail': str(report.longrepr)})
+        elif report.when == "call":
             self.checks.append(check(report.nodeid, report.passed,
                                      str(report.longrepr) if report.failed else report.outcome))
 
     def result(self, code):
         if code not in (0, 1):
             raise RuntimeError("oracle_collection_or_runtime_error:" + str(code))
+        if self.execution_errors:
+            raise RuntimeError('oracle_setup_or_teardown_error:' +
+                               ','.join(item['rule'] + ':' + item['stage'] for item in self.execution_errors))
         if self.unexpected_skips:
             raise RuntimeError("oracle_unexpected_skipped_checks:" +
                                ",".join(item["rule"] for item in self.unexpected_skips))

@@ -136,6 +136,18 @@ class DocumentVerifiersTest(unittest.TestCase):
             output = outputs/'statement.docx'
             write(output, records)
             self.assertTrue(all(item['passed'] for item in statement.verify(inputs, outputs, check)[0]))
+            opening = ['01 Dec', 'Balance forward', '', '', '$100.00']
+            write(output, [opening] + records)
+            self.assertTrue(all(item['passed'] for item in statement.verify(inputs, outputs, check)[0]))
+            for invalid in (["01 Dec", "Balance forward", "", "", "$99.00"],
+                            ["02 Dec", "Balance forward", "", "", "$100.00"],
+                            ["01 Dec 2024", "Balance forward", "", "", "$100.00"],
+                            ["01 Dec", "Balance forward", "$1.00", "", "$100.00"]):
+                write(output, [invalid] + records)
+                self.assertFalse(statement.verify(inputs, outputs, check)[0][1]['passed'])
+            write(output, [opening, opening] + records)
+            self.assertFalse(statement.verify(inputs, outputs, check)[0][1]['passed'])
+            write(output, records)
             visible = ' '.join(value for row in records for value in row if value)
             self.assertEqual(statement.rendered_cells_visible(Document(str(output)), visible), [])
             self.assertTrue(statement.rendered_cells_visible(Document(str(output)), visible.replace('Insurance', '')))

@@ -52,7 +52,8 @@ def pdf_records(content):
         if match:
             if opening is not None:
                 raise ValueError('multiple_opening_balances')
-            opening = balance = money(match[3])
+            opening = (day_month(match[1] + ' ' + match[2]), money(match[3]))
+            balance = opening[1]
             continue
         match = CLOSING.fullmatch(line)
         if match:
@@ -79,7 +80,7 @@ def pdf_records(content):
     deposits = sum((r[3] or Decimal(0) for r in records), Decimal(0))
     if opening is None or closing is None or not records or closing != (withdrawals, deposits, balance):
         raise ValueError('pdf_totals_do_not_reconcile')
-    return records, closing
+    return records, closing, opening
 
 
 def normalize_row(cells):
@@ -126,7 +127,7 @@ def explicit_year_errors(document, source_records, source_year):
 
 
 def document_rows(document):
-    rows, heights, bad, closing_rows = [], [], [], []
+    rows, heights, bad, closing_rows, opening_rows = [], [], [], [], []
     found_table = False
     for table in document.tables:
         if not table.rows or tuple(text(c.text) for c in table.rows[0].cells) != HEADER:
@@ -140,12 +141,30 @@ def document_rows(document):
                 closing_rows.append(values)
                 heights.append((row.height, row.height_rule))
                 continue
+            if len(values) == 5 and text(values[1]) == 'balance forward':
+                opening_rows.append(values)
+                heights.append((row.height, row.height_rule))
+                continue
             try:
                 rows.append(normalize_row(values))
                 heights.append((row.height, row.height_rule))
             except ValueError as error:
                 bad.append(str(error))
-    return found_table, rows, heights, bad, closing_rows
+    return found_table, rows, heights, bad, closing_rows, opening_rows
+
+
+def valid_opening_rows(rows, opening, source_year):
+    if len(rows) > 1:
+        return False
+    if not rows:
+        return True
+    date, _, withdrawal, deposit, balance = rows[0]
+    year = re.search(r'\b(\d{4})\b', date)
+    try:
+        return (not text(withdrawal) and not text(deposit) and day_month(date) == opening[0] and
+                money(balance) == opening[1] and (not year or int(year[1]) == source_year))
+    except ValueError:
+        return False
 
 
 def rendered_cells_visible(document, rendered_text):
@@ -184,13 +203,17 @@ def verify(inputs, outputs, check):
     if len(periods) != 1 or next(iter(periods))[0] != next(iter(periods))[1]:
         raise ValueError('source_statement_period_missing_or_ambiguous')
     year = int(next(iter(periods))[0])
-    source, closing = pdf_records(pdf_text)
+    source, closing, opening = pdf_records(pdf_text)
     template = Document(str(inputs / 'public_ready_statement.docx'))
-    template_found, original, _, template_bad, _ = document_rows(template)
+    template_found, original, _, template_bad, _, template_opening = document_rows(template)
+    if template_opening:
+        raise ValueError('template_opening_balance_requires_reconciliation')
     if not template_found or template_bad:
         raise ValueError('template_records_unreadable:' + ';'.join(template_bad))
     document = Document(str(outputs / 'statement.docx'))
-    found, actual, heights, malformed, closing_rows = document_rows(document)
+    found, actual, heights, malformed, closing_rows, opening_rows = document_rows(document)
+    if not valid_opening_rows(opening_rows, opening, year):
+        malformed.append('invalid_opening_balance')
     year_errors = explicit_year_errors(document, source, year)
     missing, unexpected = record_difference(source + original, actual)
     def sample(counter):

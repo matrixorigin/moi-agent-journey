@@ -1,0 +1,81 @@
+"""Separate agent execution, delivery and quality without interpreting a red check as a root cause."""
+from collections import Counter
+
+
+def assess(case, result, raw_status):
+    sessions = case.get('sessions', [])
+    expected_phases = [session['id'] + ':' + turn['phase']
+                       for session in sessions for turn in session['turns']]
+    tasks = [task for task in result.get('tasks', [])
+             if not str(task.get('phase', '')).startswith('judge:')]
+    completed = [task.get('phase') for task in tasks if task.get('state') == 'completed']
+    matched = sum((Counter(expected_phases) & Counter(completed)).values())
+    reasons = [item.get('reason', '') for item in result.get('failures', [])]
+    agent_failure = (any(reason in {'agent_failed', 'agent_canceled', 'agent_rejected',
+                                    'agent_input-required', 'agent_auth-required'} for reason in reasons) or
+                     any(task.get('state') in {'failed', 'rejected'} for task in tasks))
+    if expected_phases and matched == len(expected_phases):
+        agent_state = 'completed'
+    elif raw_status == 'timeout' and tasks:
+        agent_state = 'timeout'
+    elif agent_failure:
+        agent_state = 'abnormal'
+    elif result.get('harness_errors') or not tasks:
+        agent_state = 'unknown'
+    else:
+        agent_state = 'abnormal'
+    agent = {'state': agent_state, 'completed_turns': matched, 'expected_turns': len(expected_phases),
+             'tasks': [{'phase': task.get('phase'), 'state': task.get('state'),
+                        'task_id': task.get('task_id')} for task in tasks]}
+
+    delivered_sessions = {item.get('id'): item for item in result.get('sessions', [])}
+    delivery_sessions = []
+    for session in sessions:
+        actual = delivered_sessions.get(session['id'])
+        expected = session.get('expected_files', [])
+        files = actual.get('outputs', {}) if isinstance(actual, dict) else {}
+        delivery_sessions.append({'session': session['id'], 'delivered': actual is not None,
+                                  'expected_files': expected,
+                                  'missing_files': [name for name in expected if name not in files]})
+    complete = sum(item['delivered'] and not item['missing_files'] for item in delivery_sessions)
+    if delivery_sessions and complete == len(delivery_sessions):
+        delivery_state = 'delivered'
+    elif complete:
+        delivery_state = 'partial'
+    elif any(reason.startswith('final_output_bundle_not_unique') for reason in reasons):
+        details = next((item.get('details') for item in result.get('failures', [])
+                        if item.get('reason') == 'final_output_bundle_not_unique'), None)
+        count = details.get('candidate_count') if isinstance(details, dict) else None
+        delivery_state = 'not_delivered' if count == 0 else 'ambiguous'
+    elif any(reason.startswith(('missing_deliverables', 'invalid_output_archive')) for reason in reasons):
+        delivery_state = 'incomplete'
+    elif result.get('harness_errors') or not tasks:
+        delivery_state = 'unknown'
+    else:
+        delivery_state = 'not_delivered'
+    delivery = {'state': delivery_state, 'completed_sessions': complete,
+                'expected_sessions': len(delivery_sessions), 'sessions': delivery_sessions}
+
+    if agent_state in {'abnormal', 'timeout', 'unknown'}:
+        task_state = agent_state
+    elif delivery_state == 'delivered':
+        task_state = 'completed'
+    elif delivery_state in {'not_delivered', 'partial', 'incomplete'}:
+        task_state = 'not_delivered'
+    else:
+        task_state = 'unknown'
+
+    validation = result.get('validation', {})
+    checks = validation.get('checks', [])
+    validator_error = any(item.get('stage') in {'validation', 'semantic_judge'}
+                          for item in result.get('harness_errors', []))
+    if checks:
+        failed = [item for item in checks if not item.get('passed')]
+        quality = {'state': 'partial' if validator_error else 'checked', 'passed_checks': len(checks) - len(failed),
+                   'total_checks': len(checks), 'failed_checks': failed}
+    else:
+        reason = ('validator_error' if validator_error else
+                  'not_evaluated' if delivery_state == 'delivered' else 'no_validated_delivery')
+        quality = {'state': 'unavailable', 'passed_checks': None, 'total_checks': None,
+                   'failed_checks': [], 'reason': reason}
+    return {'state': task_state}, agent, delivery, quality
