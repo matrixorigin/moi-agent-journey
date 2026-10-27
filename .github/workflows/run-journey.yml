@@ -68,7 +68,7 @@ jobs:
         env:
           CASE_ID: ${{ matrix.case }}
         run: python3 -m journey.validate "$CASE_ID"
-      - name: Finalize case outcome
+      - name: Case result and failure details
         if: always() && matrix.case != 'EMPTY'
         env:
           CASE_ID: ${{ matrix.case }}

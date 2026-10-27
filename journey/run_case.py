@@ -363,9 +363,14 @@ class Execution:
             self.report["status"] = "awaiting_validation"
             self.report["stage"] = "validation"
         except Failure as error:
-            self.report["status"] = "timeout" if error.code in {"case_timeout", "deadline_exceeded"} else "failed"
-            self.report["failures"].append({"stage": self.report["stage"], "reason": error.code,
-                                            "http_status": error.http_status,"details":error.details})
+            failure = {"stage": self.report["stage"], "reason": error.code,
+                       "http_status": error.http_status, "details": error.details}
+            if self.report["stage"] == "semantic_judge":
+                self.report["status"] = "error"
+                self.report["harness_errors"].append(failure)
+            else:
+                self.report["status"] = "timeout" if error.code in {"case_timeout", "deadline_exceeded"} else "failed"
+                self.report["failures"].append(failure)
         except Exception as error:
             self.report["status"] = "error"
             self.report["harness_errors"].append({"stage": self.report["stage"], "reason": type(error).__name__ + ":" + str(error)})

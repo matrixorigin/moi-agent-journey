@@ -5,16 +5,14 @@ on:
     - cron: '17 */6 * * *'
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 permissions:
   contents: read
 concurrency:
   group: agent-journeys-qa
   cancel-in-progress: false
+  queue: max
 jobs:
   journeys:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     strategy:
       fail-fast: false
       max-parallel: 5
@@ -26,7 +24,7 @@ jobs:
     secrets: inherit
   report:
     needs: journeys
-    if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

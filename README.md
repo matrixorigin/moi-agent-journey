@@ -4,7 +4,7 @@
 
 ## 执行方式
 
-`Agent journeys QA` 每六小时运行一次，也支持手动运行、main 推送和同仓 PR 验证。定时与手动入口需要工作流先合入 main；Draft PR 通过 PR 事件验证完整链路。凭据使用 GitHub `qa` environment 的 `MOI_BASE_URL` 与 `MOI_PAT` secrets。分叉 PR 只运行离线 CI，不接触 QA 凭据；不使用 `pull_request_target`。
+`Agent journeys QA` 每六小时运行一次，也支持手动运行和 main 推送。PR 只运行 `Offline tests`，验证执行框架与验收器，不调用真实 QA 或读取 QA 凭据。定时与手动入口需要工作流先合入 main；真实 QA 使用 GitHub `qa` environment 的 `MOI_BASE_URL` 与 `MOI_PAT` secrets。
 
 配置入口是 [suites.json](suites.json)：
 
@@ -16,16 +16,16 @@
 | journey-4 | 空 | 3 |
 | journey-5 | 空 | 3 |
 
-五组可以同时运行，全部配置后最多 15 个 case 同时调用 QA。空组显示 `empty`，不产生虚假通过结果，也不计入成功率分母。每个 case 单独使用一个标准 `ubuntu-latest` runner，失败不会取消同组其他任务。全局 concurrency group 防止整批运行相互重叠。
+五组可以同时运行，全部配置后最多 15 个 case 同时调用 QA。空组显示 `empty`，不产生虚假通过结果，也不计入成功率分母。每个 case 单独使用一个标准 `ubuntu-latest` runner，失败不会取消同组其他任务。全局 concurrency group 防止整批运行相互重叠；后续批次排队等待，最多保留 100 个等待中的运行。连续提交过多可能造成积压并推迟定时回归。
 
-每个 case 的 **QA 总预算为 3600 秒**，覆盖所有用户追加对话和 π-Bench 语义评分。超时会保留失败结果、取消已知未结束任务、补采事件并归档会话，最终取证有独立的 100 秒预算。主任务耗时与语义评分耗时分开统计；材料准备和确定性验收另计；GitHub job 的 135 分钟上限给安装、准备、QA、验证和上传留出时间。长任务统一使用正式的 message/stream SSE 协议，先取得 task ID 并实时落盘；随后核对持久化任务和事件。业务请求和模型任务不自动重试，保留第一次失败证据。
+每个 case 的 **QA 总预算为 3600 秒**，覆盖所有用户追加对话和 π-Bench 语义评分。主任务超时记为 timeout；语义评分阶段超时或评分结果无效记为验收器错误。两者都会取消已知未结束任务、补采事件并归档会话，最终取证有独立的 100 秒预算。主任务耗时与语义评分耗时分开统计；材料准备和确定性验收另计；GitHub job 的 135 分钟上限给安装、准备、QA、验证和上传留出时间。长任务统一使用正式的 message/stream SSE 协议，先取得 task ID 并实时落盘；随后核对持久化任务和事件。业务请求和模型任务不自动重试，保留第一次失败证据。
 
 ## 判断是否成功
 
 - **任务结果**：`passed`、`failed`、`timeout`。QA 报错、缺少交付物、文件验收不通过都会如实计入失败，工作流继续收集其余结果。
-- **执行框架结果**：`ok`、`error`。材料准备失败、验证器异常、事件或 trace 采集不完整、runner 被终止、case artifact 丢失都会让工作流报错。
+- **执行框架结果**：`ok`、`error`。材料准备失败、验证器异常、语义评审失败或返回无效结果、事件或 trace 采集不完整、runner 被终止、case artifact 丢失都会让工作流报错。
 
-完成状态为 `completed`、HTTP 200、模型声称已完成都不足以判成功。工作流绿色只代表本批执行和取证链路正常；实际任务成功率必须查看运行 Summary 或下载 summary.json。分母固定为本次配置的所有 case；缺失结果不会让成功率上升。
+完成状态为 `completed`、HTTP 200、模型声称已完成都不足以判成功。每个 case 的 job 只有在任务验收通过、执行和取证正常时才显示绿色；任务未通过、超时或执行/验收/取证出错均显示红色。红色的具体类别和原因见该 job 的 `Case result and failure details` 步骤：执行或验收出错表示无法确认结果，不等于智能体任务失败。其他 case 仍继续运行，证据和总报告仍会上传。本批有未通过或错误时工作流显示失败；成功率分母固定为本次配置的所有 case，缺失结果不会让成功率上升。
 
 **判据校准尚未完成。** J1-02、J1-07、J1-10、J1-13 和 J1-15 已发现部分上游检查与任务或材料不一致；应结合具体判词和原始产物复核。J1-14 对 Word 和邮件的部分自然语言一致性只能做有限检查。J1-18 的上游 C08 要求引用具体旗舰系列，但这一要求未在任务和会议纪要中明确，需要单独复核。当前通过率是检查器的结果，不能直接当作智能体能力得分。
 
@@ -64,7 +64,7 @@
 
 ## 下载与分析证据
 
-进入 Actions 本次运行底部的 **Artifacts**，下载 `journey-run-<run_id>-attempt-<n>`。每个 case 完成后也会上传 `case-J1-XX-attempt-<n>`，长任务尚未全部结束时可以下载已完成的证据。重跑时选择 **Re-run all jobs**；汇总只接收本次 attempt 的结果，防止旧结果覆盖新失败。Artifact **保留 1 天**；如需更久，在两个上传步骤中同步修改 retention-days。
+点开某个 `cases (J1-XX)` job，展开 `Case result and failure details` 步骤，可查看该 case 的结果、原因、耗时和逐轮 trace ID；同一份摘要也出现在运行的 Summary 中。若 runner 在生成报告前被终止或该步骤未执行，需查看出错步骤和总报告中的缺失结果。进入 Actions 本次运行底部的 **Artifacts**，下载 `journey-run-<run_id>-attempt-<n>`。每个 case 完成后也会上传 `case-J1-XX-attempt-<n>`，其中包含 `case-summary.md` 和详细证据，长任务尚未全部结束时可以下载已完成的证据。重跑时选择 **Re-run all jobs**；汇总只接收本次 attempt 的结果，防止旧结果覆盖新失败。Artifact **保留 1 天**；如需更久，在两个上传步骤中同步修改 retention-days。
 
 统一包包含：
 
@@ -73,6 +73,7 @@ summary.json                  # 全批及每组成功率、每个 case 的详细
 summary.csv                   # 任务结果、耗时、trace ID、失败原因
 summary.md                    # 与 GitHub Summary 一致的报告
 cases/J1-XX/
+  case-summary.md             # 单个 case 的结果、原因、耗时和逐轮 trace ID
   result.json                 # case 规格哈希、代码版本、所有轮次 task/trace ID、耗时、失败原因和观察到的工具错误
   publication.json            # 公开包完整性；隔离文件的路径、哈希与原因
   preparation.json            # 输入与 oracle 的来源及哈希，或准备失败原因

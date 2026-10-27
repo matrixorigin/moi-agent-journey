@@ -5,6 +5,8 @@ import io
 import json
 import os
 import struct
+import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -15,11 +17,11 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from journey.client import Client
+from journey.client import Client, Failure
 from journey.catalog import load_case
 from journey.a2a import final_reply
 from journey.evidence import Evidence, safe_extract
-from journey.report import aggregate, finish_case, scan
+from journey.report import aggregate, finish_case, main as report_main, scan
 from journey.run_case import Execution
 from journey.publish import prepare_publication
 from journey.validate import lineage_checks, validate
@@ -409,6 +411,19 @@ class JourneyTests(unittest.TestCase):
             self.assertGreaterEqual(result['semantic_judge_seconds'],0.02)
             self.assertGreater(result['qa_seconds'],result['task_seconds'])
 
+    def test_invalid_semantic_judge_verdict_is_not_an_agent_failure(self):
+        for reason in ('invalid_semantic_judge_verdict:invalid_json', 'case_timeout'):
+            with self.subTest(reason=reason), qa_fixture('success') as (execution,state):
+                execution.case['source']['benchmark']='π-Bench'
+                with patch.object(execution,'judge_pi',side_effect=Failure(reason)):
+                    result=execution.run()
+                self.assertEqual(result['status'],'error')
+                self.assertEqual(result['failures'],[])
+                self.assertEqual(result['harness_errors'][0]['stage'],'semantic_judge')
+                self.assertEqual(result['harness_errors'][0]['reason'],reason)
+                self.assertTrue(result['capture_complete'])
+                self.assertTrue(state['archived'])
+
     def test_deadline_cancels_and_keeps_the_failure(self):
         with qa_fixture('timeout') as (execution,state):
             result=execution.run()
@@ -473,6 +488,79 @@ class JourneyTests(unittest.TestCase):
                 self.assertEqual(report['success_rate'],0.5)
                 self.assertEqual(report['harness_errors'],1)
                 self.assertEqual(report['cases'][1]['harness_errors'][0]['reason'],'case_artifact_missing')
+
+    def test_case_cli_reports_actual_verdict_and_publishes_evidence_on_failure(self):
+        for status, harness_error, expected_code in [('passed', False, 0), ('failed', False, 1),
+                                                      ('timeout', False, 1), ('error', True, 1),
+                                                      ('passed', True, 1)]:
+            with self.subTest(status=status, harness_error=harness_error), tempfile.TemporaryDirectory() as directory:
+                root=Path(directory); case=root/'results/J1-01'; case.mkdir(parents=True)
+                private='example-private-qa-token'
+                result={'case_id':'J1-01', 'workspace':'journey-1', 'title':'办公用例', 'status':status,
+                    'task_seconds':12.5, 'elapsed_seconds':14, 'capture_complete':True,
+                    'tasks':[{'phase':'office/turn-1','task_id':'task-123','trace_id':'trace-123','event_count':1}],
+                    'failures': [{'stage':'validation','reason':'acceptance_checks_failed','details':private}]
+                        if status=='failed' else ([{'stage':'execute','reason':'case_timeout'}] if status=='timeout' else []),
+                    'harness_errors':[{'stage':'semantic_judge','reason':'invalid_semantic_judge_verdict'}] if harness_error else [],
+                    'validation':{'checks':[{'rule':'数据完整','passed':status=='passed','detail':'核对输出'}],
+                                  'failed_checks':[{'session':'office','rule':'数据完整','detail':'缺少数据'}] if status=='failed' else []}}
+                (case/'result.json').write_text(json.dumps(result, ensure_ascii=False))
+                (case/'events.jsonl').write_text(json.dumps({'task_id':'task-123','seq':1,'kind':'lifecycle','payload':{}})+'\n')
+                summary_path=root/'github-summary.md'
+                env={**os.environ,'MOI_PAT':private,'MOI_BASE_URL':'','GITHUB_STEP_SUMMARY':str(summary_path)}
+                process=subprocess.run([sys.executable,'-m','journey.report','case','J1-01','--root',str(root/'results')],
+                    cwd=Path(__file__).resolve().parents[1],env=env,capture_output=True,text=True)
+                self.assertEqual(process.returncode,expected_code,process.stderr)
+                markdown=(case/'case-summary.md').read_text()
+                self.assertEqual(markdown,summary_path.read_text())
+                self.assertIn(markdown,process.stdout)
+                self.assertIn('trace-123',markdown)
+                self.assertIn('任务耗时：12.5 秒',markdown)
+                self.assertNotIn(private,markdown)
+                if status=='failed':
+                    self.assertIn('数据完整：缺少数据',markdown)
+                    self.assertIn('[REDACTED]',markdown)
+                if status=='timeout':self.assertIn('case_timeout',markdown)
+                if harness_error:self.assertIn('无法确认：执行、验收或取证出错',markdown)
+                published=root/'published'
+                self.assertEqual(prepare_publication(root/'results',published,[private]),[])
+                self.assertEqual((published/'J1-01/case-summary.md').read_text(),markdown)
+                self.assertTrue((published/'J1-01/events.jsonl').exists())
+
+    def test_case_cli_reports_setup_failure_when_task_never_started(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); case=root/'J1-01'; case.mkdir()
+            (case/'preparation.json').write_text(json.dumps({'reason':'input_checksum_mismatch'}))
+            env={**os.environ,'GITHUB_STEP_SUMMARY':''}
+            process=subprocess.run([sys.executable,'-m','journey.report','case','J1-01','--root',str(root)],
+                cwd=Path(__file__).resolve().parents[1],env=env,capture_output=True,text=True)
+            self.assertEqual(process.returncode,1,process.stderr)
+            self.assertIn('无法确认：执行、验收或取证出错',process.stdout)
+            self.assertIn('input_checksum_mismatch',process.stdout)
+            self.assertTrue((case/'case-summary.md').exists())
+
+    def test_aggregate_exit_follows_verdict_and_keeps_all_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); source=root/'source'; destination=root/'bundle'
+            config={'journeys':[{'workspace':'journey-1','concurrency':3,'cases':['J1-01','J1-02']}]}
+            (root/'suites.json').write_text(json.dumps(config))
+            for status, harness_status, expected_code in [('passed','ok',0),('failed','ok',1),
+                                                          ('timeout','ok',1),('error','error',1)]:
+                with self.subTest(status=status):
+                    for case_id, case_status, case_harness in [('J1-01','passed','ok'),('J1-02',status,harness_status)]:
+                        evidence=Evidence(source/case_id)
+                        evidence.write('result.json',{'case_id':case_id,'workspace':'journey-1','title':case_id,
+                            'status':case_status,'harness_status':case_harness,'tasks':[], 'failures':[], 'harness_errors':[]})
+                        (evidence.root/'events.jsonl').write_text('')
+                    args=['journey.report','aggregate','--root',str(source),'--out',str(destination)]
+                    with patch('journey.report.ROOT',root), patch.object(sys,'argv',args), \
+                         patch.dict(os.environ,{'GITHUB_STEP_SUMMARY':''}), contextlib.redirect_stdout(io.StringIO()):
+                        self.assertEqual(report_main(),expected_code)
+                    summary=json.loads((destination/'summary.json').read_text())
+                    self.assertEqual(summary['total'],2)
+                    self.assertEqual(summary['passed'],2 if status=='passed' else 1)
+                    self.assertTrue((destination/'cases/J1-01/events.jsonl').exists())
+                    self.assertTrue((destination/'cases/J1-02/events.jsonl').exists())
 
     def test_artifact_scan_never_follows_links_to_runner_files(self):
         with tempfile.TemporaryDirectory() as directory:
