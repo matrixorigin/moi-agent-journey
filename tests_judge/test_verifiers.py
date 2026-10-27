@@ -5,6 +5,7 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
+from zipfile import ZipFile
 
 import fitz
 from docx import Document
@@ -19,10 +20,20 @@ from pptx.enum.chart import XL_CHART_TYPE
 from pptx.util import Inches
 
 from judge import report_title, statement, summary_sheet, table_chart
-from judge.verify import adapt_skillsbench_states, check
+from judge.verify import adapt_skillsbench_states, check, preflight
 
 
 class DocumentVerifiersTest(unittest.TestCase):
+    def test_office_preflight_parses_documents_instead_of_only_checking_zip(self):
+        with tempfile.TemporaryDirectory() as directory:
+            outputs=Path(directory)
+            Document().save(outputs/'valid.docx')
+            with ZipFile(outputs/'broken.docx','w') as archive:
+                archive.writestr('[Content_Types].xml','<broken')
+            checks={item['rule']:item for item in preflight(outputs)}
+            self.assertTrue(checks['文件可解析：valid.docx']['passed'])
+            self.assertFalse(checks['文件可解析：broken.docx']['passed'])
+
     def test_report_title_comes_from_source_and_honors_inherited_formatting(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); inputs = root/'inputs'; outputs = root/'outputs'; rendered = root/'rendered/report.docx'
@@ -162,6 +173,10 @@ class DocumentVerifiersTest(unittest.TestCase):
             with patch('judge.summary_sheet.subprocess.run', return_value=SimpleNamespace(
                     returncode=-11, stdout='', stderr='process crashed')):
                 with self.assertRaisesRegex(RuntimeError, 'summary_recalculation_process_failed'):
+                    summary_sheet.verify(inputs, outputs, check)
+            with patch('judge.summary_sheet.subprocess.run', return_value=SimpleNamespace(
+                    returncode=0, stdout='', stderr='source file could not be loaded')):
+                with self.assertRaisesRegex(RuntimeError, 'summary_recalculation_no_output'):
                     summary_sheet.verify(inputs, outputs, check)
             changed = load_workbook(target); changed['汇总']['F3'] = 0.75; changed.save(target); changed.close()
             self.assertFalse(summary_sheet.verify(inputs, outputs, check)[0][1]['passed'])

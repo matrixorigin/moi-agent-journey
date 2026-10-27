@@ -141,7 +141,8 @@ class JourneyTests(unittest.TestCase):
                     render_outputs(outputs, root/'rendered')
             with patch('judge.verify.subprocess.run', return_value=SimpleNamespace(
                     returncode=0, stdout='unsupported file', stderr='')):
-                self.assertFalse(render_outputs(outputs, root/'rendered')[0]['passed'])
+                with self.assertRaisesRegex(RuntimeError, 'office_render_no_output'):
+                    render_outputs(outputs, root/'rendered')
 
     def test_observed_tool_errors_record_evidence_without_changing_case_outcome(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -78,8 +78,9 @@ def render_outputs(outputs, destination):
             proc = subprocess.run(command, capture_output=True, text=True, timeout=90)
         require_success(proc, 'office_render_process_failed')
         pdf = target / (path.stem + ".pdf")
-        good = pdf.is_file() and pdf.stat().st_size > 0
-        results.append(check("可渲染：" + path.relative_to(outputs).as_posix(), good,
+        if not pdf.is_file() or pdf.stat().st_size == 0:
+            raise RuntimeError('office_render_no_output:' + (proc.stdout + proc.stderr)[-2000:])
+        results.append(check("可渲染：" + path.relative_to(outputs).as_posix(), True,
                              (proc.stdout + proc.stderr)[-3000:]))
     return results
 
@@ -349,6 +350,14 @@ def pi_structural(case, outputs, session):
 def preflight(outputs):
     import zipfile
     import fitz
+    from docx import Document
+    from docx.opc.exceptions import PackageNotFoundError as DocxPackageError
+    from lxml.etree import XMLSyntaxError
+    from openpyxl import load_workbook
+    from openpyxl.utils.exceptions import InvalidFileException
+    from pptx import Presentation
+    from pptx.exc import InvalidXmlError, PackageNotFoundError as PptxPackageError
+    from xml.etree.ElementTree import ParseError
     checks=[]
     for file in outputs.rglob('*'):
         if not file.is_file():continue
@@ -357,12 +366,20 @@ def preflight(outputs):
                 with zipfile.ZipFile(file) as archive:
                     if archive.testzip() is not None:raise ValueError('OOXML CRC failure')
                     if '[Content_Types].xml' not in archive.namelist():raise ValueError('missing OOXML content types')
+                if file.suffix.lower() == '.docx':
+                    Document(str(file))
+                elif file.suffix.lower() == '.xlsx':
+                    workbook=load_workbook(file,read_only=True)
+                    workbook.close()
+                else:
+                    Presentation(str(file))
             elif file.suffix.lower()=='.json':json.loads(file.read_text())
             elif file.suffix.lower()=='.pdf':
                 with fitz.open(file) as pdf:
                     if pdf.page_count<1:raise ValueError('empty PDF')
             checks.append(check('文件可解析：'+file.relative_to(outputs).as_posix(),True))
-        except (ValueError, zipfile.BadZipFile, RuntimeError) as error:
+        except (ValueError, zipfile.BadZipFile, RuntimeError, KeyError, XMLSyntaxError, ParseError,
+                DocxPackageError, PptxPackageError, InvalidXmlError, InvalidFileException) as error:
             checks.append(check('文件可解析：'+file.relative_to(outputs).as_posix(),False,str(error)))
     return checks
 

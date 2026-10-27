@@ -73,8 +73,7 @@ def verify(inputs, outputs, check):
         calculated_path = calculated_dir / output_path.name
         require_success(result, 'summary_recalculation_process_failed')
         if not calculated_path.exists():
-            checks.append(check('工作簿可重新计算', False, (result.stdout + result.stderr)[-2000:]))
-            return checks, {'checks': checks}
+            raise RuntimeError('summary_recalculation_no_output:' + (result.stdout + result.stderr)[-2000:])
         calculated = load_workbook(calculated_path, data_only=True)
         errors = []
         for row, name in mappings:

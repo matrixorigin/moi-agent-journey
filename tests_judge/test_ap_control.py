@@ -98,7 +98,7 @@ def fixtures(inputs, outputs):
     doc.save(outputs/'AP_Invoice_Control_Brief.docx')
     mbox = mailbox.mbox(outputs/'AP_Invoice_Communications.mbox')
     for recipient, content in [('ar@shadowpeak.example.com', 'SP-0091 is suspended'),
-                               ('ap@acmesolutions.example.com', 'AS-7744 is suspended'),
+                               ('ap@acmesolutions.example.com', 'AS-7744 has an Active Block and cannot be processed'),
                                ('ap-lead@company.example.com', 'Logged total: $16,090.50')]:
         message = EmailMessage(); message['From'] = 'Accounts Payable <finance@example.com>'
         message['To'] = recipient; message['Subject'] = 'Draft'; message['X-Draft-Status'] = 'DRAFT_NOT_SENT'
@@ -114,6 +114,50 @@ def fixtures(inputs, outputs):
 
 
 class APControlTest(unittest.TestCase):
+    def test_separate_narrative_source_and_pending_decisions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); inputs = root/'inputs'; outputs = root/'outputs'
+            inputs.mkdir(); outputs.mkdir(); module = fixtures(inputs, outputs)
+            invoices, _, _ = module.V1.read_source_truth(inputs.parent)
+            path = outputs/module.XLSX_NAME; workbook = load_workbook(path)
+            register = workbook['Source_Audit']; register.title = 'Invoice_Register'
+            for coordinate, value in {'A1':'Source Email ID', 'B1':'Contact', 'E1':'Due Date Stated',
+                                      'F1':'Email Amount USD', 'G1':'Correction Amount USD',
+                                      'H1':'Effective Amount USD', 'L1':'Adjusted Due Date'}.items():
+                register[coordinate] = value
+            register['L5'] = '=IF(WEEKDAY(E5,2)>5,WORKDAY(E5,1),E5)'
+            source = workbook.create_sheet('Source_Audit', 0)
+            source.append(['Linked Invoice', 'Message ID / Ref', 'From', 'Fact Extracted'])
+            for invoice in invoices:
+                source.append([invoice.invoice_id, '<'+invoice.source_id+'@case.example>', invoice.sender,
+                               f'{invoice.vendor}; due {invoice.source_due}; ${invoice.source_amount:,.2f}'])
+            policy = workbook['Policy_Control']; policy['A6'] = 'Review_Threshold_USD'; policy['B6'] = 5000
+            policy['D6'] = 'SRC-06'; policy['F2'] = None; policy['G2'] = None; policy['H2'] = None
+            pending = workbook['Pending_Invoices']; pending['A6'] = None; pending['B6'] = 'TOTAL PENDING'
+            workbook['Communication_Control']['B4'] = 'ALL'
+            summary = workbook['Control_Summary']
+            for cell, title in {'A3':'Invoices cleared for posting', 'A4':'Invoices rejected',
+                                'A5':'Invoices flagged REVIEW - over threshold',
+                                'A6':'Weekend adjustments carried into the pending list',
+                                'A7':'Offline drafts produced'}.items():
+                summary[cell] = title
+            for sheet in workbook:
+                for row in sheet:
+                    for cell in row:
+                        if cell.data_type == 'f':
+                            cell.value = (cell.value.replace('Source_Audit!', 'Invoice_Register!')
+                                          .replace('Policy_Control!$G$2', 'Policy_Control!$B$6')
+                                          .replace('"LOG"', '"PENDING"'))
+            summary['B6'] = '=COUNTIFS(Invoice_Register!J2:J5,"PENDING",Invoice_Register!L2:L5,DATE(2026,3,2))'
+            workbook.save(path); workbook.close()
+            checks, _ = ap_control.verify(module, inputs, outputs, check)
+            self.assertTrue(all(item['passed'] for item in checks), checks)
+            workbook = load_workbook(path); workbook['Source_Audit']['D3'] = 'Global Logistics Inc.; due 2026-02-28; $12,999.50'
+            workbook.save(path); workbook.close()
+            checks, _ = ap_control.verify(module, inputs, outputs, check)
+            source_check = next(item for item in checks if item['rule'] == '四张发票的来源、供应商、金额和到期日正确')
+            self.assertFalse(source_check['passed'])
+
     def test_unexpected_numeric_invoice_id_is_not_ignored_as_a_footer(self):
         workbook = Workbook(); sheet = workbook.active
         for row in [('Invoice', 'Vendor'), ('ACM-2026-0412', 'Acme'), ('1234', 'Unexpected'),

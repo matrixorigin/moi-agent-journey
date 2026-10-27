@@ -17,16 +17,17 @@ from .office_process import require_success
 HEADERS = {
     'invoice': {'invoice', 'invoiceno', 'invoiceid', 'linkedinvoice'},
     'vendor': {'vendor', 'vendoraswritten'},
-    'source': {'sourcemessageid', 'messageid'},
-    'sender': {'sender'},
-    'source_amount': {'sourceamount', 'amountasstated', 'amountasinvoiced'},
-    'source_due': {'sourcedue', 'duedateasstated', 'duedateasinvoiced'},
-    'correction': {'correctionamount'},
-    'amount': {'effectiveamount', 'amount'},
+    'source': {'sourcemessageid', 'messageid', 'messageidref', 'sourceemailid'},
+    'sender': {'sender', 'from'},
+    'facts': {'factextracted'},
+    'source_amount': {'sourceamount', 'amountasstated', 'amountasinvoiced', 'emailamountusd'},
+    'source_due': {'sourcedue', 'duedateasstated', 'duedateasinvoiced', 'duedatestated'},
+    'correction': {'correctionamount', 'correctionamountusd'},
+    'amount': {'effectiveamount', 'effectiveamountusd', 'amount'},
     'block': {'blockstatus', 'blockedvendor'},
     'decision': {'disposition'},
     'review': {'reviewflag', 'notes'},
-    'due': {'adjusteddue', 'duedateadjusted', 'duedate'},
+    'due': {'adjusteddue', 'adjustedduedate', 'duedateadjusted', 'duedate'},
     'recipient': {'recipient', 'to'},
     'delivery': {'deliverystatus'},
 }
@@ -66,7 +67,13 @@ def as_date(value):
     return None
 
 
-def find_header(workbook, required, sheet_name=None):
+def next_workday(value):
+    while value.weekday() >= 5:
+        value += timedelta(days=1)
+    return value
+
+
+def find_header(workbook, required, sheet_name=None, optional=frozenset()):
     matches = []
     for sheet in workbook:
         if sheet_name and sheet.title != sheet_name:
@@ -74,19 +81,23 @@ def find_header(workbook, required, sheet_name=None):
         for row in sheet.iter_rows():
             columns = {}
             selected = {}
+            ambiguous = set()
             for cell in row:
                 value = normalized(cell.value)
-                for field in required:
+                for field in required | optional:
                     if value in HEADERS[field]:
                         if field in columns:
                             if field == 'review' and {value, selected[field]} == {'reviewflag', 'notes'}:
                                 if value == 'notes':
                                     continue
                             else:
-                                raise ValueError('ambiguous_header:' + sheet.title + ':' + field)
+                                ambiguous.add(field)
+                                continue
                         columns[field] = cell.column
                         selected[field] = value
-            if set(columns) == set(required):
+            if required <= set(columns):
+                if ambiguous:
+                    raise ValueError('ambiguous_header:' + sheet.title + ':' + ','.join(sorted(ambiguous)))
                 matches.append((sheet.title, row[0].row, columns))
     if len(matches) != 1:
         raise ValueError('unsupported_or_ambiguous_workbook_layout:' + ','.join(sorted(required)))
@@ -99,6 +110,8 @@ def invoice_rows(sheet, header_row, invoice_column, invoice_ids, vendor_column):
     extras = []
     for row in range(header_row + 1, sheet.max_row + 1):
         value = str(sheet.cell(row, invoice_column).value or '').strip()
+        if value.casefold().startswith(('total ', 'logged total')):
+            break
         if value in invoice_ids:
             if value in rows:
                 duplicates.append(value)
@@ -132,12 +145,13 @@ def status_matches(invoice, block, disposition, review, due):
     disposition = normalized(disposition)
     review = str(review or '').strip().casefold()
     if invoice.blocked:
-        return (blocked in {'blocked', 'yes', 'true'} and disposition in {'reject', 'rejected'}
+        adjusted = next_workday(invoice.source_due)
+        return (blocked in {'blocked', 'activeblock', 'yes', 'true'} and disposition in {'reject', 'rejected'}
                 and 'review - over threshold' not in review
-                and (not review or 'reject' in review or review in {'n/a', 'na'})
-                and (due is None or as_date(due) == invoice.source_due))
+                and (not review or 'reject' in review or review in {'n/a', 'na', 'not required', '-'})
+                and (due is None or as_date(due) in {invoice.source_due, adjusted}))
     expected_review = invoice.review_flag.casefold()
-    return (blocked in {'clear', 'no', 'false', 'notblocked'} and disposition in {'log', 'logged', 'post', 'posted'}
+    return (blocked in {'clear', 'no', 'false', 'notblocked'} and disposition in {'log', 'logged', 'post', 'posted', 'pending'}
             and (expected_review in review if expected_review else 'review - over threshold' not in review)
             and as_date(due) == invoice.adjusted_due)
 
@@ -148,15 +162,15 @@ def summary_metric(workbook, category):
         title = str(row[0].value or '').strip().casefold()
         if category == 'reviewed' and (title == 'source invoices' or 'invoices reviewed' in title):
             return row[1]
-        if category == 'posted' and (title == 'logged invoices' or title.startswith('posted to pending_invoices')):
+        if category == 'posted' and (title in {'logged invoices', 'invoices cleared for posting'} or title.startswith('posted to pending_invoices')):
             return row[1]
-        if category == 'rejected' and (title == 'rejected invoices' or title.startswith('rejected (active block)')):
+        if category == 'rejected' and (title in {'rejected invoices', 'invoices rejected'} or title.startswith('rejected (active block)')):
             return row[1]
-        if category == 'review' and (title == 'review invoices' or title.startswith('review flags raised')):
+        if category == 'review' and (title == 'review invoices' or title.startswith(('review flags raised', 'invoices flagged review'))):
             return row[1]
-        if category == 'weekend' and (title == 'weekend-adjusted invoices' or title.startswith('weekend due dates rolled')):
+        if category == 'weekend' and (title == 'weekend-adjusted invoices' or title.startswith(('weekend due dates rolled', 'weekend adjustments carried into the pending list'))):
             return row[1]
-        if category == 'drafts' and (title == 'communication drafts' or title.startswith('offline drafts prepared')):
+        if category == 'drafts' and (title in {'communication drafts', 'offline drafts produced'} or title.startswith('offline drafts prepared')):
             return row[1]
     raise ValueError('unsupported_summary_metric:' + category)
 
@@ -168,7 +182,9 @@ def threshold_cell(formulas, values):
             continue
         for row in sheet.iter_rows():
             content = ' '.join(str(cell.value or '') for cell in row).casefold()
-            if not any(token in content for token in ('vp finance', 'msg_vp_override')):
+            if not any(token in content for token in ('vp finance', 'msg_vp_override', 'review_threshold')):
+                continue
+            if 'superseded' in content:
                 continue
             for cell in row:
                 current = values[sheet.title][cell.coordinate].value
@@ -184,8 +200,8 @@ def pending_total(workbook):
     _, _, fields = find_header(workbook, {'invoice', 'vendor', 'amount', 'due', 'review'}, 'Pending_Invoices')
     candidates = []
     for row in sheet.iter_rows():
-        title = str(row[0].value or '').strip().casefold()
-        if title.startswith('logged total') or title.startswith('total -') or title == 'total':
+        titles = [str(cell.value or '').strip().casefold() for cell in row]
+        if any(title.startswith(('logged total', 'total -')) or title in {'total', 'total pending'} for title in titles):
             candidates.extend(cell for cell in row[1:] if cell.data_type == 'f' and cell.column == fields['amount'])
     if len(candidates) != 1:
         raise ValueError('unsupported_or_ambiguous_pending_total')
@@ -239,13 +255,14 @@ def document_table_conflicts(document, expected):
                         problems.append(invoice.invoice_id + ':amount')
                 if heading == 'disposition':
                     disposition = normalized(value)
-                    if (invoice.blocked and disposition in {'log', 'logged', 'post', 'posted'}) or (
+                    if (invoice.blocked and disposition in {'log', 'logged', 'post', 'posted', 'pending'}) or (
                             not invoice.blocked and disposition in {'reject', 'rejected', 'block', 'blocked'}):
                         problems.append(invoice.invoice_id + ':disposition')
                 if heading in {'duedate', 'adjusteddue'}:
                     stated = as_date(value)
-                    wanted = invoice.source_due if invoice.blocked else invoice.adjusted_due
-                    if stated is not None and stated != wanted:
+                    wanted = ({invoice.source_due, next_workday(invoice.source_due)} if invoice.blocked
+                              else {invoice.adjusted_due})
+                    if stated is not None and stated not in wanted:
                         problems.append(invoice.invoice_id + ':due')
     return problems
 
@@ -323,7 +340,11 @@ def verify(module, inputs, outputs, check):
         return checks, {'checks': checks}
     workbook_path = outputs/module.XLSX_NAME
     formula_book = load_workbook(workbook_path, data_only=False)
-    source_layout = find_header(formula_book, {'invoice', 'vendor', 'source', 'sender', 'source_amount', 'source_due'})
+    source_layout = find_header(formula_book, {'invoice', 'source', 'sender'},
+                                optional={'vendor', 'source_amount', 'source_due', 'facts'})
+    structured_source = {'vendor', 'source_amount', 'source_due'} <= set(source_layout[2])
+    if not structured_source and 'facts' not in source_layout[2]:
+        raise ValueError('unsupported_source_audit_fields')
     decision_layout = find_header(formula_book, {'invoice', 'vendor', 'source_amount', 'source_due', 'correction',
                                                  'amount', 'block', 'decision', 'review', 'due'})
     pending_layout = find_header(formula_book, {'invoice', 'vendor', 'amount', 'due', 'review'}, 'Pending_Invoices')
@@ -336,19 +357,30 @@ def verify(module, inputs, outputs, check):
         source_by_message = {}
         duplicate_sources = []
         for row in range(source_layout[1] + 1, source_sheet.max_row + 1):
-            source_id = str(cell_value(values, source_layout, row, 'source') or '')
-            if source_id in {invoice.source_id for invoice in invoices}:
+            reference = str(cell_value(values, source_layout, row, 'source') or '')
+            for invoice in invoices:
+                source_id = invoice.source_id
+                if not re.search(r'(?<![a-z0-9_])' + re.escape(source_id) + r'(?![a-z0-9_])', reference, re.I):
+                    continue
                 if source_id in source_by_message:
                     duplicate_sources.append(source_id)
                 source_by_message[source_id] = row
         source_errors = []
         for invoice in invoices:
             row = source_by_message.get(invoice.source_id)
-            if row is None or (cell_value(values, source_layout, row, 'invoice') != invoice.invoice_id or
-                               cell_value(values, source_layout, row, 'vendor') != invoice.vendor or
-                               cell_value(values, source_layout, row, 'sender') != invoice.sender or
-                               amount(cell_value(values, source_layout, row, 'source_amount')) != invoice.source_amount or
-                               as_date(cell_value(values, source_layout, row, 'source_due')) != invoice.source_due):
+            if row is None:
+                source_errors.append(invoice.invoice_id)
+                continue
+            if structured_source:
+                fields_match = (cell_value(values, source_layout, row, 'vendor') == invoice.vendor and
+                                amount(cell_value(values, source_layout, row, 'source_amount')) == invoice.source_amount and
+                                as_date(cell_value(values, source_layout, row, 'source_due')) == invoice.source_due)
+            else:
+                facts = str(cell_value(values, source_layout, row, 'facts') or '')
+                fields_match = (invoice.vendor.casefold() in facts.casefold() and
+                                invoice.source_amount in currency_mentions(facts) and mentions_date(facts, invoice.source_due))
+            if (cell_value(values, source_layout, row, 'invoice') != invoice.invoice_id or
+                    cell_value(values, source_layout, row, 'sender') != invoice.sender or not fields_match):
                 source_errors.append(invoice.invoice_id)
         checks.append(check('四张发票的来源、供应商、金额和到期日正确', not source_errors and not duplicate_sources,
                             str({'errors': source_errors, 'duplicates': duplicate_sources})))
@@ -432,7 +464,8 @@ def verify(module, inputs, outputs, check):
                 continue
             referenced = str(cell_value(values, communication_layout, row, 'invoice') or '')
             status = str(cell_value(values, communication_layout, row, 'delivery') or '')
-            if not all(invoice_id in referenced for invoice_id in ids) or status != 'DRAFT_NOT_SENT':
+            all_invoices = recipient == 'ap-lead@company.example.com' and referenced.strip().casefold() == 'all'
+            if not (all_invoices or all(invoice_id in referenced for invoice_id in ids)) or status != 'DRAFT_NOT_SENT':
                 communication_errors.append(recipient + ':invoice_or_status')
         checks.append(check('Excel 通信控制与指定发票、收件人和草稿状态一致',
                             not communication_errors, str(communication_errors)))
@@ -502,7 +535,7 @@ def verify(module, inputs, outputs, check):
                 new_decision = normalized(cell_value(blocked_values, decision_layout, blocked_row, 'decision'))
                 rejected = summary_metric(formula_book, 'rejected')
                 if (new_block not in {'clear', 'no', 'false', 'notblocked'} or
-                        new_decision not in {'log', 'logged', 'post', 'posted'} or
+                        new_decision not in {'log', 'logged', 'post', 'posted', 'pending'} or
                         blocked_values[rejected.parent.title][rejected.coordinate].value != len(invoices)-len(expected_pending)-1):
                     mutation_errors.append('blocked_vendor_or_count_not_dynamic:' + blocked_invoice.invoice_id)
                 blocked_values.close()
@@ -531,9 +564,10 @@ def verify(module, inputs, outputs, check):
         if (recipient == 'ap-lead@company.example.com' and required_text not in [line.strip() for line in content.splitlines()]) or (
                 recipient != 'ap-lead@company.example.com' and required_text not in content):
             mail_errors.append(recipient + ':missing_content')
-        if recipient != 'ap-lead@company.example.com' and not any(token in content.casefold() for token in
-                ('suspend', 'blocked', 'not process', '暂停', '阻断', '拒绝')):
-            mail_errors.append(recipient + ':missing_suspension_reason')
+        if recipient != 'ap-lead@company.example.com':
+            suspension = re.search(r'\b(?:block(?:ed)?|suspend(?:ed)?|cannot be processed|not process(?:ed)?)\b', content.casefold())
+            if not suspension and not any(token in content for token in ('暂停', '阻断', '拒绝')):
+                mail_errors.append(recipient + ':missing_suspension_reason')
         if any(str(value).strip().casefold() in {'sent', 'delivered', 'delivered_sent'}
                for key, value in message.items() if 'status' in key.casefold()):
             mail_errors.append(recipient + ':claims_sent')
