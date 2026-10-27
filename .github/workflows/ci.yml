@@ -5,6 +5,8 @@ on:
 permissions:
   contents: read
 jobs:
+  judge-image:
+    uses: ./.github/workflows/build-judge.yml
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -14,18 +16,22 @@ jobs:
           persist-credentials: false
       - run: python3 -m unittest discover -s tests -v
   judge-test:
+    needs: judge-image
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - run: docker build -t moi-journey-judge-tests -f judge/Dockerfile .
+      - name: Load isolated validator
+        uses: ./.github/actions/load-judge
+        with:
+          artifact-name: judge-image-${{ github.run_id }}-attempt-${{ github.run_attempt }}
       - name: Exercise Office validators with editable fixtures
         run: >-
           docker run --rm --init --network=none --read-only --cap-drop=ALL
           --security-opt=no-new-privileges --memory=3g --cpus=2 --pids-limit=256
           --tmpfs /tmp:rw,size=1g,mode=1777
           --mount "type=bind,src=${GITHUB_WORKSPACE}/tests_judge,dst=/tests_judge,readonly"
-          --entrypoint python moi-journey-judge-tests
+          --entrypoint python moi-journey-judge
           -m unittest discover -s /tests_judge -v

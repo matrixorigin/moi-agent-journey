@@ -1,0 +1,26 @@
+name: Load isolated validator
+description: Load the validator built for this workflow attempt and verify its revision.
+inputs:
+  artifact-name:
+    description: Name of the validator image artifact for this workflow attempt.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Download isolated validator
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ runner.temp }}/journey-judge
+    - name: Verify and load isolated validator
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd "$RUNNER_TEMP/journey-judge"
+        sha256sum --check image.tar.gz.sha256
+        docker image load --input image.tar.gz
+        revision=$(docker image inspect moi-journey-judge --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
+        if [[ "$revision" != "$GITHUB_SHA" ]]; then
+          echo "Validator revision does not match the checked-out workflow revision." >&2
+          exit 1
+        fi
