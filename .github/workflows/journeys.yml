@@ -10,7 +10,10 @@ concurrency:
   cancel-in-progress: false
   queue: max
 jobs:
+  judge-image:
+    uses: ./.github/workflows/build-judge.yml
   journeys:
+    needs: judge-image
     strategy:
       fail-fast: false
       max-parallel: 5
@@ -19,6 +22,7 @@ jobs:
     uses: ./.github/workflows/run-journey.yml
     with:
       workspace: ${{ matrix.workspace }}
+      judge_image_artifact: judge-image-${{ github.run_id }}-attempt-${{ github.run_attempt }}
     secrets: inherit
   report:
     needs: journeys

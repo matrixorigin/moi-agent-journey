@@ -5,6 +5,9 @@ on:
       workspace:
         required: true
         type: string
+      judge_image_artifact:
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -50,10 +53,6 @@ jobs:
         env:
           CASE_ID: ${{ matrix.case }}
         run: python3 -m journey.catalog prepare "$CASE_ID"
-      - name: Build isolated validator
-        if: matrix.case != 'EMPTY'
-        timeout-minutes: 20
-        run: docker build -t moi-journey-judge -f judge/Dockerfile .
       - name: Run QA task and capture events
         if: matrix.case != 'EMPTY'
         timeout-minutes: 63
@@ -62,6 +61,11 @@ jobs:
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ secrets.MOI_PAT }}
         run: python3 -m journey.run_case "$CASE_ID"
+      - name: Load isolated validator
+        if: matrix.case != 'EMPTY'
+        uses: ./.github/actions/load-judge
+        with:
+          artifact-name: ${{ inputs.judge_image_artifact }}
       - name: Validate actual delivered files
         if: matrix.case != 'EMPTY' && !cancelled() && success()
         timeout-minutes: 32

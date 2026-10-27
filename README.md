@@ -68,11 +68,11 @@
 
 π-Bench 额外使用同一模型在独立 Momo 会话中逐条语义评分，按 A2A 投影约定读取末尾的最终答复，过程文本继续完整留档，并要求通过项提供实际交付文件内的原文证据。语义评分仍可能有模型误判，完整判据、答卷、判词与评分会话 trace 都保留，便于复核。
 
-验证在无网络、无 QA 凭据、只读输入/交付物、受 CPU/内存/进程限制的 Docker 内执行。J1-15 会执行智能体生成的处理器做回放；该代码不能在有 QA 凭据的宿主 runner 上执行。
+验证在无网络、无 QA 凭据、只读输入/交付物、受 CPU/内存/进程限制的 Docker 内执行。J1-15 会执行智能体生成的处理器做回放；该代码不能在有 QA 凭据的宿主 runner 上执行。每次工作流只构建一次验收镜像，以 1 天有效的 `judge-image-<run_id>-attempt-<n>` artifact 分发给各 case；各 runner 校验镜像的哈希和代码版本后独立运行容器。镜像不包含 QA 凭据或 case 数据。
 
 ## 下载与分析证据
 
-点开某个 `cases (J1-XX)` job，展开 `Case result and failure details` 步骤，可查看该 case 的结果、原因、耗时和逐轮 trace ID；同一份摘要也出现在运行的 Summary 中。若 runner 在生成报告前被终止或该步骤未执行，需查看出错步骤和总报告中的缺失结果。进入 Actions 本次运行底部的 **Artifacts**，下载 `journey-run-<run_id>-attempt-<n>`。每个 case 完成后也会上传 `case-J1-XX-attempt-<n>`，其中包含 `case-summary.md` 和详细证据，长任务尚未全部结束时可以下载已完成的证据。重跑时选择 **Re-run all jobs**；汇总只接收本次 attempt 的结果，防止旧结果覆盖新失败。Artifact **保留 1 天**；如需更久，在两个上传步骤中同步修改 retention-days。
+点开某个 `cases (J1-XX)` job，展开 `Case result and failure details` 步骤，可查看该 case 的结果、原因、耗时和逐轮 trace ID；同一份摘要也出现在运行的 Summary 中。若 runner 在生成报告前被终止或该步骤未执行，需查看出错步骤和总报告中的缺失结果。进入 Actions 本次运行底部的 **Artifacts**，下载 `journey-run-<run_id>-attempt-<n>`。每个 case 完成后也会上传 `case-J1-XX-attempt-<n>`，其中包含 `case-summary.md` 和详细证据，长任务尚未全部结束时可以下载已完成的证据。重跑时选择 **Re-run all jobs**；汇总只接收本次 attempt 的结果，防止旧结果覆盖新失败。证据包 **保留 1 天**；如需更久，在两个证据上传步骤中同步修改 retention-days。
 
 统一包包含：
 
