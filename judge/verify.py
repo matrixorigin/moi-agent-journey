@@ -25,6 +25,45 @@ def check(rule, passed, detail=""):
     return {"rule": rule, "passed": bool(passed), "detail": detail}
 
 
+class PytestCapture:
+    """Keep inapplicable checks distinct from success and failure."""
+    def __init__(self):
+        self.allowed_skips = set()
+        self.checks = []
+        self.skipped = []
+        self.unexpected_skips = []
+
+    def record(self, report):
+        if report.skipped:
+            item = {"rule": report.nodeid, "detail": str(report.longrepr)}
+            (self.skipped if report.nodeid in self.allowed_skips else self.unexpected_skips).append(item)
+        elif report.when == "call" or report.failed:
+            self.checks.append(check(report.nodeid, report.passed,
+                                     str(report.longrepr) if report.failed else report.outcome))
+
+    def result(self, code):
+        if code not in (0, 1):
+            raise RuntimeError("oracle_collection_or_runtime_error:" + str(code))
+        if self.unexpected_skips:
+            raise RuntimeError("oracle_unexpected_skipped_checks:" +
+                               ",".join(item["rule"] for item in self.unexpected_skips))
+        if not self.checks:
+            raise RuntimeError("oracle_executed_no_checks")
+        if code == 1 and not any(not item["passed"] for item in self.checks):
+            raise RuntimeError("oracle_failed_without_recorded_check")
+        return self.checks, {"exit_code": int(code), "checks": self.checks, "skipped": self.skipped}
+
+
+def adapt_skillsbench_states(case, module, inputs):
+    if case["id"] == "J1-08":
+        from pypdf import PdfReader
+        pages = PdfReader(str(inputs / "population.pdf")).pages
+        if not any("Other Territories" in (page.extract_text() or "") for page in pages):
+            raise RuntimeError("population_source_missing_other_territories")
+        # The public population source explicitly includes this ninth region.
+        module.VALID_STATES.add("Other Territories")
+
+
 def render_outputs(outputs, destination):
     results = []
     destination.mkdir(parents=True, exist_ok=True)
@@ -44,8 +83,15 @@ def render_outputs(outputs, destination):
     return results
 
 
-def officeval(oracle, outputs):
+def officeval(case, oracle, inputs, outputs):
     result = module_at(oracle / "judge.py", "officeval_oracle").evaluate(str(outputs))
+    if case["id"] in {"J1-03", "J1-06", "J1-12"}:
+        from . import statement, summary_sheet, table_chart
+        verifier = {"J1-03": statement.verify, "J1-06": summary_sheet.verify,
+                    "J1-12": table_chart.verify}[case["id"]]
+        checks, raw = verifier(inputs, outputs, check)
+        raw["reference_upstream_result"] = result
+        return checks, raw
     checks = [check("上游文件与结构", result.get("dim1_pass"), result.get("dim1_reason", ""))]
     for item in result["dim2_items"]:
         positive = item["max_delta"] > 0
@@ -71,7 +117,7 @@ def skills(case, oracle, inputs, outputs):
     with tempfile.TemporaryDirectory() as temporary:
         test = Path(temporary) / "test_upstream.py"
         shutil.copyfile(oracle / "judge.py", test)
-        records = []
+        capture = PytestCapture()
 
         class Adapter:
             def pytest_collection_modifyitems(self, items):
@@ -91,17 +137,18 @@ def skills(case, oracle, inputs, outputs):
                             setattr(module, name, remap(value))
                     if case["id"] == "J1-04":
                         module.EXPECTED_FILE = oracle / "expected_output.json"
+                    adapt_skillsbench_states(case, module, inputs)
+                if case["id"] == "J1-08":
+                    for item in items:
+                        if (getattr(item, "originalname", None) == "test_pivot_col_field"
+                                and item.callspec.params.get("col_field") is None):
+                            capture.allowed_skips.add(item.nodeid)
 
             def pytest_runtest_logreport(self, report):
-                if report.when == "call" or report.failed:
-                    records.append(check(report.nodeid, report.passed, str(report.longrepr) if report.failed else report.outcome))
+                capture.record(report)
 
         code = pytest.main(["-q", "-p", "no:cacheprovider", str(test)], plugins=[Adapter()])
-        if code not in (0, 1):
-            raise RuntimeError("oracle_collection_or_runtime_error:" + str(code))
-        if not records:
-            raise RuntimeError("oracle_executed_no_checks")
-        return records, {"exit_code": int(code), "checks": records}
+        return capture.result(code)
 
 
 def lbo(oracle, inputs, outputs):
@@ -189,16 +236,47 @@ def lbo(oracle, inputs, outputs):
     return checks,{"checks":checks}
 
 
+def require_evo_checks_executed(case, result):
+    if case["id"] != "J1-14":
+        return
+    criteria = {item["criterion_id"]: item for item in result.get("criterion_results", [])}
+    evidence = criteria.get("R012", {}).get("evidence", "")
+    if "Excel 工作表应为" in evidence:
+        raise RuntimeError("upstream_oracle_incomplete: workbook layout caused invoice checks to be skipped")
+
+
 def evo(case, oracle, inputs, outputs):
     if case["id"] == "J1-07":
         return lbo(oracle, inputs, outputs)
     module = module_at(oracle / "judge.py", "evo_oracle")
     result = module.evaluate(outputs)
+    require_evo_checks_executed(case, result)
     checks=[]
+    adjusted = {}
+    if case["id"] == "J1-09":
+        from .inventory import verify_dates
+        criteria = {item["criterion_id"]: item for item in result["criterion_results"]}
+        if "R001" not in criteria:
+            raise RuntimeError("upstream_inventory_criteria_missing")
+        if not criteria["R001"]["raw"]["passed"]:
+            return [check("R001", False, criteria["R001"].get("evidence", ""))], result
+        if not {"R006", "R007", "R008", "R011"} <= set(criteria):
+            raise RuntimeError("upstream_inventory_criteria_missing")
+        dates_ok, errors = verify_dates(module, inputs, outputs)
+        needs_ok = criteria["R006"]["raw"]["passed"]
+        schedule_ok = criteria["R008"]["raw"]["passed"]
+        adjusted = {
+            "R007": check("R007", dates_ok, json.dumps(errors, ensure_ascii=False)),
+            "R011": check("R011", needs_ok and dates_ok and schedule_ok,
+                          json.dumps({"needs": needs_ok, "dates": dates_ok, "schedule": schedule_ok})),
+        }
     for item in result["criterion_results"]:
         # Full business completion requires every positive unit and no penalty, not a soft score.
         raw=item.get("raw",{})
         cid=item["criterion_id"]
+        if cid in adjusted:
+            checks.append(adjusted[cid])
+            continue
         # The older judges normalize penalty scores to 1 when no violation occurs;
         # the v2 atomic judges instead report penalty severity (0 means no violation).
         if raw.get("type") == "penalty":
@@ -207,6 +285,8 @@ def evo(case, oracle, inputs, outputs):
             penalty = cid.startswith("P") or (case["id"]=="J1-14" and cid in {"R015","R016"})
             passed = item["score"] == (0 if penalty else 1)
         checks.append(check(cid,passed,item.get("evidence","")))
+    if adjusted:
+        result["journey_adapted_checks"] = list(adjusted.values())
     return checks,result
 
 
@@ -276,12 +356,17 @@ def main():
             Path('/verification/verdict.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
             return 0
         family=case['source']['benchmark']
-        if family=='OfficeVal':checks,raw=officeval(oracle,outputs)
+        if family=='OfficeVal':checks,raw=officeval(case,oracle,inputs,outputs)
         elif family=='SkillsBench':checks,raw=skills(case,oracle,inputs,outputs)
         elif family=='π-Bench':checks,raw=pi_structural(case,outputs,args.session)
         elif family in {'EvoCowork','SpreadsheetBench 2 经 EvoCowork 改编'}:checks,raw=evo(case,oracle,inputs,outputs)
         else:raise ValueError('unsupported_benchmark_validator:'+family)
-        checks+=render_outputs(outputs,Path('/verification/rendered'))
+        rendered = Path('/verification/rendered')
+        rendering = render_outputs(outputs,rendered)
+        checks += rendering
+        if case['id'] == 'J1-03' and all(item['passed'] for item in rendering):
+            from .statement import verify_rendered
+            checks.append(verify_rendered(outputs,rendered,check))
         result={"status":"completed","checks":checks,"upstream_result":raw,
                 "passed":bool(checks) and all(c['passed'] for c in checks)}
     except Exception as error:

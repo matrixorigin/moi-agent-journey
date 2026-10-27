@@ -27,6 +27,10 @@
 
 完成状态为 `completed`、HTTP 200、模型声称已完成都不足以判成功。工作流绿色只代表本批执行和取证链路正常；实际任务成功率必须查看运行 Summary 或下载 summary.json。分母固定为本次配置的所有 case；缺失结果不会让成功率上升。
 
+**判据校准尚未完成。** J1-02、J1-07、J1-10、J1-13、J1-14 和 J1-15 已发现部分上游检查与任务或材料不一致；应结合具体判词和原始产物复核。当前通过率是检查器的结果，不能直接当作智能体能力得分。
+
+J1-14 上游检查器遇到不同工作表布局时会提前返回，部分发票检查实际没有执行。此时运行结果会标记为验收器错误，避免把未执行的检查记为通过；需要先完成该 case 的语义验收器校准。
+
 ## Journey-1 的 18 个 case
 
 | 编号 | 任务 | 主要检查 |
@@ -54,7 +58,7 @@
 
 前 16 个上游单任务改为“先核对与计划 → 用户确认执行 → 用户要求回读复核”的 MOI 多轮版本；原始请求保存在 `instruction.txt`。最后两个保留三任务链，任务间开新会话，通过上传前序真实产物显式传递材料，最终 `source_lineage.json` 必须与前序产物哈希一致。这是 MOI 回归改编，不宣称运行原 benchmark 的官方完整协议或产出可与其排行榜直接比较的分数。
 
-OfficeVal 保留逐条评分依据，所有正向要求通过且无扣分项才判通过。SkillsBench 使用固定版本的原生结构和业务检查。EvoCowork 检查全部业务单位和扣分；LBO 在验收副本中显式配置迭代计算，验证原始数据和变更驱动下的业务公式关系，避免把公式数量或源码形状当正确性。Office 交付物会由 LibreOffice 实际打开并导出 PDF，渲染证据一并保存；自动结构/渲染检查仍有视觉审美覆盖边界。
+验收保留上游逐条评分依据，并要求业务检查全部通过。J1-03 从实际 PDF 推导并核对每笔交易与余额，检查模板原有记录和 Word 表格；J1-06 按各子表的标签寻找实际数值并重算工作簿；J1-12 检查新表格、折线图及其嵌入工作簿是否覆盖输入的全部年份和指标。这三项的上游原始判词也保留在 `upstream_result.reference_upstream_result`，但不作为适配后的最终判定。J1-08 将源 PDF 中明确包含的地区纳入有效值，并单独记录不适用的透视表检查；J1-09 对不需要补货的产品接受空白或 `N/A` 日期，仍逐项核对需要补货的日期，上游原判词和适配后的检查均保留。其他 OfficeVal 和 SkillsBench 检查使用固定版本的上游检查器。EvoCowork 检查全部业务单位和扣分；LBO 在验收副本中显式配置迭代计算，验证原始数据和变更驱动下的业务公式关系。Office 交付物会由 LibreOffice 实际打开并导出 PDF，渲染证据一并保存；自动结构/渲染检查仍有视觉审美覆盖边界。
 
 π-Bench 额外使用同一模型在独立 Momo 会话中逐条语义评分，按 A2A 投影约定读取末尾的最终答复，过程文本继续完整留档，并要求通过项提供实际交付文件内的原文证据。语义评分仍可能有模型误判，完整判据、答卷、判词与评分会话 trace 都保留，便于复核。
 
@@ -102,6 +106,12 @@ cases/J1-XX/
 ```sh
 python3 -m unittest discover -s tests -v
 python3 -m journey.catalog plan journey-1
+```
+
+Office 验收器的可编辑文件正反例在无网络 Docker 中运行，离线 CI 会自动执行。也可在构建验收镜像后执行：
+
+```sh
+docker run --rm --network=none --read-only --cap-drop=ALL --security-opt=no-new-privileges --memory=3g --cpus=2 --pids-limit=256 --tmpfs /tmp:rw,size=1g,mode=1777 --mount "type=bind,src=$PWD/tests_judge,dst=/tests_judge,readonly" --entrypoint python moi-journey-judge -m unittest discover -s /tests_judge -v
 ```
 
 完整任务需要 Docker 和 QA 凭据，从仓库外的私有来源注入 `MOI_BASE_URL` 与 `MOI_PAT`：

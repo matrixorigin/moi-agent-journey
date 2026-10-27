@@ -54,7 +54,7 @@ def inspect_payload(data, secrets, depth=0,name=''):
     """A failure is an explicit withholding decision, never permission to publish."""
     if any(s.encode() in data for s in secrets if s) or TOKEN_BYTES.search(data):
         raise ArtifactRejected("credential_detected_in_artifact")
-    if re.search(r'\.(?:z\d{2,}|zip\.\d+)$',name,re.I):
+    if re.search(r'\.(?:z\d{2,}|zip\.(?:part)?\d+)$',name,re.I):
         raise ArtifactRejected('split_archive_volume_not_inspectable')
     container=Path(name).suffix.lower() in {'.zip','.docx','.xlsx','.pptx','.xlsm','.docm','.pptm'}
     if container or data.startswith(b'PK\x03\x04') or zipfile.is_zipfile(io.BytesIO(data)):
@@ -129,6 +129,7 @@ def aggregate(source, destination):
     lines=["# MOI agent journeys", "",f"**通过 {passed}/{total}（{passed/total:.1%}）**" if total else "未配置任务", "",
            f"任务不通过：{report['failed']}；超时：{report['timeout']}；执行/证据错误：{errors}；隔离产物：{report['withheld_files']}。", "",
            "空工作区不计入分母；任务失败不会阻止其他任务。执行框架和证据错误会使工作流失败。", "",
+           "通过率反映当前检查器的判定；部分上游判据尚待校准，请结合判词和原始证据复核。", "",
            "| 工作区 | 用例 | 结果 | 任务耗时（秒） | 不通过/错误原因 |", "|---|---|---|---:|---|"]
     def cell(value):
         return str(value).replace("|","／").replace("\n"," ").replace("\r"," ")

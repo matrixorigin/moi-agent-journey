@@ -37,11 +37,13 @@ def validate(case, work, evidence):
         process = subprocess.run(command, capture_output=True, text=True, timeout=600)
         (destination / "judge.log").write_text(evidence.text(process.stdout + process.stderr))
         path = destination / "verdict.json"
-        if process.returncode or not path.exists():
-            raise RuntimeError("validator_process_error:" + session["id"])
+        if not path.exists():
+            raise RuntimeError("validator_process_error:" + session["id"] + ":exit=" + str(process.returncode))
         verdict = json.loads(path.read_text())
         if verdict["status"] != "completed":
             raise RuntimeError("validator_error:" + str(verdict.get("reason")))
+        if process.returncode:
+            raise RuntimeError("validator_process_error:" + session["id"] + ":exit=" + str(process.returncode))
         checks += [{"session": session["id"], **item} for item in verdict["checks"]]
     if case["source"]["benchmark"] == "π-Bench":
         verdicts = json.loads((evidence.root / "semantic-verdicts.json").read_text())

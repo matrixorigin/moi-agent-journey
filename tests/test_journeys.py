@@ -1,4 +1,5 @@
 import contextlib
+import datetime
 import io
 import json
 import os
@@ -10,6 +11,7 @@ import unittest
 import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from journey.client import Client
@@ -18,7 +20,11 @@ from journey.evidence import Evidence, safe_extract
 from journey.report import aggregate, finish_case, scan
 from journey.run_case import Execution
 from journey.publish import prepare_publication
-from judge.verify import pi_structural
+from journey.validate import validate
+from judge.verify import PytestCapture, evo, pi_structural, require_evo_checks_executed
+from judge.inventory import date_status
+from judge.statement import normalize_row, pdf_records, record_difference
+from judge.summary_sheet import source_cells, value_equal
 
 
 @contextlib.contextmanager
@@ -123,6 +129,113 @@ def qa_fixture(mode):
 
 
 class JourneyTests(unittest.TestCase):
+    def test_validator_failure_retains_the_specific_evaluator_reason(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); evidence = Evidence(root/'results', [])
+            evidence.write('result.json', {'status': 'awaiting_validation', 'sessions': [{'id': 'office'}]})
+            (evidence.root/'sessions/office/outputs').mkdir(parents=True)
+            work = root/'work'; work.mkdir()
+            case = {'id': 'J1-14', 'workspace': 'journey-1'}
+            def run(*args, **kwargs):
+                path = evidence.root/'sessions/office/verification/verdict.json'
+                path.write_text(json.dumps({'status': 'error', 'reason': 'upstream_oracle_incomplete'}))
+                return SimpleNamespace(returncode=1, stdout='', stderr='')
+            with patch('journey.validate.subprocess.run', side_effect=run):
+                with self.assertRaisesRegex(RuntimeError, 'validator_error:upstream_oracle_incomplete'):
+                    validate(case, work, evidence)
+
+    def test_inventory_invalid_workbook_is_task_failure_not_evaluator_error(self):
+        module = SimpleNamespace(evaluate=lambda _: {'criterion_results': [
+            {'criterion_id': 'R001', 'evidence': 'invalid workbook', 'raw': {'passed': False}}]})
+        with patch('judge.verify.module_at', return_value=module):
+            checks, _ = evo({'id': 'J1-09'}, Path('/oracle'), Path('/inputs'), Path('/outputs'))
+        self.assertEqual([(item['rule'], item['passed']) for item in checks], [('R001', False)])
+
+    def test_ap_checker_reports_unexecuted_invoice_checks_as_framework_error(self):
+        incomplete = {'criterion_results': [{'criterion_id': 'R012',
+            'evidence': 'Excel 工作表应为 expected，实际 different'}]}
+        with self.assertRaisesRegex(RuntimeError, 'upstream_oracle_incomplete'):
+            require_evo_checks_executed({'id': 'J1-14'}, incomplete)
+        require_evo_checks_executed({'id': 'J1-14'}, {'criterion_results': [
+            {'criterion_id': 'R012', 'evidence': '工作表内容均已检查'}]})
+
+    def test_summary_source_labels_handle_different_layouts_and_reject_ambiguity(self):
+        class Sheet:
+            title = 'child'
+            def __init__(self, rows):
+                self.cells = {(r, c): SimpleNamespace(row=r, column=c, value=value)
+                              for r, values in enumerate(rows, 1)
+                              for c, value in enumerate(values, 1)}
+            def cell(self, row, column):
+                return self.cells.get((row, column), SimpleNamespace(row=row, column=column, value=None))
+            def __getitem__(self, row):
+                return [cell for (r, _), cell in self.cells.items() if r == row]
+            def __iter__(self):
+                return iter([self[row] for row in range(1, max(r for r, _ in self.cells) + 1)])
+
+        for total_label, total_value in [(['总重量合计', 19.0], [None, None]),
+                                         ([19.0, '总重量合计'], [None, None]),
+                                         ([None, '总重量合计'], [None, 19.0])]:
+            sheet = Sheet([total_label, total_value, ['砼体积(m³)', None], [0.5, None]])
+            volume, total = source_cells(sheet)
+            self.assertEqual((volume.value, total.value), (0.5, 19.0))
+        with self.assertRaisesRegex(ValueError, 'ambiguous_total_values'):
+            source_cells(Sheet([['总重量合计', 1.0, 2.0], ['砼体积(m³)'], [0.5]]))
+        self.assertTrue(value_equal(0.5, 0.5))
+        self.assertFalse(value_equal(0.6, 0.5))
+
+    def test_statement_records_reconcile_and_preserve_existing_transactions(self):
+        statement = '''01 Dec. Balance forward $100.00
+01 Dec. Insurance 20.00 80.00
+02 Dec. Sales 50.00 130.00
+02 Dec. Closing totals 20.00 50.00 130.00'''
+        records, _ = pdf_records(statement)
+        original = normalize_row(['Mar 22', 'Old transaction', '', '$10.00', '$70.00'])
+        rows = [normalize_row(['01 Dec', 'Insurance', '-$20.00', '', '$80.00']),
+                normalize_row(['02 Dec', 'Sales', '', '$50.00', '$130.00']), original]
+        self.assertEqual(record_difference(records + [original], rows), ({}, {}))
+        missing, unexpected = record_difference(records + [original], rows[:-1])
+        self.assertEqual(sum(missing.values()), 1)
+        self.assertFalse(unexpected)
+        rows[0] = normalize_row(['01 Dec', 'Insurance', '-$21.00', '', '$80.00'])
+        missing, unexpected = record_difference(records + [original], rows)
+        self.assertEqual((sum(missing.values()), sum(unexpected.values())), (1, 1))
+        with self.assertRaisesRegex(ValueError, 'pdf_transaction_does_not_reconcile'):
+            pdf_records(statement.replace('20.00 80.00', '20.00 81.00'))
+
+    def test_inventory_dates_accept_blank_no_order_dates_but_reject_wrong_dates(self):
+        expected={1:{'needs_reorder':False,'reorder_date':None},
+                  2:{'needs_reorder':True,'reorder_date':datetime.date(2026,3,8)}}
+        parse=lambda value: value if isinstance(value,datetime.date) else None
+        for blank in [None,'','N/A']:
+            records=[{'Product_ID':1,'Reorder_Date':blank},
+                     {'Product_ID':2,'Reorder_Date':datetime.date(2026,3,8)}]
+            self.assertTrue(date_status(records,expected,parse,int)[0])
+        records[1]['Reorder_Date']=datetime.date(2026,3,9)
+        self.assertEqual(date_status(records,expected,parse,int)[1][0]['reason'],'wrong_reorder_date')
+        records[0]['Reorder_Date']='unexpected'
+        self.assertIn('unexpected_reorder_date',[e['reason'] for e in date_status(records,expected,parse,int)[1]])
+
+    def test_pytest_inapplicable_checks_are_reported_without_failing_the_case(self):
+        capture=PytestCapture()
+        capture.allowed_skips.add('pivot_without_column')
+        capture.record(SimpleNamespace(nodeid='pivot_without_column',when='call',
+            skipped=True,failed=False,passed=False,longrepr='not a matrix pivot',outcome='skipped'))
+        capture.record(SimpleNamespace(nodeid='source_data',when='call',
+            skipped=False,failed=False,passed=True,longrepr=None,outcome='passed'))
+        checks,raw=capture.result(0)
+        self.assertEqual([item['rule'] for item in checks],['source_data'])
+        self.assertEqual([item['rule'] for item in raw['skipped']],['pivot_without_column'])
+
+    def test_unexpected_skip_and_empty_checks_are_framework_errors(self):
+        capture=PytestCapture()
+        capture.record(SimpleNamespace(nodeid='missing_dependency',when='setup',
+            skipped=True,failed=False,passed=False,longrepr='dependency missing',outcome='skipped'))
+        with self.assertRaisesRegex(RuntimeError,'unexpected_skipped_checks'):
+            capture.result(0)
+        with self.assertRaisesRegex(RuntimeError,'executed_no_checks'):
+            PytestCapture().result(0)
+
     def test_unreadable_archive_is_isolated_without_losing_trace_records(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);case=root/'results/J1-16';case.mkdir(parents=True)
@@ -135,7 +248,7 @@ class JourneyTests(unittest.TestCase):
             offset=struct.unpack_from('<L',data,end+16)[0]
             struct.pack_into('<L',data,end+16,offset+188743680)
             payload=case/'artifacts/context/file/journey-output.zip';payload.parent.mkdir(parents=True);payload.write_bytes(data)
-            for suffix in ['.01','.002']:
+            for suffix in ['.01','.002','.part02','.PART03']:
                 payload.with_name(payload.name+suffix).write_bytes(b'opaque middle volume')
             rejected=prepare_publication(root/'results',root/'public',[])
             self.assertEqual((root/'public/J1-16/events.jsonl').read_text(),trace)
@@ -144,7 +257,7 @@ class JourneyTests(unittest.TestCase):
             self.assertEqual(result['status'],'failed')
             self.assertEqual(result['publication']['status'],'partial')
             self.assertTrue(any(r['reason'].startswith('archive_not_inspectable:') for r in rejected))
-            self.assertEqual(sum(r['reason']=='split_archive_volume_not_inspectable' for r in rejected),2)
+            self.assertEqual(sum(r['reason']=='split_archive_volume_not_inspectable' for r in rejected),4)
 
     def test_publication_redacts_records_and_withholds_secret_payload(self):
         with tempfile.TemporaryDirectory() as directory:

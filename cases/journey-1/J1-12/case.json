@@ -39,7 +39,7 @@
     "report.pptx"
   ],
   "assertions": [
-    "从工作簿正确读取年份、系列和数值",
+    "从工作簿正确读取全部年份、七个指标和数值",
     "新增原生表格与折线图，图表嵌入数据和显示内容一致",
     "原有页面保留，新增页继承原稿风格与顺序"
   ],
@@ -50,7 +50,7 @@
       "turns": [
         {
           "phase": "plan",
-          "prompt": "请先阅读本轮材料，核对文件是否齐全，说明你将如何完成下面的任务。先给出计划，等我确认后再修改或生成交付文件。\n\nAdd a new slide at the end of the PPT and create a table from “Various PPT-Related Data Tables” that matches the tables on the preceding slides. Then add another new slide after the table slide and create a line chart (refer to the preceding slides)."
+          "prompt": "请先阅读本轮材料，核对文件是否齐全，说明你将如何完成下面的任务。先给出计划，等我确认后再修改或生成交付文件。\n\nAdd a new slide at the end of the PPT and create a table from “Various PPT-Related Data Tables” that matches the tables on the preceding slides. Then add another new slide after the table slide and create a line chart (refer to the preceding slides). Include every year and all seven metrics from the workbook in both the editable table and the native line chart; the chart’s embedded workbook and displayed data must match the source. Preserve the existing slides."
         },
         {
           "phase": "execute",
@@ -58,7 +58,7 @@
         },
         {
           "phase": "review",
-          "prompt": "请重新打开实际生成的文件，逐项复核以下要求，必要时修正文件，然后发布最终交付包。\n- 从工作簿正确读取年份、系列和数值\n- 新增原生表格与折线图，图表嵌入数据和显示内容一致\n- 原有页面保留，新增页继承原稿风格与顺序"
+          "prompt": "请重新打开实际生成的文件，逐项复核以下要求，必要时修正文件，然后发布最终交付包。\n- 从工作簿正确读取全部年份、七个指标和数值\n- 新增原生表格与折线图，图表嵌入数据和显示内容一致\n- 原有页面保留，新增页继承原稿风格与顺序"
         }
       ],
       "expected_files": [
