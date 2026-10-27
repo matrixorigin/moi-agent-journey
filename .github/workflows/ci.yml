@@ -23,7 +23,7 @@ jobs:
       - run: docker build -t moi-journey-judge-tests -f judge/Dockerfile .
       - name: Exercise Office validators with editable fixtures
         run: >-
-          docker run --rm --network=none --read-only --cap-drop=ALL
+          docker run --rm --init --network=none --read-only --cap-drop=ALL
           --security-opt=no-new-privileges --memory=3g --cpus=2 --pids-limit=256
           --tmpfs /tmp:rw,size=1g,mode=1777
           --mount "type=bind,src=${GITHUB_WORKSPACE}/tests_judge,dst=/tests_judge,readonly"

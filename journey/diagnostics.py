@@ -28,13 +28,18 @@ def observed_tool_errors(path):
                                      'detail': str(payload.get('error') or '')[:2048]})
                 continue
             output = payload.get('output')
-            if payload.get('success') is False or payload.get('status') == 'failed':
+            if payload.get('status') != 'skipped' and (payload.get('success') is False or payload.get('status') == 'failed'):
                 detail = output if isinstance(output, str) else payload.get('error', '')
                 observations.append({**context, 'kind': 'tool_failure', 'error_kind': payload.get('error_kind'),
                                      'code': payload.get('error'), 'detail': str(detail)[:2048]})
             if not isinstance(output, dict) or not isinstance(output.get('output'), dict):
                 continue
             terminal = output['output']
+            if terminal.get('ok') is False:
+                observations.append({**context, 'kind': 'tool_output_failure',
+                                     'tool_id': output.get('tool_id'), 'code': terminal.get('error_code'),
+                                     'provider': terminal.get('provider'),
+                                     'detail': str(terminal.get('message') or '')[:2048]})
             for channel in ('stdout', 'stderr'):
                 text = terminal.get(channel)
                 if not isinstance(text, str):

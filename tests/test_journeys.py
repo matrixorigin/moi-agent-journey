@@ -147,7 +147,7 @@ class JourneyTests(unittest.TestCase):
     def test_observed_tool_errors_record_evidence_without_changing_case_outcome(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory); evidence=Evidence(root/'J1-01', ['private-token'])
-            evidence.write('result.json', {'case_id':'J1-01', 'status':'failed', 'tasks':[{'event_count':4}],
+            evidence.write('result.json', {'case_id':'J1-01', 'status':'failed', 'tasks':[{'event_count':6}],
                 'failures':[], 'harness_errors':[], 'capture_complete':True})
             events=[
                 {'task_id':'task-1','seq':0,'kind':'lifecycle','payload':{'type':'tool_transport_failed',
@@ -160,6 +160,11 @@ class JourneyTests(unittest.TestCase):
                                                        'stderr':'not JSON'}}}},
                 {'task_id':'task-1','seq':3,'kind':'tool_result','payload':{'tool':'bash','call_id':'c','success':True,
                     'output':{'output':{'stdout':'{"status":200,"code":"OK"}'}}}},
+                {'task_id':'task-1','seq':4,'kind':'tool_result','payload':{'tool':'search','call_id':'d','success':True,
+                    'output':{'tool_id':'web_search','output':{'ok':False,'error_code':'QUOTA_EXCEEDED',
+                              'provider':'search_provider','message':'Service quota exhausted'}}}},
+                {'task_id':'task-1','seq':5,'kind':'tool_result','payload':{'tool':'(surgically_removed)',
+                    'call_id':'e','success':False,'status':'skipped','error':'not_executed'}},
             ]
             for event in events:evidence.append('events.jsonl',event)
             with patch.dict(os.environ, {'GITHUB_SHA':'test-commit'}):
@@ -170,8 +175,9 @@ class JourneyTests(unittest.TestCase):
             specification=json.dumps(load_case('J1-01'),ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()
             self.assertEqual(report['case_spec_sha256'], hashlib.sha256(specification).hexdigest())
             self.assertEqual([item['kind'] for item in report['observed_tool_errors']],
-                             ['tool_transport_failed','tool_failure','tool_output_http_error'])
+                             ['tool_transport_failed','tool_failure','tool_output_http_error','tool_output_failure'])
             self.assertEqual(report['observed_tool_errors'][2]['request_id'],'r1')
+            self.assertEqual(report['observed_tool_errors'][3]['code'],'QUOTA_EXCEEDED')
             self.assertNotIn('private-token',(evidence.root/'result.json').read_text())
 
     def test_invalid_event_log_is_a_framework_error(self):
@@ -192,6 +198,7 @@ class JourneyTests(unittest.TestCase):
             work = root/'work'; work.mkdir()
             case = {'id': 'J1-14', 'workspace': 'journey-1'}
             def run(*args, **kwargs):
+                self.assertIn('--init', args[0])
                 path = evidence.root/'sessions/office/verification/verdict.json'
                 path.write_text(json.dumps({'status': 'error', 'reason': 'upstream_oracle_incomplete'}))
                 return SimpleNamespace(returncode=1, stdout='', stderr='')

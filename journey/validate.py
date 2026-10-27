@@ -27,7 +27,7 @@ def validate(case, work, evidence):
         destination.mkdir(parents=True, exist_ok=True)
         # The validator user can write evidence, but cannot alter the submitted files.
         destination.chmod(0o777)
-        command = ["docker", "run", "--rm", "--network=none", "--read-only", "--cap-drop=ALL",
+        command = ["docker", "run", "--rm", "--init", "--network=none", "--read-only", "--cap-drop=ALL",
             "--security-opt=no-new-privileges", "--memory=3g", "--cpus=2", "--pids-limit=256",
             "--tmpfs", "/tmp:rw,size=1g,mode=1777", "--mount", f"type=bind,src={work},dst=/work,readonly",
             "--mount", f"type=bind,src={source.resolve()},dst=/outputs,readonly",
