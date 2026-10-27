@@ -213,14 +213,30 @@ export async function createAgentCandidate(page, options, observe = () => {}) {
     phase = 'verify';
     const verifyInput = page.getByTestId('chat-input').locator('textarea');
     await verifyInput.fill(verifyPrompt);
-    await page.getByTestId('send-btn').click();
-    const assistant = page.getByTestId('agent-a2a-assistant-answer').last();
     try {
-      await assistant.getByText(marker, { exact: false }).waitFor({ state: 'visible', timeout: remaining() });
+      const [response] = await withPageError(Promise.all([
+        page.waitForResponse((item) => requestFacts(item.request())?.agent_id === createdAgent.agent_id,
+          { timeout: Math.min(remaining(), 30_000) }),
+        page.getByTestId('send-btn').click(),
+      ]), 'verify');
+      if (!response.ok()) {
+        throw new ScenarioFailure('verify', 'created_agent_message_failed', { http_status: response.status() });
+      }
+      // The final answer may differ from an intermediate streaming fragment.
+      if (await withPageError(response.finished(), 'verify')) {
+        throw new ScenarioFailure('verify', 'created_agent_stream_failed');
+      }
+      await waitVisible(page.getByTestId('send-btn'), remaining(), 'verify', 'created_agent_stream_not_finished');
+      const assistant = page.getByTestId('agent-a2a-assistant-answer').last();
+      await waitVisible(assistant, Math.min(remaining(), 30_000), 'verify', 'created_agent_reply_missing');
+      if (!(await assistant.innerText()).includes(marker)) {
+        throw new ScenarioFailure('verify', 'created_agent_reply_mismatch');
+      }
     } catch (error) {
-      if (error?.name !== 'TimeoutError') throw error;
-      record('新智能体可以回复', false, 'created_agent_reply_missing');
-      throw new ScenarioFailure('verify', 'created_agent_reply_missing');
+      if (!(error instanceof ScenarioFailure) && error?.name !== 'TimeoutError') throw error;
+      const reason = error instanceof ScenarioFailure ? error.reason : 'created_agent_message_not_sent';
+      record('新智能体可以回复', false, reason);
+      throw new ScenarioFailure('verify', reason, error.detail);
     }
     record('新智能体可以回复', true);
     return { status: 'passed', checks, created_agent: createdAgent };

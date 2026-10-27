@@ -42,7 +42,7 @@ q('send-btn').onclick = async () => {
     const answer = document.createElement('div');
     answer.dataset.testid = 'agent-a2a-assistant-answer';
     const content = document.createElement('span');
-    content.textContent = text.split('：').at(-1);
+    content.textContent = mode === 'wrong-answer' ? 'unrelated answer' : text.split('：').at(-1);
     answer.append(content);
     q('chat-messages').append(answer);
     return;
@@ -177,4 +177,10 @@ test('reports a missing go-to-chat button after a successful commit', async () =
   assert.equal(result.status, 'failed');
   assert.equal(result.failure.reason, 'created_agent_chat_button_not_visible');
   assert.equal(result.created_agent.agent_id, 'ag-test');
+});
+
+test('rejects a completed response that does not contain the requested marker', async () => {
+  const { result } = await run('wrong-answer');
+  assert.equal(result.status, 'failed');
+  assert.equal(result.failure.reason, 'created_agent_reply_mismatch');
 });
