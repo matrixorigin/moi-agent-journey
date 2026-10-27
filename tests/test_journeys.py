@@ -55,7 +55,12 @@ def qa_fixture(mode):
             body=json.loads(raw) if raw and self.headers.get("Content-Type","").startswith("application/json") else None
             state["methods"].append((self.command,self.path,body))
             code=200
-            if self.path.startswith('/workspaces?'):
+            if self.path == '/system/versions':
+                state['version_reads'] = state.get('version_reads', 0) + 1
+                version = 'v2' if mode == 'version_change' and state['version_reads'] > 1 else 'v1'
+                response = {'code': 'OK', 'data': {'backend_components': [
+                    {'component': 'moi-backend', 'version': version, 'git_commit': version + '-commit'}]}}
+            elif self.path.startswith('/workspaces?'):
                 response={"code":"OK","data":{"workspaces":[{"name":"journey-1","id":"ws","status":"ACTIVE"}]}}
             elif '/agents?' in self.path:
                 response={"code":0,"data":{"items":[{"id":"momo","workspace_id":"system","status":"active","source_ref":"agent-zero-builder"}],"total":1}}

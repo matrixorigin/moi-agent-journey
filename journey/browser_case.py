@@ -16,6 +16,7 @@ from .client import Client, Failure, segment
 from .evidence import Evidence, configured_secrets, utc_now
 from .hello import TERMINAL, discover, task_state
 from .run_case import Execution
+from .version import finish_version, start_version
 
 
 def task_duration(runtime):
@@ -169,6 +170,7 @@ def run(case, evidence, work):
     started = time.monotonic()
     try:
         execution.root, execution.selector = discover(client, case['workspace'])
+        start_version(execution)
         execution.workspace_id = execution.root.rsplit('/', 1)[-1]
         turns = case['sessions'][0]['turns']
         if [turn['phase'] for turn in turns] != ['create', 'verify']:
@@ -261,6 +263,7 @@ def run(case, evidence, work):
         stop_process(process)
         execution.report['task_seconds'] = round(time.monotonic() - started, 3)
         execution.report['qa_seconds'] = execution.report['task_seconds']
+        finish_version(execution)
         cleanup_started = time.monotonic()
         if execution.root:
             cleanup(execution)

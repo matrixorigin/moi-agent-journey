@@ -15,6 +15,7 @@ from .evidence import Evidence, configured_secrets
 from .hello import discover
 from .run_case import Execution
 from .search_checks import evaluate_search
+from .version import finish_version, start_version
 
 
 def case_variables(case):
@@ -47,6 +48,7 @@ class FunctionalExecution(Execution):
         current_search = None
         try:
             self.root, self.selector = discover(self.client, self.case['workspace'])
+            start_version(self)
             variables = case_variables(self.case)
             self.evidence.write('parameters.json', variables)
             fixtures = {item['path']: item for item in self.case.get('fixtures', [])}
@@ -108,7 +110,7 @@ class FunctionalExecution(Execution):
                 if final_entry is None:
                     raise Failure('session_has_no_turns')
                 self.report['sessions'].append({'id': session['id'], 'conversation_id': cid,
-                    'final_task_id': final_entry['task_id'], 'answer_delivered': True,
+                    'final_task_id': final_entry['task_id'], 'answer_delivered': bool(reply.strip()),
                     'candidate_verified': candidate_verified})
                 self.checkpoint()
             if not checks:
@@ -130,6 +132,8 @@ class FunctionalExecution(Execution):
                 except (OSError, TypeError, ValueError) as evidence_error:
                     self.report['harness_errors'].append({'stage': 'evidence', 'reason': type(evidence_error).__name__})
         finally:
+            signal.alarm(0)
+            finish_version(self)
             self.finalize()
         return self.report
 

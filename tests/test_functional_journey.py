@@ -67,6 +67,17 @@ class FunctionalJourneyTests(unittest.TestCase):
             self.assertEqual((task['state'], agent['state'], delivery['state']), ('completed', 'completed', 'delivered'))
             self.assertEqual(len(quality['failed_checks']), 1)
 
+    def test_empty_answer_is_not_reported_as_a_delivery(self):
+        with qa_fixture('success') as (base, _state):
+            case = self.make_case()
+            execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+            with patch('journey.functional_case.final_reply', return_value=''):
+                result = execution.run()
+            self.assertEqual(result['status'], 'failed')
+            self.assertFalse(result['sessions'][0]['answer_delivered'])
+            _, _, delivery, _ = assess(case, result, result['status'])
+            self.assertEqual(delivery['state'], 'not_delivered')
+
     def test_quota_exhaustion_stays_blocked_even_if_the_agent_task_fails(self):
         with qa_fixture('search_quota') as (base, state):
             case = self.make_case()
@@ -92,6 +103,18 @@ class FunctionalJourneyTests(unittest.TestCase):
             self.assertEqual(sends[0]['params']['message']['parts'][1]['file']['uri'], 'moi://files/input')
             self.assertEqual(result['retained_inputs'][0]['file_id'], 'input')
             self.assertEqual(result['retained_inputs'][0]['fixture'], 'image.png')
+
+    def test_qa_deployment_change_blocks_an_otherwise_passing_case(self):
+        with qa_fixture('version_change') as (base, state):
+            execution = FunctionalExecution(base.client, self.make_case(), base.evidence, base.work, 'model')
+            result = execution.run()
+            self.assertEqual(result['status'], 'failed')
+            self.assertTrue(result['blocked'])
+            self.assertEqual(result['qa_version_start']['version'], 'v1')
+            self.assertEqual(result['qa_version_end']['version'], 'v2')
+            self.assertIn('qa_backend_changed_during_case', [item['reason'] for item in result['failures']])
+            self.assertTrue(result['capture_complete'])
+            self.assertTrue(state['archived'])
 
     def test_answer_rules_check_actual_reply_without_exact_prose_matching(self):
         turn = {'phase': 'recall', 'assertions': [

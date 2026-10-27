@@ -10,7 +10,7 @@ from journey.catalog import load_case, load_suite
 from journey.client import Failure
 from journey.diagnostics import analyze_events
 from journey.evidence import Evidence
-from journey.report import aggregate, finish_case
+from journey.report import _qa_versions, _valid_case_result, aggregate, finish_case
 from journey.run_case import Execution
 
 
@@ -72,7 +72,9 @@ class BrowserJourneyTests(unittest.TestCase):
         result = {'case_id': 'J2-01', 'workspace': 'journey-2', 'title': self.case['title'], 'status': status,
                   'tasks': entries, 'capture_complete': bool(entries), 'failures': [], 'harness_errors': [],
                   'blocked': blocked, 'sessions': [{'id': 'browser', 'created_agent': {'verified': verified}}]
-                  if verified is not None else [], 'validation': {'checks': []}}
+                  if verified is not None else [], 'validation': {'checks': []},
+                  'qa_version_start': {'version': 'v1', 'git_commit': 'abc'},
+                  'qa_version_end': {'version': 'v1', 'git_commit': 'abc'}}
         if checks:
             result['validation']['checks'] = [{'session': 'browser', 'rule': 'candidate', 'passed': status == 'passed',
                                                 'detail': '' if status == 'passed' else 'not_visible'}]
@@ -207,6 +209,31 @@ class BrowserJourneyTests(unittest.TestCase):
         self.assertEqual(result['functional']['state'], 'error')
         self.assertIn('functional_turns_not_fully_captured', [item['reason'] for item in result['harness_errors']])
 
+    def test_pass_without_both_backend_version_observations_is_a_framework_error(self):
+        directory = self.write_result('passed')
+        raw = json.loads((directory / 'result.json').read_text())
+        raw.pop('qa_version_end')
+        (directory / 'result.json').write_text(json.dumps(raw))
+        result = finish_case('J2-01', self.root)
+        self.assertEqual(result['functional']['state'], 'error')
+        self.assertIn('qa_backend_version_missing', [item['reason'] for item in result['harness_errors']])
+
+    def test_pass_with_changed_backend_version_is_a_framework_error(self):
+        directory = self.write_result('passed')
+        raw = json.loads((directory / 'result.json').read_text())
+        raw['qa_version_end'] = {'version': 'v2', 'git_commit': 'def'}
+        (directory / 'result.json').write_text(json.dumps(raw))
+        result = finish_case('J2-01', self.root)
+        self.assertEqual(result['functional']['state'], 'error')
+        self.assertIn('qa_version_verdict_inconsistent', [item['reason'] for item in result['harness_errors']])
+
+    def test_finalized_pass_with_mismatched_versions_is_not_a_valid_artifact(self):
+        self.write_result('passed')
+        result = finish_case('J2-01', self.root)
+        self.assertTrue(_valid_case_result(result))
+        result['qa_version_end'] = {'version': 'v2', 'git_commit': 'def'}
+        self.assertFalse(_valid_case_result(result))
+
     def test_login_blocked_and_missing_case_are_not_counted_as_pass(self):
         self.write_result('error', tasks=0, verified=None, checks=False, blocked=True)
         result = finish_case('J2-01', self.root)
@@ -234,6 +261,15 @@ class BrowserJourneyTests(unittest.TestCase):
         text = (directory / 'result.json').read_text() + (directory / 'case-summary.md').read_text()
         self.assertNotIn('my-private-account', text)
         self.assertNotIn('my-private-password', text)
+
+    def test_mixed_or_missing_backend_versions_cannot_be_reported_as_one_version(self):
+        v1 = {'version': 'v1', 'git_commit': 'aaa'}
+        v2 = {'version': 'v2', 'git_commit': 'bbb'}
+        first = {'case_id': 'J2-01', 'qa_version_start': v1, 'qa_version_end': v1}
+        second = {'case_id': 'J2-02', 'qa_version_start': v1, 'qa_version_end': v2}
+        self.assertEqual(_qa_versions([first])['state'], 'consistent')
+        self.assertEqual(_qa_versions([first, second])['state'], 'mixed')
+        self.assertEqual(_qa_versions([first, {'case_id': 'J2-02'}])['state'], 'unknown')
 
     def test_browser_http_log_excludes_unrelated_agent_and_owner_data(self):
         evidence = Evidence(self.root)

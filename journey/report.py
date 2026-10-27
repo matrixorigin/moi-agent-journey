@@ -60,6 +60,12 @@ def case_summary(result):
              f"- 语义评审耗时：{cell(result.get('semantic_judge_seconds'))} 秒；不计入端到端任务耗时。"]
     if result.get('functional'):
         lines.insert(4, f"- 功能验收：{FUNCTIONAL_LABELS[result['functional']['state']]}。")
+        before, after = result.get('qa_version_start'), result.get('qa_version_end')
+        if isinstance(before, dict) and isinstance(after, dict):
+            lines.append(f"- QA MOI 版本：开始 {cell(before.get('version'))} / {cell(before.get('git_commit'))}；"
+                         f"结束 {cell(after.get('version'))} / {cell(after.get('git_commit'))}。")
+        else:
+            lines.append('- QA MOI 版本：未完整获取。')
     for item in result.get('retained_inputs', []):
         lines.append(f"- 测试输入：{cell(item.get('fixture'))}（文件 ID：{cell(item.get('file_id'))}），"
                      '作为会话附件保留在 QA。')
@@ -197,6 +203,13 @@ def finish_case(case_id, directory):
                for session in case['sessions'] if session.get('delivery_kind') == 'candidate'):
             result['harness_errors'].append({'stage': 'validation', 'reason': 'verified_candidate_missing'})
     if raw_status == 'passed' and is_functional_case(case):
+        if any(not isinstance(result.get(key), dict) or
+               any(not isinstance(result[key].get(field), str) or not result[key][field]
+                   for field in ('version', 'git_commit'))
+               for key in ('qa_version_start', 'qa_version_end')):
+            result['harness_errors'].append({'stage': 'qa_version', 'reason': 'qa_backend_version_missing'})
+        elif result['qa_version_start'] != result['qa_version_end']:
+            result['harness_errors'].append({'stage': 'qa_version', 'reason': 'qa_version_verdict_inconsistent'})
         expected = Counter(session['id'] + ':' + turn['phase']
                            for session in case['sessions'] for turn in session['turns'])
         completed = Counter(task.get('phase') for task in result.get('tasks', [])
@@ -350,6 +363,24 @@ def _group_summary(rows):
             'tools': tools}
 
 
+def _qa_versions(rows):
+    builds, missing = defaultdict(set), 0
+    for row in rows:
+        versions = [row.get('qa_version_start'), row.get('qa_version_end')]
+        if any(not isinstance(value, dict) or
+               any(not isinstance(value.get(key), str) or not value[key] for key in ('version', 'git_commit'))
+               for value in versions):
+            missing += 1
+        for value in versions:
+            if isinstance(value, dict) and all(isinstance(value.get(key), str) and value[key]
+                                               for key in ('version', 'git_commit')):
+                builds[(value['version'], value['git_commit'])].add(row['case_id'])
+    state = 'mixed' if len(builds) > 1 else 'unknown' if missing or not builds else 'consistent'
+    return {'state': state, 'missing_cases': missing,
+            'builds': [{'version': version, 'git_commit': commit, 'cases': sorted(cases)}
+                       for (version, commit), cases in sorted(builds.items())]}
+
+
 def _missing_case(case, workspace, reason):
     result = {'case_id': case['id'], 'workspace': workspace, 'title': case['title'], 'test_status': 'error',
             'tasks': [], 'failures': [], 'harness_errors': [{'stage': 'aggregation', 'reason': reason}],
@@ -376,6 +407,13 @@ def _valid_case_result(result):
     if ('functional' in result and
             (not isinstance(result['functional'], dict) or result['functional'].get('state') not in FUNCTIONAL_LABELS)):
         return False
+    if result.get('functional', {}).get('state') == 'pass':
+        versions = [result.get('qa_version_start'), result.get('qa_version_end')]
+        if (result['test_status'] != 'completed' or
+                any(not isinstance(value, dict) or
+                    any(not isinstance(value.get(key), str) or not value[key] for key in ('version', 'git_commit'))
+                    for value in versions) or versions[0] != versions[1]):
+            return False
     for key, names in [('agent', ('completed_turns', 'expected_turns')),
                        ('delivery', ('completed_sessions', 'expected_sessions'))]:
         if (any(type(result[key].get(name)) is not int or result[key][name] < 0 for name in names) or
@@ -456,6 +494,8 @@ def aggregate(source, destination):
                         'status': 'configured' if current else 'empty', **_group_summary(current)}
         if 'coverage_status' in suite:
             suite_result['coverage_status'] = suite['coverage_status']
+        if any(is_functional_case(load_case(case_id)) for case_id in suite['cases']):
+            suite_result['qa_versions'] = _qa_versions(current)
         suites.append(suite_result)
     totals = _group_summary(rows)
     task_errors, tool_errors = defaultdict(set), defaultdict(set)
@@ -552,6 +592,15 @@ def aggregate(source, destination):
                       f"阻塞 {functional['blocked']}，执行错误 {functional['error']}。"]
             if suite.get('coverage_status') == 'incomplete':
                 lines.append('该组功能覆盖尚未完成，当前结果不能作为发布门禁。')
+            versions = suite.get('qa_versions')
+            if versions:
+                for build in versions['builds']:
+                    lines.append(f"QA MOI：{cell(build['version'])} / {cell(build['git_commit'])}；"
+                                 f"涉及 {cell(', '.join(build['cases']))}。")
+                if versions['state'] == 'mixed':
+                    lines.append('QA MOI 版本在本组内发生变化，结果不能视为同一版本的验证。')
+                elif versions['state'] == 'unknown':
+                    lines.append('QA MOI 版本未完整记录，无法确认本组结果属于同一版本。')
     if tools['by_tool']:
         lines += ['', '## 智能体工具调用统计', '', '| 工具 | 调用 | 成功 | 失败 | 跳过 | 不明确 | 成功率 |',
                   '|---|---:|---:|---:|---:|---:|---:|']
