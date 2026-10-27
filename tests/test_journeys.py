@@ -15,7 +15,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from journey.client import Client
+from journey.client import Client, Failure
 from journey.catalog import load_case
 from journey.a2a import final_reply
 from journey.evidence import Evidence, safe_extract
@@ -408,6 +408,19 @@ class JourneyTests(unittest.TestCase):
             self.assertEqual(result['status'],'awaiting_validation')
             self.assertGreaterEqual(result['semantic_judge_seconds'],0.02)
             self.assertGreater(result['qa_seconds'],result['task_seconds'])
+
+    def test_invalid_semantic_judge_verdict_is_not_an_agent_failure(self):
+        for reason in ('invalid_semantic_judge_verdict:invalid_json', 'case_timeout'):
+            with self.subTest(reason=reason), qa_fixture('success') as (execution,state):
+                execution.case['source']['benchmark']='π-Bench'
+                with patch.object(execution,'judge_pi',side_effect=Failure(reason)):
+                    result=execution.run()
+                self.assertEqual(result['status'],'error')
+                self.assertEqual(result['failures'],[])
+                self.assertEqual(result['harness_errors'][0]['stage'],'semantic_judge')
+                self.assertEqual(result['harness_errors'][0]['reason'],reason)
+                self.assertTrue(result['capture_complete'])
+                self.assertTrue(state['archived'])
 
     def test_deadline_cancels_and_keeps_the_failure(self):
         with qa_fixture('timeout') as (execution,state):
