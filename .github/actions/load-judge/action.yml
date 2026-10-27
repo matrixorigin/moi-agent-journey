@@ -17,8 +17,8 @@ runs:
       run: |
         set -euo pipefail
         cd "$RUNNER_TEMP/journey-judge"
-        sha256sum --check image.tar.zst.sha256
-        docker image load --input image.tar.zst
+        sha256sum --check image.tar.sha256
+        docker image load --input image.tar
         revision=$(docker image inspect moi-journey-judge --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
         if [[ "$revision" != "$GITHUB_SHA" ]]; then
           echo "Validator revision does not match the checked-out workflow revision." >&2
