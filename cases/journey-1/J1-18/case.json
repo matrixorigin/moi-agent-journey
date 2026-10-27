@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "id": "J1-18",
+  "title": "品牌研究、会议规则到联名方案",
+  "workspace": "journey-1",
+  "source": {
+    "benchmark": "π-Bench",
+    "task": "marketer_task_015 + 016 → 017",
+    "revision": "4f545be5d289b28ff022d2904d455007358ed3b7",
+    "instruction_url": "https://github.com/Simplified-Reasoning/Pi-Bench/blob/4f545be5d289b28ff022d2904d455007358ed3b7/data/marketer/tasks/marketer_task_017/task.yaml",
+    "oracle_url": "https://github.com/Simplified-Reasoning/Pi-Bench/blob/4f545be5d289b28ff022d2904d455007358ed3b7/src/evaluation/checklist_evaluator.py"
+  },
+  "assets": [
+    {
+      "path": "Meeting_Minutes_0409.md",
+      "source_path": "data/marketer/tasks/marketer_task_016/Meeting_Minutes_0409.md",
+      "size_bytes_from_inventory": 7473,
+      "git_blob_oid": "1f7926f60eec81dd8e9327cc2ffc5dcf02243651",
+      "url": "https://raw.githubusercontent.com/Simplified-Reasoning/Pi-Bench/4f545be5d289b28ff022d2904d455007358ed3b7/data/marketer/tasks/marketer_task_016/Meeting_Minutes_0409.md",
+      "available_from_task": "marketer_task_016",
+      "sha256": "7c4de0a59f8c5550d1d9de92b9de9516efc19202ab85811eb3c201330119be58",
+      "size_bytes": 7473
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "Brand_Research.md",
+    "Kickoff_Rulebook.md",
+    "Campaign_Outline.md"
+  ],
+  "assertions": [
+    "品牌事实来自搜索与来源证据",
+    "从会议记录准确保留产品禁区、英文标语长度、视觉和供应规则",
+    "后轮实际读取前两份成果，方案满足四模块和全部约束，不只复述规则"
+  ],
+  "dialogue_origin": "native_multi_session_chain",
+  "sessions": [
+    {
+      "id": "marketer_task_015",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "We are conducting background research on two brands: the hardcore e-sports brand 'ROG (Republic of Gamers)' and the centuries-old traditional medicine brand 'Beijing Tong Ren Tang (BTRT)'. Please research them independently via the internet. Please write this directly into a file named Brand_Research.md (maximum 4 paragraphs) in our workspace."
+        }
+      ],
+      "rubric": [
+        "The official brand slogan for ROG is explicitly identified as 'For Those Who Dare'.",
+        "The research delves into specific ROG product lines, mentioning core models like 'Zephyrus' or 'Strix', or its iconic 'Fearless Eye' logo.",
+        "The research captures the core meaning of BTRT's traditional quality principle, specifically the commitment to never compromise on labor/effort and never compromise on materials/cost."
+      ],
+      "expected_files": [
+        "Brand_Research.md"
+      ]
+    },
+    {
+      "id": "marketer_task_016",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "Regarding the 'ROG x Beijing Tong Ren Tang (BTRT)' crossover campaign, please read the 'Meeting_Minutes_0409.md' file from our workspace. This file contains the raw transcript of our initial client alignment meeting. Extract the core constraints and client demands. Draft a concise rulebook based strictly on these extracted points, filtering out all the conversational noise. Please write this directly into a file named 'Kickoff_Rulebook.md' in the workspace."
+        }
+      ],
+      "rubric": [
+        "The rulebook explicitly locks in the Slogan Rule based on Marcus's requirement: English only, exactly 6 words or fewer.",
+        "The rulebook explicitly locks in the Product Form constraints agreed upon by both parties: no traditional PC chassis and no standard herbal medicine pills.",
+        "The rulebook explicitly locks in the Visual Rule proposed by Marcus: Cyberpunk Neon Green as the primary tone.",
+        "The rulebook explicitly adopts Dr. Chen's veto regarding the launch strategy, establishing a Mechanism Rule that prohibits hunger marketing and ensures stable supply."
+      ],
+      "expected_files": [
+        "Kickoff_Rulebook.md"
+      ]
+    },
+    {
+      "id": "marketer_task_017",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "Regarding the 'ROG x BTRT' crossover campaign, please search our workspace to locate the documents containing our recent independent brand research and the finalized kickoff rules. Based strictly on the facts and established rules found in these specific files, generate the complete 'ROG x Tong Ren Tang Crossover Campaign Outline' (maximum 4 paragraphs). The outline must be highly concrete and actionable, proposing a specific physical product and a definitive slogan, rather than merely repeating the rules. Structure the outline into exactly four core modules: 'Co-branded Product', 'Target Audience Persona', 'Slogan', and 'Promotion Strategy'. Please write this directly into a file named 'Campaign_Outline.md' in our workspace without any conversational filler.\n\nMOI 跨会话扩展：请实际读取 prior_outputs/ 中前两轮的真实成果。额外交付 source_lineage.json，格式为 {\"sources\":[{\"session_id\":\"前轮会话任务名\",\"path\":\"前轮文件名\",\"sha256\":\"实际读取文件的 SHA256\"}]}。引用原题 reference 文件时，应与前轮真实成果区分；本轮方案必须使用前轮真实成果。"
+        }
+      ],
+      "rubric": [
+        "The outline contains a specific introduction and description of the 'Co-branded Product'.",
+        "The outline explicitly explains the specific reasoning behind the 'Co-branded Product' choice.",
+        "The outline contains a specific introduction of the 'Target Audience Persona'.",
+        "The outline introduces a definitive slogan specifically within the dedicated 'Slogan' module.",
+        "The outline incorporates the specific visual color constraint specifically within the 'Promotion Strategy' module.",
+        "The outline incorporates the specific product supply and sales mechanism constraints specifically within the 'Promotion Strategy' module.",
+        "The outline explicitly references the established rules or brand doctrines or traditional quality motto.",
+        "The 'Co-branded Product' section explicitly identifies a specific flagship product/series AND clearly explains how the new co-branded design inherits and utilizes its specific core advantages or functional strengths.",
+        "The 'Slogan' section provides a definitive, actionable slogan that is exactly 6 words or fewer.",
+        "The 'Promotion Strategy' explicitly outlines multiple distinct, named marketing activation tactics with specific execution details, strictly avoiding generic, lazy strategies like simply stating 'use influencers' or 'release a trailer'.",
+        "The outline explicitly mandates the use of 'Cyberpunk Neon Green', and explicitly states that hunger marketing is prohibited and guarantees stable or adequate product supply.",
+        "The response strictly respects the 'maximum 4 paragraphs' constraint by formatting the entire outline as exactly four continuous text blocks (one for each module)."
+      ],
+      "expected_files": [
+        "Campaign_Outline.md",
+        "source_lineage.json"
+      ]
+    }
+  ],
+  "adaptation_note": "保留上游任务与语义判据；MOI 扩展使用独立会话、真实产物传递和 source_lineage.json 字节溯源。"
+}

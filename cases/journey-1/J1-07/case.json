@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "J1-07",
+  "title": "三表 LBO 财务模型公式修复",
+  "workspace": "journey-1",
+  "source": {
+    "benchmark": "SpreadsheetBench 2 经 EvoCowork 改编",
+    "task": "xlsx/spreadsheetbench2-09-01-lbo-formula-repair",
+    "revision": "73985b35da686daa03e4fbf5996e21abeb6000c7",
+    "instruction_url": "https://github.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/blob/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/xlsx/spreadsheetbench2-09-01-lbo-formula-repair/instruction.md",
+    "oracle_url": "https://github.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/blob/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/xlsx/spreadsheetbench2-09-01-lbo-formula-repair/tests/judge.py"
+  },
+  "assets": [
+    {
+      "path": "09_01_input.xlsx",
+      "source_path": "tasks/xlsx/spreadsheetbench2-09-01-lbo-formula-repair/data/input_files/09_01_input.xlsx",
+      "size_bytes_from_inventory": 58415,
+      "git_blob_oid": "2dfd7a338f402f7247769cb19b77df3869ff15d0",
+      "url": "https://raw.githubusercontent.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/xlsx/spreadsheetbench2-09-01-lbo-formula-repair/data/input_files/09_01_input.xlsx",
+      "sha256": "f8a833086c28d4fd21e1bd11a083e2e8bd022002f5e0f6c2c57ae4ff9df80a44",
+      "size_bytes": 58415
+    }
+  ],
+  "oracles": [
+    {
+      "path": "judge.py",
+      "url": "https://raw.githubusercontent.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/xlsx/spreadsheetbench2-09-01-lbo-formula-repair/tests/judge.py",
+      "sha256": "047c32bf5ab9f3514f7065735e9d9c64d5addbff079ecc1d09256d75b96ebb2c"
+    }
+  ],
+  "expected_files": [
+    "09_01_repaired.xlsx"
+  ],
+  "assertions": [
+    "依据行列语义和跨表关系修复错误公式与引用",
+    "修复后仍是原生公式，非目标常量、公式、样式和结构保留",
+    "真实重算结果正确，无新增 #REF!；源判分中的公式总数不作为 MOI 主断言"
+  ],
+  "dialogue_origin": "upstream_single_task_with_proposed_moi_dialogue_extension",
+  "sessions": [
+    {
+      "id": "office",
+      "turns": [
+        {
+          "phase": "plan",
+          "prompt": "请先阅读本轮材料，核对文件是否齐全，说明你将如何完成下面的任务。先给出计划，等我确认后再修改或生成交付文件。\n\n你收到一份需要彻底审计和修复的 Excel 财务模型 `09_01_input.xlsx`。本题逐题改造自 SpreadsheetBench-2 的 Debugging `09_01`；原题要求检查并修复公式逻辑、不一致引用、应为公式的硬编码、数据验证、计算错误、格式或命名不一致，以及其他会影响准确性或可维护性的问题。\n\n请在不查看任何参考答案、不中断原有模型结构的前提下完成审计。修复必须来自对工作簿中行标题、同一预测期的横向公式规律、跨表依赖关系和上下游计算链的判断，不能用固定答案覆盖整个文件。\n\n只交付一个文件：`/app/output/09_01_repaired.xlsx`。它必须是修复后的原生可编辑工作簿；修复脚本、审计日志和参考答案由评测侧保留，不属于 solver 交付物。\n\n必须满足以下约束：\n\n- 保留 `LBO`、`Financials`、`Operating Cases` 三张工作表及其顺序。\n- 保留未发现错误的常量、公式、名称、合并单元格、样式、打印设置和工作簿结构；不得重建或美化整份工作簿。\n- 修复后的公式必须仍是原生 Excel 公式，不得用计算结果硬编码替代。\n- 修复器必须从实际输入读取工作表、行标签和公式关系；输入中的非目标业务数值变化后，输出必须保留该变化。\n- 工作簿不得含新的 `#REF!` 引用，必须设置为打开时自动完整重算，并可由 LibreOffice 正常打开与导出。\n- 不得复制或打包上游 Golden，也不得在修复器中按文件哈希返回固定成品。\n"
+        },
+        {
+          "phase": "execute",
+          "prompt": "确认，按刚才的完整要求执行。所有交付物放进你本轮隔离目录的 outputs/，文件名以交付清单为准。不要访问任何参考答案。"
+        },
+        {
+          "phase": "review",
+          "prompt": "请重新打开实际生成的文件，逐项复核以下要求，必要时修正文件，然后发布最终交付包。\n- 依据行列语义和跨表关系修复错误公式与引用\n- 修复后仍是原生公式，非目标常量、公式、样式和结构保留\n- 真实重算结果正确，无新增 #REF!；源判分中的公式总数不作为 MOI 主断言"
+        }
+      ],
+      "expected_files": [
+        "09_01_repaired.xlsx"
+      ]
+    }
+  ]
+}

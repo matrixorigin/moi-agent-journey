@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "J1-02",
+  "title": "长报告排版、层级编号与题注",
+  "workspace": "journey-1",
+  "source": {
+    "benchmark": "OfficeVal",
+    "task": "officeval_018",
+    "revision": "8e19c575b5be64c8a2964a4e28aafb696490c2ae",
+    "instruction_url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/tree/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_018",
+    "oracle_url": "https://github.com/baidu-frontier-research/OmegaUse-OfficeVal/blob/5f3da616ac6a0bc30ca35e9678f8f1eb255bd91a/verifiers/officeval_018_verifier.py"
+  },
+  "assets": [
+    {
+      "path": "公共书房运营规划书.docx",
+      "source_path": "task_files/officeval_018/公共书房运营规划书.docx",
+      "size_bytes_from_inventory": 719050,
+      "url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/resolve/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_018/%E5%85%AC%E5%85%B1%E4%B9%A6%E6%88%BF%E8%BF%90%E8%90%A5%E8%A7%84%E5%88%92%E4%B9%A6.docx",
+      "sha256": "baa21791da557def206a3fa9b5eb05ecbeba364b911cdadbe82b668712d4f049",
+      "size_bytes": 719050
+    },
+    {
+      "path": "报告排版格式要求.docx",
+      "source_path": "task_files/officeval_018/报告排版格式要求.docx",
+      "size_bytes_from_inventory": 13443,
+      "url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/resolve/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_018/%E6%8A%A5%E5%91%8A%E6%8E%92%E7%89%88%E6%A0%BC%E5%BC%8F%E8%A6%81%E6%B1%82.docx",
+      "sha256": "4cbd024f03551b945357756a31468b36a817e3d0cd224bda5ffd9ae97b8ef6a0",
+      "size_bytes": 13443
+    }
+  ],
+  "oracles": [
+    {
+      "path": "judge.py",
+      "url": "https://raw.githubusercontent.com/baidu-frontier-research/OmegaUse-OfficeVal/5f3da616ac6a0bc30ca35e9678f8f1eb255bd91a/verifiers/officeval_018_verifier.py",
+      "sha256": "915faf2ccfacaa902762b34a64509c83b0943bea24c2e48c73a8ea6673156372"
+    }
+  ],
+  "expected_files": [
+    "report.docx"
+  ],
+  "assertions": [
+    "按规范检查标题层级、字体、字号、段落与数字格式",
+    "图表题注与对应对象一致，编号连续，正文事实和数据保留",
+    "检查渲染后的溢出、断页与内容缺失"
+  ],
+  "dialogue_origin": "upstream_single_task_with_proposed_moi_dialogue_extension",
+  "sessions": [
+    {
+      "id": "office",
+      "turns": [
+        {
+          "phase": "plan",
+          "prompt": "请先阅读本轮材料，核对文件是否齐全，说明你将如何完成下面的任务。先给出计划，等我确认后再修改或生成交付文件。\n\nModify the “Public Notice Study Room Operations Plan” report in accordance with the formatting requirements, including the font, font size, paragraph formatting, and number formatting. In addition, captions must be added to all figures and tables; the formatting requirements are also provided in the document."
+        },
+        {
+          "phase": "execute",
+          "prompt": "确认，按刚才的完整要求执行。所有交付物放进你本轮隔离目录的 outputs/，文件名以交付清单为准。不要访问任何参考答案。"
+        },
+        {
+          "phase": "review",
+          "prompt": "请重新打开实际生成的文件，逐项复核以下要求，必要时修正文件，然后发布最终交付包。\n- 按规范检查标题层级、字体、字号、段落与数字格式\n- 图表题注与对应对象一致，编号连续，正文事实和数据保留\n- 检查渲染后的溢出、断页与内容缺失"
+        }
+      ],
+      "expected_files": [
+        "report.docx"
+      ]
+    }
+  ]
+}

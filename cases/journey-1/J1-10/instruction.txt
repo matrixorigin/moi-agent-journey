@@ -1,0 +1,4 @@
+Turn this image into an editable PPT, not an image.
+Also make the following adjustments:
+1. Replace the word “assessment” in the second section of the image with “check”.
+2. Replace the content in the “finish” section of the image with The site was back up and stable within 10 minutes, order submissions resumed, and a post-incident review has been scheduled for 4:00 PM this afternoon.

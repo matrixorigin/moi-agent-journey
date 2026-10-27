@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "J1-01",
+  "title": "合同修订接受与清洁交付",
+  "workspace": "journey-1",
+  "source": {
+    "benchmark": "EvoCowork",
+    "task": "docx/llm-docx-f6-accept-all-redlines",
+    "revision": "73985b35da686daa03e4fbf5996e21abeb6000c7",
+    "instruction_url": "https://github.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/blob/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/docx/llm-docx-f6-accept-all-redlines/instruction.md",
+    "oracle_url": "https://github.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/blob/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/docx/llm-docx-f6-accept-all-redlines/tests/judge.py"
+  },
+  "assets": [
+    {
+      "path": "contract-with-redlines.docx",
+      "source_path": "tasks/docx/llm-docx-f6-accept-all-redlines/data/input_files/contract-with-redlines.docx",
+      "size_bytes_from_inventory": 6267,
+      "git_blob_oid": "6b5a2082846fdaa45bdb437597d686eb4e83a473",
+      "url": "https://raw.githubusercontent.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/docx/llm-docx-f6-accept-all-redlines/data/input_files/contract-with-redlines.docx",
+      "sha256": "e01bf6faa2bacc1af07fcdec69ba788b2beb47317431a057d6c7bc146dc959ba",
+      "size_bytes": 6267
+    }
+  ],
+  "oracles": [
+    {
+      "path": "judge.py",
+      "url": "https://raw.githubusercontent.com/DeepThinkingZhouLiu/cowork-evolution-benchmark/73985b35da686daa03e4fbf5996e21abeb6000c7/tasks/docx/llm-docx-f6-accept-all-redlines/tests/judge.py",
+      "sha256": "c7ae02316cc65995bfeb8357a2502849814d96ed927d0650117efbf9adf38ebc"
+    }
+  ],
+  "expected_files": [
+    "contract-accepted.docx"
+  ],
+  "assertions": [
+    "保留插入内容、删除旧条款，包括整段新增价格调整条款",
+    "不残留修订标记；非目标内容和可编辑正文保持",
+    "下载文件可由文档引擎打开"
+  ],
+  "dialogue_origin": "upstream_single_task_with_proposed_moi_dialogue_extension",
+  "sessions": [
+    {
+      "id": "office",
+      "turns": [
+        {
+          "phase": "plan",
+          "prompt": "请先阅读本轮材料，核对文件是否齐全，说明你将如何完成下面的任务。先给出计划，等我确认后再修改或生成交付文件。\n\n请接受输入文件 `contract-with-redlines.docx` 中的全部修订，并将无红线、可编辑的清洁版本保存为：\n\n- `/app/output/contract-accepted.docx`\n\n上游公开 Benchmark 的原始用户要求如下，原文保留：\n\n> This document has tracked changes (redlines). Accept all the changes by replacing each affected paragraph with the clean \"accepted\" version:\n> - Keep the inserted text, remove the deleted text\n> - Remove all tracked change markup ({+...+} and [-...-])\n> - The result should read as a clean document with the new terms in place\n> For example, the party name should be \"Global Manufacturing Corp\" (not \"Acme Manufacturing\"), delivery should be \"forty-five (45)\" days, warranty should be \"twenty-four (24) months\", etc.\n\n必须保留全部已插入内容，包括整段 `Price Adjustment` 条款；删除全部旧文本；文档中不得残留插入、删除、移动或属性修订节点。不要改写已经接受后的条款，也不要用截图或 PDF 替代可编辑正文。\n"
+        },
+        {
+          "phase": "execute",
+          "prompt": "确认，按刚才的完整要求执行。所有交付物放进你本轮隔离目录的 outputs/，文件名以交付清单为准。不要访问任何参考答案。"
+        },
+        {
+          "phase": "review",
+          "prompt": "请重新打开实际生成的文件，逐项复核以下要求，必要时修正文件，然后发布最终交付包。\n- 保留插入内容、删除旧条款，包括整段新增价格调整条款\n- 不残留修订标记；非目标内容和可编辑正文保持\n- 下载文件可由文档引擎打开"
+        }
+      ],
+      "expected_files": [
+        "contract-accepted.docx"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+Extract the total weight sums and concrete volume data from all individual worksheets into the Summary worksheet.

@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "J1-12",
+  "title": "Excel 数据追加到 PPT 表格与原生折线图",
+  "workspace": "journey-1",
+  "source": {
+    "benchmark": "OfficeVal",
+    "task": "officeval_066",
+    "revision": "8e19c575b5be64c8a2964a4e28aafb696490c2ae",
+    "instruction_url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/tree/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_066",
+    "oracle_url": "https://github.com/baidu-frontier-research/OmegaUse-OfficeVal/blob/5f3da616ac6a0bc30ca35e9678f8f1eb255bd91a/verifiers/officeval_066_verifier.py"
+  },
+  "assets": [
+    {
+      "path": "PPT相关不同数据表.xlsx",
+      "source_path": "task_files/officeval_066/PPT相关不同数据表.xlsx",
+      "size_bytes_from_inventory": 4340,
+      "url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/resolve/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_066/PPT%E7%9B%B8%E5%85%B3%E4%B8%8D%E5%90%8C%E6%95%B0%E6%8D%AE%E8%A1%A8.xlsx",
+      "sha256": "bf371544b6da7bf1979f20124e92505e0745a03047c94398a908336ed4977722",
+      "size_bytes": 4340
+    },
+    {
+      "path": "表格图表关联数据.pptx",
+      "source_path": "task_files/officeval_066/表格图表关联数据.pptx",
+      "size_bytes_from_inventory": 60476,
+      "url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/resolve/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_066/%E8%A1%A8%E6%A0%BC%E5%9B%BE%E8%A1%A8%E5%85%B3%E8%81%94%E6%95%B0%E6%8D%AE.pptx",
+      "sha256": "9b446543abd5d8c4312c55a5d9da133f4ebec570c32deb17dc59ee4b85cf5bab",
+      "size_bytes": 60476
+    }
+  ],
+  "oracles": [
+    {
+      "path": "judge.py",
+      "url": "https://raw.githubusercontent.com/baidu-frontier-research/OmegaUse-OfficeVal/5f3da616ac6a0bc30ca35e9678f8f1eb255bd91a/verifiers/officeval_066_verifier.py",
+      "sha256": "a556a71dc328e9a9799605b5dc65d4c7634e173f8d03b305e6c0b8b273255ed6"
+    }
+  ],
+  "expected_files": [
+    "report.pptx"
+  ],
+  "assertions": [
+    "从工作簿正确读取全部年份、七个指标和数值",
+    "新增原生表格与折线图，图表嵌入数据和显示内容一致",
+    "原有页面保留，新增页继承原稿风格与顺序"
+  ],
+  "dialogue_origin": "upstream_single_task_with_proposed_moi_dialogue_extension",
+  "sessions": [
+    {
+      "id": "office",
+      "turns": [
+        {
+          "phase": "plan",
+          "prompt": "请先阅读本轮材料，核对文件是否齐全，说明你将如何完成下面的任务。先给出计划，等我确认后再修改或生成交付文件。\n\nAdd a new slide at the end of the PPT and create a table from “Various PPT-Related Data Tables” that matches the tables on the preceding slides. Then add another new slide after the table slide and create a line chart (refer to the preceding slides). Include every year and all seven metrics from the workbook in both the editable table and the native line chart; the chart’s embedded workbook and displayed data must match the source. Preserve the existing slides."
+        },
+        {
+          "phase": "execute",
+          "prompt": "确认，按刚才的完整要求执行。所有交付物放进你本轮隔离目录的 outputs/，文件名以交付清单为准。不要访问任何参考答案。"
+        },
+        {
+          "phase": "review",
+          "prompt": "请重新打开实际生成的文件，逐项复核以下要求，必要时修正文件，然后发布最终交付包。\n- 从工作簿正确读取全部年份、七个指标和数值\n- 新增原生表格与折线图，图表嵌入数据和显示内容一致\n- 原有页面保留，新增页继承原稿风格与顺序"
+        }
+      ],
+      "expected_files": [
+        "report.pptx"
+      ]
+    }
+  ]
+}

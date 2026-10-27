@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "J1-13",
+  "title": "Word 审阅要求驱动多页 PPT 修订",
+  "workspace": "journey-1",
+  "source": {
+    "benchmark": "OfficeVal",
+    "task": "officeval_080",
+    "revision": "8e19c575b5be64c8a2964a4e28aafb696490c2ae",
+    "instruction_url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/tree/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_080",
+    "oracle_url": "https://github.com/baidu-frontier-research/OmegaUse-OfficeVal/blob/5f3da616ac6a0bc30ca35e9678f8f1eb255bd91a/verifiers/officeval_080_verifier.py"
+  },
+  "assets": [
+    {
+      "path": "公开课课件.pptx",
+      "source_path": "task_files/officeval_080/公开课课件.pptx",
+      "size_bytes_from_inventory": 26001937,
+      "url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/resolve/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_080/%E5%85%AC%E5%BC%80%E8%AF%BE%E8%AF%BE%E4%BB%B6.pptx",
+      "sha256": "c741a707063dd8abe7a7e4d8af0bebaadfea8334b03c43fa9767203d86786697",
+      "size_bytes": 26001937
+    },
+    {
+      "path": "要求.docx",
+      "source_path": "task_files/officeval_080/要求.docx",
+      "size_bytes_from_inventory": 4907197,
+      "url": "https://huggingface.co/datasets/baidu-frontier-research/OmegaUse-OfficeVal/resolve/8e19c575b5be64c8a2964a4e28aafb696490c2ae/task_files/officeval_080/%E8%A6%81%E6%B1%82.docx",
+      "sha256": "1e512f0a65f70bb5f415c098baa2800c938660375015e7d7c6e990c1fd7420ba",
+      "size_bytes": 4907197
+    }
+  ],
+  "oracles": [
+    {
+      "path": "judge.py",
+      "url": "https://raw.githubusercontent.com/baidu-frontier-research/OmegaUse-OfficeVal/5f3da616ac6a0bc30ca35e9678f8f1eb255bd91a/verifiers/officeval_080_verifier.py",
+      "sha256": "049e62117f6e74f0944ad06ea155e413ab41d509aab3542e438b8747d6a645b0"
+    }
+  ],
+  "expected_files": [
+    "revised.pptx"
+  ],
+  "assertions": [
+    "逐条覆盖 Word 中的页码、文本、图片、样式与动画要求",
+    "未要求修改的页面内容保留，内嵌图片来自真实输入",
+    "PPT 可编辑、页数和顺序正确；响应清单与实际修改一致"
+  ],
+  "dialogue_origin": "upstream_single_task_with_proposed_moi_dialogue_extension",
+  "sessions": [
+    {
+      "id": "office",
+      "turns": [
+        {
+          "phase": "plan",
+          "prompt": "请先阅读本轮材料，核对文件是否齐全，说明你将如何完成下面的任务。先给出计划，等我确认后再修改或生成交付文件。\n\nThis PPT needs to be revised. The document contains revision requirements; revise the PPT according to those requirements."
+        },
+        {
+          "phase": "execute",
+          "prompt": "确认，按刚才的完整要求执行。所有交付物放进你本轮隔离目录的 outputs/，文件名以交付清单为准。不要访问任何参考答案。"
+        },
+        {
+          "phase": "review",
+          "prompt": "请重新打开实际生成的文件，逐项复核以下要求，必要时修正文件，然后发布最终交付包。\n- 逐条覆盖 Word 中的页码、文本、图片、样式与动画要求\n- 未要求修改的页面内容保留，内嵌图片来自真实输入\n- PPT 可编辑、页数和顺序正确；响应清单与实际修改一致"
+        }
+      ],
+      "expected_files": [
+        "revised.pptx"
+      ]
+    }
+  ]
+}
