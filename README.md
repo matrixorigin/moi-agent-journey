@@ -4,7 +4,7 @@
 
 ## 执行方式
 
-`Agent journeys QA` 每六小时运行一次，也支持手动运行和 main 推送。PR 只运行 `Offline tests`，验证执行框架与验收器，不调用真实 QA 或读取 QA 凭据。定时与手动入口需要工作流先合入 main；真实 QA 使用 GitHub `qa` environment 的 `MOI_BASE_URL` 与 `MOI_PAT` secrets。
+`Agent journeys QA` 每六小时运行一次，也支持手动运行。PR 和合入 main 不触发真实 QA；PR 只运行 `Offline tests`，验证执行框架与验收器，不读取 QA 凭据。定时与手动入口需要工作流先合入 main；真实 QA 使用 GitHub `qa` environment 的 `MOI_BASE_URL` 与 `MOI_PAT` secrets。
 
 配置入口是 [suites.json](suites.json)：
 
