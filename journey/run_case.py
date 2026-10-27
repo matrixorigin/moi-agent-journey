@@ -14,7 +14,7 @@ from urllib.parse import urlencode
 from .catalog import load_case
 from .a2a import final_reply
 from .client import Client, Failure, segment
-from .evidence import Evidence, safe_extract, sha256, utc_now
+from .evidence import Evidence, configured_secrets, safe_extract, sha256, utc_now
 from .hello import TERMINAL, discover, task_state
 
 
@@ -61,10 +61,10 @@ class Execution:
             raise Failure("conversation_identity_mismatch")
         return cid
 
-    def capture(self, entry, *, final=False):
+    def capture(self, entry, *, final=False, selector=None):
         tid = entry["task_id"]
         path = self.root + "/agent-runtime-tasks/" + segment(tid)
-        query = urlencode(self.selector)
+        query = urlencode(self.selector if selector is None else selector)
         runtime = self.client.product("GET", path + "?" + query)
         if runtime.get("id") != tid or runtime.get("context_id") != entry["conversation_id"]:
             raise Failure("runtime_identity_mismatch")
@@ -408,7 +408,7 @@ def main():
     parser.add_argument("--work", default="work")
     args = parser.parse_args()
     case = load_case(args.case_id)
-    evidence = Evidence(Path("results") / case["id"], [os.environ.get("MOI_PAT", ""), os.environ.get("MOI_BASE_URL", "")])
+    evidence = Evidence(Path("results") / case["id"], configured_secrets())
     def timeout(_signum, _frame):
         raise Failure("case_timeout" if _signum==signal.SIGALRM else "runner_canceled")
     signal.signal(signal.SIGALRM, timeout)

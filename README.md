@@ -4,14 +4,14 @@
 
 ## 执行方式
 
-`Agent journeys QA` 每六小时运行一次，也支持手动运行。PR 和合入 main 不触发真实 QA；PR 只运行 `Offline tests`，验证执行框架与验收器，不读取 QA 凭据。定时与手动入口需要工作流先合入 main；真实 QA 使用 GitHub `qa` environment 的 `MOI_BASE_URL` 与 `MOI_PAT` secrets。
+`Agent journeys QA` 每六小时运行一次，也支持手动运行。PR 和合入 main 不触发真实 QA；PR 只运行 `Offline tests`，验证执行框架、浏览器场景与验收器，不读取 QA 凭据。定时与手动入口需要工作流先合入 main；真实 QA 使用 GitHub `qa` environment 的 `MOI_BASE_URL` 与 `MOI_PAT` secrets。浏览器 case 还需要 `MOI_UI_BASE_URL`、`MOI_UI_AUTH_ORIGIN`、`MOI_UI_ACCOUNT` 和 `MOI_UI_PASSWORD`，并在登录前核对账号中心域名。
 
 配置入口是 [suites.json](suites.json)：
 
 | 工作区 | 当前内容 | 最大并发 |
 |---|---|---:|
 | journey-1 | 18 个文档与办公任务 | 9 |
-| journey-2 | 空 | 3 |
+| journey-2 | 1 个智能体创建与对话功能用例 | 3 |
 | journey-3 | 空 | 3 |
 | journey-4 | 空 | 3 |
 | journey-5 | 空 | 3 |
@@ -34,6 +34,8 @@
 单 case 的 `Case result and failure details` 步骤和总报告分别展示上述维度。测试框架执行完成后，其他 case 和结果上传继续运行；总报告只在框架错误时使工作流失败，不用一个通过率掩盖智能体异常或质量问题。
 
 汇总中的“确认正常结束并交付比例”以本批配置的全部 case 为分母，无法确认的 case 也在分母内；质量检查结果单独展示。
+
+Journey-2 另有**功能验收**：通过、不通过、前置条件不足和执行错误。功能不通过但测试和取证正常时，case job 仍为绿色；是否满足发布要求需要查看功能验收。当前仅接入 J2-01，不能据此判断全部智能体功能可发布。
 
 **判据校准尚未完成。** J1-02、J1-07、J1-10、J1-13 和 J1-15 已发现部分上游检查与任务或材料不一致；应结合具体判词和原始产物复核。J1-14 对 Word 和邮件的部分自然语言一致性只能做有限检查；J1-17 的物料名称精确匹配可能误判同义写法。J1-18 的上游 C08 要求引用具体旗舰系列，但这一要求未在任务和会议纪要中明确，需要单独复核。检查结果不能直接当作智能体能力得分。
 
@@ -70,9 +72,15 @@
 
 验证在无网络、无 QA 凭据、只读输入/交付物、受 CPU/内存/进程限制的 Docker 内执行。J1-15 会执行智能体生成的处理器做回放；该代码不能在有 QA 凭据的宿主 runner 上执行。每次工作流只构建一次验收镜像，以 1 天有效的 `judge-image-<run_id>-attempt-<n>` artifact 分发给各 case；各 runner 校验镜像的哈希和代码版本后独立运行容器。镜像不包含 QA 凭据或 case 数据。
 
+## Journey-2 的功能 case
+
+J2-01 在独立浏览器会话中登录 QA，使用 Momo 生成候选卡片，检查卡片和确认按钮，点击创建，读取新智能体，再进入其会话验证回复。两轮任务分别保存 QA 的 trace 和事件。测试完成后归档本次创建的会话及智能体；创建未确认时只清理能够验证身份的候选。模型生成仍存在随机性，测试会记录具体失败阶段，不能将单次失败直接归因于前端。
+
+浏览器不保存登录态、完整页面、截图、Cookie、网络请求头或 Playwright trace 到公开 artifact；`browser.jsonl` 仅保存验收步骤和取证所需身份，HTTP 日志仅记录状态和耗时，不记录可能包含其他智能体配置或工作区成员信息的请求、响应正文。账号及密码只通过 `qa` environment 注入浏览器执行步骤。
+
 ## 下载与分析证据
 
-点开某个 `cases (J1-XX)` job，展开 `Case result and failure details` 步骤，可查看该 case 的结果、原因、耗时和逐轮 trace ID；同一份摘要也出现在运行的 Summary 中。若 runner 在生成报告前被终止或该步骤未执行，需查看出错步骤和总报告中的缺失结果。进入 Actions 本次运行底部的 **Artifacts**，下载 `journey-run-<run_id>-attempt-<n>`。每个 case 完成后也会上传 `case-J1-XX-attempt-<n>`，其中包含 `case-summary.md` 和详细证据，长任务尚未全部结束时可以下载已完成的证据。重跑时选择 **Re-run all jobs**；汇总只接收本次 attempt 的结果，防止旧结果覆盖新失败。证据包 **保留 1 天**；如需更久，在两个证据上传步骤中同步修改 retention-days。
+点开某个 `cases (J1-XX)` 或 `cases (J2-XX)` job，展开 `Case result and failure details` 步骤，可查看该 case 的结果、原因、耗时和逐轮 trace ID；同一份摘要也出现在运行的 Summary 中。若 runner 在生成报告前被终止或该步骤未执行，需查看出错步骤和总报告中的缺失结果。进入 Actions 本次运行底部的 **Artifacts**，下载 `journey-run-<run_id>-attempt-<n>`。每个 case 完成后也会上传 `case-<case-id>-attempt-<n>`，其中包含 `case-summary.md` 和详细证据，长任务尚未全部结束时可以下载已完成的证据。重跑时选择 **Re-run all jobs**；汇总只接收本次 attempt 的结果，防止旧结果覆盖新失败。证据包 **保留 1 天**；如需更久，在两个证据上传步骤中同步修改 retention-days。
 
 统一包包含：
 
@@ -119,6 +127,9 @@ cases/J1-XX/
 ```sh
 python3 -m unittest discover -s tests -v
 python3 -m journey.catalog plan journey-1
+npm ci --ignore-scripts
+npx playwright install chromium
+npm run test:browser
 ```
 
 Office 验收器的可编辑文件正反例在无网络 Docker 中运行，离线 CI 会自动执行。也可在构建验收镜像后执行：
@@ -140,3 +151,11 @@ python3 -m journey.publish
 ```
 
 原 `python3 -m journey.hello` 冒烟入口及其测试仍保留，模型变量为 `MOI_MODEL`。
+
+单独验证浏览器 case 时，从私有来源注入上述 QA API 和 UI secrets，再执行：
+
+```sh
+python3 -m journey.browser_case J2-01
+python3 -m journey.report case J2-01
+python3 -m journey.publish
+```

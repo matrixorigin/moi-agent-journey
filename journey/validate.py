@@ -1,13 +1,12 @@
 """Run validators in a constrained container; never execute agent code on the runner."""
 import argparse
 import json
-import os
 import subprocess
 import time
 from pathlib import Path, PurePosixPath
 
 from .catalog import ROOT, load_case
-from .evidence import Evidence
+from .evidence import Evidence, configured_secrets
 
 
 def lineage_checks(lineage, previous_sessions, session_id):
@@ -105,7 +104,7 @@ def main():
     parser.add_argument("--work",default="work")
     args=parser.parse_args()
     case=load_case(args.case_id)
-    evidence=Evidence(Path('results')/case['id'],[os.environ.get('MOI_PAT',''),os.environ.get('MOI_BASE_URL','')])
+    evidence=Evidence(Path('results')/case['id'], configured_secrets())
     try:
         result=validate(case,args.work,evidence)
     except Exception as error:
