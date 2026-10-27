@@ -216,6 +216,8 @@ class BrowserJourneyTests(unittest.TestCase):
             suite = next(item for item in report['journeys'] if item['workspace'] == 'journey-2')
             expected_missing = len(load_suite('journey-2')['cases']) - 1
             self.assertEqual(suite['functional'], {'pass': 0, 'fail': 0, 'blocked': 1, 'error': expected_missing})
+            self.assertEqual(suite['coverage_status'], 'incomplete')
+            self.assertIn('当前结果不能作为发布门禁', (Path(destination) / 'bundle' / 'summary.md').read_text())
             (self.root / 'J2-01' / 'result.json').unlink()
             report = aggregate(self.root, Path(destination) / 'bundle2')
             suite = next(item for item in report['journeys'] if item['workspace'] == 'journey-2')

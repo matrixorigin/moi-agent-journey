@@ -452,8 +452,11 @@ def aggregate(source, destination):
                 result = _missing_case(case, suite['workspace'], 'case_artifact_missing')
             rows.append(result)
             current.append(result)
-        suites.append({'workspace': suite['workspace'], 'concurrency': suite['concurrency'],
-                       'status': 'configured' if current else 'empty', **_group_summary(current)})
+        suite_result = {'workspace': suite['workspace'], 'concurrency': suite['concurrency'],
+                        'status': 'configured' if current else 'empty', **_group_summary(current)}
+        if 'coverage_status' in suite:
+            suite_result['coverage_status'] = suite['coverage_status']
+        suites.append(suite_result)
     totals = _group_summary(rows)
     task_errors, tool_errors = defaultdict(set), defaultdict(set)
     for row in rows:
@@ -547,6 +550,8 @@ def aggregate(source, destination):
         if sum(functional.values()):
             lines += ['', f"{cell(suite['workspace'])} 功能验收：通过 {functional['pass']}，不通过 {functional['fail']}，"
                       f"阻塞 {functional['blocked']}，执行错误 {functional['error']}。"]
+            if suite.get('coverage_status') == 'incomplete':
+                lines.append('该组功能覆盖尚未完成，当前结果不能作为发布门禁。')
     if tools['by_tool']:
         lines += ['', '## 智能体工具调用统计', '', '| 工具 | 调用 | 成功 | 失败 | 跳过 | 不明确 | 成功率 |',
                   '|---|---:|---:|---:|---:|---:|---:|']
