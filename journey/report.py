@@ -117,7 +117,7 @@ def case_summary(result):
     for label, observed in [('智能体', tools.get('errors', [])), ('评审', tools.get('judge_errors', []))]:
         if not observed:
             continue
-        lines += ['', f"## {label}工具错误（{len(observed)} 次调用）", '',
+        lines += ['', f"## {label}工具错误（{len(observed)} 条记录）", '',
                   '| 阶段 | 工具 | 参数 | 错误 | 事件序号 |', '|---|---|---|---|---|']
         for call in observed:
             args = json.dumps(call.get('arguments'), ensure_ascii=False) if call.get('arguments') is not None else '未获取'
@@ -408,7 +408,7 @@ def aggregate(source, destination):
               **totals, 'journeys': suites, 'cases': rows,
               'task_errors': [{'stage': stage, 'reason': reason, 'cases': sorted(cases)}
                               for (stage, reason), cases in sorted(task_errors.items())],
-              'tool_errors': [{'scope': scope, 'tool': tool, 'code': code, 'calls': len(calls),
+              'tool_errors': [{'scope': scope, 'tool': tool, 'code': code, 'records': len(calls),
                                'cases': sorted({case_id for case_id, _, _ in calls})}
                               for (scope, tool, code), calls in sorted(tool_errors.items())],
               'withheld_files': sum(len(row.get('publication', {}).get('withheld_files', [])) for row in rows)}
@@ -494,7 +494,7 @@ def aggregate(source, destination):
         lines += ['', '## 工具错误统计', '']
         for item in report['tool_errors']:
             scope = '智能体' if item['scope'] == 'agent' else '评审'
-            lines.append(f"- {scope} / {cell(item['tool'])} / {cell(item['code'])}：{item['calls']} 次调用，"
+            lines.append(f"- {scope} / {cell(item['tool'])} / {cell(item['code'])}：{item['records']} 条记录，"
                          f"涉及 {cell(', '.join(item['cases']))}。")
     lines += ['', '单个 case 的报告和 result.json 包含会话 ID、trace ID、质量判词、工具参数和错误；'
               'events.jsonl 保存公开事件（凭据已脱敏）。', '',

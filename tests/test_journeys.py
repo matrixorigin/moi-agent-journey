@@ -298,13 +298,17 @@ class JourneyTests(unittest.TestCase):
 
     def test_missing_call_ids_are_not_double_counted_or_reported_as_success(self):
         events=[{'task_id':'t','seq':1,'kind':'tool_call','payload':{'tool_id':'bash'}},
-                {'task_id':'t','seq':2,'kind':'tool_result','payload':{'tool_id':'bash','success':True}}]
+                {'task_id':'t','seq':2,'kind':'tool_result','payload':{'tool_id':'bash','success':True}},
+                {'task_id':'t','seq':3,'kind':'tool_result','payload':{'tool_id':'bash','success':False,
+                    'status':'failed','error':'tool_failed'}}]
         with tempfile.TemporaryDirectory() as directory:
             path=Path(directory)/'events.jsonl';path.write_text(''.join(json.dumps(e)+'\n' for e in events))
-            metrics=analyze_events(path,[{'task_id':'t','phase':'office:execute','event_count':2}])['metrics']
+            analysis=analyze_events(path,[{'task_id':'t','phase':'office:execute','event_count':3}])
+            metrics=analysis['metrics']
         self.assertEqual(metrics['calls'],0)
-        self.assertEqual(metrics['unidentified_events'],2)
+        self.assertEqual(metrics['unidentified_events'],3)
         self.assertIsNone(metrics['success_rate'])
+        self.assertEqual(analysis['errors'][0]['errors'][0]['code'],'tool_failed')
 
     def test_delivery_and_quality_are_independent_of_request_completion(self):
         case=load_case('J1-01')
