@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "id": "J2-03",
+  "workspace": "journey-2",
+  "title": "同一会话中引用并更新口令",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["old_code", "new_code"],
+  "sessions": [
+    {
+      "id": "context",
+      "delivery_kind": "answer",
+      "turns": [
+        {"phase": "remember", "prompt": "请记住本会话的项目口令：{old_code}。只回复已记住。"},
+        {
+          "phase": "recall",
+          "prompt": "刚才的项目口令是什么？请只回复口令本身。",
+          "assertions": [{"type": "contains", "value": "{old_code}", "rule": "引用本会话的原口令"}]
+        },
+        {"phase": "update", "prompt": "项目口令现在改为 {new_code}，旧口令作废。请记住并确认。"},
+        {
+          "phase": "recall_updated",
+          "prompt": "现在有效的项目口令是什么？请只回复当前口令本身。",
+          "assertions": [
+            {"type": "contains", "value": "{new_code}", "rule": "引用更新后的口令"},
+            {"type": "not_contains", "value": "{old_code}", "rule": "不再使用旧口令"}
+          ]
+        }
+      ]
+    }
+  ]
+}

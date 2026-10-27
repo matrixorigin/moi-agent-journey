@@ -44,6 +44,14 @@ def assess(case, result, raw_status):
             delivered = isinstance(resource, dict) and resource.get('verified') is True
             delivery_sessions.append({'session': session['id'], 'delivery_kind': 'agent', 'delivered': delivered,
                                       'expected_files': [], 'missing_files': []})
+        elif session.get('delivery_kind') == 'answer':
+            delivered = isinstance(actual, dict) and actual.get('answer_delivered') is True
+            delivery_sessions.append({'session': session['id'], 'delivery_kind': 'answer', 'delivered': delivered,
+                                      'expected_files': [], 'missing_files': []})
+        elif session.get('delivery_kind') == 'candidate':
+            delivered = isinstance(actual, dict) and actual.get('candidate_verified') is True
+            delivery_sessions.append({'session': session['id'], 'delivery_kind': 'candidate', 'delivered': delivered,
+                                      'expected_files': [], 'missing_files': []})
         else:
             delivery_sessions.append({'session': session['id'], 'delivered': actual is not None,
                                       'expected_files': expected,
@@ -80,9 +88,15 @@ def assess(case, result, raw_status):
     checks = validation.get('checks', [])
     validator_error = any(item.get('stage') in {'validation', 'semantic_judge'}
                           for item in result.get('harness_errors', []))
+    expected_answer_checks = sum(session.get('expected_checks', sum(1 + len(turn.get('assertions', []))
+                                      for turn in session['turns'])) for session in sessions
+                                 if session.get('delivery_kind') in {'answer', 'candidate'})
+    incomplete_answer_checks = bool(expected_answer_checks) and len(checks) < expected_answer_checks
     if checks:
         failed = [item for item in checks if not item.get('passed')]
-        quality = {'state': 'partial' if validator_error else 'checked', 'passed_checks': len(checks) - len(failed),
+        quality = {'state': 'partial' if validator_error or incomplete_answer_checks else 'checked',
+                   'reason': 'unfinished_turns' if incomplete_answer_checks else 'validator_error' if validator_error else None,
+                   'passed_checks': len(checks) - len(failed),
                    'total_checks': len(checks), 'failed_checks': failed}
     else:
         reason = ('validator_error' if validator_error else

@@ -69,6 +69,11 @@ class Evidence:
     def observe(self, exchange):
         self.append("http.jsonl", {"recorded_at": utc_now(), **exchange})
 
+    def observe_transport(self, exchange):
+        """Record transport metadata without unrelated workspace response bodies."""
+        self.observe({key: exchange[key] for key in ('method', 'path', 'status', 'headers', 'seconds')
+                      if key in exchange})
+
 
 def safe_extract(archive, destination, max_bytes=1_000_000_000):
     """Reject unsafe names, links and decompression bombs before writing."""

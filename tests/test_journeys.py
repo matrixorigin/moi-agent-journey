@@ -69,7 +69,7 @@ def qa_fixture(mode):
                 method=body['method']
                 if method in {'message/send','message/stream'}:
                     tid='task-'+str(len(state['tasks'])+1)
-                    terminal='failed' if mode=='agent_failure' and tid=='task-2' else 'completed'
+                    terminal='failed' if mode=='search_quota' or (mode=='agent_failure' and tid=='task-2') else 'completed'
                     state['tasks'][tid]={"state":terminal,"read":0}
                     if mode in {'timeout','async_cancel'}:state['client'].deadline=time.monotonic()+0.05
                 else:tid=body['params']['id']
@@ -104,8 +104,13 @@ def qa_fixture(mode):
                         code=500;response={"error":"secret_key"}
                     else:
                         after=int(self.path.split('after_seq=')[1])
+                        values = ([(2, 'tool_call', {'tool_id': 'moi_web_search', 'call_id': 'search1'}),
+                                   (5, 'tool_result', {'tool_id': 'moi_web_search', 'call_id': 'search1', 'success': False,
+                                    'output': {'output': {'ok': False, 'error_code': 'WEB_QUOTA_EXCEEDED'}}})]
+                                  if mode == 'search_quota' else
+                                  [(2,'thinking',{'text':'inspect inputs'}),(5,'tool_call',{'tool':'read'}),(8,'tool_result',{'result':'real bytes'})])
                         events=[{"id":tid+'-'+str(seq),"task_id":tid,"seq":seq,"kind":kind,"payload":payload}
-                            for seq,kind,payload in [(2,'thinking',{'text':'inspect inputs'}),(5,'tool_call',{'tool':'read'}),(8,'tool_result',{'result':'real bytes'})] if seq>after]
+                            for seq,kind,payload in values if seq>after]
                         response={"code":0,"data":{"items":events,"total":len(events),"after_seq":after}}
                 else:response={"code":0,"data":{"id":tid,"context_id":state['conversation'],"trace_id":"trace-"+tid,"event_cursor":8,"state":task['state']}}
             elif '/agent-artifacts?' in self.path:

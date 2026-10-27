@@ -11,36 +11,11 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from .catalog import ROOT, load_case
+from .agent_builder import candidate_from_task, cleanup_candidate
 from .client import Client, Failure, segment
 from .evidence import Evidence, configured_secrets, utc_now
 from .hello import TERMINAL, discover, task_state
 from .run_case import Execution
-
-
-def observe_browser_exchange(evidence, exchange):
-    # Discovery lists unrelated agents and workspace owners. The browser case
-    # needs transport status and task events, not those response bodies.
-    evidence.observe({key: exchange[key] for key in ('method', 'path', 'status', 'headers', 'seconds')
-                      if key in exchange})
-
-
-def candidate_from_task(task, name, workspace):
-    """Read the structured Agent Builder output; never infer an ID from its name."""
-    matches = []
-    for part in task.get('status', {}).get('message', {}).get('parts', []):
-        output = part.get('data', {}).get('output', {}).get('output', {})
-        if not isinstance(output, dict):
-            continue
-        display = output.get('display', {})
-        if (isinstance(display, dict) and display.get('agent_name') == name and
-                output.get('workspace_id') == workspace and output.get('mode') == 'create' and
-                output.get('agent_id') == display.get('agent_id') and
-                all(isinstance(output.get(key), str) and output[key]
-                    for key in ('agent_id', 'candidate_version', 'source_digest'))):
-            matches.append({key: output[key] for key in ('agent_id', 'candidate_version', 'source_digest')})
-    if len(matches) > 1:
-        raise Failure('candidate_identity_not_unique')
-    return matches[0] if matches else None
 
 
 def task_duration(runtime):
@@ -179,47 +154,12 @@ def cleanup(execution):
             conversation['cleanup'] = 'incomplete'
             execution.report['harness_errors'].append({'stage': 'cleanup_conversation',
                 'conversation_id': conversation['id'], 'reason': type(error).__name__ + ':' + str(error)})
-    candidate = getattr(execution, 'candidate', None)
-    commit = getattr(execution, 'commit', None)
-    agent_id = candidate['agent_id'] if candidate else (commit or {}).get('agent_id')
-    if not agent_id:
-        return
-    try:
-        query = urlencode({'agent_workspace_id': execution.workspace_id})
-        try:
-            agent = client.product('GET', execution.root + '/agents/' + segment(agent_id) + '?' + query)
-        except Failure as error:
-            if error.code != 'http_error' or error.http_status != 404:
-                raise
-            agent = None
-        if agent:
-            if (agent.get('id'), agent.get('name'), agent.get('workspace_id')) != (
-                    agent_id, execution.agent_name, execution.workspace_id):
-                raise Failure('cleanup_agent_identity_mismatch')
-            if agent.get('status') != 'archived':
-                archived = client.product('PATCH', execution.root + '/agents/' + segment(agent_id) + '?' + query,
-                                          {'status': 'archived'})
-                if archived.get('status') != 'archived':
-                    raise Failure('agent_archive_not_confirmed')
-            execution.report['agent_cleanup'] = 'archived'
-        elif candidate:
-            path = (execution.root + '/agent-builder/candidates/' + segment(candidate['agent_id']) +
-                    '/candidate-versions/' + segment(candidate['candidate_version']) + '/cancel')
-            result = client.product('POST', path, {'source_digest': candidate['source_digest']})
-            if result.get('agent_id') != candidate['agent_id']:
-                raise Failure('candidate_cancel_not_confirmed')
-            execution.report['agent_cleanup'] = 'candidate_canceled'
-        else:
-            raise Failure('candidate_cleanup_unknown')
-    except Exception as error:
-        execution.report['agent_cleanup'] = 'incomplete'
-        execution.report['harness_errors'].append({'stage': 'cleanup_agent',
-            'reason': type(error).__name__ + ':' + str(error)})
+    cleanup_candidate(execution)
 
 
 def run(case, evidence, work):
     client = Client(os.environ['MOI_BASE_URL'], os.environ['MOI_PAT'], timeout=case['timeout_seconds'],
-                    observer=lambda exchange: observe_browser_exchange(evidence, exchange))
+                    observer=evidence.observe_transport)
     execution = Execution(client, case, evidence, work, case['model'])
     execution.agent_name = 'J2_' + uuid.uuid4().hex[:16]
     execution.candidate = None

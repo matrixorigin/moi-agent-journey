@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "J2-05",
+  "workspace": "journey-2",
+  "title": "联网搜索并引用实际来源",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "search",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "query",
+          "prompt": "请联网搜索 IANA 对 example.com 域名用途的说明，回答用途并给出搜索结果的来源链接。",
+          "search_evidence": true
+        }
+      ]
+    }
+  ]
+}

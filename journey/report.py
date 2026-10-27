@@ -13,7 +13,7 @@ import zipfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from .catalog import ROOT, case_executor, load_case
+from .catalog import ROOT, case_executor, is_functional_case, load_case
 from .diagnostics import analyze_events, success_rate
 from .evidence import Evidence, configured_secrets, utc_now,TOKEN_BYTES
 from .outcomes import assess
@@ -44,7 +44,12 @@ def case_summary(result):
     agent, delivery, quality, tools = (result[key] for key in ('agent', 'delivery', 'quality', 'tools'))
     agent_delivery = bool(delivery.get('sessions')) and all(
         session.get('delivery_kind') == 'agent' for session in delivery['sessions'])
-    delivery_unit = '智能体交付' if agent_delivery else '会话交付'
+    answer_delivery = bool(delivery.get('sessions')) and all(
+        session.get('delivery_kind') == 'answer' for session in delivery['sessions'])
+    candidate_delivery = bool(delivery.get('sessions')) and all(
+        session.get('delivery_kind') == 'candidate' for session in delivery['sessions'])
+    delivery_unit = ('智能体交付' if agent_delivery else '答复交付' if answer_delivery else
+                     '候选交付' if candidate_delivery else '会话交付')
     lines = [f"# {cell(result['case_id'])} {cell(result['title'])}", '',
              f"**测试框架：{test_status}**", '',
              f"- 任务结果：{TASK_LABELS[result['task']['state']]}。",
@@ -55,8 +60,12 @@ def case_summary(result):
              f"- 语义评审耗时：{cell(result.get('semantic_judge_seconds'))} 秒；不计入端到端任务耗时。"]
     if result.get('functional'):
         lines.insert(4, f"- 功能验收：{FUNCTIONAL_LABELS[result['functional']['state']]}。")
+    for item in result.get('retained_inputs', []):
+        lines.append(f"- 测试输入：{cell(item.get('fixture'))}（文件 ID：{cell(item.get('file_id'))}），"
+                     '作为会话附件保留在 QA。')
     if quality['state'] in {'checked', 'partial'}:
-        qualifier = '部分检查（验收器异常）' if quality['state'] == 'partial' else '检查'
+        qualifier = ('部分检查（任务未全部结束）' if quality.get('reason') == 'unfinished_turns' else
+                     '部分检查（验收器异常）') if quality['state'] == 'partial' else '检查'
         lines.append(f"- 交付质量：{qualifier}通过 {quality['passed_checks']}/{quality['total_checks']}，"
                      f"未通过 {len(quality['failed_checks'])} 项；判据仍需结合证据复核。")
     else:
@@ -177,18 +186,33 @@ def finish_case(case_id, directory):
                by_id[session['id']]['created_agent'].get('verified') is not True
                for session in case['sessions'] if session.get('delivery_kind') == 'agent'):
             result['harness_errors'].append({'stage': 'validation', 'reason': 'verified_agent_missing'})
-    if raw_status == 'passed' and case_executor(case) == 'browser':
+    if raw_status == 'passed' and any(session.get('delivery_kind') == 'answer' for session in case.get('sessions', [])):
+        by_id = {session.get('id'): session for session in result.get('sessions', [])}
+        if any(by_id.get(session['id'], {}).get('answer_delivered') is not True
+               for session in case['sessions'] if session.get('delivery_kind') == 'answer'):
+            result['harness_errors'].append({'stage': 'validation', 'reason': 'delivered_answer_missing'})
+    if raw_status == 'passed' and any(session.get('delivery_kind') == 'candidate' for session in case.get('sessions', [])):
+        by_id = {session.get('id'): session for session in result.get('sessions', [])}
+        if any(by_id.get(session['id'], {}).get('candidate_verified') is not True
+               for session in case['sessions'] if session.get('delivery_kind') == 'candidate'):
+            result['harness_errors'].append({'stage': 'validation', 'reason': 'verified_candidate_missing'})
+    if raw_status == 'passed' and is_functional_case(case):
         expected = Counter(session['id'] + ':' + turn['phase']
                            for session in case['sessions'] for turn in session['turns'])
         completed = Counter(task.get('phase') for task in result.get('tasks', [])
                             if task.get('state') == 'completed' and task.get('capture_complete'))
         if expected != completed:
-            result['harness_errors'].append({'stage': 'evidence', 'reason': 'browser_turns_not_fully_captured'})
+            result['harness_errors'].append({'stage': 'evidence', 'reason': 'functional_turns_not_fully_captured'})
     if (raw_status == 'failed' and any(item.get('reason') == 'acceptance_checks_failed'
                                        for item in result['failures']) and
             not result.get('validation', {}).get('checks')):
         result['harness_errors'].append({'stage': 'validation', 'reason': 'quality_checks_missing'})
     checks = result.get('validation', {}).get('checks', [])
+    if raw_status == 'passed' and case_executor(case) == 'api':
+        expected_checks = sum(session.get('expected_checks', sum(1 + len(turn.get('assertions', []))
+                                  for turn in session['turns'])) for session in case['sessions'])
+        if len(checks) != expected_checks:
+            result['harness_errors'].append({'stage': 'validation', 'reason': 'functional_checks_incomplete'})
     if checks and any(not isinstance(item, dict) or type(item.get('passed')) is not bool for item in checks):
         result['harness_errors'].append({'stage': 'validation', 'reason': 'invalid_quality_checks'})
         result.pop('validation', None)
@@ -213,7 +237,7 @@ def finish_case(case_id, directory):
         result['tools'] = _unavailable_tools()
     result['task'], result['agent'], result['delivery'], result['quality'] = assess(case, result, raw_status)
     result['test_status'] = 'error' if result['harness_errors'] else 'completed'
-    if case_executor(case) == 'browser':
+    if is_functional_case(case):
         if result.get('blocked'):
             functional_state = 'blocked'
         elif result['test_status'] == 'error':
@@ -334,7 +358,7 @@ def _missing_case(case, workspace, reason):
             'delivery': {'state': 'unknown', 'completed_sessions': 0, 'expected_sessions': 0},
             'quality': {'state': 'unavailable', 'passed_checks': None, 'total_checks': None, 'failed_checks': []},
             'tools': _unavailable_tools()}
-    if case_executor(case) == 'browser':
+    if is_functional_case(case):
         result['functional'] = {'state': 'error'}
     return result
 
@@ -422,7 +446,7 @@ def aggregate(source, destination):
                     result = _missing_case(case, suite['workspace'], 'case_result_unreadable')
                 if not isinstance(result, dict) or result.get('case_id') != case_id or result.get('workspace') != suite['workspace']:
                     result = _missing_case(case, suite['workspace'], 'case_result_identity_mismatch')
-                elif not _valid_case_result(result) or (case_executor(case) == 'browser' and not result.get('functional')):
+                elif not _valid_case_result(result) or (is_functional_case(case) and not result.get('functional')):
                     result = _missing_case(case, suite['workspace'], 'case_result_incomplete')
             else:
                 result = _missing_case(case, suite['workspace'], 'case_artifact_missing')

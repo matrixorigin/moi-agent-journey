@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "id": "J2-02",
+  "workspace": "journey-2",
+  "title": "识别图片中的编号",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {"path": "image.png", "sha256": "df93dce32c81d3df5daabc6310ff0eea94ed9ee9af7747c1669fb17e9eaa865f"}
+  ],
+  "sessions": [
+    {
+      "id": "image",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "recognize",
+          "prompt": "请读取这张图片中最大的英文字母与数字，原样回答图片里的编号。",
+          "attachments": ["image.png"],
+          "assertions": [
+            {"type": "contains", "value": "QZ-47", "rule": "图片编号识别正确"}
+          ]
+        }
+      ]
+    }
+  ]
+}

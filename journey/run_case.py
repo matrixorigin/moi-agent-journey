@@ -323,6 +323,36 @@ class Execution:
                 conversation["cleanup"] = "incomplete"
                 self.report["harness_errors"].append({"stage": "cleanup", "conversation_id": cid, "reason": str(error)})
 
+    def record_failure(self, error):
+        if isinstance(error, Failure):
+            failure = {"stage": self.report["stage"], "reason": error.code,
+                       "http_status": error.http_status, "details": error.details}
+            timeout = error.code in {"case_timeout", "deadline_exceeded"}
+            task_started = bool(self.tasks) or self.pending_conversation is not None
+            if (self.report["stage"] == "semantic_judge" or
+                    not (task_outcome_failure(error) or (timeout and task_started))):
+                self.report["status"] = "error"
+                self.report["harness_errors"].append(failure)
+            else:
+                self.report["status"] = "timeout" if timeout else "failed"
+                self.report["failures"].append(failure)
+        else:
+            self.report["status"] = "error"
+            self.report["harness_errors"].append({"stage": self.report["stage"], "reason": type(error).__name__ + ":" + str(error)})
+
+    def finalize(self):
+        signal.alarm(0)
+        self.report['qa_seconds'] = round(time.monotonic() - self.started, 3)
+        if 'task_seconds' not in self.report:
+            self.report['task_seconds'] = self.report['qa_seconds']
+        cleanup_started = time.monotonic()
+        if self.root:
+            self.cleanup()
+        self.report["cleanup_seconds"] = round(time.monotonic() - cleanup_started, 3)
+        self.report["capture_complete"] = bool(self.tasks) and all(t["capture_complete"] for t in self.tasks)
+        self.report["finished_at"] = utc_now()
+        self.checkpoint()
+
     def run(self):
         try:
             self.root, self.selector = discover(self.client, self.case["workspace"])
@@ -372,33 +402,10 @@ class Execution:
                     self.report['semantic_judge_seconds']=round(time.monotonic()-judge_started,3)
             self.report["status"] = "awaiting_validation"
             self.report["stage"] = "validation"
-        except Failure as error:
-            failure = {"stage": self.report["stage"], "reason": error.code,
-                       "http_status": error.http_status, "details": error.details}
-            timeout = error.code in {"case_timeout", "deadline_exceeded"}
-            task_started = bool(self.tasks) or self.pending_conversation is not None
-            if (self.report["stage"] == "semantic_judge" or
-                    not (task_outcome_failure(error) or (timeout and task_started))):
-                self.report["status"] = "error"
-                self.report["harness_errors"].append(failure)
-            else:
-                self.report["status"] = "timeout" if timeout else "failed"
-                self.report["failures"].append(failure)
         except Exception as error:
-            self.report["status"] = "error"
-            self.report["harness_errors"].append({"stage": self.report["stage"], "reason": type(error).__name__ + ":" + str(error)})
+            self.record_failure(error)
         finally:
-            signal.alarm(0)
-            self.report['qa_seconds']=round(time.monotonic()-self.started,3)
-            if 'task_seconds' not in self.report:
-                self.report['task_seconds']=self.report['qa_seconds']
-            cleanup_started = time.monotonic()
-            if self.root:
-                self.cleanup()
-            self.report["cleanup_seconds"] = round(time.monotonic()-cleanup_started,3)
-            self.report["capture_complete"] = bool(self.tasks) and all(t["capture_complete"] for t in self.tasks)
-            self.report["finished_at"] = utc_now()
-            self.checkpoint()
+            self.finalize()
         return self.report
 
 

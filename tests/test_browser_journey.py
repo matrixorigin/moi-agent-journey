@@ -4,8 +4,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from journey.browser_case import candidate_from_task, cleanup, fetch_tasks, observe_browser_exchange
-from journey.catalog import load_case
+from journey.agent_builder import candidate_from_task
+from journey.browser_case import cleanup, fetch_tasks
+from journey.catalog import load_case, load_suite
 from journey.client import Failure
 from journey.diagnostics import analyze_events
 from journey.evidence import Evidence
@@ -103,7 +104,8 @@ class BrowserJourneyTests(unittest.TestCase):
 
     def test_candidate_cleanup_identity_must_match_the_exact_synthetic_name(self):
         data = {'agent_id': 'id', 'candidate_version': 'v1', 'source_digest': 'digest',
-                'workspace_id': 'ws', 'mode': 'create', 'display': {'agent_id': 'id', 'agent_name': 'our-test'}}
+                'workspace_id': 'ws', 'mode': 'create', 'status': 'valid', 'render_type': 'agent_candidate',
+                'display': {'agent_id': 'id', 'agent_name': 'our-test'}}
         task = {'status': {'message': {'parts': [{'data': {'output': {'output': data}}}]}}}
         self.assertEqual(candidate_from_task(task, 'our-test', 'ws')['agent_id'], 'id')
         self.assertIsNone(candidate_from_task(task, 'another-test', 'ws'))
@@ -203,7 +205,7 @@ class BrowserJourneyTests(unittest.TestCase):
         self.write_result('passed', tasks=1)
         result = finish_case('J2-01', self.root)
         self.assertEqual(result['functional']['state'], 'error')
-        self.assertIn('browser_turns_not_fully_captured', [item['reason'] for item in result['harness_errors']])
+        self.assertIn('functional_turns_not_fully_captured', [item['reason'] for item in result['harness_errors']])
 
     def test_login_blocked_and_missing_case_are_not_counted_as_pass(self):
         self.write_result('error', tasks=0, verified=None, checks=False, blocked=True)
@@ -212,11 +214,12 @@ class BrowserJourneyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as destination:
             report = aggregate(self.root, Path(destination) / 'bundle')
             suite = next(item for item in report['journeys'] if item['workspace'] == 'journey-2')
-            self.assertEqual(suite['functional'], {'pass': 0, 'fail': 0, 'blocked': 1, 'error': 0})
+            expected_missing = len(load_suite('journey-2')['cases']) - 1
+            self.assertEqual(suite['functional'], {'pass': 0, 'fail': 0, 'blocked': 1, 'error': expected_missing})
             (self.root / 'J2-01' / 'result.json').unlink()
             report = aggregate(self.root, Path(destination) / 'bundle2')
             suite = next(item for item in report['journeys'] if item['workspace'] == 'journey-2')
-            self.assertEqual(suite['functional']['error'], 1)
+            self.assertEqual(suite['functional']['error'], expected_missing + 1)
 
     def test_ui_credentials_are_redacted_from_saved_reports(self):
         directory = self.write_result('error', tasks=0, verified=None, checks=False, blocked=True)
@@ -232,7 +235,7 @@ class BrowserJourneyTests(unittest.TestCase):
 
     def test_browser_http_log_excludes_unrelated_agent_and_owner_data(self):
         evidence = Evidence(self.root)
-        observe_browser_exchange(evidence, {'method': 'GET', 'path': '/workspaces/ws/agents',
+        evidence.observe_transport({'method': 'GET', 'path': '/workspaces/ws/agents',
             'status': 200, 'seconds': 0.1, 'headers': {},
             'request': {'email': 'private-owner@example.com'},
             'response': {'instruction': 'another agents private instruction'}})
