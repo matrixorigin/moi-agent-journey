@@ -52,6 +52,10 @@ def assess(case, result, raw_status):
             delivered = isinstance(actual, dict) and actual.get('candidate_verified') is True
             delivery_sessions.append({'session': session['id'], 'delivery_kind': 'candidate', 'delivered': delivered,
                                       'expected_files': [], 'missing_files': []})
+        elif session.get('delivery_kind') == 'file':
+            delivered = isinstance(actual, dict) and actual.get('artifact_delivered') is True
+            delivery_sessions.append({'session': session['id'], 'delivery_kind': 'file', 'delivered': delivered,
+                                      'expected_files': [], 'missing_files': []})
         else:
             delivery_sessions.append({'session': session['id'], 'delivered': actual is not None,
                                       'expected_files': expected,
@@ -90,7 +94,7 @@ def assess(case, result, raw_status):
                           for item in result.get('harness_errors', []))
     expected_answer_checks = sum(session.get('expected_checks', sum(1 + len(turn.get('assertions', []))
                                       for turn in session['turns'])) for session in sessions
-                                 if session.get('delivery_kind') in {'answer', 'candidate'})
+                                 if session.get('delivery_kind') in {'answer', 'candidate', 'file'})
     incomplete_answer_checks = bool(expected_answer_checks) and len(checks) < expected_answer_checks
     if checks:
         failed = [item for item in checks if not item.get('passed')]

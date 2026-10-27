@@ -715,6 +715,28 @@ class JourneyTests(unittest.TestCase):
                 self.assertEqual(report['task']['completed'],1)
                 self.assertEqual(report['cases'][1]['harness_errors'][0]['reason'],'case_result_unreadable')
 
+    def test_workspace_selection_limits_report_and_bundle_to_selected_suite(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, destination = root / 'source', root / 'bundle'
+            config = {'journeys': [
+                {'workspace': 'journey-1', 'concurrency': 3, 'cases': ['J1-01']},
+                {'workspace': 'journey-2', 'concurrency': 3, 'cases': ['J2-02']},
+            ]}
+            (root / 'suites.json').write_text(json.dumps(config))
+            for case in ('J1-01', 'J2-02'):
+                (source / case).mkdir(parents=True)
+                (source / case / 'evidence.txt').write_text(case)
+            with patch('journey.report.ROOT', root):
+                report = aggregate(source, destination, 'journey-2')
+                self.assertEqual(report['workspace_selection'], 'journey-2')
+                self.assertEqual([suite['workspace'] for suite in report['journeys']], ['journey-2'])
+                self.assertEqual([case['case_id'] for case in report['cases']], ['J2-02'])
+                self.assertTrue((destination / 'cases' / 'J2-02' / 'evidence.txt').exists())
+                self.assertFalse((destination / 'cases' / 'J1-01').exists())
+                with self.assertRaisesRegex(ValueError, 'unknown_workspace'):
+                    aggregate(source, destination, 'journey-9')
+
     def test_case_cli_reports_actual_verdict_and_publishes_evidence_on_failure(self):
         for status, harness_error, expected_code in [('passed', False, 0), ('failed', False, 0),
                                                       ('timeout', False, 0), ('error', True, 1),

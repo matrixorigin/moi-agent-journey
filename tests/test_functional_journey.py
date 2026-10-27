@@ -127,6 +127,12 @@ class FunctionalJourneyTests(unittest.TestCase):
         with self.assertRaises(Failure):
             check_reply('context', {'phase': 'x', 'assertions': [{'type': 'unknown', 'value': 'x'}]}, 'x', {})
 
+    def test_numeric_result_requires_the_only_numeric_value_to_match(self):
+        turn = {'phase': 'total', 'assertions': [{'type': 'single_number', 'value': '41', 'rule': 'total'}]}
+        self.assertTrue(check_reply('file', turn, '总金额是41.00元。', {})[-1]['passed'])
+        self.assertFalse(check_reply('file', turn, '总金额是141元。', {})[-1]['passed'])
+        self.assertFalse(check_reply('file', turn, '41是旧值，正确结果是42。', {})[-1]['passed'])
+
     def test_each_case_run_allocates_distinct_context_tokens(self):
         case = load_case('J2-03')
         first, second = case_variables(case), case_variables(case)

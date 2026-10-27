@@ -48,8 +48,10 @@ def case_summary(result):
         session.get('delivery_kind') == 'answer' for session in delivery['sessions'])
     candidate_delivery = bool(delivery.get('sessions')) and all(
         session.get('delivery_kind') == 'candidate' for session in delivery['sessions'])
+    file_delivery = bool(delivery.get('sessions')) and all(
+        session.get('delivery_kind') == 'file' for session in delivery['sessions'])
     delivery_unit = ('智能体交付' if agent_delivery else '答复交付' if answer_delivery else
-                     '候选交付' if candidate_delivery else '会话交付')
+                     '候选交付' if candidate_delivery else '文件交付' if file_delivery else '会话交付')
     lines = [f"# {cell(result['case_id'])} {cell(result['title'])}", '',
              f"**测试框架：{test_status}**", '',
              f"- 任务结果：{TASK_LABELS[result['task']['state']]}。",
@@ -202,6 +204,11 @@ def finish_case(case_id, directory):
         if any(by_id.get(session['id'], {}).get('candidate_verified') is not True
                for session in case['sessions'] if session.get('delivery_kind') == 'candidate'):
             result['harness_errors'].append({'stage': 'validation', 'reason': 'verified_candidate_missing'})
+    if raw_status == 'passed' and any(session.get('delivery_kind') == 'file' for session in case.get('sessions', [])):
+        by_id = {session.get('id'): session for session in result.get('sessions', [])}
+        if any(by_id.get(session['id'], {}).get('artifact_delivered') is not True
+               for session in case['sessions'] if session.get('delivery_kind') == 'file'):
+            result['harness_errors'].append({'stage': 'validation', 'reason': 'delivered_artifact_missing'})
     if raw_status == 'passed' and is_functional_case(case):
         if any(not isinstance(result.get(key), dict) or
                any(not isinstance(result[key].get(field), str) or not result[key][field]
@@ -467,12 +474,16 @@ def _valid_case_result(result):
                for key in ('tasks', 'conversations', 'failures', 'harness_errors'))
 
 
-def aggregate(source, destination):
+def aggregate(source, destination, workspace='all'):
     config = json.loads((ROOT / 'suites.json').read_text())
+    suites_to_run = config['journeys'] if workspace == 'all' else [
+        suite for suite in config['journeys'] if suite['workspace'] == workspace]
+    if not suites_to_run:
+        raise ValueError('unknown_workspace:' + workspace)
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
     rows, suites = [], []
-    for suite in config['journeys']:
+    for suite in suites_to_run:
         current = []
         for case_id in suite['cases']:
             case = load_case(case_id)
@@ -507,7 +518,7 @@ def aggregate(source, destination):
                 for item in call['errors']:
                     tool_errors[(scope, str(call.get('tool') or 'unknown'), str(item.get('code') or item.get('kind')))].add(
                         (row['case_id'], call['task_id'], call['call_id']))
-    report = {'generated_at': utc_now(), 'github_run_id': os.environ.get('GITHUB_RUN_ID'),
+    report = {'generated_at': utc_now(), 'workspace_selection': workspace, 'github_run_id': os.environ.get('GITHUB_RUN_ID'),
               'github_run_attempt': os.environ.get('GITHUB_RUN_ATTEMPT'), 'commit': os.environ.get('GITHUB_SHA'),
               **totals, 'journeys': suites, 'cases': rows,
               'task_errors': [{'stage': stage, 'reason': reason, 'cases': sorted(cases)}
@@ -546,7 +557,7 @@ def aggregate(source, destination):
     task, agent, delivery, quality, tools = (report[key] for key in ('task', 'agent', 'delivery', 'quality', 'tools'))
     rate = f"{tools['success_rate']:.1%}" if tools['success_rate'] is not None else '不可计算'
     completion = f"{report['confirmed_completion_rate']:.1%}" if report['confirmed_completion_rate'] is not None else '不可计算'
-    lines = ['# MOI agent journeys', '',
+    lines = ['# MOI agent journeys', '', f'运行范围：{cell(workspace)}。', '',
         f"**{report['total']} 个任务：确认正常结束并交付 {task['completed']}/{report['total']}（{completion}），"
         f"非正常 {task['abnormal']}，"
         f"超时 {task['timeout']}，未正常交付 {task['not_delivered']}，无法确认 {task['unknown']}。**", '',
@@ -627,8 +638,10 @@ def aggregate(source, destination):
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
             output.write(markdown)
-    if Path(source).exists():
-        shutil.copytree(source, destination/'cases', dirs_exist_ok=True)
+    for row in rows:
+        case_source = Path(source) / row['case_id']
+        if case_source.is_dir():
+            shutil.copytree(case_source, destination / 'cases' / row['case_id'], dirs_exist_ok=True)
     return report
 
 
@@ -637,7 +650,7 @@ def main():
     sub=parser.add_subparsers(dest='command',required=True)
     finish=sub.add_parser('case');finish.add_argument('case_id');finish.add_argument('--root',default='results')
     security=sub.add_parser('scan');security.add_argument('directory')
-    summary=sub.add_parser('aggregate');summary.add_argument('--root',default='downloaded-results');summary.add_argument('--out',default='bundle')
+    summary=sub.add_parser('aggregate');summary.add_argument('--root',default='downloaded-results');summary.add_argument('--out',default='bundle');summary.add_argument('--workspace',default='all')
     args=parser.parse_args()
     if args.command=='case':
         result=finish_case(args.case_id,args.root)
@@ -650,7 +663,7 @@ def main():
     if args.command=='scan':
         scan(args.directory, configured_secrets())
         return 0
-    report=aggregate(args.root,args.out)
+    report=aggregate(args.root,args.out,args.workspace)
     print(json.dumps({k: report[k] for k in ['total', 'test_errors', 'task', 'agent', 'delivery', 'quality', 'tools']}))
     return 1 if report['test_errors'] else 0
 

@@ -5,10 +5,12 @@ import os
 import re
 import signal
 import uuid
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from .a2a import final_reply
 from .agent_builder import check_candidate_cancel
+from .artifact_checks import check_text_artifact
 from .catalog import fixture_path, load_case
 from .client import Client, Failure
 from .evidence import Evidence, configured_secrets
@@ -31,15 +33,25 @@ def check_reply(session_id, turn, reply, variables):
                'passed': bool(reply.strip()), 'detail': '' if reply.strip() else 'empty_final_reply'}]
     for assertion in turn.get('assertions', []):
         kind = assertion['type']
-        if kind not in {'contains', 'not_contains'} or not isinstance(assertion.get('value'), str):
+        if kind not in {'contains', 'not_contains', 'single_number'} or not isinstance(assertion.get('value'), str):
             raise Failure('invalid_case_assertion')
         expected = assertion['value'].format_map(variables)
         if not expected:
             raise Failure('empty_expected_value')
-        matched = expected in reply
-        passed = matched if kind == 'contains' else not matched
+        if kind == 'single_number':
+            try:
+                target = Decimal(expected)
+                numbers = re.findall(r'(?<![\d.])[+-]?\d+(?:\.\d+)?(?![\d.])', reply)
+                passed = target.is_finite() and len(numbers) == 1 and Decimal(numbers[0]) == target
+            except InvalidOperation:
+                raise Failure('invalid_expected_number') from None
+            detail = 'numeric_result_mismatch'
+        else:
+            matched = expected in reply
+            passed = matched if kind == 'contains' else not matched
+            detail = 'missing_expected_value' if kind == 'contains' else 'unexpected_value'
         checks.append({'session': session_id, 'rule': assertion['rule'], 'passed': passed,
-                       'detail': '' if passed else ('missing_expected_value' if kind == 'contains' else 'unexpected_value')})
+                       'detail': '' if passed else detail})
     return checks
 
 
@@ -66,6 +78,7 @@ class FunctionalExecution(Execution):
                 cid = self.conversation(session['id'])
                 final_entry = None
                 candidate_verified = False
+                artifact_delivered = False
                 phases = set()
                 for turn in session['turns']:
                     if (not isinstance(turn.get('phase'), str) or
@@ -102,16 +115,22 @@ class FunctionalExecution(Execution):
                     self.checkpoint()
                     action = turn.get('action')
                     if action:
-                        if action.get('type') != 'reject_invalid_digest_and_cancel':
+                        if action.get('type') == 'reject_invalid_digest_and_cancel':
+                            name = action['agent_name'].format_map(variables)
+                            candidate_verified = check_candidate_cancel(self, task, final_entry['task_id'],
+                                                                         name, checks, session['id'])
+                        elif action.get('type') == 'deliver_text_artifact':
+                            filename = action['filename'].format_map(variables)
+                            content = action['content'].format_map(variables)
+                            artifact_delivered = check_text_artifact(self, cid, final_entry['task_id'],
+                                                                     filename, content, checks, session['id'])
+                        else:
                             raise Failure('invalid_case_action')
-                        name = action['agent_name'].format_map(variables)
-                        candidate_verified = check_candidate_cancel(self, task, final_entry['task_id'],
-                                                                     name, checks, session['id'])
                 if final_entry is None:
                     raise Failure('session_has_no_turns')
                 self.report['sessions'].append({'id': session['id'], 'conversation_id': cid,
                     'final_task_id': final_entry['task_id'], 'answer_delivered': bool(reply.strip()),
-                    'candidate_verified': candidate_verified})
+                    'candidate_verified': candidate_verified, 'artifact_delivered': artifact_delivered})
                 self.checkpoint()
             if not checks:
                 raise Failure('quality_checks_missing')
