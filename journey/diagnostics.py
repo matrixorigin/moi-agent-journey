@@ -136,7 +136,14 @@ def analyze_events(path, tasks):
                 call['skipped'] |= skipped
                 if not skipped and (payload.get('success') is False or payload.get('status') in {'failed', 'rejected'}):
                     call['failed'] = True
-                    detail = payload.get('output') if isinstance(payload.get('output'), str) else payload.get('error', '')
+                    output = payload.get('output')
+                    if isinstance(output, str):
+                        detail = output
+                    elif isinstance(output, dict):
+                        detail = output.get('error') or output.get('message')
+                    else:
+                        detail = None
+                    detail = detail or payload.get('error', '')
                     call['errors'].append({'kind': 'tool_failure', 'seq': seq, 'code': payload.get('error'),
                                            'detail': str(detail)[:4096], 'error_kind': payload.get('error_kind')})
                 if payload.get('success') is True:

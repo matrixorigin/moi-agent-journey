@@ -296,6 +296,19 @@ class JourneyTests(unittest.TestCase):
             self.assertIn('--limit 25',cleaned['command'])
             self.assertNotIn('encoded-credential',cleaned['header'])
 
+    def test_tool_rejection_reports_the_detailed_validation_error(self):
+        events=[{'task_id':'t','seq':1,'kind':'tool_call','payload':{'call_id':'c','tool_id':'search',
+                    'arguments':{'limit':50}}},
+                {'task_id':'t','seq':2,'kind':'tool_result','payload':{'call_id':'c','success':False,
+                    'status':'rejected','error':'TOOL_EXECUTION_FAILED','error_kind':'tool_invalid_args',
+                    'output':{'error':'field limit must be at most 10','status':'rejected'}}}]
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'events.jsonl';path.write_text(''.join(json.dumps(e)+'\n' for e in events))
+            analysis=analyze_events(path,[{'task_id':'t','phase':'office:execute','event_count':2}])
+        self.assertEqual(analysis['metrics']['failed'],1)
+        self.assertEqual(analysis['errors'][0]['arguments'],{'limit':50})
+        self.assertEqual(analysis['errors'][0]['errors'][0]['detail'],'field limit must be at most 10')
+
     def test_missing_call_ids_are_not_double_counted_or_reported_as_success(self):
         events=[{'task_id':'t','seq':1,'kind':'tool_call','payload':{'tool_id':'bash'}},
                 {'task_id':'t','seq':2,'kind':'tool_result','payload':{'tool_id':'bash','success':True}},
