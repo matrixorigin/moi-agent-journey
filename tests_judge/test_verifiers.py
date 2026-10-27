@@ -2,11 +2,15 @@
 from pathlib import Path
 from io import BytesIO
 import tempfile
+from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 import fitz
 from docx import Document
+from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.table import WD_ROW_HEIGHT_RULE
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt
 from openpyxl import Workbook, load_workbook
 from pptx import Presentation
@@ -14,11 +18,33 @@ from pptx.chart.data import CategoryChartData
 from pptx.enum.chart import XL_CHART_TYPE
 from pptx.util import Inches
 
-from judge import statement, summary_sheet, table_chart
+from judge import report_title, statement, summary_sheet, table_chart
 from judge.verify import adapt_skillsbench_states, check
 
 
 class DocumentVerifiersTest(unittest.TestCase):
+    def test_report_title_comes_from_source_and_honors_inherited_formatting(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); inputs = root/'inputs'; outputs = root/'outputs'; rendered = root/'rendered/report.docx'
+            inputs.mkdir(); outputs.mkdir(); rendered.mkdir(parents=True)
+            source = Document(); source.add_paragraph('Sample report'); source.save(inputs/'公共书房运营规划书.docx')
+            doc = Document(); normal = doc.styles['Normal']; normal.font.name = 'SimSun'; normal.font.size = Pt(16); normal.font.bold = True
+            title = doc.add_paragraph('Sample report'); title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            title.paragraph_format.line_spacing = 1.0
+            abstract_style = doc.styles.add_style('AbstractForTest', WD_STYLE_TYPE.PARAGRAPH)
+            abstract_style.font.name = 'SimHei'; abstract_style.font.size = Pt(14)
+            doc.add_paragraph('摘要', style=abstract_style); doc.save(outputs/'report.docx')
+            self.assertTrue(all(item['passed'] for item in report_title.verify(inputs, outputs, check)))
+            pdf = fitz.open(); page = pdf.new_page(); page.insert_text((40,40), 'Sample report')
+            pdf.save(str(rendered/'report.pdf')); pdf.close()
+            self.assertTrue(report_title.verify_rendered(inputs, root/'rendered', check)['passed'])
+            doc = Document(outputs/'report.docx'); doc.paragraphs[0].runs[0].font.bold = False
+            doc.save(outputs/'report.docx')
+            self.assertFalse(report_title.verify(inputs, outputs, check)[0]['passed'])
+            doc = Document(outputs/'report.docx'); doc.paragraphs[0].text = 'Wrong report'
+            doc.save(outputs/'report.docx')
+            self.assertFalse(report_title.verify(inputs, outputs, check)[0]['passed'])
+
     def test_presentation_requires_all_source_data_and_matching_embedded_workbook(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); inputs = root/'inputs'; outputs = root/'outputs'
@@ -133,6 +159,10 @@ class DocumentVerifiersTest(unittest.TestCase):
             target = outputs/'summary.xlsx'; workbook.save(target); workbook.close()
             checks, _ = summary_sheet.verify(inputs, outputs, check)
             self.assertTrue(all(item['passed'] for item in checks), checks)
+            with patch('judge.summary_sheet.subprocess.run', return_value=SimpleNamespace(
+                    returncode=-11, stdout='', stderr='process crashed')):
+                with self.assertRaisesRegex(RuntimeError, 'summary_recalculation_process_failed'):
+                    summary_sheet.verify(inputs, outputs, check)
             changed = load_workbook(target); changed['汇总']['F3'] = 0.75; changed.save(target); changed.close()
             self.assertFalse(summary_sheet.verify(inputs, outputs, check)[0][1]['passed'])
             changed = load_workbook(target); changed['汇总']['F3'] = 0.5; changed['Sheet2']['A1'] = 18

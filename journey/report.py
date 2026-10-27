@@ -1,6 +1,7 @@
 """Account for every configured case, including missing artifacts and killed runners."""
 import argparse
 import csv
+import hashlib
 import io
 import json
 import os
@@ -10,6 +11,7 @@ import zipfile
 from pathlib import Path
 
 from .catalog import ROOT, load_case
+from .diagnostics import observed_tool_errors
 from .evidence import Evidence, utc_now,TOKEN_BYTES
 
 FINAL = {"passed", "failed", "timeout", "error"}
@@ -32,6 +34,14 @@ def finish_case(case_id, directory):
         result["status"] = "error"
     if (result.get("tasks") or result["status"] == "passed") and not result.get("capture_complete"):
         result["harness_errors"].append({"stage": "evidence", "reason": "incomplete_trace_or_events"})
+    events = evidence.root / 'events.jsonl'
+    if events.exists():
+        try:
+            result['observed_tool_errors'] = observed_tool_errors(events)
+        except (OSError, ValueError, UnicodeError) as error:
+            result['harness_errors'].append({'stage': 'evidence', 'reason': 'invalid_event_log:' + str(error)})
+    elif any(task.get('event_count', 0) for task in result.get('tasks', [])):
+        result['harness_errors'].append({'stage': 'evidence', 'reason': 'recorded_events_missing'})
     result["harness_status"] = "error" if result["harness_errors"] else "ok"
     preparation=evidence.root/'preparation.json'
     if preparation.exists():
@@ -41,6 +51,9 @@ def finish_case(case_id, directory):
     result['total_seconds']=round(sum(durations),3) if durations else None
     result['github_run_id']=os.environ.get('GITHUB_RUN_ID')
     result['github_run_attempt']=os.environ.get('GITHUB_RUN_ATTEMPT')
+    result['workflow_commit']=os.environ.get('GITHUB_SHA')
+    specification=json.dumps(case,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode('utf-8')
+    result['case_spec_sha256']=hashlib.sha256(specification).hexdigest()
     result["finalized_at"] = utc_now()
     evidence.write("result.json", result)
     return result
@@ -120,12 +133,13 @@ def aggregate(source, destination):
     (destination / "summary.json").write_text(json.dumps(report, ensure_ascii=False, indent=2)+"\n")
     with (destination / "summary.csv").open("w", newline="") as stream:
         writer=csv.writer(stream)
-        writer.writerow(["workspace","case_id","title","status","harness_status","task_seconds","semantic_judge_seconds","preparation_seconds","validation_seconds","cleanup_seconds","total_seconds","trace_ids","failure_reasons"])
+        writer.writerow(["workspace","case_id","title","status","harness_status","task_seconds","semantic_judge_seconds","preparation_seconds","validation_seconds","cleanup_seconds","total_seconds","trace_ids","failure_reasons","observed_tool_errors"])
         for row in rows:
             reasons = row.get("failures",[]) + row.get("harness_errors",[])
             writer.writerow([row["workspace"],row["case_id"],row["title"],row["status"],row.get("harness_status","error"),
                 row.get("task_seconds"),row.get('semantic_judge_seconds'),row.get('preparation_seconds'),row.get("validation",{}).get("seconds"),row.get('cleanup_seconds'),row.get("total_seconds"),
-                ";".join(t.get("trace_id","") for t in row.get("tasks",[])),json.dumps(reasons,ensure_ascii=False)])
+                ";".join(t.get("trace_id","") for t in row.get("tasks",[])),json.dumps(reasons,ensure_ascii=False),
+                json.dumps(row.get('observed_tool_errors',[]),ensure_ascii=False)])
     lines=["# MOI agent journeys", "",f"**通过 {passed}/{total}（{passed/total:.1%}）**" if total else "未配置任务", "",
            f"任务不通过：{report['failed']}；超时：{report['timeout']}；执行/证据错误：{errors}；隔离产物：{report['withheld_files']}。", "",
            "空工作区不计入分母；任务失败不会阻止其他任务。执行框架和证据错误会使工作流失败。", "",
@@ -139,6 +153,11 @@ def aggregate(source, destination):
             failed_checks=row['validation']['failed_checks']
             reasons += [r['rule'] for r in failed_checks[:5]]
             if len(failed_checks)>5:reasons.append(f"共 {len(failed_checks)} 项，完整明细见 result.json")
+        if row['status'] != 'passed':
+            observed = row.get('observed_tool_errors', [])
+            reasons.extend('观察到工具错误: ' + str(item.get('code') or item.get('error_kind') or 'failed')
+                           for item in observed[:3])
+            if len(observed) > 3:reasons.append(f"共观察到 {len(observed)} 条，完整明细见 result.json")
         lines.append(f"| {row['workspace']} | {row['case_id']} {cell(row['title'])} | {row['status']} | {row.get('task_seconds','—')} | {cell('; '.join(reasons))} |")
     for suite in suites:
         if suite['status']=='empty':lines.append(f"| {suite['workspace']} | 待配置 | empty | — | 不计入成功率 |")

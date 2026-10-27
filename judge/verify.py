@@ -1,6 +1,5 @@
 """Trusted verification, executed with no network or QA credentials in Docker."""
 import argparse
-import copy
 import importlib.util
 import json
 import os
@@ -11,6 +10,7 @@ import tempfile
 from pathlib import Path
 
 from journey.evidence import sha256
+from .office_process import require_success
 
 
 def module_at(path, name):
@@ -76,8 +76,9 @@ def render_outputs(outputs, destination):
             command = ["libreoffice", "-env:UserInstallation=" + Path(profile).as_uri(),
                        "--headless", "--convert-to", "pdf", "--outdir", str(target), str(path)]
             proc = subprocess.run(command, capture_output=True, text=True, timeout=90)
+        require_success(proc, 'office_render_process_failed')
         pdf = target / (path.stem + ".pdf")
-        good = proc.returncode == 0 and pdf.is_file() and pdf.stat().st_size > 0
+        good = pdf.is_file() and pdf.stat().st_size > 0
         results.append(check("可渲染：" + path.relative_to(outputs).as_posix(), good,
                              (proc.stdout + proc.stderr)[-3000:]))
     return results
@@ -93,11 +94,23 @@ def officeval(case, oracle, inputs, outputs):
         raw["reference_upstream_result"] = result
         return checks, raw
     checks = [check("上游文件与结构", result.get("dim1_pass"), result.get("dim1_reason", ""))]
+    replaced = 0
     for item in result["dim2_items"]:
+        if case["id"] == "J1-02" and (item["rule"].startswith('第1页报告题目') or
+                                       item["rule"].startswith('文档中摘要页标题字体格式')):
+            replaced += 1
+            continue
         positive = item["max_delta"] > 0
         checks.append(check(item["rule"], item["hit"] if positive else not item["hit"], item.get("detail", "")))
     if result.get("status") != "ok":
         checks.append(check("文件可被检查器解析", False, str(result.get("error"))))
+    if case["id"] == "J1-02" and result.get("dim1_pass"):
+        if replaced != 3:
+            raise RuntimeError('upstream_report_title_rules_missing')
+        from .report_title import verify
+        adapted = verify(inputs, outputs, check)
+        checks += adapted
+        result = {'reference_upstream_result': result, 'journey_adapted_checks': adapted}
     return checks, result
 
 
@@ -183,7 +196,8 @@ def lbo(oracle, inputs, outputs):
         result = subprocess.run(["libreoffice", "-env:UserInstallation=" + (Path(directory)/"profile").as_uri(),
             "--headless", "--convert-to", "xlsx", "--outdir", str(calculated_dir), str(calculation_copy)], capture_output=True, text=True, timeout=120)
         calculated = calculated_dir / "09_01_repaired.xlsx"
-        if result.returncode or not calculated.exists():
+        require_success(result, 'lbo_recalculation_process_failed')
+        if not calculated.exists():
             raise RuntimeError("lbo_recalculation_failed:" + result.stderr)
         values = load_workbook(calculated, data_only=True)
         for (sheet, cell), refs in targets.items():
@@ -196,20 +210,33 @@ def lbo(oracle, inputs, outputs):
             formula = fixed[sheet][cell].data_type == "f"
             checks.append(check(sheet+"!"+cell+" 的业务关系和原生公式", formula and isinstance(actual,(int,float)) and abs(actual-expected)<1e-7,
                                 json.dumps({"actual":actual,"expected":expected})))
+        changed_inputs = []
+        staticized_formulas = []
+        changed_merges = []
         for sheet in source:
+            actual_sheet = fixed[sheet.title]
+            if set(map(str, sheet.merged_cells.ranges)) != set(map(str, actual_sheet.merged_cells.ranges)):
+                changed_merges.append(sheet.title)
             for row in sheet:
                 for cell in row:
                     if (sheet.title, cell.coordinate) in targets:
                         continue
-                    actual = fixed[sheet.title][cell.coordinate]
-                    same_style = all(copy.copy(getattr(cell, key)) == copy.copy(getattr(actual, key))
-                        for key in ['font','fill','border','alignment','protection','number_format'])
-                    if cell.value != actual.value or not same_style:
-                        checks.append(check("保留非目标单元格："+sheet.title+"!"+cell.coordinate,False))
+                    actual = actual_sheet[cell.coordinate]
+                    if cell.data_type == 'f' and actual.data_type != 'f':
+                        staticized_formulas.append(sheet.title+'!'+cell.coordinate)
+                    if (isinstance(cell.value, (int, float)) and not isinstance(cell.value, bool) and
+                            actual.data_type != 'f' and
+                            (not isinstance(actual.value, (int, float)) or isinstance(actual.value, bool) or
+                             cell.value != actual.value)):
+                        changed_inputs.append(sheet.title+'!'+cell.coordinate)
             for row in values[sheet.title]:
                 for cell in row:
                     if cell.data_type == "e":
                         checks.append(check("重算无错误："+sheet.title+"!"+cell.coordinate,False,str(cell.value)))
+        checks.append(check('原非目标数值未被静态改动、公式仍可编辑且合并结构保留',
+                            not changed_inputs and not staticized_formulas and not changed_merges,
+                            json.dumps({'changed_inputs': changed_inputs, 'staticized_formulas': staticized_formulas,
+                                        'changed_merges': changed_merges})))
         values.close()
         # Change independent drivers to distinguish dynamic relations from formulas
         # that simply return the correct constant for this one fixed snapshot.
@@ -220,7 +247,8 @@ def lbo(oracle, inputs, outputs):
         calculated.unlink()
         mutated = subprocess.run(["libreoffice", "-env:UserInstallation=" + (Path(directory)/"mutation-profile").as_uri(),
             "--headless", "--convert-to", "xlsx", "--outdir", str(calculated_dir), str(calculation_copy)],capture_output=True,text=True,timeout=120)
-        if mutated.returncode or not calculated.exists():
+        require_success(mutated, 'lbo_mutation_recalculation_process_failed')
+        if not calculated.exists():
             raise RuntimeError("lbo_mutation_recalculation_failed:"+mutated.stderr)
         values=load_workbook(calculated,data_only=True)
         for (sheet,cell),refs in targets.items():
@@ -236,21 +264,19 @@ def lbo(oracle, inputs, outputs):
     return checks,{"checks":checks}
 
 
-def require_evo_checks_executed(case, result):
-    if case["id"] != "J1-14":
-        return
-    criteria = {item["criterion_id"]: item for item in result.get("criterion_results", [])}
-    evidence = criteria.get("R012", {}).get("evidence", "")
-    if "Excel 工作表应为" in evidence:
-        raise RuntimeError("upstream_oracle_incomplete: workbook layout caused invoice checks to be skipped")
-
-
 def evo(case, oracle, inputs, outputs):
     if case["id"] == "J1-07":
         return lbo(oracle, inputs, outputs)
     module = module_at(oracle / "judge.py", "evo_oracle")
     result = module.evaluate(outputs)
-    require_evo_checks_executed(case, result)
+    if case["id"] == "J1-14":
+        from .ap_control import verify
+        checks, raw = verify(module, inputs, outputs, check)
+        criteria = {item["criterion_id"]: item for item in result.get("criterion_results", [])}
+        raw["reference_workbook_checks_incomplete"] = (
+            "Excel 工作表应为" in criteria.get("R012", {}).get("evidence", ""))
+        raw["reference_upstream_result"] = result
+        return checks, raw
     checks=[]
     adjusted = {}
     if case["id"] == "J1-09":
@@ -367,6 +393,9 @@ def main():
         if case['id'] == 'J1-03' and all(item['passed'] for item in rendering):
             from .statement import verify_rendered
             checks.append(verify_rendered(outputs,rendered,check))
+        if case['id'] == 'J1-02' and all(item['passed'] for item in rendering):
+            from .report_title import verify_rendered
+            checks.append(verify_rendered(inputs,rendered,check))
         result={"status":"completed","checks":checks,"upstream_result":raw,
                 "passed":bool(checks) and all(c['passed'] for c in checks)}
     except Exception as error:

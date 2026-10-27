@@ -1,5 +1,6 @@
 import contextlib
 import datetime
+import hashlib
 import io
 import json
 import os
@@ -15,13 +16,14 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from journey.client import Client
+from journey.catalog import load_case
 from journey.a2a import final_reply
 from journey.evidence import Evidence, safe_extract
 from journey.report import aggregate, finish_case, scan
 from journey.run_case import Execution
 from journey.publish import prepare_publication
 from journey.validate import validate
-from judge.verify import PytestCapture, evo, pi_structural, require_evo_checks_executed
+from judge.verify import PytestCapture, evo, pi_structural, render_outputs
 from judge.inventory import date_status
 from judge.statement import normalize_row, pdf_records, record_difference
 from judge.summary_sheet import source_cells, value_equal
@@ -129,6 +131,58 @@ def qa_fixture(mode):
 
 
 class JourneyTests(unittest.TestCase):
+    def test_office_tool_crash_is_a_harness_error_not_a_failed_deliverable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); outputs=root/'outputs'; outputs.mkdir()
+            (outputs/'document.docx').write_bytes(b'fixture')
+            with patch('judge.verify.subprocess.run', return_value=SimpleNamespace(
+                    returncode=-11, stdout='', stderr='process crashed')):
+                with self.assertRaisesRegex(RuntimeError, 'office_render_process_failed:exit=-11'):
+                    render_outputs(outputs, root/'rendered')
+            with patch('judge.verify.subprocess.run', return_value=SimpleNamespace(
+                    returncode=0, stdout='unsupported file', stderr='')):
+                self.assertFalse(render_outputs(outputs, root/'rendered')[0]['passed'])
+
+    def test_observed_tool_errors_record_evidence_without_changing_case_outcome(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); evidence=Evidence(root/'J1-01', ['private-token'])
+            evidence.write('result.json', {'case_id':'J1-01', 'status':'failed', 'tasks':[{'event_count':4}],
+                'failures':[], 'harness_errors':[], 'capture_complete':True})
+            events=[
+                {'task_id':'task-1','seq':0,'kind':'lifecycle','payload':{'type':'tool_transport_failed',
+                    'tool':'bash','call_id':'a','error_kind':'stream_transport','error':'connection failed'}},
+                {'task_id':'task-1','seq':1,'kind':'tool_result','payload':{'tool':'bash','call_id':'a',
+                    'success':False,'status':'failed','error_kind':'stream_transport','error':'TOOL_EXECUTION_FAILED',
+                    'output':'connection failed: private-token'}},
+                {'task_id':'task-1','seq':2,'kind':'tool_result','payload':{'tool':'bash','call_id':'b',
+                    'success':True,'output':{'output':{'stdout':'prefix\n{"status":413,"code":"upload_denied","request_id":"r1"}\n',
+                                                       'stderr':'not JSON'}}}},
+                {'task_id':'task-1','seq':3,'kind':'tool_result','payload':{'tool':'bash','call_id':'c','success':True,
+                    'output':{'output':{'stdout':'{"status":200,"code":"OK"}'}}}},
+            ]
+            for event in events:evidence.append('events.jsonl',event)
+            with patch.dict(os.environ, {'GITHUB_SHA':'test-commit'}):
+                report=finish_case('J1-01',root)
+            self.assertEqual(report['status'],'failed')
+            self.assertEqual(report['harness_status'],'ok')
+            self.assertEqual(report['workflow_commit'], 'test-commit')
+            specification=json.dumps(load_case('J1-01'),ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()
+            self.assertEqual(report['case_spec_sha256'], hashlib.sha256(specification).hexdigest())
+            self.assertEqual([item['kind'] for item in report['observed_tool_errors']],
+                             ['tool_transport_failed','tool_failure','tool_output_http_error'])
+            self.assertEqual(report['observed_tool_errors'][2]['request_id'],'r1')
+            self.assertNotIn('private-token',(evidence.root/'result.json').read_text())
+
+    def test_invalid_event_log_is_a_framework_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); evidence=Evidence(root/'J1-01', [])
+            evidence.write('result.json', {'case_id':'J1-01', 'status':'failed', 'tasks':[{'event_count':1}],
+                'failures':[], 'harness_errors':[], 'capture_complete':True})
+            (evidence.root/'events.jsonl').write_text('not-json\n')
+            report=finish_case('J1-01',root)
+            self.assertEqual(report['harness_status'],'error')
+            self.assertTrue(report['harness_errors'][0]['reason'].startswith('invalid_event_log:'))
+
     def test_validator_failure_retains_the_specific_evaluator_reason(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); evidence = Evidence(root/'results', [])
@@ -150,14 +204,6 @@ class JourneyTests(unittest.TestCase):
         with patch('judge.verify.module_at', return_value=module):
             checks, _ = evo({'id': 'J1-09'}, Path('/oracle'), Path('/inputs'), Path('/outputs'))
         self.assertEqual([(item['rule'], item['passed']) for item in checks], [('R001', False)])
-
-    def test_ap_checker_reports_unexecuted_invoice_checks_as_framework_error(self):
-        incomplete = {'criterion_results': [{'criterion_id': 'R012',
-            'evidence': 'Excel 工作表应为 expected，实际 different'}]}
-        with self.assertRaisesRegex(RuntimeError, 'upstream_oracle_incomplete'):
-            require_evo_checks_executed({'id': 'J1-14'}, incomplete)
-        require_evo_checks_executed({'id': 'J1-14'}, {'criterion_results': [
-            {'criterion_id': 'R012', 'evidence': '工作表内容均已检查'}]})
 
     def test_summary_source_labels_handle_different_layouts_and_reject_ambiguity(self):
         class Sheet:

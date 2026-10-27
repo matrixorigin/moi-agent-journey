@@ -4,6 +4,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from .office_process import require_success
+
 
 def numeric(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
@@ -69,7 +71,8 @@ def verify(inputs, outputs, check):
                                  '--headless', '--convert-to', 'xlsx', '--outdir', str(calculated_dir),
                                  str(output_path)], capture_output=True, text=True, timeout=120)
         calculated_path = calculated_dir / output_path.name
-        if result.returncode or not calculated_path.exists():
+        require_success(result, 'summary_recalculation_process_failed')
+        if not calculated_path.exists():
             checks.append(check('工作簿可重新计算', False, (result.stdout + result.stderr)[-2000:]))
             return checks, {'checks': checks}
         calculated = load_workbook(calculated_path, data_only=True)
