@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "J2-31",
+  "workspace": "journey-2",
+  "title": "识别 JPEG 小票并计算金额",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "fixtures": [{"path": "receipt.jpg", "sha256": "74dfe28156f8fbb5b5956005a89c850be045b7b746d1dce00fd205872db244d4"}],
+  "sessions": [
+    {
+      "id": "receipt",
+      "delivery_kind": "answer",
+      "expected_checks": 2,
+      "turns": [
+        {
+          "phase": "total",
+          "prompt": "请读取附件小票，把两种商品的金额相加。只回复合计的数字，不要回复其他内容。",
+          "attachments": ["receipt.jpg"],
+          "assertions": [{"type": "single_number", "value": "34.5", "rule": "小票合计金额正确"}]
+        }
+      ]
+    }
+  ]
+}

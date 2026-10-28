@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "J2-30",
+  "workspace": "journey-2",
+  "title": "创建同时绑定两个 Skill 的智能体并分别使用",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["agent_name", "sheet_name", "doc_name", "sheet_content", "doc_content"],
+  "builder_names": ["agent_name"],
+  "sessions": [
+    {
+      "id": "builder",
+      "delivery_kind": "agent",
+      "expected_checks": 10,
+      "turns": [
+        {
+          "phase": "create",
+          "prompt": "请创建名为 {agent_name} 的办公智能体，既能生成 Excel 表格，也能生成 Word 文档。请同时绑定 xlsx 技能（moi.agent.momo.skill.xlsx）和 docx 技能（moi.agent.momo.skill.docx），先展示候选，不要确认创建。",
+          "action": {
+            "type": "commit_builder_with_resources",
+            "agent_name": "{agent_name}",
+            "capture_current": true,
+            "resources": [
+              {"kind": "skills", "id": "moi.agent.momo.skill.xlsx"},
+              {"kind": "skills", "id": "moi.agent.momo.skill.docx"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "combined_agent",
+      "agent_from": "builder",
+      "delivery_kind": "file",
+      "expected_checks": 8,
+      "turns": [
+        {
+          "phase": "spreadsheet",
+          "prompt": "请生成并交付名为 {sheet_name}.xlsx 的 Excel 文件，在第一个工作表的 A1 填入 {sheet_content}。",
+          "action": {"type": "deliver_xlsx_with_skill", "skill_id": "moi.agent.momo.skill.xlsx",
+                     "filename": "{sheet_name}.xlsx", "content": "{sheet_content}"}
+        },
+        {
+          "phase": "document",
+          "prompt": "再生成并交付名为 {doc_name}.docx 的 Word 文档，正文写入标记 {doc_content}。",
+          "action": {"type": "deliver_ooxml_with_skill", "kind": "docx", "skill_id": "moi.agent.momo.skill.docx",
+                     "filename": "{doc_name}.docx", "content": "{doc_content}"}
+        }
+      ]
+    }
+  ]
+}

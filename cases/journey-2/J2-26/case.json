@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "id": "J2-26",
+  "workspace": "journey-2",
+  "title": "会话重命名、置顶、归档恢复与继续对话",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["code", "title"],
+  "sessions": [
+    {
+      "id": "lifecycle",
+      "delivery_kind": "answer",
+      "expected_checks": 10,
+      "turns": [
+        {
+          "phase": "remember",
+          "prompt": "请记住本次对话的项目代号：{code}。只回复已记住。",
+          "action": {"type": "conversation_lifecycle", "title": "{title}"}
+        },
+        {
+          "phase": "continue",
+          "prompt": "刚才告诉你的项目代号是什么？请只回复代号。",
+          "assertions": [{"type": "contains", "value": "{code}", "rule": "恢复后的会话保留原上下文"}]
+        }
+      ]
+    }
+  ]
+}

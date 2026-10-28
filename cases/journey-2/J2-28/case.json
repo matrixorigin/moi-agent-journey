@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "id": "J2-28",
+  "workspace": "journey-2",
+  "title": "取消运行中的任务后继续同一会话",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["code"],
+  "sessions": [
+    {
+      "id": "cancel_continue",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "cancel",
+          "prompt": "请写一份详细的 3000 字项目计划，涵盖目标、阶段和风险。",
+          "cancel_after_admission": true,
+          "expected_state": "canceled"
+        },
+        {
+          "phase": "continue",
+          "prompt": "上一个任务已经停止。请只回复这个新代号：{code}",
+          "assertions": [{"type": "contains", "value": "{code}", "rule": "取消后同一会话能完成新任务"}]
+        }
+      ]
+    }
+  ]
+}

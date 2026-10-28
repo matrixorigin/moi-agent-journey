@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "id": "J2-27",
+  "workspace": "journey-2",
+  "title": "对话历史分页和非法会话更新",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["first", "second", "title"],
+  "sessions": [
+    {
+      "id": "history",
+      "delivery_kind": "answer",
+      "expected_checks": 10,
+      "turns": [
+        {
+          "phase": "first",
+          "prompt": "请只回复以下代号：{first}",
+          "assertions": [{"type": "contains", "value": "{first}", "rule": "第一轮答复包含指定代号"}]
+        },
+        {
+          "phase": "second",
+          "prompt": "请只回复以下新代号：{second}",
+          "assertions": [{"type": "contains", "value": "{second}", "rule": "第二轮答复包含指定代号"}],
+          "action": {"type": "conversation_history", "title": "{title}"}
+        }
+      ]
+    }
+  ]
+}

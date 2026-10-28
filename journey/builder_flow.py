@@ -144,7 +144,8 @@ class AgentBuilderFlow:
         matches = [item for item in refs if isinstance(item, dict) and item.get('id') == resource_id and
                    item.get('workspace_id') == 'system' and isinstance(item.get('name'), str) and item['name']]
         label = 'Skill' if kind == 'skills' else '工具'
-        self.record('候选绑定指定' + label, len(matches) == 1, 'resource_reference_missing_or_ambiguous')
+        self.record('候选绑定指定' + label + ' ' + resource_id, len(matches) == 1,
+                    'resource_reference_missing_or_ambiguous:' + resource_id)
         if len(matches) != 1:
             raise ProductCaseFailure('resource_reference_missing_or_ambiguous')
         return {**matches[0], 'kind': kind}
@@ -219,7 +220,7 @@ class AgentBuilderFlow:
             raise ProductCaseFailure('revision_already_published')
         self.current = updated
 
-    def commit(self, expected_resource=None, expected_description=None, *, capture_current=False, changes=None):
+    def commit(self, expected_resources=(), expected_description=None, *, capture_current=False, changes=None):
         output = self.current
         agent_id, candidate_version = output['agent_id'], output['candidate_version']
         if output['mode'] == 'create' and agent_id not in self.absent_before:
@@ -264,7 +265,7 @@ class AgentBuilderFlow:
         config_ok = (len(matching) == 1 and matching[0].get('status') == 'runnable' and
                      manifest.get('id') == agent_id and manifest.get('name') == name and
                      manifest.get('model') == output.get('display', {}).get('model'))
-        if expected_resource:
+        for expected_resource in expected_resources:
             refs = manifest.get('moiResourceRefs')
             resources = refs.get(expected_resource['kind'], []) if isinstance(refs, dict) else []
             resources = resources if isinstance(resources, list) else []
@@ -288,11 +289,12 @@ class AgentBuilderFlow:
             if capture_current:
                 config_read = (current.get('agent_id') == agent_id and current.get('name') == name and
                                same_published_config(current, current))
-                if expected_resource and config_read:
-                    refs = current['resource_refs'].get(expected_resource['kind'], [])
-                    config_read = config_read and isinstance(refs, list) and any(
-                        isinstance(item, dict) and item.get('id') == expected_resource['id'] and
-                        item.get('workspace_id') == expected_resource['workspace_id'] for item in refs)
+                for expected_resource in expected_resources:
+                    if config_read:
+                        refs = current['resource_refs'].get(expected_resource['kind'], [])
+                        config_read = isinstance(refs, list) and any(
+                            isinstance(item, dict) and item.get('id') == expected_resource['id'] and
+                            item.get('workspace_id') == expected_resource['workspace_id'] for item in refs)
                 self.record('发布后的可编辑配置可回读', config_read, 'current_config_unavailable')
                 if not config_read:
                     raise ProductCaseFailure('current_config_unavailable')
