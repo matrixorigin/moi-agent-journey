@@ -9,7 +9,8 @@
 | 资源 ID | 当前 Journey-2 路径与缺口 |
 |---|---|
 | `moi_web_search` | J2-12 验证绑定、指定工具的实际调用和来源；仍缺参数及异常边界 |
-| `moi_bocha_web_search`, `moi_brave_web_search`, `moi_tavily_web_search`, `moi_web_open` | J2-05 可验证一次搜索及其引用，但不逐个要求这些工具；需分别验证开放配置与错误边界 |
+| `moi_web_open` | J2-20 验证打开指定网页和实际内容；2026-10-28 单次 QA 测试返回 `WEB_UNAVAILABLE`，标记为 blocked |
+| `moi_bocha_web_search`, `moi_brave_web_search`, `moi_tavily_web_search` | J2-05 可验证一次搜索及其引用，但不逐个要求这些工具；需分别验证开放配置与错误边界 |
 | `moi_codex_run`, `moi_product_source` | 待设计功能 case |
 | `moi_feishu_card_message`, `moi_feishu_post_message`, `moi_feishu_text_message` | 缺专用飞书连接与可核对的测试接收端 |
 | `moi_github_issues`, `moi_github_pull_requests`, `moi_github_rate_limit`, `moi_github_repository`, `moi_github_workflows` | 缺专用 GitHub 连接和测试仓库；只读、写入和错误路径均需明确 |

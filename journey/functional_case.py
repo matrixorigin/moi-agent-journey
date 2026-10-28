@@ -23,6 +23,7 @@ from .search_checks import evaluate_search
 from .skill_checks import check_skill_call
 from .sql_checks import evaluate_sql
 from .version import finish_version, start_version
+from .web_open_checks import evaluate_open
 
 
 def case_variables(case):
@@ -81,6 +82,7 @@ class FunctionalExecution(Execution):
     def run(self):
         current_search = None
         current_search_tool = None
+        current_open = None
         builders = {}
         try:
             self.root, self.selector = discover(self.client, self.case['workspace'])
@@ -131,6 +133,7 @@ class FunctionalExecution(Execution):
                     phases.add(turn['phase'])
                     current_search = session['id'] if turn.get('search_evidence') is True else None
                     current_search_tool = turn.get('search_tool') if current_search else None
+                    current_open = (session['id'], turn['open_evidence']) if turn.get('open_evidence') else None
                     attachments = []
                     for name in turn.get('attachments', []):
                         if name not in fixtures:
@@ -177,6 +180,13 @@ class FunctionalExecution(Execution):
                                                                   final_entry['task_id'], reply, session['id'],
                                                                   expected_tool=current_search_tool)
                         checks.extend(search_checks)
+                        if blocked:
+                            self.report['blocked'] = True
+                            self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
+                    if current_open:
+                        open_checks, blocked = evaluate_open(self.evidence.root / 'events.jsonl',
+                            final_entry['task_id'], session['id'], current_open[1]['url'], current_open[1]['content'])
+                        checks.extend(open_checks)
                         if blocked:
                             self.report['blocked'] = True
                             self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
@@ -272,6 +282,15 @@ class FunctionalExecution(Execution):
                 try:
                     _, blocked = evaluate_search(self.evidence.root / 'events.jsonl', self.tasks[-1]['task_id'], '',
                                                   current_search, expected_tool=current_search_tool)
+                    if blocked:
+                        self.report['blocked'] = True
+                        self.report['failures'].append({'stage': self.report['stage'], 'reason': blocked})
+                except (OSError, TypeError, ValueError) as evidence_error:
+                    self.report['harness_errors'].append({'stage': 'evidence', 'reason': type(evidence_error).__name__})
+            if current_open and self.tasks and (self.evidence.root / 'events.jsonl').exists():
+                try:
+                    _, blocked = evaluate_open(self.evidence.root / 'events.jsonl', self.tasks[-1]['task_id'],
+                                                current_open[0], current_open[1]['url'], current_open[1]['content'])
                     if blocked:
                         self.report['blocked'] = True
                         self.report['failures'].append({'stage': self.report['stage'], 'reason': blocked})

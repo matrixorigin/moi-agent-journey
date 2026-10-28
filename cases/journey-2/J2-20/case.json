@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "id": "J2-20",
+  "workspace": "journey-2",
+  "title": "打开指定网页并读取内容",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "open",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "read",
+          "prompt": "请使用网页打开工具访问 https://raw.githubusercontent.com/matrixorigin/moi-agent-journey/a4b8c4db305653ebf20bf2366c32f1421231221a/cases/journey-2/J2-02/case.json ，读取 JSON 中第一个 assertions 的 value 字段，只回复该字段的值。",
+          "open_evidence": {
+            "url": "https://raw.githubusercontent.com/matrixorigin/moi-agent-journey/a4b8c4db305653ebf20bf2366c32f1421231221a/cases/journey-2/J2-02/case.json",
+            "content": "QZ-47"
+          },
+          "assertions": [{"type": "contains", "value": "QZ-47", "rule": "正确读取网页中的字段"}]
+        }
+      ]
+    }
+  ]
+}
