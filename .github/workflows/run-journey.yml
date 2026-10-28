@@ -26,6 +26,7 @@ jobs:
           JOURNEY_WORKSPACE: ${{ inputs.workspace }}
         run: python3 -m journey.catalog plan "$JOURNEY_WORKSPACE"
   cases:
+    name: cases (${{ matrix.case }})
     needs: plan
     environment: qa
     runs-on: ubuntu-latest
