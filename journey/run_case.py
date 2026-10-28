@@ -23,8 +23,24 @@ def task_outcome_failure(error):
     """Recognize failures that actually describe an agent or its deliverable."""
     return (error.code in {'agent_failed', 'agent_canceled', 'agent_rejected',
                            'agent_input-required', 'agent_auth-required',
+                           'agent_runtime_stream_error',
                            'final_output_bundle_not_unique', 'missing_agent_reply', 'missing_final_reply'} or
             error.code.startswith(('missing_deliverables:', 'invalid_output_archive:', 'live_resume_')))
+
+
+def agent_stream(source, execution, conversation_id, phase):
+    """Classify a product runtime error only after this stream admitted a task."""
+    try:
+        yield from source
+    except Failure as error:
+        data = error.details.get('data') if isinstance(error.details, dict) else None
+        current = execution.tasks[-1] if execution.tasks else None
+        if (error.code == 'rpc_error' and isinstance(error.details, dict) and error.details.get('code') == -32603 and
+                isinstance(data, dict) and data.get('domain') == 'moi-core.agent_runtime' and
+                data.get('reason') == 'INTERNAL' and execution.pending_conversation is None and
+                current and current.get('conversation_id') == conversation_id and current.get('phase') == phase):
+            raise Failure('agent_runtime_stream_error', error.http_status, error.details) from None
+        raise
 
 
 class Execution:
@@ -135,7 +151,7 @@ class Execution:
         source = (live_resume_stream(self, selector, params, cid, phase) if live_resume else
                   self.client.stream_rpc(selector, params))
         with contextlib.closing(source) as stream:
-            for envelope in stream:
+            for envelope in agent_stream(stream, self, cid, phase):
                 frame = envelope["result"]
                 self.evidence.append("stream.jsonl", {"recorded_at": utc_now(), "phase": phase,
                                                        "conversation_id": cid, **envelope})

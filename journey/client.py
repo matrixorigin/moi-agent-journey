@@ -238,5 +238,8 @@ class Client:
         result = self.request("POST", root + "/catalog-files/uploads", raw=raw,
                               content_type="multipart/form-data; boundary=" + boundary)
         if result.get("code") != "OK" or not isinstance(result.get("data"), dict):
-            raise Failure("upload_product_error")
+            code = result.get('code')
+            if not isinstance(code, (str, int)) or isinstance(code, bool) or len(str(code)) > 80:
+                code = None
+            raise Failure("upload_product_error", details={'product_code': code})
         return result["data"]
