@@ -1,7 +1,7 @@
 """Identify the observed MOI backend build before and after a functional case."""
 import time
 
-from .client import Failure
+from .client import Failure, error_record
 
 
 def read_moi_version(client):
@@ -39,6 +39,6 @@ def finish_version(execution):
             if execution.report['status'] == 'passed':
                 execution.report['status'] = 'failed'
     except Exception as error:
-        execution.report['harness_errors'].append({'stage': 'qa_version', 'reason': type(error).__name__ + ':' + str(error)})
+        execution.report['harness_errors'].append(error_record('qa_version', error))
     finally:
         client.deadline = previous_deadline

@@ -2,7 +2,7 @@
 from urllib.parse import urlencode
 import time
 
-from .client import Failure, segment
+from .client import Failure, error_record, segment
 from .hello import task_state
 
 
@@ -84,8 +84,7 @@ def cleanup_candidate(execution, *, allow_archive=False):
             raise Failure('candidate_cleanup_unknown')
     except Exception as error:
         execution.report['agent_cleanup'] = 'incomplete'
-        execution.report['harness_errors'].append({'stage': 'cleanup_agent',
-            'reason': type(error).__name__ + ':' + str(error)})
+        execution.report['harness_errors'].append(error_record('cleanup_agent', error))
 
 
 

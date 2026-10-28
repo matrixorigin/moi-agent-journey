@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from journey.agent_builder import candidate_from_task
-from journey.browser_case import cleanup, fetch_tasks
+from journey.browser_case import cleanup, fetch_tasks, run
 from journey.catalog import load_case, load_suite
 from journey.client import Failure
 from journey.diagnostics import analyze_events
@@ -56,6 +56,15 @@ class BrowserJourneyTests(unittest.TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def test_discovery_network_failure_reports_safe_diagnostics(self):
+        error = Failure('transport_error', details={'category': 'dns', 'exception': 'gaierror', 'errno': -2})
+        with patch.dict('os.environ', {'MOI_BASE_URL': 'https://example.invalid', 'MOI_PAT': 'synthetic-pat'}), \
+             patch('journey.browser_case.discover', side_effect=error):
+            result = run(self.case, Evidence(self.root / 'result'), self.root)
+        self.assertEqual(result['status'], 'error')
+        self.assertEqual(result['harness_errors'][0]['reason'], 'transport_error')
+        self.assertEqual(result['harness_errors'][0]['details']['category'], 'dns')
 
     def write_result(self, status, *, tasks=2, verified=True, checks=True, blocked=False):
         directory = self.root / 'J2-01'

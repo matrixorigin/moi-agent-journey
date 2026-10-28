@@ -13,7 +13,7 @@ from urllib.parse import urlencode
 
 from .catalog import load_case
 from .a2a import final_reply
-from .client import Client, Failure, segment
+from .client import Client, Failure, error_record, segment
 from .evidence import Evidence, configured_secrets, safe_extract, sha256, utc_now
 from .hello import TERMINAL, discover, task_state
 
@@ -324,7 +324,7 @@ class Execution:
                     "event_kinds": {}, "capture_complete": False})
                 self.pending_conversation = None
             except Exception as error:
-                self.report["harness_errors"].append({"stage": "recover_send", "reason": str(error)})
+                self.report["harness_errors"].append(error_record("recover_send", error))
         for task in self.tasks:
             try:
                 selector = self.conversation_selector(task['conversation_id'])
@@ -342,13 +342,13 @@ class Execution:
                 self.capture(task, final=True)
             except Exception as error:
                 task["capture_complete"] = False
-                self.report["harness_errors"].append({"stage": "final_capture", "task_id": task["task_id"], "reason": str(error)})
+                self.report["harness_errors"].append(error_record("final_capture", error, task_id=task["task_id"]))
                 # Cancellation and evidence are independent obligations. A failed
                 # cancellation must not prevent downloading the available events.
                 try:
                     self.capture(task, final=False)
                 except Exception as capture_error:
-                    self.report["harness_errors"].append({"stage": "partial_capture", "task_id":task["task_id"],"reason":str(capture_error)})
+                    self.report["harness_errors"].append(error_record("partial_capture", capture_error, task_id=task["task_id"]))
         for conversation in self.conversations:
             cid = conversation["id"]
             try:
@@ -361,12 +361,11 @@ class Execution:
                 conversation["cleanup"] = "archived"
             except Exception as error:
                 conversation["cleanup"] = "incomplete"
-                self.report["harness_errors"].append({"stage": "cleanup", "conversation_id": cid, "reason": str(error)})
+                self.report["harness_errors"].append(error_record("cleanup", error, conversation_id=cid))
 
     def record_failure(self, error):
         if isinstance(error, Failure):
-            failure = {"stage": self.report["stage"], "reason": error.code,
-                       "http_status": error.http_status, "details": error.details}
+            failure = error_record(self.report["stage"], error)
             timeout = error.code in {"case_timeout", "deadline_exceeded"}
             task_started = bool(self.tasks) or self.pending_conversation is not None
             if (self.report["stage"] == "semantic_judge" or
@@ -378,7 +377,7 @@ class Execution:
                 self.report["failures"].append(failure)
         else:
             self.report["status"] = "error"
-            self.report["harness_errors"].append({"stage": self.report["stage"], "reason": type(error).__name__ + ":" + str(error)})
+            self.report["harness_errors"].append(error_record(self.report["stage"], error))
 
     def finalize(self):
         signal.alarm(0)
