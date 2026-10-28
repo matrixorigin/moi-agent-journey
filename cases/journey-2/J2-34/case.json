@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "J2-34",
+  "workspace": "journey-2",
+  "title": "成果文件交付、删除和回读",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["artifact_name", "content"],
+  "sessions": [
+    {
+      "id": "artifact_lifecycle",
+      "delivery_kind": "file",
+      "expected_checks": 8,
+      "turns": [
+        {
+          "phase": "deliver",
+          "prompt": "请创建一个可下载的纯文本文件 {artifact_name}.txt，文件内容只有这一行：{content}。请直接交付该文件。",
+          "action": {"type": "delete_text_artifact", "filename": "{artifact_name}.txt", "content": "{content}"}
+        }
+      ]
+    }
+  ]
+}

@@ -12,15 +12,20 @@ from pathlib import Path
 from .a2a import final_reply
 from .agent_builder import check_candidate_cancel
 from .artifact_checks import check_ooxml_artifact, check_text_artifact, check_xlsx_artifact
+from .artifact_lifecycle import check_artifact_delete
 from .builder_flow import AgentBuilderFlow, ProductCaseFailure
 from .catalog import fixture_path, load_case
 from .client import Client, Failure
+from .conversation_checks import check_history_and_invalid_update, check_lifecycle
 from .evidence import Evidence, configured_secrets
+from .feedback_checks import check_feedback
 from .hello import discover
 from .live_resume import check_live_resume
+from .message_controls import check_completed_cancellation, check_empty_message
 from .run_case import Execution
+from .regeneration import regenerate
 from .resume_checks import check_resubscribe
-from .sandbox_checks import evaluate_python_hash
+from .sandbox_checks import evaluate_python_hash, evaluate_python_recovery
 from .search_checks import evaluate_search
 from .skill_checks import check_skill_call
 from .sql_checks import evaluate_sql
@@ -60,6 +65,25 @@ def check_reply(session_id, turn, reply, variables):
             detail = 'missing_expected_value' if kind == 'contains' else 'unexpected_value'
         checks.append({'session': session_id, 'rule': assertion['rule'], 'passed': passed,
                        'detail': '' if passed else detail})
+    expected_json = turn.get('json_fields')
+    if expected_json is not None:
+        if (not isinstance(expected_json, dict) or not expected_json or
+                any(not isinstance(key, str) or not key or type(value) not in {str, int, bool}
+                    for key, value in expected_json.items())):
+            raise Failure('invalid_json_fields')
+        try:
+            parsed = json.loads(reply)
+        except (ValueError, TypeError):
+            parsed = None
+        valid = isinstance(parsed, dict)
+        checks.append({'session': session_id, 'rule': '答复是有效的 JSON 对象', 'passed': valid,
+                       'detail': '' if valid else 'invalid_json_object'})
+        for key, value in expected_json.items():
+            expected = value.format_map(variables) if isinstance(value, str) else value
+            actual = parsed.get(key) if valid else None
+            passed = type(actual) is type(expected) and actual == expected
+            checks.append({'session': session_id, 'rule': 'JSON 字段 ' + key + ' 类型和值正确',
+                           'passed': passed, 'detail': '' if passed else 'json_field_mismatch:' + key})
     return checks
 
 
@@ -140,8 +164,9 @@ class FunctionalExecution(Execution):
                                   'cancellation_confirmed': False}
                 self.report['sessions'].append(session_report)
                 builder_types = {'capture_builder_candidate', 'create_builder_agent', 'commit_builder_with_resource',
+                                 'commit_builder_with_resources',
                                  'revise_builder_and_commit', 'revise_published_and_commit',
-                                 'revise_published_resources_and_commit'}
+                                 'revise_published_resources_and_commit', 'revise_published_instruction_and_commit'}
                 if any((turn.get('action') or {}).get('type') in builder_types for turn in session['turns']):
                     names = [variables[key] for key in self.case.get('builder_names', [])]
                     if not names:
@@ -206,8 +231,17 @@ class FunctionalExecution(Execution):
                         raise Failure('invalid_live_resume_case')
                     if cancel and (turn.get('expected_state') != 'canceled' or turn.get('assertions') or turn.get('action')):
                         raise Failure('invalid_cancellation_case')
-                    final_entry, task = self.send(cid, session['id'] + ':' + turn['phase'], prompt, attachments,
-                                                  cancel_after_admission=cancel, live_resume=live_resume)
+                    regeneration = turn.get('regenerate', False)
+                    if type(regeneration) is not bool:
+                        raise Failure('invalid_regeneration_case')
+                    if regeneration:
+                        if final_entry is None or attachments or cancel or live_resume or prompt:
+                            raise Failure('invalid_regeneration_case')
+                        final_entry, task = regenerate(self, cid, session['id'],
+                                                      session['id'] + ':' + turn['phase'], final_entry, checks)
+                    else:
+                        final_entry, task = self.send(cid, session['id'] + ':' + turn['phase'], prompt, attachments,
+                                                      cancel_after_admission=cancel, live_resume=live_resume)
                     if cancel:
                         accepted = final_entry.get('cancel_request') == 'accepted'
                         canceled = task['status']['state'] == 'canceled'
@@ -261,6 +295,16 @@ class FunctionalExecution(Execution):
                         if blocked:
                             self.report['blocked'] = True
                             self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
+                    if turn.get('sandbox_recovery'):
+                        config = turn['sandbox_recovery']
+                        recovery_checks, blocked = evaluate_python_recovery(
+                            self.evidence.root / 'events.jsonl', final_entry['task_id'], session['id'],
+                            variables[config['marker']], config['left'], config['right'],
+                            require_failed_tool=config.get('require_failed_tool', False))
+                        checks.extend(recovery_checks)
+                        if blocked:
+                            self.report['blocked'] = True
+                            self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
                     if turn.get('sql_evidence'):
                         sql_checks, blocked = evaluate_sql(self.evidence.root / 'events.jsonl', final_entry['task_id'],
                             session['id'], turn['sql_evidence']['query'], turn['sql_evidence']['column'],
@@ -273,7 +317,20 @@ class FunctionalExecution(Execution):
                     self.checkpoint()
                     action = turn.get('action')
                     if action:
-                        if action.get('type') == 'reject_invalid_digest_and_cancel':
+                        if action.get('type') == 'reject_empty_message':
+                            check_empty_message(self, cid, session['id'], checks)
+                        elif action.get('type') == 'cancel_completed':
+                            check_completed_cancellation(self, cid, session['id'], task, checks)
+                        elif action.get('type') == 'feedback':
+                            check_feedback(self, cid, session['id'], task, checks)
+                        elif action.get('type') == 'conversation_lifecycle':
+                            check_lifecycle(self, cid, session['id'], checks, action['title'].format_map(variables))
+                        elif action.get('type') == 'conversation_history':
+                            check_history_and_invalid_update(self, cid, session['id'], checks,
+                                action['title'].format_map(variables),
+                                [item['prompt'].format_map(variables) for item in session['turns']
+                                 if item['phase'] in phases])
+                        elif action.get('type') == 'reject_invalid_digest_and_cancel':
                             name = action['agent_name'].format_map(variables)
                             candidate_verified = check_candidate_cancel(self, task, final_entry['task_id'],
                                                                          name, checks, session['id'])
@@ -282,6 +339,16 @@ class FunctionalExecution(Execution):
                             content = action['content'].format_map(variables)
                             artifact_delivered = check_text_artifact(self, cid, final_entry['task_id'],
                                                                      filename, content, checks, session['id'])
+                        elif action.get('type') == 'delete_text_artifact':
+                            filename = action['filename'].format_map(variables)
+                            content = action['content'].format_map(variables)
+                            artifact_delivered = check_text_artifact(self, cid, final_entry['task_id'],
+                                                                     filename, content, checks, session['id'])
+                            session_report['artifact_delivered'] = artifact_delivered
+                            self.checkpoint()
+                            if not artifact_delivered or not checks[-1]['passed']:
+                                raise ProductCaseFailure('artifact_delivery_not_verified')
+                            check_artifact_delete(self, cid, final_entry['task_id'], filename, checks, session['id'])
                         elif action.get('type') == 'check_resubscribe':
                             check_resubscribe(self, final_entry, checks, session['id'])
                         elif action.get('type') in builder_types:
@@ -304,11 +371,27 @@ class FunctionalExecution(Execution):
                                     revised = builder.commit(changes=changes)
                                     builder.record('修订发布了新版本', revised['version'] != prior_version,
                                                    'published_version_not_advanced')
+                                elif action['type'] == 'revise_published_instruction_and_commit':
+                                    prior_version = builder.created['version'] if builder.created else None
+                                    builder.revise_published(task, name)
+                                    revised = builder.commit(expected_instruction=action['instruction_marker'].format_map(variables))
+                                    builder.record('修订发布了新版本', revised['version'] != prior_version,
+                                                   'published_version_not_advanced')
                                 else:
                                     builder.remember(task, name)
                                     if action['type'] == 'commit_builder_with_resource':
                                         resource = builder.require_resource(action['resource_kind'], action['resource_id'])
-                                        builder.commit(resource, capture_current=action.get('capture_current') is True)
+                                        builder.commit([resource], capture_current=action.get('capture_current') is True)
+                                    elif action['type'] == 'commit_builder_with_resources':
+                                        requested = action.get('resources')
+                                        if (not isinstance(requested, list) or not requested or
+                                                any(not isinstance(item, dict) or set(item) != {'kind', 'id'} or
+                                                    item['kind'] not in {'skills', 'tools'} or
+                                                    not isinstance(item['id'], str) or not item['id'] for item in requested) or
+                                                len({(item['kind'], item['id']) for item in requested}) != len(requested)):
+                                            raise Failure('invalid_builder_resources')
+                                        resources = [builder.require_resource(item['kind'], item['id']) for item in requested]
+                                        builder.commit(resources, capture_current=action.get('capture_current') is True)
                                     elif action['type'] == 'create_builder_agent':
                                         builder.commit()
                             finally:

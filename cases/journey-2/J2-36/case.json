@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "id": "J2-36",
+  "workspace": "journey-2",
+  "title": "重新生成答复并保留原任务",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["code"],
+  "sessions": [
+    {
+      "id": "regenerate",
+      "delivery_kind": "answer",
+      "expected_checks": 9,
+      "turns": [
+        {
+          "phase": "original",
+          "prompt": "请只回复这个项目代号：{code}",
+          "assertions": [{"type": "contains", "value": "{code}", "rule": "原答复包含指定代号"}]
+        },
+        {
+          "phase": "retry",
+          "prompt": "",
+          "regenerate": true,
+          "assertions": [{"type": "contains", "value": "{code}", "rule": "重新生成的答复使用原始请求"}]
+        }
+      ]
+    }
+  ]
+}

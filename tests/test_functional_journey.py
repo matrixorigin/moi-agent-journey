@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from journey.catalog import fixture_path, load_case
+from journey.builder_flow import ProductCaseFailure
 from journey.client import Client, Failure
 from journey.functional_case import FunctionalExecution, case_variables, check_distinct_attachment_ids, check_reply
 from journey.outcomes import assess
@@ -113,6 +114,33 @@ class FunctionalJourneyTests(unittest.TestCase):
             task, agent, delivery, quality = assess(case, result, result['status'])
             self.assertEqual((task['state'], agent['state'], delivery['state']), ('completed', 'completed', 'delivered'))
             self.assertEqual(len(quality['failed_checks']), 1)
+
+    def test_conversation_check_failure_is_product_failure_with_trace_and_cleanup(self):
+        with qa_fixture('success') as (base, state):
+            case = self.make_case()
+            case['sessions'][0]['turns'] = [{'phase': 'first', 'prompt': 'hello',
+                'action': {'type': 'conversation_lifecycle', 'title': '{code}'}}]
+            execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+
+            def failed_lifecycle(runner, _cid, session_id, checks, _title):
+                checks.append({'session': session_id, 'rule': '会话归档状态可回读',
+                               'passed': False, 'detail': 'conversation_archive_mismatch'})
+                runner.report['validation'] = {'checks': checks}
+                raise ProductCaseFailure('conversation_archive_mismatch')
+
+            with patch('journey.functional_case.check_lifecycle', side_effect=failed_lifecycle):
+                result = execution.run()
+            self.assertEqual(result['status'], 'failed')
+            self.assertEqual(result['harness_errors'], [])
+            self.assertTrue(result['capture_complete'])
+            self.assertTrue(state['archived'])
+            self.assertTrue(result['tasks'][0].get('trace_id'))
+            with tempfile.TemporaryDirectory() as directory:
+                shutil.copytree(base.evidence.root, Path(directory) / case['id'])
+                with patch('journey.report.load_case', return_value=case):
+                    report = finish_case(case['id'], directory)
+            self.assertEqual(report['test_status'], 'completed')
+            self.assertEqual(report['functional']['state'], 'fail')
 
     def test_required_skill_is_checked_against_the_actual_task(self):
         with qa_fixture('success') as (base, _state):

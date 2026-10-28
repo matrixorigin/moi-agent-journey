@@ -17,11 +17,44 @@ def is_output_limit_tail(parts):
         len(args) == 2 and args[0] == '-n' and bool(re.fullmatch(r'[1-9]\d*', args[1])))
 
 
+def strip_directory_setup(parts):
+    """Accept only literal cd commands before one SQL invocation."""
+    if ';' not in parts:
+        return parts
+    if parts.count(';') != 1:
+        return None
+    end = parts.index(';')
+    prefix, remaining = parts[:end], parts[end + 1:]
+    if not prefix or not remaining:
+        return None
+    while prefix:
+        try:
+            boundary = prefix.index('||')
+        except ValueError:
+            boundary = len(prefix)
+        command = prefix[:boundary]
+        if (len(command) not in {2, 3} or command[0] != 'cd' or
+                not re.fullmatch(r'[A-Za-z0-9_./-]+', command[1]) or
+                (len(command) == 3 and command[2] != '2>/dev/null')):
+            return None
+        if boundary == len(prefix):
+            break
+        prefix = prefix[boundary + 1:]
+        if not prefix:
+            return None
+    return remaining
+
+
 def cli_query(command):
-    """Recognize a direct CLI invocation; do not infer SQL from arbitrary shell text."""
+    """Recognize a CLI invocation with optional directory setup."""
     try:
-        parts = shlex.split(command)
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=';')
+        lexer.whitespace_split = True
+        lexer.commenters = ''
+        parts = strip_directory_setup(list(lexer))
     except ValueError:
+        return 'unverifiable', None
+    if parts is None:
         return 'unverifiable', None
     if parts[:4] == ['moi-cli', '-o', 'sql', 'run']:
         parts = parts[4:]

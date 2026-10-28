@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "J2-39",
+  "workspace": "journey-2",
+  "title": "修改已发布智能体的指令并验证生效",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["agent_name", "marker"],
+  "builder_names": ["agent_name"],
+  "sessions": [
+    {
+      "id": "builder",
+      "delivery_kind": "agent",
+      "expected_checks": 21,
+      "turns": [
+        {
+          "phase": "create",
+          "prompt": "请创建一个名为 {agent_name} 的智能体，专门生成 Excel 表格，请明确绑定 xlsx 技能（moi.agent.momo.skill.xlsx）。先展示候选，暂时不要确认创建。",
+          "action": {"type": "commit_builder_with_resource", "agent_name": "{agent_name}",
+                     "resource_kind": "skills", "resource_id": "moi.agent.momo.skill.xlsx", "capture_current": true}
+        },
+        {
+          "phase": "revise",
+          "prompt": "请修改刚刚创建的智能体的指令：每次答复都要包含标记 {marker}。名称、模型、描述、技能和其他配置保持不变。先展示修改后的候选，暂时不要确认。",
+          "action": {"type": "revise_published_instruction_and_commit", "agent_name": "{agent_name}",
+                     "instruction_marker": "{marker}"}
+        }
+      ]
+    },
+    {
+      "id": "revised_agent",
+      "agent_from": "builder",
+      "delivery_kind": "answer",
+      "expected_checks": 2,
+      "turns": [
+        {
+          "phase": "chat",
+          "prompt": "请回复已准备好。",
+          "assertions": [{"type": "contains", "value": "{marker}", "rule": "新指令在实际对话中生效"}]
+        }
+      ]
+    }
+  ]
+}

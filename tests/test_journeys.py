@@ -24,7 +24,7 @@ from journey.a2a import final_reply
 from journey.diagnostics import analyze_events
 from journey.evidence import Evidence, safe_extract
 from journey.outcomes import assess
-from journey.report import _group_summary, aggregate, case_summary, finish_case, main as report_main, scan
+from journey.report import _group_summary, aggregate, case_summary, finish_case, main as report_main, mark_expected_tool_errors, scan
 from journey.run_case import Execution
 from journey.publish import prepare_publication
 from journey.validate import lineage_checks, validate
@@ -298,6 +298,40 @@ class JourneyTests(unittest.TestCase):
         self.assertTrue(result['runtime_sessions']['main']['redacted'])
         self.assertEqual(result['judge_errors'][0]['arguments'],{'query':'source'})
         self.assertEqual(result['judge_errors'][0]['errors'][0]['code'],'quota')
+
+    def test_expected_tool_error_marks_only_the_verified_observation(self):
+        expected = {'task_id': 'task', 'call_id': 'intentional', 'kind': 'command_exit', 'code': '1'}
+        calls = [
+            {'task_id': 'task', 'call_id': 'intentional', 'phase': 'test:run', 'tool': 'bash',
+             'arguments': {'command': 'python'}, 'seqs': [1, 2],
+             'errors': [{'kind': 'command_exit', 'code': '1', 'detail': 'expected'},
+                        {'kind': 'reported_cli_error', 'code': 'OTHER', 'detail': 'unexpected'}]},
+            {'task_id': 'task', 'call_id': 'different', 'phase': 'test:run', 'tool': 'bash',
+             'arguments': {}, 'seqs': [3, 4], 'errors': [{'kind': 'command_exit', 'code': '1', 'detail': 'unexpected'}]},
+        ]
+        analysis = {'errors': calls}
+        mark_expected_tool_errors(analysis, [{'expected_tool_error': expected}])
+        self.assertTrue(calls[0]['errors'][0]['expected'])
+        self.assertNotIn('expected', calls[0]['errors'][1])
+        self.assertNotIn('expected', calls[1]['errors'][0])
+        result = self.finished_result('J1-01')
+        result['tools']['errors'] = calls
+        markdown = case_summary(result)
+        self.assertIn('预期测试错误', markdown)
+        self.assertIn('仍计入实际调用成功率', markdown)
+        with self.assertRaisesRegex(ValueError, 'expected_tool_error_not_in_events'):
+            mark_expected_tool_errors(analysis, [{'expected_tool_error': {**expected, 'call_id': 'missing'}}])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'suites.json').write_text(json.dumps({'journeys': [
+                {'workspace': 'journey-1', 'concurrency': 3, 'cases': ['J1-01']}]}))
+            Evidence(root / 'source' / 'J1-01').write('result.json', result)
+            with patch('journey.report.ROOT', root):
+                report = aggregate(root / 'source', root / 'out')
+            groups = {(item['code'], item['expected']) for item in report['tool_errors']}
+            self.assertIn(('1', True), groups)
+            self.assertIn(('1', False), groups)
 
     def test_tool_parameters_redact_secrets_but_keep_diagnostic_arguments(self):
         with tempfile.TemporaryDirectory() as directory:

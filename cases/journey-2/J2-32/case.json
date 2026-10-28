@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "J2-32",
+  "workspace": "journey-2",
+  "title": "Python 运行报错后继续执行",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["error_marker"],
+  "sessions": [
+    {
+      "id": "recovery",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "run",
+          "prompt": "请分两次在沙箱运行 Python。第一次故意抛出 ValueError，错误消息写 {error_marker}；确认报错后，第二次再运行 Python 计算 123 乘以 47。最后只回复计算得到的数字。",
+          "sandbox_recovery": {"marker": "error_marker", "left": 123, "right": 47},
+          "assertions": [{"type": "single_number", "value": "5781", "rule": "工具错误后仍返回正确结果"}]
+        }
+      ]
+    }
+  ]
+}

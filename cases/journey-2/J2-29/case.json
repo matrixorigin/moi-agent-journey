@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "J2-29",
+  "workspace": "journey-2",
+  "title": "结构化 JSON 答复",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["code"],
+  "sessions": [
+    {
+      "id": "json",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "reply",
+          "prompt": "项目代号是 {code}，此项目需要审批，共有 3 个阶段。请用 JSON 对象回答，包含字符串字段 code、布尔字段 approval_required 和整数字段 count。只输出 JSON，不要代码围栏或其他文字。",
+          "json_fields": {"code": "{code}", "approval_required": true, "count": 3}
+        }
+      ]
+    }
+  ]
+}

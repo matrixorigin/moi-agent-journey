@@ -57,11 +57,12 @@ def same_configuration(old, updated, changes=None):
     return True
 
 
-def same_published_config(old, updated, changes=None, *, keep_description=False):
+def same_published_config(old, updated, changes=None, *, keep_description=False, allow_instruction_change=False):
     for key in ('agent_id', 'name', 'model_name'):
         if not isinstance(old.get(key), str) or not old[key] or old[key] != updated.get(key):
             return False
-    if (not isinstance(old.get('agent_md'), str) or old['agent_md'] != updated.get('agent_md') or
+    if (not isinstance(old.get('agent_md'), str) or not isinstance(updated.get('agent_md'), str) or
+            (not allow_instruction_change and old['agent_md'] != updated['agent_md']) or
             old.get('model_config_ref') != updated.get('model_config_ref')):
         return False
     if keep_description and (not isinstance(old.get('description'), str) or old['description'] != updated.get('description')):
@@ -144,7 +145,8 @@ class AgentBuilderFlow:
         matches = [item for item in refs if isinstance(item, dict) and item.get('id') == resource_id and
                    item.get('workspace_id') == 'system' and isinstance(item.get('name'), str) and item['name']]
         label = 'Skill' if kind == 'skills' else '工具'
-        self.record('候选绑定指定' + label, len(matches) == 1, 'resource_reference_missing_or_ambiguous')
+        self.record('候选绑定指定' + label + ' ' + resource_id, len(matches) == 1,
+                    'resource_reference_missing_or_ambiguous:' + resource_id)
         if len(matches) != 1:
             raise ProductCaseFailure('resource_reference_missing_or_ambiguous')
         return {**matches[0], 'kind': kind}
@@ -219,7 +221,8 @@ class AgentBuilderFlow:
             raise ProductCaseFailure('revision_already_published')
         self.current = updated
 
-    def commit(self, expected_resource=None, expected_description=None, *, capture_current=False, changes=None):
+    def commit(self, expected_resources=(), expected_description=None, *, capture_current=False, changes=None,
+               expected_instruction=None):
         output = self.current
         agent_id, candidate_version = output['agent_id'], output['candidate_version']
         if output['mode'] == 'create' and agent_id not in self.absent_before:
@@ -264,7 +267,7 @@ class AgentBuilderFlow:
         config_ok = (len(matching) == 1 and matching[0].get('status') == 'runnable' and
                      manifest.get('id') == agent_id and manifest.get('name') == name and
                      manifest.get('model') == output.get('display', {}).get('model'))
-        if expected_resource:
+        for expected_resource in expected_resources:
             refs = manifest.get('moiResourceRefs')
             resources = refs.get(expected_resource['kind'], []) if isinstance(refs, dict) else []
             resources = resources if isinstance(resources, list) else []
@@ -276,7 +279,7 @@ class AgentBuilderFlow:
             'version': version, 'name': name, 'manifest': manifest})
         self.created = {'agent_id': agent_id, 'workspace_id': self.workspace, 'version': version,
                         'verified': identity}
-        if capture_current or expected_description is not None or changes is not None:
+        if capture_current or expected_description is not None or changes is not None or expected_instruction is not None:
             try:
                 current = self.execution.client.product('GET', self.execution.root + '/agent-builder/agents/' +
                     segment(agent_id) + '/versions/' + segment(version) + '/current-agent')
@@ -288,11 +291,12 @@ class AgentBuilderFlow:
             if capture_current:
                 config_read = (current.get('agent_id') == agent_id and current.get('name') == name and
                                same_published_config(current, current))
-                if expected_resource and config_read:
-                    refs = current['resource_refs'].get(expected_resource['kind'], [])
-                    config_read = config_read and isinstance(refs, list) and any(
-                        isinstance(item, dict) and item.get('id') == expected_resource['id'] and
-                        item.get('workspace_id') == expected_resource['workspace_id'] for item in refs)
+                for expected_resource in expected_resources:
+                    if config_read:
+                        refs = current['resource_refs'].get(expected_resource['kind'], [])
+                        config_read = isinstance(refs, list) and any(
+                            isinstance(item, dict) and item.get('id') == expected_resource['id'] and
+                            item.get('workspace_id') == expected_resource['workspace_id'] for item in refs)
                 self.record('发布后的可编辑配置可回读', config_read, 'current_config_unavailable')
                 if not config_read:
                     raise ProductCaseFailure('current_config_unavailable')
@@ -314,6 +318,19 @@ class AgentBuilderFlow:
                 self.record('发布版本仅改变指定资源', preserved, 'published_resource_transition_mismatch')
                 if not preserved:
                     raise ProductCaseFailure('published_resource_transition_mismatch')
+            if expected_instruction is not None:
+                baseline_instruction = (self.baseline_config or {}).get('agent_md')
+                instruction = current.get('agent_md')
+                instruction_ok = (isinstance(expected_instruction, str) and bool(expected_instruction) and
+                                  isinstance(baseline_instruction, str) and expected_instruction not in baseline_instruction and
+                                  isinstance(instruction, str) and expected_instruction in instruction and
+                                  instruction != baseline_instruction)
+                self.record('发布版本包含修改后的指令', instruction_ok, 'instruction_readback_mismatch')
+                preserved = (self.baseline_config is not None and same_published_config(
+                    self.baseline_config, current, keep_description=True, allow_instruction_change=True))
+                self.record('指令修订保留其他配置', preserved, 'instruction_revision_changed_configuration')
+                if not instruction_ok or not preserved:
+                    raise ProductCaseFailure('published_instruction_or_configuration_mismatch')
         if not identity or not config_ok:
             raise ProductCaseFailure('published_agent_mismatch')
         return self.created

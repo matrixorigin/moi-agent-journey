@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "J2-33",
+  "workspace": "journey-2",
+  "title": "工具返回非零状态后继续执行",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["error_marker"],
+  "sessions": [
+    {
+      "id": "tool_recovery",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "run",
+          "prompt": "请分两次调用沙箱运行 Python。第一次故意抛出 ValueError，错误消息写 {error_marker}。第一次工具调用必须以非零状态结束，不要在同一条命令里捕获错误或追加其他命令。观察到失败后，第二次再运行 Python 计算 123 乘以 47。最后只回复计算得到的数字。",
+          "sandbox_recovery": {"marker": "error_marker", "left": 123, "right": 47, "require_failed_tool": true},
+          "assertions": [{"type": "single_number", "value": "5781", "rule": "工具失败后仍返回正确结果"}]
+        }
+      ]
+    }
+  ]
+}

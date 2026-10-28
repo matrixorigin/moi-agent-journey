@@ -180,7 +180,7 @@ class BuilderFlowTests(unittest.TestCase):
             flow.require_resource('skills', 'different-skill')
         skill = flow.require_resource('skills', 'skill.xlsx')
         with self.assertRaises(ProductCaseFailure):
-            flow.commit(skill)
+            flow.commit([skill])
         self.assertFalse(next(item for item in checks if item['rule'] == '发布版本保留指定配置')['passed'])
         self.assertTrue(flow.created['verified'])  # Delivered, but incorrectly configured.
         flow.cleanup()
@@ -190,10 +190,27 @@ class BuilderFlowTests(unittest.TestCase):
         flow, client, checks = self.flow()
         flow.remember(task('revised', 'v2', tools=['Search']), 'revised')
         resource = flow.require_resource('tools', 'tool.search')
-        self.assertTrue(flow.commit(resource)['verified'])
+        self.assertTrue(flow.commit([resource])['verified'])
         self.assertTrue(all(check['passed'] for check in checks))
         flow.cleanup()
         self.assertEqual(client.agent['status'], 'archived')
+
+    def test_every_requested_binding_must_survive_publication(self):
+        for published_skill in (True, False):
+            with self.subTest(published_skill=published_skill):
+                flow, client, checks = self.flow(published_skill=published_skill)
+                flow.remember(task('revised', 'v2', skills=['XLSX'], tools=['Search']), 'revised')
+                resources = [flow.require_resource('skills', 'skill.xlsx'),
+                             flow.require_resource('tools', 'tool.search')]
+                if published_skill:
+                    self.assertTrue(flow.commit(resources)['verified'])
+                else:
+                    with self.assertRaises(ProductCaseFailure):
+                        flow.commit(resources)
+                self.assertEqual(next(item for item in checks if item['rule'] == '发布版本保留指定配置')['passed'],
+                                 published_skill)
+                flow.cleanup()
+                self.assertEqual(client.agent['status'], 'archived')
 
     def test_revision_of_published_agent_creates_new_version_and_preserves_identity(self):
         flow, client, checks = self.flow()
@@ -207,6 +224,27 @@ class BuilderFlowTests(unittest.TestCase):
         flow.cleanup()
         self.assertEqual(client.agent['status'], 'archived')
         self.assertEqual(flow.execution.report['harness_errors'], [])
+
+    def test_instruction_revision_requires_marker_and_preserves_other_configuration(self):
+        for failure in (None, 'marker_missing', 'skill_changed'):
+            with self.subTest(failure=failure):
+                flow, client, checks = self.flow()
+                flow.remember(task('revised', 'v2', skills=['XLSX']), 'revised')
+                resource = flow.require_resource('skills', 'skill.xlsx')
+                flow.commit([resource], capture_current=True)
+                flow.revise_published(task('revised', 'v3', skills=['XLSX'], mode='revise'), 'revised')
+                current = client.current_versions['1.1.0']
+                current['description'] = client.current_versions['1.0.0']['description']
+                current['agent_md'] = 'new prompt' if failure == 'marker_missing' else 'new prompt with unique-marker'
+                if failure == 'skill_changed':
+                    current['skill_names'] = []
+                if failure:
+                    with self.assertRaises(ProductCaseFailure):
+                        flow.commit(expected_instruction='unique-marker')
+                    self.assertFalse(all(check['passed'] for check in checks))
+                else:
+                    flow.commit(expected_instruction='unique-marker')
+                    self.assertTrue(all(check['passed'] for check in checks))
 
     def test_uncommitted_revision_is_canceled_before_archiving_our_agent(self):
         flow, client, _ = self.flow()
@@ -223,7 +261,7 @@ class BuilderFlowTests(unittest.TestCase):
         flow, client, checks = self.flow()
         flow.remember(task('revised', 'v2', skills=['XLSX']), 'revised')
         resource = flow.require_resource('skills', 'skill.xlsx')
-        first = flow.commit(resource, capture_current=True)
+        first = flow.commit([resource], capture_current=True)
         flow.revise_published(task('revised', 'v3', skills=['XLSX'], mode='revise'), 'revised')
         revised = flow.commit(expected_description='desired-description')
         self.assertNotEqual(first['version'], revised['version'])
@@ -237,7 +275,7 @@ class BuilderFlowTests(unittest.TestCase):
                 flow, client, checks = self.flow()
                 flow.remember(task('revised', 'v2', skills=['XLSX']), 'revised')
                 resource = flow.require_resource('skills', 'skill.xlsx')
-                flow.commit(resource, capture_current=True)
+                flow.commit([resource], capture_current=True)
                 flow.revise_published(task('revised', 'v3', skills=['XLSX'], mode='revise'), 'revised')
                 current = client.current_versions['1.1.0']
                 if changed == 'skill':
@@ -272,7 +310,7 @@ class BuilderFlowTests(unittest.TestCase):
         flow.remember(task('revised', 'v2', skills=['XLSX']), 'revised')
         resource = flow.require_resource('skills', 'skill.xlsx')
         with self.assertRaises(ProductCaseFailure):
-            flow.commit(resource, capture_current=True)
+            flow.commit([resource], capture_current=True)
         flow.cleanup()
         self.assertEqual(client.agent['status'], 'archived')
 
@@ -281,7 +319,7 @@ class BuilderFlowTests(unittest.TestCase):
         flow, client, checks = self.flow()
         flow.remember(task('revised', 'v2', skills=['XLSX']), 'revised')
         resource = flow.require_resource('skills', 'skill.xlsx')
-        flow.commit(resource, capture_current=True)
+        flow.commit([resource], capture_current=True)
         flow.revise_published(task('revised', 'v3', tools=['Search'], mode='revise'), 'revised', changes)
         revised = client.current_versions['1.1.0']
         revised['description'] = client.current_versions['1.0.0']['description']
