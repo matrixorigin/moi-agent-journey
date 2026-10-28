@@ -18,9 +18,12 @@ from .catalog import fixture_path, load_case
 from .client import Client, Failure
 from .conversation_checks import check_history_and_invalid_update, check_lifecycle
 from .evidence import Evidence, configured_secrets
+from .feedback_checks import check_feedback
 from .hello import discover
 from .live_resume import check_live_resume
+from .message_controls import check_empty_message
 from .run_case import Execution
+from .regeneration import regenerate
 from .resume_checks import check_resubscribe
 from .sandbox_checks import evaluate_python_hash, evaluate_python_recovery
 from .search_checks import evaluate_search
@@ -228,8 +231,17 @@ class FunctionalExecution(Execution):
                         raise Failure('invalid_live_resume_case')
                     if cancel and (turn.get('expected_state') != 'canceled' or turn.get('assertions') or turn.get('action')):
                         raise Failure('invalid_cancellation_case')
-                    final_entry, task = self.send(cid, session['id'] + ':' + turn['phase'], prompt, attachments,
-                                                  cancel_after_admission=cancel, live_resume=live_resume)
+                    regeneration = turn.get('regenerate', False)
+                    if type(regeneration) is not bool:
+                        raise Failure('invalid_regeneration_case')
+                    if regeneration:
+                        if final_entry is None or attachments or cancel or live_resume or prompt:
+                            raise Failure('invalid_regeneration_case')
+                        final_entry, task = regenerate(self, cid, session['id'],
+                                                      session['id'] + ':' + turn['phase'], final_entry, checks)
+                    else:
+                        final_entry, task = self.send(cid, session['id'] + ':' + turn['phase'], prompt, attachments,
+                                                      cancel_after_admission=cancel, live_resume=live_resume)
                     if cancel:
                         accepted = final_entry.get('cancel_request') == 'accepted'
                         canceled = task['status']['state'] == 'canceled'
@@ -305,7 +317,11 @@ class FunctionalExecution(Execution):
                     self.checkpoint()
                     action = turn.get('action')
                     if action:
-                        if action.get('type') == 'conversation_lifecycle':
+                        if action.get('type') == 'reject_empty_message':
+                            check_empty_message(self, cid, session['id'], checks)
+                        elif action.get('type') == 'feedback':
+                            check_feedback(self, cid, session['id'], task, checks)
+                        elif action.get('type') == 'conversation_lifecycle':
                             check_lifecycle(self, cid, session['id'], checks, action['title'].format_map(variables))
                         elif action.get('type') == 'conversation_history':
                             check_history_and_invalid_update(self, cid, session['id'], checks,

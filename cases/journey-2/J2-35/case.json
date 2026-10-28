@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "id": "J2-35",
+  "workspace": "journey-2",
+  "title": "拒绝空消息后继续对话",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["code"],
+  "sessions": [
+    {
+      "id": "invalid_message",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "remember",
+          "prompt": "请记住本次对话的代号：{code}。只回复已记住。",
+          "action": {"type": "reject_empty_message"}
+        },
+        {
+          "phase": "continue",
+          "prompt": "刚才告诉你的代号是什么？只回复代号。",
+          "assertions": [{"type": "contains", "value": "{code}", "rule": "拒绝空消息后仍保留会话上下文"}]
+        }
+      ]
+    }
+  ]
+}
