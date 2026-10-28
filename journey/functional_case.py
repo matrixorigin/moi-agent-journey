@@ -21,7 +21,7 @@ from .evidence import Evidence, configured_secrets
 from .feedback_checks import check_feedback
 from .hello import discover
 from .live_resume import check_live_resume
-from .message_controls import check_empty_message
+from .message_controls import check_completed_cancellation, check_empty_message
 from .run_case import Execution
 from .regeneration import regenerate
 from .resume_checks import check_resubscribe
@@ -166,7 +166,7 @@ class FunctionalExecution(Execution):
                 builder_types = {'capture_builder_candidate', 'create_builder_agent', 'commit_builder_with_resource',
                                  'commit_builder_with_resources',
                                  'revise_builder_and_commit', 'revise_published_and_commit',
-                                 'revise_published_resources_and_commit'}
+                                 'revise_published_resources_and_commit', 'revise_published_instruction_and_commit'}
                 if any((turn.get('action') or {}).get('type') in builder_types for turn in session['turns']):
                     names = [variables[key] for key in self.case.get('builder_names', [])]
                     if not names:
@@ -319,6 +319,8 @@ class FunctionalExecution(Execution):
                     if action:
                         if action.get('type') == 'reject_empty_message':
                             check_empty_message(self, cid, session['id'], checks)
+                        elif action.get('type') == 'cancel_completed':
+                            check_completed_cancellation(self, cid, session['id'], task, checks)
                         elif action.get('type') == 'feedback':
                             check_feedback(self, cid, session['id'], task, checks)
                         elif action.get('type') == 'conversation_lifecycle':
@@ -367,6 +369,12 @@ class FunctionalExecution(Execution):
                                     prior_version = builder.created['version'] if builder.created else None
                                     builder.revise_published(task, name, changes)
                                     revised = builder.commit(changes=changes)
+                                    builder.record('修订发布了新版本', revised['version'] != prior_version,
+                                                   'published_version_not_advanced')
+                                elif action['type'] == 'revise_published_instruction_and_commit':
+                                    prior_version = builder.created['version'] if builder.created else None
+                                    builder.revise_published(task, name)
+                                    revised = builder.commit(expected_instruction=action['instruction_marker'].format_map(variables))
                                     builder.record('修订发布了新版本', revised['version'] != prior_version,
                                                    'published_version_not_advanced')
                                 else:

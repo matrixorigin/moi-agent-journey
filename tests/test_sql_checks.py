@@ -77,6 +77,20 @@ class SqlEvidenceTests(unittest.TestCase):
                 self.assertFalse(checks[0]['passed'])
                 self.assertEqual(blocked, 'sql_command_unverifiable')
 
+    def test_literal_directory_setup_keeps_the_sql_query_verifiable(self):
+        base = "moi-cli -o sql run --db moi --query 'SELECT 17 * 19 AS product' --limit 100 2>&1 | head -40"
+        for prefix in ('cd /sandbox/.moi 2>/dev/null || cd .; ', 'cd /tmp; '):
+            with self.subTest(prefix=prefix):
+                checks, blocked = self.evaluate([self.call(prefix + base), self.result()])
+                self.assertTrue(all(item['passed'] for item in checks))
+                self.assertIsNone(blocked)
+        for prefix in ('cd /tmp || echo fake; ', 'cd /tmp; echo fake; ',
+                       'cd /tmp/$(echo x); ', 'cd /tmp && echo fake; '):
+            with self.subTest(prefix=prefix):
+                checks, blocked = self.evaluate([self.call(prefix + base), self.result()])
+                self.assertFalse(checks[0]['passed'])
+                self.assertEqual(blocked, 'sql_command_unverifiable')
+
     def test_direct_workspace_sql_tool_is_also_validated(self):
         call = {'kind': 'tool_call', 'task_id': 'task', 'payload': {'tool_id': 'query_workspace_sql',
                 'call_id': 'direct', 'arguments': {'workspace_id': 'ws', 'sql': 'SELECT 17 * 19 AS product'}}}

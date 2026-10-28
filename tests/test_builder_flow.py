@@ -225,6 +225,27 @@ class BuilderFlowTests(unittest.TestCase):
         self.assertEqual(client.agent['status'], 'archived')
         self.assertEqual(flow.execution.report['harness_errors'], [])
 
+    def test_instruction_revision_requires_marker_and_preserves_other_configuration(self):
+        for failure in (None, 'marker_missing', 'skill_changed'):
+            with self.subTest(failure=failure):
+                flow, client, checks = self.flow()
+                flow.remember(task('revised', 'v2', skills=['XLSX']), 'revised')
+                resource = flow.require_resource('skills', 'skill.xlsx')
+                flow.commit([resource], capture_current=True)
+                flow.revise_published(task('revised', 'v3', skills=['XLSX'], mode='revise'), 'revised')
+                current = client.current_versions['1.1.0']
+                current['description'] = client.current_versions['1.0.0']['description']
+                current['agent_md'] = 'new prompt' if failure == 'marker_missing' else 'new prompt with unique-marker'
+                if failure == 'skill_changed':
+                    current['skill_names'] = []
+                if failure:
+                    with self.assertRaises(ProductCaseFailure):
+                        flow.commit(expected_instruction='unique-marker')
+                    self.assertFalse(all(check['passed'] for check in checks))
+                else:
+                    flow.commit(expected_instruction='unique-marker')
+                    self.assertTrue(all(check['passed'] for check in checks))
+
     def test_uncommitted_revision_is_canceled_before_archiving_our_agent(self):
         flow, client, _ = self.flow()
         flow.remember(task('revised', 'v2'), 'revised')

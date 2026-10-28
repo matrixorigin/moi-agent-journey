@@ -3,6 +3,7 @@
 import uuid
 from urllib.parse import urlencode
 
+from .a2a import final_reply
 from .builder_flow import ProductCaseFailure
 from .client import Failure
 from .evidence import utc_now
@@ -72,3 +73,42 @@ def check_empty_message(execution, conversation_id, session_id, checks):
         # Existing cleanup recovers and stops the newly admitted task, if its
         # outcome can be identified; the invalid request is never replayed.
         raise ProductCaseFailure('empty_message_created_task')
+
+
+def check_completed_cancellation(execution, conversation_id, session_id, task, checks):
+    """A late cancellation must preserve a completed task and its answer."""
+    selector = execution.conversation_selector(conversation_id)
+    task_id = task['id']
+    answer = final_reply(task)
+
+    def record(rule, passed, detail):
+        checks.append({'session': session_id, 'rule': rule, 'passed': bool(passed),
+                       'detail': '' if passed else detail})
+        execution.report['validation'] = {'checks': checks}
+        execution.checkpoint()
+
+    def is_completed(value):
+        return (isinstance(value, dict) and value.get('kind') == 'task' and value.get('id') == task_id and
+                value.get('contextId') == conversation_id and isinstance(value.get('status'), dict) and
+                value['status'].get('state') == 'completed')
+
+    try:
+        cancellation = execution.client.rpc(selector, 'tasks/cancel', {'id': task_id})
+        cancel_result = cancellation
+    except Failure as error:
+        if ((error.code == 'http_error' and error.http_status not in {None, 401, 403}) or
+                error.code == 'rpc_error'):
+            cancellation = None
+            cancel_result = {'error': error.code, 'http_status': error.http_status, 'details': error.details}
+        else:
+            raise
+    record('取消已完成任务返回原完成状态', is_completed(cancellation), 'late_cancel_response_mismatch')
+    after = execution.client.rpc(selector, 'tasks/get', {'id': task_id})
+    record('已完成任务状态保持不变', is_completed(after), 'late_cancel_changed_task')
+    try:
+        answer_preserved = is_completed(after) and final_reply(after) == answer
+    except (Failure, KeyError, TypeError):
+        answer_preserved = False
+    record('取消后仍可读取原答复', answer_preserved, 'late_cancel_changed_answer')
+    execution.evidence.write('sessions/' + session_id + '/late-cancellation.json',
+                             {'before': task, 'cancel': cancel_result, 'after': after})

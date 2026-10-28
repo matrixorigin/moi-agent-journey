@@ -57,11 +57,12 @@ def same_configuration(old, updated, changes=None):
     return True
 
 
-def same_published_config(old, updated, changes=None, *, keep_description=False):
+def same_published_config(old, updated, changes=None, *, keep_description=False, allow_instruction_change=False):
     for key in ('agent_id', 'name', 'model_name'):
         if not isinstance(old.get(key), str) or not old[key] or old[key] != updated.get(key):
             return False
-    if (not isinstance(old.get('agent_md'), str) or old['agent_md'] != updated.get('agent_md') or
+    if (not isinstance(old.get('agent_md'), str) or not isinstance(updated.get('agent_md'), str) or
+            (not allow_instruction_change and old['agent_md'] != updated['agent_md']) or
             old.get('model_config_ref') != updated.get('model_config_ref')):
         return False
     if keep_description and (not isinstance(old.get('description'), str) or old['description'] != updated.get('description')):
@@ -220,7 +221,8 @@ class AgentBuilderFlow:
             raise ProductCaseFailure('revision_already_published')
         self.current = updated
 
-    def commit(self, expected_resources=(), expected_description=None, *, capture_current=False, changes=None):
+    def commit(self, expected_resources=(), expected_description=None, *, capture_current=False, changes=None,
+               expected_instruction=None):
         output = self.current
         agent_id, candidate_version = output['agent_id'], output['candidate_version']
         if output['mode'] == 'create' and agent_id not in self.absent_before:
@@ -277,7 +279,7 @@ class AgentBuilderFlow:
             'version': version, 'name': name, 'manifest': manifest})
         self.created = {'agent_id': agent_id, 'workspace_id': self.workspace, 'version': version,
                         'verified': identity}
-        if capture_current or expected_description is not None or changes is not None:
+        if capture_current or expected_description is not None or changes is not None or expected_instruction is not None:
             try:
                 current = self.execution.client.product('GET', self.execution.root + '/agent-builder/agents/' +
                     segment(agent_id) + '/versions/' + segment(version) + '/current-agent')
@@ -316,6 +318,19 @@ class AgentBuilderFlow:
                 self.record('发布版本仅改变指定资源', preserved, 'published_resource_transition_mismatch')
                 if not preserved:
                     raise ProductCaseFailure('published_resource_transition_mismatch')
+            if expected_instruction is not None:
+                baseline_instruction = (self.baseline_config or {}).get('agent_md')
+                instruction = current.get('agent_md')
+                instruction_ok = (isinstance(expected_instruction, str) and bool(expected_instruction) and
+                                  isinstance(baseline_instruction, str) and expected_instruction not in baseline_instruction and
+                                  isinstance(instruction, str) and expected_instruction in instruction and
+                                  instruction != baseline_instruction)
+                self.record('发布版本包含修改后的指令', instruction_ok, 'instruction_readback_mismatch')
+                preserved = (self.baseline_config is not None and same_published_config(
+                    self.baseline_config, current, keep_description=True, allow_instruction_change=True))
+                self.record('指令修订保留其他配置', preserved, 'instruction_revision_changed_configuration')
+                if not instruction_ok or not preserved:
+                    raise ProductCaseFailure('published_instruction_or_configuration_mismatch')
         if not identity or not config_ok:
             raise ProductCaseFailure('published_agent_mismatch')
         return self.created

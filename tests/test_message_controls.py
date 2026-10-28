@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 from journey.builder_flow import ProductCaseFailure
 from journey.client import Failure
-from journey.message_controls import check_empty_message
+from journey.message_controls import check_completed_cancellation, check_empty_message
 
 
 class MessageClient:
@@ -68,6 +68,38 @@ class MessageControlTests(unittest.TestCase):
             check_empty_message(execution(client), 'conversation', 'test', checks)
         self.assertFalse(checks[0]['passed'])
         self.assertEqual(client.calls, 0)
+
+    def test_late_cancellation_preserves_the_completed_answer(self):
+        task = {'kind': 'task', 'id': 'task-1', 'contextId': 'conversation', 'status': {
+            'state': 'completed', 'message': {'role': 'agent', 'parts': [{'kind': 'text', 'text': 'answer'}]}}}
+        for changed in (False, True):
+            with self.subTest(changed=changed):
+                class Client:
+                    def rpc(self, _selector, method, params):
+                        self.assert_id = params['id']
+                        if method == 'tasks/cancel':
+                            return task
+                        if changed:
+                            return {**task, 'status': {'state': 'canceled'}}
+                        return task
+                client = Client()
+                checks = []
+                check_completed_cancellation(execution(client), 'conversation', 'test', task, checks)
+                self.assertEqual(client.assert_id, 'task-1')
+                self.assertEqual([check['passed'] for check in checks],
+                                 [True, not changed, not changed])
+
+    def test_late_cancellation_rejection_cannot_pass_but_task_is_rechecked(self):
+        task = {'kind': 'task', 'id': 'task-1', 'contextId': 'conversation', 'status': {
+            'state': 'completed', 'message': {'role': 'agent', 'parts': [{'kind': 'text', 'text': 'answer'}]}}}
+        class Client:
+            def rpc(self, _selector, method, _params):
+                if method == 'tasks/cancel':
+                    raise Failure('http_error', 409)
+                return task
+        checks = []
+        check_completed_cancellation(execution(Client()), 'conversation', 'test', task, checks)
+        self.assertEqual([check['passed'] for check in checks], [False, True, True])
 
 
 if __name__ == '__main__':
