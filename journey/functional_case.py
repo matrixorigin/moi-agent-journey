@@ -18,6 +18,7 @@ from .client import Client, Failure
 from .evidence import Evidence, configured_secrets
 from .hello import discover
 from .run_case import Execution
+from .resume_checks import check_resubscribe
 from .search_checks import evaluate_search
 from .skill_checks import check_skill_call
 from .sql_checks import evaluate_sql
@@ -200,6 +201,8 @@ class FunctionalExecution(Execution):
                             content = action['content'].format_map(variables)
                             artifact_delivered = check_text_artifact(self, cid, final_entry['task_id'],
                                                                      filename, content, checks, session['id'])
+                        elif action.get('type') == 'check_resubscribe':
+                            check_resubscribe(self, final_entry, checks, session['id'])
                         elif action.get('type') in builder_types:
                             builder = builders[session['id']]
                             name = action['agent_name'].format_map(variables)

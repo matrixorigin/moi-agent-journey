@@ -119,11 +119,13 @@ class Client:
             raise Failure("invalid_rpc_response")
         return result["result"]
 
-    def stream_rpc(self, selector, params):
-        """The official streaming admission returns a durable task before execution ends."""
+    def stream_rpc(self, selector, params, *, method='message/stream'):
+        """Read an Agent admission or task resubscription as an SSE stream."""
+        if method not in {'message/stream', 'tasks/resubscribe'}:
+            raise Failure('invalid_stream_method')
         request_id = str(uuid.uuid4())
         body = {"jsonrpc": "2.0", "id": request_id, **selector,
-                "method": "message/stream", "params": params}
+                "method": method, "params": params}
         remaining = self.deadline - time.monotonic()
         if remaining <= 0:
             raise Failure("deadline_exceeded")

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "id": "J2-17",
+  "workspace": "journey-2",
+  "title": "按事件序号续读已完成的智能体任务",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["marker"],
+  "sessions": [
+    {
+      "id": "resume",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "reply",
+          "prompt": "请原样回复这个标记：{marker}。",
+          "assertions": [
+            {"type": "contains", "value": "{marker}", "rule": "最终答复包含指定标记"}
+          ],
+          "action": {"type": "check_resubscribe"}
+        }
+      ]
+    }
+  ]
+}
