@@ -19,6 +19,7 @@ from .evidence import Evidence, configured_secrets
 from .hello import discover
 from .run_case import Execution
 from .resume_checks import check_resubscribe
+from .sandbox_checks import evaluate_python_hash
 from .search_checks import evaluate_search
 from .skill_checks import check_skill_call
 from .sql_checks import evaluate_sql
@@ -187,6 +188,13 @@ class FunctionalExecution(Execution):
                         open_checks, blocked = evaluate_open(self.evidence.root / 'events.jsonl',
                             final_entry['task_id'], session['id'], current_open[1]['url'], current_open[1]['content'])
                         checks.extend(open_checks)
+                        if blocked:
+                            self.report['blocked'] = True
+                            self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
+                    if turn.get('sandbox_hash'):
+                        hash_checks, blocked = evaluate_python_hash(self.evidence.root / 'events.jsonl',
+                            final_entry['task_id'], session['id'], variables[turn['sandbox_hash']], reply)
+                        checks.extend(hash_checks)
                         if blocked:
                             self.report['blocked'] = True
                             self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
