@@ -12,13 +12,13 @@
 | `moi_web_open` | J2-20 验证打开指定网页和实际内容；2026-10-28 单次 QA 测试返回 `WEB_UNAVAILABLE`，标记为 blocked |
 | `moi_bocha_web_search`, `moi_brave_web_search`, `moi_tavily_web_search` | J2-05 可验证一次搜索及其引用，但不逐个要求这些工具；需分别验证开放配置与错误边界 |
 | `moi_codex_run`, `moi_product_source` | 待设计功能 case |
-| `moi_feishu_card_message`, `moi_feishu_post_message`, `moi_feishu_text_message` | 缺专用飞书连接与可核对的测试接收端 |
+| `moi_feishu_card_message`, `moi_feishu_post_message`, `moi_feishu_text_message` | journey-2 没有飞书 Channel 实例，测试接收端尚未验证 |
 | `moi_github_issues`, `moi_github_pull_requests`, `moi_github_rate_limit`, `moi_github_repository`, `moi_github_workflows` | 系统 GitHub 工具使用 GitHub Channel；journey-2 尚无 GitHub Channel 实例，需连接已有测试资源，验证只读、写入和错误路径 |
 | `moi_grafana_datasources`, `moi_grafana_health`, `moi_grafana_loki_query`, `moi_grafana_prometheus_query` | 待确认发行范围及专用测试服务 |
 | `moi_kubernetes_deployments`, `moi_kubernetes_events`, `moi_kubernetes_namespaces`, `moi_kubernetes_nodes`, `moi_kubernetes_pods`, `moi_kubernetes_services`, `moi_kubernetes_version` | 待确认发行范围及专用测试集群 |
-| `moi_qq_mail`, `moi_wecom_mail` | 缺专用邮箱连接和测试收件箱 |
-| `moi_slack_attachment_message`, `moi_slack_block_message`, `moi_slack_text_message` | 缺专用 Slack 连接和测试接收端 |
-| `moi_wecom_connection_test`, `moi_wecom_department_list`, `moi_wecom_media_download`, `moi_wecom_media_upload`, `moi_wecom_message_recall`, `moi_wecom_message_send`, `moi_wecom_message_stats`, `moi_wecom_robot_message`, `moi_wecom_tag_list`, `moi_wecom_tag_users`, `moi_wecom_user_search` | 缺专用企微连接、测试组织及接收端；分别验证消息、媒体和目录路径 |
+| `moi_qq_mail`, `moi_wecom_mail` | journey-2 没有 QQ 邮箱或企微 Channel 实例，测试收件箱尚未验证 |
+| `moi_slack_attachment_message`, `moi_slack_block_message`, `moi_slack_text_message` | journey-2 没有 Slack Channel 实例，测试接收端尚未验证 |
+| `moi_wecom_connection_test`, `moi_wecom_department_list`, `moi_wecom_media_download`, `moi_wecom_media_upload`, `moi_wecom_message_recall`, `moi_wecom_message_send`, `moi_wecom_message_stats`, `moi_wecom_robot_message`, `moi_wecom_tag_list`, `moi_wecom_tag_users`, `moi_wecom_user_search` | journey-2 没有企微 Channel 实例，测试组织和接收端尚未验证；需分别验证消息、媒体和目录路径 |
 
 ## Skill
 
