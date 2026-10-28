@@ -1,6 +1,8 @@
 """Separate agent execution, delivery and quality without interpreting a red check as a root cause."""
 from collections import Counter
 
+from .catalog import case_executor
+
 
 def assess(case, result, raw_status):
     sessions = case.get('sessions', [])
@@ -22,6 +24,9 @@ def assess(case, result, raw_status):
         agent_state = 'abnormal'
     elif result.get('harness_errors') or not tasks:
         agent_state = 'unknown'
+    elif case_executor(case) == 'browser' and all(task.get('state') == 'completed' for task in tasks):
+        # A UI failure can prevent later turns from being sent; it is not an agent failure.
+        agent_state = 'unknown'
     else:
         agent_state = 'abnormal'
     agent = {'state': agent_state, 'completed_turns': matched, 'expected_turns': len(expected_phases),
@@ -34,9 +39,27 @@ def assess(case, result, raw_status):
         actual = delivered_sessions.get(session['id'])
         expected = session.get('expected_files', [])
         files = actual.get('outputs', {}) if isinstance(actual, dict) else {}
-        delivery_sessions.append({'session': session['id'], 'delivered': actual is not None,
-                                  'expected_files': expected,
-                                  'missing_files': [name for name in expected if name not in files]})
+        if session.get('delivery_kind') == 'agent':
+            resource = actual.get('created_agent') if isinstance(actual, dict) else None
+            delivered = isinstance(resource, dict) and resource.get('verified') is True
+            delivery_sessions.append({'session': session['id'], 'delivery_kind': 'agent', 'delivered': delivered,
+                                      'expected_files': [], 'missing_files': []})
+        elif session.get('delivery_kind') == 'answer':
+            delivered = isinstance(actual, dict) and actual.get('answer_delivered') is True
+            delivery_sessions.append({'session': session['id'], 'delivery_kind': 'answer', 'delivered': delivered,
+                                      'expected_files': [], 'missing_files': []})
+        elif session.get('delivery_kind') == 'candidate':
+            delivered = isinstance(actual, dict) and actual.get('candidate_verified') is True
+            delivery_sessions.append({'session': session['id'], 'delivery_kind': 'candidate', 'delivered': delivered,
+                                      'expected_files': [], 'missing_files': []})
+        elif session.get('delivery_kind') == 'file':
+            delivered = isinstance(actual, dict) and actual.get('artifact_delivered') is True
+            delivery_sessions.append({'session': session['id'], 'delivery_kind': 'file', 'delivered': delivered,
+                                      'expected_files': [], 'missing_files': []})
+        else:
+            delivery_sessions.append({'session': session['id'], 'delivered': actual is not None,
+                                      'expected_files': expected,
+                                      'missing_files': [name for name in expected if name not in files]})
     complete = sum(item['delivered'] and not item['missing_files'] for item in delivery_sessions)
     if delivery_sessions and complete == len(delivery_sessions):
         delivery_state = 'delivered'
@@ -69,9 +92,15 @@ def assess(case, result, raw_status):
     checks = validation.get('checks', [])
     validator_error = any(item.get('stage') in {'validation', 'semantic_judge'}
                           for item in result.get('harness_errors', []))
+    expected_answer_checks = sum(session.get('expected_checks', sum(1 + len(turn.get('assertions', []))
+                                      for turn in session['turns'])) for session in sessions
+                                 if session.get('delivery_kind') in {'answer', 'candidate', 'file'})
+    incomplete_answer_checks = bool(expected_answer_checks) and len(checks) < expected_answer_checks
     if checks:
         failed = [item for item in checks if not item.get('passed')]
-        quality = {'state': 'partial' if validator_error else 'checked', 'passed_checks': len(checks) - len(failed),
+        quality = {'state': 'partial' if validator_error or incomplete_answer_checks else 'checked',
+                   'reason': 'unfinished_turns' if incomplete_answer_checks else 'validator_error' if validator_error else None,
+                   'passed_checks': len(checks) - len(failed),
                    'total_checks': len(checks), 'failed_checks': failed}
     else:
         reason = ('validator_error' if validator_error else

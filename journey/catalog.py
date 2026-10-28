@@ -17,6 +17,16 @@ def load_suite(name):
     return next(s for s in config["journeys"] if s["workspace"] == name)
 
 
+def case_executor(case):
+    if 'executor' in case:
+        return case['executor']
+    return load_suite(case['workspace']).get('executor')
+
+
+def is_functional_case(case):
+    return case_executor(case) in {'api', 'browser'}
+
+
 def load_case(case_id):
     if not re.fullmatch(r"J[1-5]-[0-9]{2}", case_id):
         raise ValueError("invalid_case_id")
@@ -46,6 +56,19 @@ def download(asset, target):
     temporary.replace(target)
 
 
+def fixture_path(case, fixture):
+    relative = Path(fixture['path'])
+    if relative.is_absolute() or '..' in relative.parts or not relative.parts:
+        raise ValueError('unsafe_fixture_path')
+    directory = (ROOT / 'cases' / ('journey-' + case['id'][1]) / case['id']).resolve()
+    path = directory / relative
+    if not path.resolve().is_relative_to(directory) or not path.is_file() or path.is_symlink():
+        raise ValueError('invalid_fixture_path')
+    if sha256(path) != fixture['sha256']:
+        raise ValueError('fixture_checksum_mismatch:' + relative.as_posix())
+    return path
+
+
 def prepare(case, work):
     work = Path(work)
     for asset in case["assets"]:
@@ -55,6 +78,8 @@ def prepare(case, work):
         download(asset, work / "inputs" / path)
     for asset in case["oracles"]:
         download(asset, work / "oracle" / asset["path"])
+    for fixture in case.get('fixtures', []):
+        fixture_path(case, fixture)
 
 
 def main():
@@ -68,8 +93,17 @@ def main():
     args = parser.parse_args()
     if args.command == "plan":
         suite = load_suite(args.suite)
-        # An explicit no-op matrix member lets empty suites finish without fabricated cases.
-        matrix = {"case": suite["cases"] or ["EMPTY"]}
+        # Case executors inherit the suite's declared default and may override it.
+        # An explicit no-op matrix member keeps empty suites out of the denominator.
+        matrix = {"include": []}
+        for case_id in suite["cases"]:
+            case = load_case(case_id)
+            executor = case_executor(case)
+            if executor not in {"office", "browser", "api"}:
+                raise ValueError("invalid_case_executor:" + case_id)
+            matrix["include"].append({"case": case_id, "executor": executor})
+        if not matrix["include"]:
+            matrix["include"].append({"case": "EMPTY", "executor": "empty"})
         output = json.dumps(matrix)
         if os.environ.get("GITHUB_OUTPUT"):
             with open(os.environ["GITHUB_OUTPUT"], "a") as f:
@@ -84,7 +118,7 @@ def main():
     try:
         prepare(case, args.work)
         evidence.write("preparation.json", {"status": "completed", "assets": case["assets"],
-            "oracles": case["oracles"], "started_at": started_at, "finished_at": utc_now(),
+            "oracles": case["oracles"], "fixtures": case.get('fixtures', []), "started_at": started_at, "finished_at": utc_now(),
             "seconds": round(time.monotonic()-started,3)})
         return 0
     except Exception as error:

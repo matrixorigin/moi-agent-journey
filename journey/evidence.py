@@ -1,6 +1,7 @@
 """Append evidence as it arrives; credentials never enter reports or archives."""
 import hashlib
 import json
+import os
 import re
 import urllib.parse
 import zipfile
@@ -14,6 +15,12 @@ SHELL_SECRET=re.compile(r'''(?i)(\b(?:[a-z][a-z0-9_]*_)?(?:api_key|access_token|
 
 def utc_now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def configured_secrets():
+    """Known sensitive configuration for every recording/publication boundary."""
+    return [os.environ.get(name, '') for name in (
+        'MOI_PAT', 'MOI_BASE_URL', 'MOI_UI_ACCOUNT', 'MOI_UI_PASSWORD', 'MOI_UI_BASE_URL', 'MOI_UI_AUTH_ORIGIN')]
 
 
 class Evidence:
@@ -61,6 +68,11 @@ class Evidence:
 
     def observe(self, exchange):
         self.append("http.jsonl", {"recorded_at": utc_now(), **exchange})
+
+    def observe_transport(self, exchange):
+        """Record transport metadata without unrelated workspace response bodies."""
+        self.observe({key: exchange[key] for key in ('method', 'path', 'status', 'headers', 'seconds')
+                      if key in exchange})
 
 
 def safe_extract(archive, destination, max_bytes=1_000_000_000):

@@ -1,6 +1,12 @@
 name: Agent journeys QA
 on:
   workflow_dispatch:
+    inputs:
+      workspace:
+        description: '工作区（all 表示运行全部）'
+        type: choice
+        options: [all, journey-1, journey-2, journey-3, journey-4, journey-5]
+        default: all
   schedule:
     - cron: '17 */6 * * *'
 permissions:
@@ -18,7 +24,7 @@ jobs:
       fail-fast: false
       max-parallel: 5
       matrix:
-        workspace: [journey-1, journey-2, journey-3, journey-4, journey-5]
+        workspace: ${{ fromJSON(inputs.workspace != '' && inputs.workspace != 'all' && format('["{0}"]', inputs.workspace) || '["journey-1","journey-2","journey-3","journey-4","journey-5"]') }}
     uses: ./.github/workflows/run-journey.yml
     with:
       workspace: ${{ matrix.workspace }}
@@ -42,7 +48,9 @@ jobs:
           path: downloaded-results
       - name: Account for every configured case
         if: always()
-        run: python3 -m journey.report aggregate
+        env:
+          JOURNEY_WORKSPACE: ${{ inputs.workspace || 'all' }}
+        run: python3 -m journey.report aggregate --workspace "$JOURNEY_WORKSPACE"
       - name: Upload consolidated results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

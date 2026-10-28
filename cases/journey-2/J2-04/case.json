@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "J2-04",
+  "workspace": "journey-2",
+  "title": "智能体候选拒绝错误摘要并取消",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["agent_name"],
+  "sessions": [
+    {
+      "id": "candidate",
+      "delivery_kind": "candidate",
+      "expected_checks": 9,
+      "turns": [
+        {
+          "phase": "propose",
+          "prompt": "请创建一个名为 {agent_name} 的智能体，唯一职责是原样复述用户输入的文本。",
+          "action": {"type": "reject_invalid_digest_and_cancel", "agent_name": "{agent_name}"}
+        }
+      ]
+    }
+  ]
+}

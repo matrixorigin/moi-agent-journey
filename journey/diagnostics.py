@@ -25,7 +25,13 @@ def _output_observations(output):
         stderr, stdout = terminal.get('stderr'), terminal.get('stdout')
         detail = str(stderr) if stderr else '未返回 stderr；stdout: ' + str(stdout or '无')
         observations.append({'kind': 'command_exit', 'code': str(exit_code), 'detail': str(detail)[:4096]})
-    if terminal.get('ok') is False:
+    # MOI projects Agent Builder events against the candidate's current state.
+    # Its `ok` means status == valid; after a successful commit status becomes
+    # loaded and `ok` becomes false even though the tool call succeeded.
+    loaded_candidate = (terminal.get('render_type') == 'agent_candidate' and
+                        terminal.get('status') == 'loaded' and not terminal.get('error') and
+                        not terminal.get('error_code'))
+    if terminal.get('ok') is False and not loaded_candidate:
         failed = True
         observations.append({'kind': 'tool_output_failure', 'code': terminal.get('error_code'),
                              'detail': str(terminal.get('message') or '')[:4096],

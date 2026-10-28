@@ -1,10 +1,9 @@
 """Build the public download without losing traces when a generated file is unsafe."""
 import argparse
 import json
-import os
 from pathlib import Path
 
-from .evidence import Evidence,sha256
+from .evidence import Evidence, configured_secrets, sha256
 from .report import ArtifactRejected,inspect_payload
 
 
@@ -57,7 +56,7 @@ def main():
     parser.add_argument('--root',default='results')
     parser.add_argument('--out',default='published-results')
     args=parser.parse_args()
-    withheld=prepare_publication(args.root,args.out,[os.environ.get('MOI_PAT',''),os.environ.get('MOI_BASE_URL','')])
+    withheld=prepare_publication(args.root, args.out, configured_secrets())
     print(json.dumps({'publication':'partial' if withheld else 'complete','withheld_file_count':len(withheld)}))
     return 0
 

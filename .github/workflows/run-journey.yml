@@ -53,21 +53,51 @@ jobs:
         env:
           CASE_ID: ${{ matrix.case }}
         run: python3 -m journey.catalog prepare "$CASE_ID"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: matrix.executor == 'browser'
+        with:
+          node-version: '22'
+      - name: Install browser test dependencies
+        if: matrix.executor == 'browser'
+        run: npm ci --ignore-scripts
+      - name: Install Chromium
+        if: matrix.executor == 'browser'
+        run: npx playwright install --with-deps chromium
       - name: Run QA task and capture events
-        if: matrix.case != 'EMPTY'
+        if: matrix.executor == 'office'
         timeout-minutes: 63
         env:
           CASE_ID: ${{ matrix.case }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ secrets.MOI_PAT }}
         run: python3 -m journey.run_case "$CASE_ID"
+      - name: Run functional conversation and capture QA events
+        if: matrix.executor == 'api'
+        timeout-minutes: 63
+        env:
+          CASE_ID: ${{ matrix.case }}
+          MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
+          MOI_PAT: ${{ secrets.MOI_PAT }}
+        run: python3 -m journey.functional_case "$CASE_ID"
+      - name: Run browser case and capture QA events
+        if: matrix.executor == 'browser'
+        timeout-minutes: 63
+        env:
+          CASE_ID: ${{ matrix.case }}
+          MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
+          MOI_PAT: ${{ secrets.MOI_PAT }}
+          MOI_UI_ACCOUNT: ${{ secrets.MOI_UI_ACCOUNT }}
+          MOI_UI_PASSWORD: ${{ secrets.MOI_UI_PASSWORD }}
+          MOI_UI_BASE_URL: ${{ secrets.MOI_UI_BASE_URL }}
+          MOI_UI_AUTH_ORIGIN: ${{ secrets.MOI_UI_AUTH_ORIGIN }}
+        run: python3 -m journey.browser_case "$CASE_ID"
       - name: Load isolated validator
-        if: matrix.case != 'EMPTY'
+        if: matrix.executor == 'office'
         uses: ./.github/actions/load-judge
         with:
           artifact-name: ${{ inputs.judge_image_artifact }}
       - name: Validate actual delivered files
-        if: matrix.case != 'EMPTY' && !cancelled() && success()
+        if: matrix.executor == 'office' && !cancelled() && success()
         timeout-minutes: 32
         env:
           CASE_ID: ${{ matrix.case }}
@@ -78,6 +108,10 @@ jobs:
           CASE_ID: ${{ matrix.case }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ secrets.MOI_PAT }}
+          MOI_UI_ACCOUNT: ${{ matrix.executor == 'browser' && secrets.MOI_UI_ACCOUNT || '' }}
+          MOI_UI_PASSWORD: ${{ matrix.executor == 'browser' && secrets.MOI_UI_PASSWORD || '' }}
+          MOI_UI_BASE_URL: ${{ matrix.executor == 'browser' && secrets.MOI_UI_BASE_URL || '' }}
+          MOI_UI_AUTH_ORIGIN: ${{ matrix.executor == 'browser' && secrets.MOI_UI_AUTH_ORIGIN || '' }}
         run: python3 -m journey.report case "$CASE_ID"
       - name: Prepare safe public evidence and isolate uninspectable files
         id: scan
@@ -85,6 +119,10 @@ jobs:
         env:
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ secrets.MOI_PAT }}
+          MOI_UI_ACCOUNT: ${{ matrix.executor == 'browser' && secrets.MOI_UI_ACCOUNT || '' }}
+          MOI_UI_PASSWORD: ${{ matrix.executor == 'browser' && secrets.MOI_UI_PASSWORD || '' }}
+          MOI_UI_BASE_URL: ${{ matrix.executor == 'browser' && secrets.MOI_UI_BASE_URL || '' }}
+          MOI_UI_AUTH_ORIGIN: ${{ matrix.executor == 'browser' && secrets.MOI_UI_AUTH_ORIGIN || '' }}
         run: python3 -m journey.publish
       - name: Upload case evidence even on failure
         if: always() && matrix.case != 'EMPTY' && steps.scan.outcome == 'success'

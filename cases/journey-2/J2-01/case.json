@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "J2-01",
+  "workspace": "journey-2",
+  "title": "通过候选卡片创建智能体并对话",
+  "executor": "browser",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "browser",
+      "delivery_kind": "agent",
+      "turns": [
+        {
+          "phase": "create",
+          "prompt": "请创建一个名为 {agent_name} 的智能体，唯一职责是原样复述用户输入的文本。"
+        },
+        {
+          "phase": "verify",
+          "prompt": "请只回复这个标记：{marker}"
+        }
+      ]
+    }
+  ]
+}

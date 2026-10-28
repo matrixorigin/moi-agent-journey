@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "J2-07",
+  "workspace": "journey-2",
+  "title": "生成并交付可下载文本文件",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["artifact_name", "content"],
+  "sessions": [
+    {
+      "id": "artifact",
+      "delivery_kind": "file",
+      "expected_checks": 3,
+      "turns": [
+        {
+          "phase": "deliver",
+          "prompt": "请创建一个可下载的纯文本文件 {artifact_name}.txt，文件内容只有这一行：{content}。请直接交付该文件。",
+          "action": {"type": "deliver_text_artifact", "filename": "{artifact_name}.txt", "content": "{content}"}
+        }
+      ]
+    }
+  ]
+}
