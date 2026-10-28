@@ -140,6 +140,19 @@ class FunctionalJourneyTests(unittest.TestCase):
             _, _, delivery, _ = assess(case, result, result['status'])
             self.assertEqual(delivery['state'], 'not_delivered')
 
+    def test_prior_turn_reply_does_not_prove_final_delivery_after_capture_failure(self):
+        with qa_fixture('success') as (base, _state):
+            case = self.make_case()
+            execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+            result = execution.run()
+            self.assertEqual(len(result['tasks']), 2)
+            result['sessions'][0]['final_task_id'] = result['tasks'][0]['task_id']
+            result['harness_errors'].append({'stage': 'capture', 'reason': 'transport_error'})
+            task, agent, delivery, _ = assess(case, result, 'timeout')
+            self.assertEqual(agent['state'], 'completed')
+            self.assertEqual(delivery['state'], 'unknown')
+            self.assertEqual(task['state'], 'unknown')
+
     def test_quota_exhaustion_stays_blocked_even_if_the_agent_task_fails(self):
         with qa_fixture('search_quota') as (base, state):
             case = self.make_case()

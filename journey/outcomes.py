@@ -46,7 +46,12 @@ def assess(case, result, raw_status):
             delivery_sessions.append({'session': session['id'], 'delivery_kind': 'agent', 'delivered': delivered,
                                       'expected_files': [], 'missing_files': []})
         elif session.get('delivery_kind') == 'answer':
-            delivered = isinstance(actual, dict) and actual.get('answer_delivered') is True
+            turns = session.get('turns', [])
+            final_phase = session['id'] + ':' + turns[-1]['phase'] if turns else None
+            final_tasks = [task for task in tasks if task.get('phase') == final_phase]
+            delivered = (isinstance(actual, dict) and actual.get('answer_delivered') is True and
+                         len(final_tasks) == 1 and isinstance(final_tasks[0].get('task_id'), str) and
+                         bool(final_tasks[0]['task_id']) and actual.get('final_task_id') == final_tasks[0]['task_id'])
             delivery_sessions.append({'session': session['id'], 'delivery_kind': 'answer', 'delivered': delivered,
                                       'expected_files': [], 'missing_files': []})
         elif session.get('delivery_kind') == 'candidate':
