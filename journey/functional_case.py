@@ -80,6 +80,15 @@ def resource_changes(action):
 
 
 class FunctionalExecution(Execution):
+    def check_skill(self, skill_id, task_id, session_id, phase, checks):
+        if not isinstance(skill_id, str) or not skill_id:
+            raise Failure('invalid_skill_evidence')
+        check, blocked = check_skill_call(self.evidence.root / 'events.jsonl', task_id, skill_id, session_id)
+        checks.append(check)
+        if blocked:
+            self.report['blocked'] = True
+            self.report['failures'].append({'stage': session_id + ':' + phase, 'reason': blocked})
+
     def run(self):
         current_search = None
         current_search_tool = None
@@ -176,6 +185,9 @@ class FunctionalExecution(Execution):
                     self.evidence.write('sessions/' + session['id'] + '/replies/' + turn['phase'] + '.json',
                                         {'task_id': final_entry['task_id'], 'text': reply})
                     checks.extend(check_reply(session['id'], turn, reply, variables))
+                    required_skill = turn.get('skill_evidence')
+                    if required_skill is not None:
+                        self.check_skill(required_skill, final_entry['task_id'], session['id'], turn['phase'], checks)
                     if current_search:
                         search_checks, blocked = evaluate_search(self.evidence.root / 'events.jsonl',
                                                                   final_entry['task_id'], reply, session['id'],
@@ -252,13 +264,7 @@ class FunctionalExecution(Execution):
                                 if builder.created:
                                     session_report['created_agent'] = builder.created
                         elif action.get('type') in {'deliver_xlsx_with_skill', 'deliver_ooxml_with_skill'}:
-                            check, blocked = check_skill_call(self.evidence.root / 'events.jsonl', final_entry['task_id'],
-                                                              action['skill_id'], session['id'])
-                            checks.append(check)
-                            if blocked:
-                                self.report['blocked'] = True
-                                self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'],
-                                                                'reason': blocked})
+                            self.check_skill(action['skill_id'], final_entry['task_id'], session['id'], turn['phase'], checks)
                             filename, content = action['filename'].format_map(variables), action['content'].format_map(variables)
                             if action['type'] == 'deliver_xlsx_with_skill':
                                 artifact_delivered = check_xlsx_artifact(self, cid, final_entry['task_id'],

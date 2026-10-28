@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "id": "J2-22",
+  "workspace": "journey-2",
+  "title": "使用 PDF Skill 读取多页附件",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {"path": "records.pdf", "sha256": "91ea9bc4dd0f1624ce14882cd7d12d1603d9dc435867bfc528b9bfbe45a3d70c"}
+  ],
+  "sessions": [
+    {
+      "id": "pdf",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "read",
+          "prompt": "请使用 PDF 技能（moi.agent.momo.skill.pdf）读取附件，告诉我第二页 Record identifier 的值。只回复该编号，不要给出第一页的编号。",
+          "attachments": ["records.pdf"],
+          "skill_evidence": "moi.agent.momo.skill.pdf",
+          "assertions": [
+            {"type": "contains", "value": "VT-5634", "rule": "正确提取第二页编号"},
+            {"type": "not_contains", "value": "RC-9285", "rule": "不混入第一页编号"}
+          ]
+        }
+      ]
+    }
+  ]
+}
