@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "id": "J2-24",
+  "workspace": "journey-2",
+  "title": "同轮读取两份不同名表格附件",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {"path": "north.csv", "sha256": "f8aff2318be0e4e30899ee7c364851f50ac8757ec961e4980d7779f3d050824f"},
+    {"path": "south.csv", "sha256": "5e87c0f742cf79403ee956cd6d080f627b7d0bfa65388aedc15dc9fe8fc72c1d"}
+  ],
+  "sessions": [
+    {
+      "id": "attachments",
+      "delivery_kind": "answer",
+      "expected_checks": 3,
+      "turns": [
+        {
+          "phase": "total",
+          "prompt": "请读取本条消息附带的两份销售明细表，计算两张表里每一行 quantity 乘以 unit_price 的总和。请只用阿拉伯数字回答总金额，不要输出其他数字。",
+          "attachments": ["north.csv", "south.csv"],
+          "distinct_attachment_ids": true,
+          "assertions": [{"type": "single_number", "value": "66", "rule": "两份表格的总金额正确"}]
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,7 @@
+import csv
 import hashlib
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,8 +9,9 @@ from unittest.mock import patch
 
 from journey.catalog import fixture_path, load_case
 from journey.client import Failure
-from journey.functional_case import FunctionalExecution, case_variables, check_reply
+from journey.functional_case import FunctionalExecution, case_variables, check_distinct_attachment_ids, check_reply
 from journey.outcomes import assess
+from journey.report import finish_case
 from test_journeys import qa_fixture
 
 
@@ -119,6 +122,86 @@ class FunctionalJourneyTests(unittest.TestCase):
             self.assertEqual(sends[0]['params']['message']['parts'][1]['file']['uri'], 'moi://files/input')
             self.assertEqual(result['retained_inputs'][0]['file_id'], 'input')
             self.assertEqual(result['retained_inputs'][0]['fixture'], 'image.png')
+
+    def test_multiple_same_name_uploads_keep_identity_in_the_message(self):
+        for duplicate in (False, True):
+            with self.subTest(duplicate=duplicate), qa_fixture('success') as (base, state):
+                case = self.make_case()
+                names = ['north/sales.csv', 'south/sales.csv']
+                case['fixtures'] = [{'path': name, 'sha256': 'test'} for name in names]
+                case['sessions'][0]['expected_checks'] = 2
+                case['sessions'][0]['turns'] = [{'phase': 'read', 'prompt': 'read both',
+                    'attachments': names, 'distinct_attachment_ids': True}]
+                execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+                paths = [base.work / name for name in names]
+                uploads = [{'file_id': 'north', 'original_name': 'sales.csv'},
+                           {'file_id': 'north' if duplicate else 'south', 'original_name': 'sales.csv'}]
+                with patch('journey.functional_case.fixture_path', side_effect=paths), \
+                     patch.object(base.client, 'upload', side_effect=uploads):
+                    result = execution.run()
+                sends = [body for _, path, body in state['methods'] if path == '/agents/a2a' and
+                         body.get('method') == 'message/stream']
+                parts = sends[0]['params']['message']['parts'][1:]
+                self.assertEqual([part['file']['name'] for part in parts], ['sales.csv', 'sales.csv'])
+                self.assertEqual([part['metadata']['file_id'] for part in parts],
+                                 ['north', 'north' if duplicate else 'south'])
+                self.assertEqual(result['status'], 'failed' if duplicate else 'passed')
+                self.assertEqual(result['harness_errors'], [])
+                self.assertTrue(result['capture_complete'])
+                self.assertEqual(result['validation']['checks'][0]['passed'], not duplicate)
+                self.assertTrue(state['archived'])
+                with tempfile.TemporaryDirectory() as directory:
+                    shutil.copytree(base.evidence.root, Path(directory) / case['id'])
+                    with patch('journey.report.load_case', return_value=case):
+                        report = finish_case(case['id'], directory)
+                self.assertEqual(report['test_status'], 'completed')
+                self.assertEqual(report['functional']['state'], 'fail' if duplicate else 'pass')
+
+    def test_distinct_attachment_check_rejects_invalid_test_configuration(self):
+        for names, uploads in [([], []), (['same', 'same'], [{'file_id': 'a'}, {'file_id': 'b'}]),
+                               (['one', 'two'], [{'file_id': 'a'}])]:
+            with self.subTest(names=names), self.assertRaisesRegex(Failure, 'invalid_distinct_attachments'):
+                check_distinct_attachment_ids('files', names, uploads)
+
+    def test_invalid_upload_metadata_is_a_product_failure_without_sending_a_task(self):
+        for upload in ({'original_name': 'sales.csv'}, {'file_id': 'id', 'original_name': ''}):
+            with self.subTest(upload=upload), qa_fixture('success') as (base, state):
+                case = self.make_case()
+                case['fixtures'] = [{'path': 'sales.csv', 'sha256': 'test'}]
+                case['sessions'][0]['turns'] = [{'phase': 'read', 'prompt': 'read', 'attachments': ['sales.csv']}]
+                execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+                execution.collect_artifacts = lambda cid: []
+                with patch('journey.functional_case.fixture_path', return_value=base.work / 'sales.csv'), \
+                     patch.object(base.client, 'upload', return_value=upload):
+                    result = execution.run()
+                self.assertEqual(result['status'], 'failed')
+                self.assertEqual(result['harness_errors'], [])
+                self.assertEqual(result['validation']['checks'][0]['detail'], 'invalid_upload_metadata')
+                self.assertEqual(result['tasks'], [])
+                self.assertTrue(state['archived'])
+                self.assertEqual(json.loads((base.evidence.root / 'uploads.json').read_text()), [upload])
+                with tempfile.TemporaryDirectory() as directory:
+                    shutil.copytree(base.evidence.root, Path(directory) / case['id'])
+                    with patch('journey.report.load_case', return_value=case):
+                        report = finish_case(case['id'], directory)
+                self.assertEqual(report['test_status'], 'completed')
+                self.assertEqual(report['functional']['state'], 'fail')
+
+    def test_multiple_file_cases_only_change_filenames(self):
+        normal, same_name = load_case('J2-24'), load_case('J2-25')
+        first, second = normal['sessions'][0]['turns'][0], same_name['sessions'][0]['turns'][0]
+        self.assertEqual(first['prompt'], second['prompt'])
+        self.assertEqual(first['assertions'], second['assertions'])
+        normal_paths = [fixture_path(normal, fixture) for fixture in normal['fixtures']]
+        same_paths = [fixture_path(same_name, fixture) for fixture in same_name['fixtures']]
+        self.assertNotEqual(normal_paths[0].name, normal_paths[1].name)
+        self.assertEqual(same_paths[0].name, same_paths[1].name)
+        self.assertEqual([path.read_bytes() for path in normal_paths], [path.read_bytes() for path in same_paths])
+        amounts = []
+        for path in normal_paths:
+            with path.open(newline='', encoding='utf-8') as source:
+                amounts.extend(int(row['quantity']) * int(row['unit_price']) for row in csv.DictReader(source))
+        self.assertEqual(str(sum(amounts)), first['assertions'][0]['value'])
 
     def test_qa_deployment_change_blocks_an_otherwise_passing_case(self):
         with qa_fixture('version_change') as (base, state):

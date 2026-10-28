@@ -63,6 +63,17 @@ def check_reply(session_id, turn, reply, variables):
     return checks
 
 
+def check_distinct_attachment_ids(session_id, names, attachments):
+    if (not isinstance(names, list) or len(names) < 2 or len(names) != len(attachments) or
+            any(not isinstance(name, str) or not name for name in names) or len(set(names)) != len(names)):
+        raise Failure('invalid_distinct_attachments')
+    ids = [item.get('file_id') if isinstance(item, dict) else None for item in attachments]
+    valid = all(isinstance(file_id, str) and file_id for file_id in ids)
+    distinct = valid and len(set(ids)) == len(ids)
+    return {'session': session_id, 'rule': '不同附件具有独立的文件 ID', 'passed': distinct,
+            'detail': '' if distinct else 'attachment_ids_missing_or_duplicate'}
+
+
 def resource_changes(action):
     changes = action.get('resource_changes')
     if not isinstance(changes, dict) or not changes or not set(changes).issubset({'skills', 'tools'}):
@@ -153,10 +164,24 @@ class FunctionalExecution(Execution):
                             upload = self.client.upload(self.root, fixture_path(self.case, fixtures[name]))
                             self.uploads.append(upload)
                             self.evidence.write('uploads.json', self.uploads)
+                            if any(not isinstance(upload.get(key), str) or not upload[key]
+                                   for key in ('file_id', 'original_name')):
+                                checks.append({'session': session['id'], 'rule': '附件上传返回有效文件信息',
+                                               'passed': False, 'detail': 'invalid_upload_metadata'})
+                                self.report['validation'] = {'checks': checks}
+                                self.checkpoint()
+                                raise ProductCaseFailure('invalid_upload_metadata')
                             self.report.setdefault('retained_inputs', []).append({
                                 'fixture': name, 'file_id': upload['file_id'], 'reason': 'conversation_attachment'})
                             uploaded[name] = upload
                         attachments.append(uploaded[name])
+                    distinct_ids = turn.get('distinct_attachment_ids', False)
+                    if type(distinct_ids) is not bool:
+                        raise Failure('invalid_distinct_attachments')
+                    if distinct_ids:
+                        checks.append(check_distinct_attachment_ids(session['id'], turn.get('attachments', []), attachments))
+                        self.report['validation'] = {'checks': checks}
+                        self.checkpoint()
                     prompt = turn['prompt'].format_map(variables)
                     cancel = turn.get('cancel_after_admission') is True
                     live_resume = turn.get('live_resume', False)
