@@ -359,6 +359,11 @@ class FunctionalJourneyTests(unittest.TestCase):
         self.assertFalse(check_reply('file', turn, '总金额是141元。', {})[-1]['passed'])
         self.assertFalse(check_reply('file', turn, '41是旧值，正确结果是42。', {})[-1]['passed'])
 
+    def test_numeric_presence_accepts_citations_but_not_a_substring(self):
+        turn = {'phase': 'total', 'assertions': [{'type': 'number_present', 'value': '115', 'rule': 'total'}]}
+        self.assertTrue(check_reply('query', turn, '合计 115.00，来自 2 条记录。', {})[-1]['passed'])
+        self.assertFalse(check_reply('query', turn, '合计 1150，来自 2 条记录。', {})[-1]['passed'])
+
     def test_each_case_run_allocates_distinct_context_tokens(self):
         case = load_case('J2-03')
         first, second = case_variables(case), case_variables(case)

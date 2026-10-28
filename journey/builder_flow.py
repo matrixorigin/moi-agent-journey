@@ -137,14 +137,15 @@ class AgentBuilderFlow:
             raise
 
     def require_resource(self, kind, resource_id):
-        if kind not in {'skills', 'tools'}:
+        if kind not in {'skills', 'tools', 'knowledge_bases'}:
             raise Failure('invalid_builder_resource_kind')
         resolved = self.current.get('resolved_refs')
         refs = resolved.get(kind, []) if isinstance(resolved, dict) else []
         refs = refs if isinstance(refs, list) else []
+        resource_workspace = self.workspace if kind == 'knowledge_bases' else 'system'
         matches = [item for item in refs if isinstance(item, dict) and item.get('id') == resource_id and
-                   item.get('workspace_id') == 'system' and isinstance(item.get('name'), str) and item['name']]
-        label = 'Skill' if kind == 'skills' else '工具'
+                   item.get('workspace_id') == resource_workspace and isinstance(item.get('name'), str) and item['name']]
+        label = {'skills': 'Skill', 'tools': '工具', 'knowledge_bases': '知识库'}[kind]
         self.record('候选绑定指定' + label + ' ' + resource_id, len(matches) == 1,
                     'resource_reference_missing_or_ambiguous:' + resource_id)
         if len(matches) != 1:
@@ -269,16 +270,39 @@ class AgentBuilderFlow:
                      manifest.get('model') == output.get('display', {}).get('model'))
         for expected_resource in expected_resources:
             refs = manifest.get('moiResourceRefs')
-            resources = refs.get(expected_resource['kind'], []) if isinstance(refs, dict) else []
+            manifest_kind = 'knowledgeBases' if expected_resource['kind'] == 'knowledge_bases' else expected_resource['kind']
+            resources = refs.get(manifest_kind, []) if isinstance(refs, dict) else []
             resources = resources if isinstance(resources, list) else []
             config_ok = config_ok and any(item.get('name') == expected_resource['name'] and
-                                          item.get('workspace_id') == expected_resource['workspace_id']
+                                          (expected_resource['kind'] == 'knowledge_bases' or
+                                           item.get('workspace_id') == expected_resource['workspace_id'])
                                           for item in resources if isinstance(item, dict))
         self.record('发布版本保留指定配置', config_ok, 'published_configuration_mismatch')
         self.execution.evidence.write('builder-published/' + segment(version) + '.json', {'agent_id': agent_id, 'workspace_id': self.workspace,
             'version': version, 'name': name, 'manifest': manifest})
         self.created = {'agent_id': agent_id, 'workspace_id': self.workspace, 'version': version,
                         'verified': identity}
+        knowledge = [resource for resource in expected_resources if resource['kind'] == 'knowledge_bases']
+        if knowledge:
+            try:
+                bindings = self.execution.client.product('GET', self.execution.root + '/agents/' + segment(agent_id) +
+                                                          '/bindings?' + query)
+            except Failure as error:
+                if error.code != 'http_error' or error.http_status is None:
+                    raise
+                self.record('发布智能体已绑定指定知识库', False, 'binding_readback_http_status:' + str(error.http_status))
+                raise ProductCaseFailure('published_knowledge_binding_unavailable') from None
+            actual = bindings.get('knowledge_bases')
+            binding_ok = (bindings.get('agent_id') == agent_id and isinstance(actual, list) and
+                          all(any(isinstance(item, dict) and item.get('id') == resource['id'] and
+                                  item.get('workspace_id') == resource['workspace_id'] and
+                                  item.get('name') == resource['name'] and item.get('status') == 'active'
+                                  for item in actual) for resource in knowledge))
+            self.record('发布智能体已绑定指定知识库', binding_ok, 'published_knowledge_binding_mismatch')
+            self.execution.evidence.write('builder-published/' + segment(version) + '-knowledge-bindings.json',
+                                          {'agent_id': agent_id, 'knowledge_bases': actual})
+            if not binding_ok:
+                raise ProductCaseFailure('published_knowledge_binding_mismatch')
         if capture_current or expected_description is not None or changes is not None or expected_instruction is not None:
             try:
                 current = self.execution.client.product('GET', self.execution.root + '/agent-builder/agents/' +

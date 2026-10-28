@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "J2-40",
+  "workspace": "journey-2",
+  "title": "绑定知识库并检索引用材料",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {"path": "handbook.txt", "sha256": "81ca4fb5eee9861dcefb7782c16d8e2eaa3006573a03d5273c7e1ac6441f0e50"}
+  ],
+  "knowledge_fixture": {"kind": "document", "path": "handbook.txt", "marker": "J2-ORION-6B2F5C193D"},
+  "random_tokens": ["agent_name"],
+  "builder_names": ["agent_name"],
+  "sessions": [
+    {
+      "id": "builder",
+      "delivery_kind": "agent",
+      "expected_checks": 9,
+      "turns": [
+        {
+          "phase": "create",
+          "prompt": "请创建一个名为 {agent_name} 的智能体，专门回答知识库问题，请明确绑定知识库 {knowledge_name}（ID {knowledge_id}）。先展示候选，暂时不要确认创建。",
+          "action": {"type": "commit_builder_with_resource", "agent_name": "{agent_name}",
+                     "resource_kind": "knowledge_bases", "resource_id": "{knowledge_id}"}
+        }
+      ]
+    },
+    {
+      "id": "query",
+      "agent_from": "builder",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "ask",
+          "prompt": "请从绑定的知识库中查找 Project Orion 的 release code，回答准确代码并引用来源。",
+          "knowledge_evidence": true,
+          "assertions": [{"type": "contains", "value": "J2-ORION-6B2F5C193D", "rule": "回答包含知识库中的代码"}]
+        }
+      ]
+    }
+  ]
+}
