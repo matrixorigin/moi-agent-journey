@@ -13,6 +13,7 @@ from unittest.mock import patch
 from journey.catalog import load_case, main
 from journey.client import Failure
 from journey.evidence import Evidence
+from journey.report import finish_case
 from journey.run_case import Execution
 
 
@@ -88,6 +89,10 @@ with patch("journey.functional_case.load_case", return_value=case), \\
             self.assertEqual(report['stage'], 'discovery')
             self.assertEqual(report['harness_errors'][0]['reason'], 'case_timeout')
             self.assertEqual(report['tasks'], [])
+            result = finish_case('J2-02', Path(directory) / 'results')
+            self.assertEqual(result['test_status'], 'error')
+            self.assertEqual(result['functional']['state'], 'error')
+            self.assertIn('case_timeout', (Path(directory) / 'results/J2-02/case-summary.md').read_text())
 
 
 if __name__ == '__main__':
