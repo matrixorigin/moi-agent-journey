@@ -48,23 +48,31 @@ class Execution:
         self.report["requests"] = self.client.requests
         self.evidence.write("result.json", self.report)
 
-    def conversation(self, suffix):
+    def conversation(self, suffix, *, selector=None):
         cid = str(uuid.uuid4())
+        selector = dict(self.selector if selector is None else selector)
         # Persist the identity before the mutation, including a lost response.
-        entry = {"id": cid, "purpose": suffix, "cleanup": "pending"}
+        entry = {"id": cid, "purpose": suffix, "cleanup": "pending", "selector": selector}
         self.conversations.append(entry)
         self.checkpoint()
         result = self.client.product("POST", self.root + "/conversations", {
-            "id": cid, **self.selector, "title": f"journey-{self.case['id']}-{self.report['run_id']}-{suffix}",
+            "id": cid, **selector, "title": f"journey-{self.case['id']}-{self.report['run_id']}-{suffix}",
             "status": "active"})
         if result.get("id") != cid:
             raise Failure("conversation_identity_mismatch")
         return cid
 
+    def conversation_selector(self, cid):
+        matches = [conversation['selector'] for conversation in self.conversations
+                   if conversation.get('id') == cid and isinstance(conversation.get('selector'), dict)]
+        if len(matches) != 1:
+            raise Failure('conversation_selector_not_unique')
+        return matches[0]
+
     def capture(self, entry, *, final=False, selector=None):
         tid = entry["task_id"]
         path = self.root + "/agent-runtime-tasks/" + segment(tid)
-        query = urlencode(self.selector if selector is None else selector)
+        query = urlencode(self.conversation_selector(entry['conversation_id']) if selector is None else selector)
         runtime = self.client.product("GET", path + "?" + query)
         if runtime.get("id") != tid or runtime.get("context_id") != entry["conversation_id"]:
             raise Failure("runtime_identity_mismatch")
@@ -103,7 +111,8 @@ class Execution:
             entry["capture_complete"] = True
         self.checkpoint()
 
-    def send(self, cid, phase, prompt, attachments=()):
+    def send(self, cid, phase, prompt, attachments=(), *, cancel_after_admission=False):
+        selector = self.conversation_selector(cid)
         message_id = str(uuid.uuid4())
         parts = [{"kind": "text", "text": prompt}]
         for upload in attachments:
@@ -120,7 +129,7 @@ class Execution:
         self.checkpoint()
         started = time.monotonic()
         entry = None
-        with contextlib.closing(self.client.stream_rpc(self.selector, params)) as stream:
+        with contextlib.closing(self.client.stream_rpc(selector, params)) as stream:
             for envelope in stream:
                 frame = envelope["result"]
                 self.evidence.append("stream.jsonl", {"recorded_at": utc_now(), "phase": phase,
@@ -139,6 +148,23 @@ class Execution:
                     self.tasks.append(entry)
                     self.pending_conversation = None
                     self.capture(entry)
+                    if cancel_after_admission:
+                        if state in TERMINAL:
+                            entry['cancel_request'] = 'already_terminal'
+                        else:
+                            try:
+                                canceled = self.client.rpc(selector, 'tasks/cancel', {'id': entry['task_id']})
+                                entry['state'] = task_state(canceled, cid, entry['task_id'])
+                                entry['cancel_request'] = 'accepted'
+                                self.evidence.write('tasks/' + entry['task_id'] + '/cancel.json', canceled)
+                            except Failure as error:
+                                if error.code not in {'http_error', 'rpc_error'}:
+                                    raise
+                                entry['cancel_request'] = 'rejected'
+                                entry['cancel_error'] = {'code': error.code, 'http_status': error.http_status,
+                                                         'details': error.details}
+                        self.checkpoint()
+                        break
                 else:
                     if frame.get("taskId", frame.get("id")) != entry["task_id"] or frame.get("contextId", cid) != cid:
                         raise Failure("stream_task_identity_mismatch")
@@ -148,11 +174,23 @@ class Execution:
         if entry is None:
             raise Failure("stream_ended_without_task")
         # The stream is live evidence; the persisted product task remains the result authority.
-        task = self.client.rpc(self.selector, "tasks/get", {"id": entry["task_id"]})
+        task = self.client.rpc(selector, "tasks/get", {"id": entry["task_id"]})
         state = task_state(task, cid, entry["task_id"])
+        while cancel_after_admission and entry.get('cancel_request') == 'accepted' and state not in TERMINAL:
+            if time.monotonic() >= self.client.deadline:
+                raise Failure('deadline_exceeded')
+            entry['state'] = state
+            self.capture(entry)
+            time.sleep(min(1, max(0, self.client.deadline - time.monotonic())))
+            task = self.client.rpc(selector, 'tasks/get', {'id': entry['task_id']})
+            state = task_state(task, cid, entry['task_id'])
         entry["state"] = state
         self.evidence.write("tasks/" + entry["task_id"] + "/a2a.json", task)
         self.capture(entry, final=state not in {"submitted", "working"})
+        if cancel_after_admission:
+            entry['seconds'] = round(time.monotonic() - started, 3)
+            self.checkpoint()
+            return entry, task
         if state in {"submitted", "working"}:
             raise Failure("stream_closed_before_terminal")
         entry["seconds"] = round(time.monotonic() - started, 3)
@@ -180,7 +218,7 @@ class Execution:
     def collect_artifacts(self, cid, entry=None):
         artifacts = []
         for page in range(1, 1001):
-            query = {**self.selector, "conversation_id": cid, "page": page, "page_size": 100}
+            query = {**self.conversation_selector(cid), "conversation_id": cid, "page": page, "page_size": 100}
             result = self.client.product("GET", self.root + "/agent-artifacts?" + urlencode(query))
             artifacts.extend(result["items"])
             if len(artifacts) >= result["total"]:
@@ -273,8 +311,9 @@ class Execution:
             # Diagnose a lost send response by its fresh context; never resend a prompt.
             cid = self.pending_conversation
             try:
+                selector = self.conversation_selector(cid)
                 result = self.client.product("GET", self.root + "/agent-runtime-tasks?" + urlencode({
-                    **self.selector, "context_id": cid, "limit": 100, "offset": 0}))
+                    **selector, "context_id": cid, "limit": 100, "offset": 0}))
                 known = {t["task_id"] for t in self.tasks}
                 candidates = [t for t in result["items"] if t["id"] not in known and t["context_id"] == cid]
                 if len(candidates) != 1:
@@ -288,14 +327,15 @@ class Execution:
                 self.report["harness_errors"].append({"stage": "recover_send", "reason": str(error)})
         for task in self.tasks:
             try:
+                selector = self.conversation_selector(task['conversation_id'])
                 if task["state"] not in TERMINAL:
-                    stopped = self.client.rpc(self.selector, "tasks/cancel", {"id": task["task_id"]})
+                    stopped = self.client.rpc(selector, "tasks/cancel", {"id": task["task_id"]})
                     task["state"] = task_state(stopped, task["conversation_id"], task["task_id"])
                     cancel_deadline=min(self.client.deadline-30,time.monotonic()+40)
                     while task["state"] not in TERMINAL and time.monotonic()<cancel_deadline:
                         self.capture(task)
                         time.sleep(min(1,max(0,self.client.deadline-time.monotonic())))
-                        stopped = self.client.rpc(self.selector, "tasks/get", {"id": task["task_id"]})
+                        stopped = self.client.rpc(selector, "tasks/get", {"id": task["task_id"]})
                         task["state"] = task_state(stopped, task["conversation_id"], task["task_id"])
                     if task['state'] not in TERMINAL:
                         raise Failure('cancel_not_confirmed')
@@ -315,7 +355,7 @@ class Execution:
                 self.collect_artifacts(cid)
                 if self.pending_conversation == cid or any(t["conversation_id"] == cid and t["state"] not in TERMINAL for t in self.tasks):
                     raise Failure("active_task_not_archived")
-                result = self.client.product("PATCH", self.root + "/conversations/" + segment(cid) + "?" + urlencode(self.selector), {"status": "archived"})
+                result = self.client.product("PATCH", self.root + "/conversations/" + segment(cid) + "?" + urlencode(self.conversation_selector(cid)), {"status": "archived"})
                 if result.get("status") != "archived":
                     raise Failure("archive_not_confirmed")
                 conversation["cleanup"] = "archived"

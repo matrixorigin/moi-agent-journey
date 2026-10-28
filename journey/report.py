@@ -19,11 +19,11 @@ from .evidence import Evidence, configured_secrets, utc_now,TOKEN_BYTES
 from .outcomes import assess
 
 FINAL = {"passed", "failed", "timeout", "error"}
-AGENT_LABELS = {'completed': '请求正常结束', 'abnormal': '请求异常', 'timeout': '超时', 'unknown': '无法确认'}
+AGENT_LABELS = {'completed': '请求正常结束', 'canceled': '按请求取消', 'abnormal': '请求异常', 'timeout': '超时', 'unknown': '无法确认'}
 TASK_LABELS = {'completed': '正常结束并交付', 'abnormal': '非正常结束', 'timeout': '超时',
-               'not_delivered': '未正常交付', 'unknown': '无法确认'}
+               'canceled': '按请求取消', 'not_delivered': '未正常交付', 'unknown': '无法确认'}
 DELIVERY_LABELS = {'delivered': '已交付', 'partial': '部分交付', 'not_delivered': '未交付',
-                   'incomplete': '交付不完整', 'ambiguous': '交付对象不明确', 'unknown': '无法确认'}
+                   'canceled': '取消已确认', 'incomplete': '交付不完整', 'ambiguous': '交付对象不明确', 'unknown': '无法确认'}
 TEST_LABELS = {'completed': '正常完成', 'error': '执行、验收或取证出错'}
 FUNCTIONAL_LABELS = {'pass': '通过', 'fail': '不通过', 'blocked': '前置条件不足', 'error': '测试执行错误'}
 QUALITY_REASONS = {'validator_error': '验收器异常', 'not_evaluated': '尚未完成验收',
@@ -50,13 +50,19 @@ def case_summary(result):
         session.get('delivery_kind') == 'candidate' for session in delivery['sessions'])
     file_delivery = bool(delivery.get('sessions')) and all(
         session.get('delivery_kind') == 'file' for session in delivery['sessions'])
+    cancellation = bool(delivery.get('sessions')) and all(
+        session.get('delivery_kind') == 'cancellation' for session in delivery['sessions'])
     delivery_unit = ('智能体交付' if agent_delivery else '答复交付' if answer_delivery else
-                     '候选交付' if candidate_delivery else '文件交付' if file_delivery else '会话交付')
+                     '候选交付' if candidate_delivery else '文件交付' if file_delivery else '取消操作' if cancellation else '会话交付')
+    delivery_line = (f"- 取消操作：{'已确认' if delivery['state'] == 'canceled' else '未确认'}；"
+                     f"完成 {delivery['completed_sessions']}/{delivery['expected_sessions']}。") if cancellation else (
+                     f"- 交付：{DELIVERY_LABELS[delivery['state']]}；完成{delivery_unit} "
+                     f"{delivery['completed_sessions']}/{delivery['expected_sessions']}。")
     lines = [f"# {cell(result['case_id'])} {cell(result['title'])}", '',
              f"**测试框架：{test_status}**", '',
              f"- 任务结果：{TASK_LABELS[result['task']['state']]}。",
              f"- 智能体：{AGENT_LABELS[agent['state']]}；完成请求轮次 {agent['completed_turns']}/{agent['expected_turns']}。",
-             f"- 交付：{DELIVERY_LABELS[delivery['state']]}；完成{delivery_unit} {delivery['completed_sessions']}/{delivery['expected_sessions']}。",
+             delivery_line,
              f"- 工作区：{cell(result['workspace'])}。",
              f"- 端到端任务耗时：{cell(result.get('task_seconds'))} 秒；准备、QA、验收和清理合计：{cell(result.get('total_seconds'))} 秒。",
              f"- 语义评审耗时：{cell(result.get('semantic_judge_seconds'))} 秒；不计入端到端任务耗时。"]
@@ -74,7 +80,7 @@ def case_summary(result):
     if quality['state'] in {'checked', 'partial'}:
         qualifier = ('部分检查（任务未全部结束）' if quality.get('reason') == 'unfinished_turns' else
                      '部分检查（验收器异常）') if quality['state'] == 'partial' else '检查'
-        lines.append(f"- 交付质量：{qualifier}通过 {quality['passed_checks']}/{quality['total_checks']}，"
+        lines.append(f"- {'功能验收' if cancellation else '交付质量'}：{qualifier}通过 {quality['passed_checks']}/{quality['total_checks']}，"
                      f"未通过 {len(quality['failed_checks'])} 项；判据仍需结合证据复核。")
     else:
         lines.append(f"- 交付质量：无法评价（{cell(QUALITY_REASONS.get(quality.get('reason'), quality.get('reason')))}）。")
@@ -209,6 +215,11 @@ def finish_case(case_id, directory):
         if any(by_id.get(session['id'], {}).get('artifact_delivered') is not True
                for session in case['sessions'] if session.get('delivery_kind') == 'file'):
             result['harness_errors'].append({'stage': 'validation', 'reason': 'delivered_artifact_missing'})
+    if raw_status == 'passed' and any(session.get('delivery_kind') == 'cancellation' for session in case.get('sessions', [])):
+        by_id = {session.get('id'): session for session in result.get('sessions', [])}
+        if any(by_id.get(session['id'], {}).get('cancellation_confirmed') is not True
+               for session in case['sessions'] if session.get('delivery_kind') == 'cancellation'):
+            result['harness_errors'].append({'stage': 'validation', 'reason': 'cancellation_not_confirmed'})
     if raw_status == 'passed' and is_functional_case(case):
         if any(not isinstance(result.get(key), dict) or
                any(not isinstance(result[key].get(field), str) or not result[key][field]
@@ -217,10 +228,10 @@ def finish_case(case_id, directory):
             result['harness_errors'].append({'stage': 'qa_version', 'reason': 'qa_backend_version_missing'})
         elif result['qa_version_start'] != result['qa_version_end']:
             result['harness_errors'].append({'stage': 'qa_version', 'reason': 'qa_version_verdict_inconsistent'})
-        expected = Counter(session['id'] + ':' + turn['phase']
+        expected = Counter((session['id'] + ':' + turn['phase'], turn.get('expected_state', 'completed'))
                            for session in case['sessions'] for turn in session['turns'])
-        completed = Counter(task.get('phase') for task in result.get('tasks', [])
-                            if task.get('state') == 'completed' and task.get('capture_complete'))
+        completed = Counter((task.get('phase'), task.get('state')) for task in result.get('tasks', [])
+                            if task.get('capture_complete'))
         if expected != completed:
             result['harness_errors'].append({'stage': 'evidence', 'reason': 'functional_turns_not_fully_captured'})
     if (raw_status == 'failed' and any(item.get('reason') == 'acceptance_checks_failed'
@@ -355,14 +366,19 @@ def _group_summary(rows):
                   'cases_incomplete': sum(row['tools']['state'] == 'available' and not row['tools']['complete']
                                           for row in rows), 'by_tool': per_tool})
     functional = Counter(row['functional']['state'] for row in rows if row.get('functional'))
+    completion_rows = [row for row in rows if not row.get('expected_cancellation')]
+    completed_count = sum(row['task']['state'] == 'completed' for row in completion_rows)
     return {'total': len(rows),
             'test_errors': sum(row['test_status'] == 'error' for row in rows),
             'functional': {key: functional[key] for key in ('pass', 'fail', 'blocked', 'error')},
-            'task': {key: tasks[key] for key in ('completed', 'abnormal', 'timeout', 'not_delivered', 'unknown')},
-            'confirmed_completion_rate': tasks['completed'] / len(rows) if rows else None,
-            'agent': {key: agents[key] for key in ('completed', 'abnormal', 'timeout', 'unknown')},
+            'functional_pass_rate': functional['pass'] / sum(functional.values()) if functional else None,
+            'task': {key: tasks[key] for key in ('completed', 'canceled', 'abnormal', 'timeout', 'not_delivered', 'unknown')},
+            'completion_eligible': len(completion_rows),
+            'completion_confirmed': completed_count,
+            'confirmed_completion_rate': completed_count / len(completion_rows) if completion_rows else None,
+            'agent': {key: agents[key] for key in ('completed', 'canceled', 'abnormal', 'timeout', 'unknown')},
             'delivery': {key: deliveries[key] for key in
-                         ('delivered', 'partial', 'not_delivered', 'incomplete', 'ambiguous', 'unknown')},
+                         ('delivered', 'canceled', 'partial', 'not_delivered', 'incomplete', 'ambiguous', 'unknown')},
             'quality': {key: quality[key] for key in ('all_checks_passed', 'issues', 'partial', 'unavailable')},
             'task_seconds': _time_stats(row.get('task_seconds') for row in rows),
             'completed_task_seconds': _time_stats(row.get('task_seconds') for row in rows
@@ -499,6 +515,9 @@ def aggregate(source, destination, workspace='all'):
                     result = _missing_case(case, suite['workspace'], 'case_result_incomplete')
             else:
                 result = _missing_case(case, suite['workspace'], 'case_artifact_missing')
+            sessions = case.get('sessions', [])
+            result['expected_cancellation'] = bool(sessions) and all(
+                session.get('delivery_kind') == 'cancellation' for session in sessions)
             rows.append(result)
             current.append(result)
         suite_result = {'workspace': suite['workspace'], 'concurrency': suite['concurrency'],
@@ -558,13 +577,14 @@ def aggregate(source, destination, workspace='all'):
     rate = f"{tools['success_rate']:.1%}" if tools['success_rate'] is not None else '不可计算'
     completion = f"{report['confirmed_completion_rate']:.1%}" if report['confirmed_completion_rate'] is not None else '不可计算'
     lines = ['# MOI agent journeys', '', f'运行范围：{cell(workspace)}。', '',
-        f"**{report['total']} 个任务：确认正常结束并交付 {task['completed']}/{report['total']}（{completion}），"
+        f"**{report['total']} 个任务：非取消类正常结束并交付 {report['completion_confirmed']}/{report['completion_eligible']}（{completion}），"
+        f"按请求取消 {task['canceled']}，"
         f"非正常 {task['abnormal']}，"
         f"超时 {task['timeout']}，未正常交付 {task['not_delivered']}，无法确认 {task['unknown']}。**", '',
-        '正常结束并交付的比例以本批全部配置的 case 为分母，包含结果无法确认的 case；交付质量另看逐项检查。', '',
-        f"智能体请求：正常结束 {agent['completed']}，异常 {agent['abnormal']}，超时 {agent['timeout']}，"
+        '正常结束并交付的比例以本批非取消类 case 为分母，包含结果无法确认的 case；按请求取消单独统计，交付质量另看逐项检查。', '',
+        f"智能体请求：正常结束 {agent['completed']}，按请求取消 {agent['canceled']}，异常 {agent['abnormal']}，超时 {agent['timeout']}，"
         f"无法确认 {agent['unknown']}；请求正常结束不代表已交付或质量合格。", '',
-        f"交付：完整 {delivery['delivered']}；部分 {delivery['partial']}；未交付 {delivery['not_delivered']}；"
+        f"交付：完整 {delivery['delivered']}；取消确认 {delivery['canceled']}；部分 {delivery['partial']}；未交付 {delivery['not_delivered']}；"
         f"交付不完整 {delivery['incomplete']}；对象不明确 {delivery['ambiguous']}；无法确认 {delivery['unknown']}。", '',
         f"质量：检查全部符合 {quality['all_checks_passed']}；存在未通过项 {quality['issues']}；"
         f"仅完成部分检查 {quality['partial']}；无法评价 {quality['unavailable']}。检查结果需结合原始证据复核。", '',
@@ -599,8 +619,9 @@ def aggregate(source, destination, workspace='all'):
     for suite in suites:
         functional = suite['functional']
         if sum(functional.values()):
+            functional_rate = f"{suite['functional_pass_rate']:.1%}" if suite['functional_pass_rate'] is not None else '不可计算'
             lines += ['', f"{cell(suite['workspace'])} 功能验收：通过 {functional['pass']}，不通过 {functional['fail']}，"
-                      f"阻塞 {functional['blocked']}，执行错误 {functional['error']}。"]
+                      f"阻塞 {functional['blocked']}，执行错误 {functional['error']}；通过率 {functional_rate}（包含阻塞和执行错误）。"]
             if suite.get('coverage_status') == 'incomplete':
                 lines.append('该组功能覆盖尚未完成，当前结果不能作为发布门禁。')
             versions = suite.get('qa_versions')

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "id": "J2-13",
+  "workspace": "journey-2",
+  "title": "工作区 SQL 查询并读取结果",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "sql",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "query",
+          "prompt": "请在当前工作区执行这条 SQL：SELECT 17 * 19 AS product。请只回答 product 的数字结果。",
+          "sql_evidence": {"query": "SELECT 17 * 19 AS product", "column": "product", "value": "323"},
+          "assertions": [
+            {
+              "type": "single_number",
+              "value": "323",
+              "rule": "SQL 查询结果正确"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

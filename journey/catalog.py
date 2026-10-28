@@ -28,7 +28,7 @@ def is_functional_case(case):
 
 
 def load_case(case_id):
-    if not re.fullmatch(r"J[1-5]-[0-9]{2}", case_id):
+    if not re.fullmatch(r"J[1-5]-[0-9]{2,}", case_id):
         raise ValueError("invalid_case_id")
     case = json.loads((ROOT / "cases" / ("journey-" + case_id[1]) / case_id / "case.json").read_text())
     config = json.loads((ROOT / "suites.json").read_text())

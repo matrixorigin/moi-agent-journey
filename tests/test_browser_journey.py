@@ -132,6 +132,31 @@ class BrowserJourneyTests(unittest.TestCase):
         self.assertEqual([method for method, _, _ in client.queries], ['GET'])
         self.assertIn('cleanup_agent_identity_mismatch', execution.report['harness_errors'][0]['reason'])
 
+    def test_browser_cleanup_requires_matching_successful_commit(self):
+        class CleanupClient(FakeClient):
+            def product(self, method, path, body=None):
+                self.queries.append((method, path, body))
+                if method == 'GET':
+                    return {'id': 'id', 'name': 'our-test', 'workspace_id': 'ws', 'status': 'active'}
+                if method == 'PATCH':
+                    return {'status': 'archived'}
+                raise AssertionError('unexpected mutation')
+        for proof in ('missing', 'mismatch', 'verified'):
+            with self.subTest(proof=proof):
+                client = CleanupClient()
+                execution = Execution(client, self.case, Evidence(self.root / proof), self.root, self.case['model'])
+                execution.root, execution.workspace_id, execution.agent_name = '/workspaces/ws', 'ws', 'our-test'
+                execution.candidate = {'agent_id': 'id', 'candidate_version': 'v1', 'source_digest': 'digest'}
+                execution.commit = {'agent_id': 'id', 'candidate_version': 'v1', 'source_digest': 'digest'}
+                execution.published = ({'agent_id': 'id', 'candidate_version': 'v1', 'source_digest': 'digest',
+                                        'workspace_id': 'ws', 'version': '1.0.0'} if proof != 'missing' else None)
+                if proof == 'mismatch':
+                    execution.published['source_digest'] = 'other'
+                cleanup(execution)
+                patches = [method for method, _, _ in client.queries if method == 'PATCH']
+                self.assertEqual(patches, ['PATCH'] if proof == 'verified' else [])
+                self.assertEqual(execution.report['agent_cleanup'], 'archived' if proof == 'verified' else 'incomplete')
+
     def test_capture_failure_in_one_turn_does_not_drop_the_other_turn(self):
         class CaptureClient(FakeClient):
             def product(self, method, path, body=None):

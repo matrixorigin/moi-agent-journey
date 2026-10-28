@@ -61,6 +61,19 @@ class SearchChecksTests(unittest.TestCase):
         self.assertEqual(url_identity('https://EXAMPLE.com/path/。'), ('https', 'example.com', None, '/path', ''))
         self.assertEqual(url_identity('https://example.com:443/path'), ('https', 'example.com', None, '/path', ''))
 
+    def test_created_agent_must_use_the_tool_that_was_bound(self):
+        events = [
+            {'task_id': 'task', 'kind': 'tool_call', 'payload': {'tool_id': 'moi_bocha_web_search', 'call_id': 's'}},
+            {'task_id': 'task', 'kind': 'tool_result', 'payload': {'tool_id': 'moi_bocha_web_search', 'call_id': 's',
+             'success': True, 'output': {'output': {'ok': True, 'results': [{'url': 'https://example.com/'}]}}}},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'events.jsonl'
+            path.write_text(''.join(json.dumps(event) + '\n' for event in events))
+            checks, blocked = evaluate_search(path, 'task', 'https://example.com/', 'search', expected_tool='moi_web_search')
+        self.assertFalse(any(check['passed'] for check in checks))
+        self.assertIsNone(blocked)
+
 
 if __name__ == '__main__':
     unittest.main()

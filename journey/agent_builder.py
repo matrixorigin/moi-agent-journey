@@ -18,23 +18,30 @@ def candidate_outputs(task):
     return outputs
 
 
-def candidate_from_task(task, name, workspace):
-    """Never infer a candidate ID from the requested name."""
+def candidate_output_from_task(task, name, workspace, *, mode='create'):
+    """Read only a candidate tied to this task, name and workspace."""
     matches = []
     for output in candidate_outputs(task):
         display = output.get('display', {})
         if (isinstance(display, dict) and display.get('agent_name') == name and
-                output.get('workspace_id') == workspace and output.get('mode') == 'create' and
+                output.get('workspace_id') == workspace and output.get('mode') == mode and
                 output.get('agent_id') == display.get('agent_id') and
                 all(isinstance(output.get(key), str) and output[key]
                     for key in ('agent_id', 'candidate_version', 'source_digest', 'status'))):
-            matches.append({key: output[key] for key in ('agent_id', 'candidate_version', 'source_digest', 'status')})
+            matches.append(output)
     if len(matches) > 1:
         raise Failure('candidate_identity_not_unique')
     return matches[0] if matches else None
 
 
-def cleanup_candidate(execution):
+def candidate_from_task(task, name, workspace, *, mode='create'):
+    """Never infer a candidate ID from the requested name."""
+    output = candidate_output_from_task(task, name, workspace, mode=mode)
+    return ({key: output[key] for key in ('agent_id', 'candidate_version', 'source_digest', 'status')}
+            if output else None)
+
+
+def cleanup_candidate(execution, *, allow_archive=False):
     """Clean only the candidate or Agent whose identity belongs to this case."""
     client = execution.client
     candidate = getattr(execution, 'candidate', None)
@@ -54,6 +61,8 @@ def cleanup_candidate(execution):
             if (agent.get('id'), agent.get('name'), agent.get('workspace_id')) != (
                     agent_id, execution.agent_name, execution.workspace_id):
                 raise Failure('cleanup_agent_identity_mismatch')
+            if not allow_archive:
+                raise Failure('cleanup_agent_ownership_unverified')
             if agent.get('status') != 'archived':
                 archived = client.product('PATCH', execution.root + '/agents/' + segment(agent_id) + '?' + query,
                                           {'status': 'archived'})
@@ -135,6 +144,8 @@ def check_candidate_cancel(execution, task, task_id, name, checks, session_id):
     try:
         absent = no_agent()
         record('确认前无已发布智能体', absent, '' if absent else 'agent_already_published')
+        if not absent:
+            return False
         if candidate['status'] != 'valid':
             return True
         wrong_digest = 'sha256:' + ('0' * 64 if candidate['source_digest'] != 'sha256:' + '0' * 64 else '1' * 64)

@@ -24,7 +24,7 @@ from journey.a2a import final_reply
 from journey.diagnostics import analyze_events
 from journey.evidence import Evidence, safe_extract
 from journey.outcomes import assess
-from journey.report import aggregate, case_summary, finish_case, main as report_main, scan
+from journey.report import _group_summary, aggregate, case_summary, finish_case, main as report_main, scan
 from journey.run_case import Execution
 from journey.publish import prepare_publication
 from journey.validate import lineage_checks, validate
@@ -714,6 +714,24 @@ class JourneyTests(unittest.TestCase):
                 report=aggregate(source,destination)
                 self.assertEqual(report['task']['completed'],1)
                 self.assertEqual(report['cases'][1]['harness_errors'][0]['reason'],'case_result_unreadable')
+
+    def test_cancellation_is_separate_from_completion_and_functional_pass_rate(self):
+        normal = self.finished_result('J1-01')
+        normal['functional'] = {'state': 'pass'}
+        canceled = self.finished_result('J2-14')
+        canceled.update({'expected_cancellation': True, 'functional': {'state': 'pass'}})
+        canceled['task']['state'] = 'canceled'
+        canceled['agent']['state'] = 'canceled'
+        canceled['delivery']['state'] = 'canceled'
+        summary = _group_summary([normal, canceled])
+        self.assertEqual((summary['completion_confirmed'], summary['completion_eligible']), (1, 1))
+        self.assertEqual(summary['confirmed_completion_rate'], 1)
+        self.assertEqual(summary['functional_pass_rate'], 1)
+        self.assertEqual((summary['task']['canceled'], summary['delivery']['canceled']), (1, 1))
+        canceled['functional'] = {'state': 'blocked'}
+        canceled['task']['state'] = 'unknown'
+        self.assertEqual(_group_summary([normal, canceled])['functional_pass_rate'], 0.5)
+        self.assertEqual(_group_summary([normal, canceled])['confirmed_completion_rate'], 1)
 
     def test_workspace_selection_limits_report_and_bundle_to_selected_suite(self):
         with tempfile.TemporaryDirectory() as directory:

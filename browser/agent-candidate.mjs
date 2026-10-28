@@ -168,19 +168,23 @@ export async function createAgentCandidate(page, options, observe = () => {}) {
     }
     const path = commitPath(response.request());
     let body;
+    let digest;
     try {
       body = await response.json();
+      digest = response.request().postDataJSON()?.source_digest;
     } catch {
       record('确认请求成功', false, 'candidate_commit_response_invalid');
       throw new ScenarioFailure('commit', 'candidate_commit_response_invalid', { http_status: response.status() });
     }
     if (!response.ok() || !['OK', 0].includes(body?.code) || !body?.data ||
-        body.data.agent_id !== path.agent_id || body.data.workspace_id !== workspaceId ||
+        body.data.agent_id !== path.agent_id || body.data.workspace_id !== workspaceId || body.data.name !== agentName ||
+        typeof digest !== 'string' || !digest || body.data.source_digest !== digest ||
         typeof body.data.load_version !== 'string' || !body.data.load_version) {
       record('确认请求成功', false, 'candidate_commit_failed');
       throw new ScenarioFailure('commit', 'candidate_commit_failed', { http_status: response.status() });
     }
-    createdAgent = { agent_id: path.agent_id, workspace_id: workspaceId, version: body.data.load_version };
+    createdAgent = { agent_id: path.agent_id, candidate_version: path.candidate_version,
+      source_digest: digest, workspace_id: workspaceId, version: body.data.load_version };
     observe({ kind: 'agent_created', ...createdAgent });
     record('确认请求成功', true);
 

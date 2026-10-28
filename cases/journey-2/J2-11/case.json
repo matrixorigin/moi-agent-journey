@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "J2-11",
+  "workspace": "journey-2",
+  "title": "独立会话的上下文隔离",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "private_code"
+  ],
+  "sessions": [
+    {
+      "id": "first_chat",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "remember",
+          "prompt": "请记住本会话的项目口令：{private_code}。只回复已记住。"
+        },
+        {
+          "phase": "recall",
+          "prompt": "本会话的项目口令是什么？请只回复口令。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{private_code}",
+              "rule": "第一会话记住专属口令"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "second_chat",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "fresh",
+          "prompt": "在当前这段新对话中，我之前告诉你的项目口令是什么？如果本次对话没有告诉过你，请只回答 NO_CODE。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "NO_CODE",
+              "rule": "新会话不能声称已有口令"
+            },
+            {
+              "type": "not_contains",
+              "value": "{private_code}",
+              "rule": "不泄露其他会话口令"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

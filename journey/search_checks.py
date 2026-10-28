@@ -24,7 +24,10 @@ def url_identity(value):
         return None
 
 
-def evaluate_search(path, task_id, reply, session_id):
+def evaluate_search(path, task_id, reply, session_id, *, expected_tool=None):
+    if expected_tool is not None and expected_tool not in SEARCH_TOOLS:
+        raise ValueError('invalid_expected_search_tool')
+    search_tools = {expected_tool} if expected_tool else SEARCH_TOOLS
     calls, results, opened, open_results = set(), [], {}, []
     for line in path.read_text(encoding='utf-8').splitlines():
         event = json.loads(line)
@@ -32,12 +35,12 @@ def evaluate_search(path, task_id, reply, session_id):
         if event.get('task_id') != task_id or not isinstance(payload, dict):
             continue
         tool = payload.get('tool_id') or payload.get('tool')
-        if tool not in SEARCH_TOOLS and tool != 'moi_web_open':
+        if tool not in search_tools and tool != 'moi_web_open':
             continue
         call_id = payload.get('call_id')
         if not isinstance(call_id, str) or not call_id:
             continue
-        if tool in SEARCH_TOOLS:
+        if tool in search_tools:
             if event.get('kind') == 'tool_call':
                 calls.add(call_id)
             elif event.get('kind') == 'tool_result':

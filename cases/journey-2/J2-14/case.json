@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "id": "J2-14",
+  "workspace": "journey-2",
+  "title": "运行中取消智能体任务",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "cancel",
+      "delivery_kind": "cancellation",
+      "expected_checks": 2,
+      "turns": [
+        {
+          "phase": "run",
+          "prompt": "请写一份详细的 3000 字项目计划，涵盖目标、阶段和风险。",
+          "cancel_after_admission": true,
+          "expected_state": "canceled"
+        }
+      ]
+    }
+  ]
+}
