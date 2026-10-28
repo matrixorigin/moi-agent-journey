@@ -2,6 +2,7 @@ import contextlib
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -62,6 +63,31 @@ class CaseTimeoutTests(unittest.TestCase):
             execution.record_failure(Failure('case_timeout'))
             self.assertEqual(execution.report['status'], 'timeout')
             self.assertEqual(execution.report['failures'][0]['reason'], 'case_timeout')
+
+    def test_real_deadline_interrupts_discovery_and_writes_a_report(self):
+        script = '''
+import os, sys, time
+from unittest.mock import patch
+from journey.functional_case import main
+case = {"id": "J2-02", "title": "image", "workspace": "journey-2",
+        "timeout_seconds": 1, "model": "test", "sessions": []}
+os.environ.update(MOI_BASE_URL="https://example.invalid", MOI_PAT="synthetic-pat")
+sys.argv = ["functional_case", "J2-02"]
+with patch("journey.functional_case.load_case", return_value=case), \\
+     patch("journey.functional_case.discover", side_effect=lambda *_: time.sleep(10)):
+    raise SystemExit(main())
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            env = os.environ.copy()
+            env['PYTHONPATH'] = str(Path(__file__).resolve().parent.parent)
+            result = subprocess.run([sys.executable, '-c', script], cwd=directory, env=env,
+                                    capture_output=True, text=True, timeout=8)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            report = json.loads((Path(directory) / 'results/J2-02/result.json').read_text())
+            self.assertEqual(report['status'], 'error')
+            self.assertEqual(report['stage'], 'discovery')
+            self.assertEqual(report['harness_errors'][0]['reason'], 'case_timeout')
+            self.assertEqual(report['tasks'], [])
 
 
 if __name__ == '__main__':
