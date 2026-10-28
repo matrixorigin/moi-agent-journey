@@ -1,10 +1,11 @@
 import json
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 
-from journey.artifact_checks import check_text_artifact
+from journey.artifact_checks import check_text_artifact, xlsx_first_cell
 from journey.catalog import load_case
 from journey.client import Failure
 from journey.outcomes import assess
@@ -66,6 +67,32 @@ class ArtifactChecksTests(unittest.TestCase):
             self.run_check([], filename='../result.txt')
         with self.assertRaisesRegex(Failure, 'unsafe_artifact_path'):
             self.run_check([self.item(path='../outside')])
+
+    def workbook(self, cell, shared=None, target='worksheets/sheet1.xml'):
+        path = self.root / 'test.xlsx'
+        with zipfile.ZipFile(path, 'w') as bundle:
+            bundle.writestr('xl/workbook.xml',
+                '<workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+                '<sheets><sheet name="First" r:id="rId1"/></sheets></workbook>')
+            bundle.writestr('xl/_rels/workbook.xml.rels',
+                f'<Relationships><Relationship Id="rId1" Target="{target}"/></Relationships>')
+            bundle.writestr('xl/worksheets/sheet1.xml', f'<worksheet><sheetData><row>{cell}</row></sheetData></worksheet>')
+            if shared is not None:
+                bundle.writestr('xl/sharedStrings.xml', shared)
+        return path
+
+    def test_real_workbook_encodings_resolve_first_sheet_a1(self):
+        inline = self.workbook('<c r="A1" t="inlineStr"><is><t>unique-content</t></is></c>')
+        self.assertEqual(xlsx_first_cell(inline), 'unique-content')
+        shared = self.workbook('<c r="A1" t="s"><v>0</v></c>',
+                               '<sst><si><r><t>unique-</t></r><r><t>content</t></r></si></sst>')
+        self.assertEqual(xlsx_first_cell(shared), 'unique-content')
+
+    def test_missing_or_escaping_worksheet_is_not_accepted(self):
+        with self.assertRaises(ValueError):
+            xlsx_first_cell(self.workbook('<c r="B1"><v>1</v></c>'))
+        with self.assertRaises(ValueError):
+            xlsx_first_cell(self.workbook('<c r="A1"><v>1</v></c>', target='../../other.xml'))
 
 
 if __name__ == '__main__':

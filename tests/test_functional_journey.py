@@ -1,4 +1,5 @@
 import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -138,6 +139,28 @@ class FunctionalJourneyTests(unittest.TestCase):
         first, second = case_variables(case), case_variables(case)
         self.assertNotEqual(first['old_code'], first['new_code'])
         self.assertNotEqual(first, second)
+
+    def test_case_catalog_accepts_three_digit_ids_without_accepting_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            case_dir = root / 'cases' / 'journey-2' / 'J2-100'
+            case_dir.mkdir(parents=True)
+            (case_dir / 'case.json').write_text(json.dumps({'id': 'J2-100', 'workspace': 'journey-2'}))
+            (root / 'suites.json').write_text(json.dumps({'case_timeout_seconds': 60, 'model': 'test'}))
+            with patch('journey.catalog.ROOT', root):
+                self.assertEqual(load_case('J2-100')['id'], 'J2-100')
+                with self.assertRaisesRegex(ValueError, 'invalid_case_id'):
+                    load_case('J2-100/../../other')
+
+    def test_resource_change_spec_rejects_ambiguous_operations(self):
+        from journey.client import Failure
+        from journey.functional_case import resource_changes
+        valid = {'resource_changes': {'skills': {'remove': ['skill.xlsx']}, 'tools': {'add': ['tool.search']}}}
+        self.assertEqual(resource_changes(valid), valid['resource_changes'])
+        for invalid in ({}, {'skills': {'add': ['same'], 'remove': ['same']}},
+                        {'knowledge_bases': {'add': ['kb']}}, {'skills': {'remove': []}}):
+            with self.subTest(invalid=invalid), self.assertRaises(Failure):
+                resource_changes({'resource_changes': invalid})
 
     def test_committed_fixture_is_checksum_verified_and_cannot_escape_case_directory(self):
         with tempfile.TemporaryDirectory() as tmp:

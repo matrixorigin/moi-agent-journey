@@ -6,26 +6,26 @@ from .catalog import case_executor
 
 def assess(case, result, raw_status):
     sessions = case.get('sessions', [])
-    expected_phases = [session['id'] + ':' + turn['phase']
+    expected_phases = [(session['id'] + ':' + turn['phase'], turn.get('expected_state', 'completed'))
                        for session in sessions for turn in session['turns']]
     tasks = [task for task in result.get('tasks', [])
              if not str(task.get('phase', '')).startswith('judge:')]
-    completed = [task.get('phase') for task in tasks if task.get('state') == 'completed']
+    completed = [(task.get('phase'), task.get('state')) for task in tasks]
     matched = sum((Counter(expected_phases) & Counter(completed)).values())
     reasons = [item.get('reason', '') for item in result.get('failures', [])]
     agent_failure = (any(reason in {'agent_failed', 'agent_canceled', 'agent_rejected',
                                     'agent_input-required', 'agent_auth-required'} for reason in reasons) or
                      any(task.get('state') in {'failed', 'rejected'} for task in tasks))
     if expected_phases and matched == len(expected_phases):
-        agent_state = 'completed'
+        agent_state = 'canceled' if all(state == 'canceled' for _, state in expected_phases) else 'completed'
     elif raw_status == 'timeout' and tasks:
         agent_state = 'timeout'
     elif agent_failure:
         agent_state = 'abnormal'
     elif result.get('harness_errors') or not tasks:
         agent_state = 'unknown'
-    elif case_executor(case) == 'browser' and all(task.get('state') == 'completed' for task in tasks):
-        # A UI failure can prevent later turns from being sent; it is not an agent failure.
+    elif case_executor(case) in {'browser', 'api'} and all(task.get('state') == 'completed' for task in tasks):
+        # A functional prerequisite can prevent later turns without an agent failure.
         agent_state = 'unknown'
     else:
         agent_state = 'abnormal'
@@ -56,12 +56,19 @@ def assess(case, result, raw_status):
             delivered = isinstance(actual, dict) and actual.get('artifact_delivered') is True
             delivery_sessions.append({'session': session['id'], 'delivery_kind': 'file', 'delivered': delivered,
                                       'expected_files': [], 'missing_files': []})
+        elif session.get('delivery_kind') == 'cancellation':
+            delivered = isinstance(actual, dict) and actual.get('cancellation_confirmed') is True
+            delivery_sessions.append({'session': session['id'], 'delivery_kind': 'cancellation', 'delivered': delivered,
+                                      'expected_files': [], 'missing_files': []})
         else:
             delivery_sessions.append({'session': session['id'], 'delivered': actual is not None,
                                       'expected_files': expected,
                                       'missing_files': [name for name in expected if name not in files]})
     complete = sum(item['delivered'] and not item['missing_files'] for item in delivery_sessions)
-    if delivery_sessions and complete == len(delivery_sessions):
+    if delivery_sessions and complete == len(delivery_sessions) and all(
+            item.get('delivery_kind') == 'cancellation' for item in delivery_sessions):
+        delivery_state = 'canceled'
+    elif delivery_sessions and complete == len(delivery_sessions):
         delivery_state = 'delivered'
     elif complete:
         delivery_state = 'partial'
@@ -81,6 +88,8 @@ def assess(case, result, raw_status):
 
     if agent_state in {'abnormal', 'timeout', 'unknown'}:
         task_state = agent_state
+    elif agent_state == 'canceled' and delivery_state == 'canceled':
+        task_state = 'canceled'
     elif delivery_state == 'delivered':
         task_state = 'completed'
     elif delivery_state in {'not_delivered', 'partial', 'incomplete'}:
@@ -94,7 +103,7 @@ def assess(case, result, raw_status):
                           for item in result.get('harness_errors', []))
     expected_answer_checks = sum(session.get('expected_checks', sum(1 + len(turn.get('assertions', []))
                                       for turn in session['turns'])) for session in sessions
-                                 if session.get('delivery_kind') in {'answer', 'candidate', 'file'})
+                                 if session.get('delivery_kind') in {'agent', 'answer', 'candidate', 'file', 'cancellation'})
     incomplete_answer_checks = bool(expected_answer_checks) and len(checks) < expected_answer_checks
     if checks:
         failed = [item for item in checks if not item.get('passed')]

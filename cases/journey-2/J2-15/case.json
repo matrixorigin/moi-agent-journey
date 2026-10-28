@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "id": "J2-15",
+  "workspace": "journey-2",
+  "title": "修改已发布智能体并保留未变配置",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "agent_name",
+    "description"
+  ],
+  "builder_names": [
+    "agent_name"
+  ],
+  "sessions": [
+    {
+      "id": "builder",
+      "delivery_kind": "agent",
+      "expected_checks": 21,
+      "turns": [
+        {
+          "phase": "create",
+          "prompt": "请创建一个名为 {agent_name} 的智能体，专门生成 Excel 表格，请明确绑定 xlsx 技能（moi.agent.momo.skill.xlsx）。先展示候选，暂时不要确认创建。",
+          "action": {
+            "type": "commit_builder_with_resource",
+            "agent_name": "{agent_name}",
+            "resource_kind": "skills",
+            "resource_id": "moi.agent.momo.skill.xlsx",
+            "capture_current": true
+          }
+        },
+        {
+          "phase": "revise",
+          "prompt": "请把刚刚创建的智能体的描述修改为 {description}，名称、模型和其他配置保持不变。先展示修改后的候选，暂时不要确认。",
+          "action": {
+            "type": "revise_published_and_commit",
+            "agent_name": "{agent_name}",
+            "description": "{description}"
+          }
+        }
+      ]
+    }
+  ]
+}

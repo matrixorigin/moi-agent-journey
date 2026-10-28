@@ -18,20 +18,27 @@ def candidate_outputs(task):
     return outputs
 
 
-def candidate_from_task(task, name, workspace):
-    """Never infer a candidate ID from the requested name."""
+def candidate_output_from_task(task, name, workspace, *, mode='create'):
+    """Read only a candidate tied to this task, name and workspace."""
     matches = []
     for output in candidate_outputs(task):
         display = output.get('display', {})
         if (isinstance(display, dict) and display.get('agent_name') == name and
-                output.get('workspace_id') == workspace and output.get('mode') == 'create' and
+                output.get('workspace_id') == workspace and output.get('mode') == mode and
                 output.get('agent_id') == display.get('agent_id') and
                 all(isinstance(output.get(key), str) and output[key]
                     for key in ('agent_id', 'candidate_version', 'source_digest', 'status'))):
-            matches.append({key: output[key] for key in ('agent_id', 'candidate_version', 'source_digest', 'status')})
+            matches.append(output)
     if len(matches) > 1:
         raise Failure('candidate_identity_not_unique')
     return matches[0] if matches else None
+
+
+def candidate_from_task(task, name, workspace, *, mode='create'):
+    """Never infer a candidate ID from the requested name."""
+    output = candidate_output_from_task(task, name, workspace, mode=mode)
+    return ({key: output[key] for key in ('agent_id', 'candidate_version', 'source_digest', 'status')}
+            if output else None)
 
 
 def cleanup_candidate(execution):
