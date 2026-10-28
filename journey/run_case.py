@@ -152,7 +152,11 @@ class Execution:
                              "event_cursor": 0, "event_count": 0, "event_kinds": {}, "capture_complete": False}
                     self.tasks.append(entry)
                     self.pending_conversation = None
-                    self.capture(entry)
+                    # Live-resume must disconnect promptly; draining a growing event
+                    # log here can take longer than the task itself. Its events are
+                    # captured after resubscription (or during failure cleanup).
+                    if not live_resume:
+                        self.capture(entry)
                     if cancel_after_admission:
                         if state in TERMINAL:
                             entry['cancel_request'] = 'already_terminal'

@@ -183,8 +183,10 @@ class LiveResumeTests(unittest.TestCase):
         execution = Execution(client, case, self.evidence, self.root, 'model')
         execution.root, execution.selector = '/workspaces/ws', {'agent_id': 'momo'}
         execution.conversations.append({'id': 'conversation', 'selector': execution.selector})
+        captures = []
         def capture(entry, *, final=False):
-            for seq in ([2, 3] if final else [1]):
+            captures.append((final, [call[0] for call in client.calls]))
+            for seq in ([1, 2, 3] if final else [1]):
                 self.evidence.append('events.jsonl', {'task_id': 'task', 'seq': seq, 'kind': 'lifecycle',
                                                       'a2a_state': 'completed' if seq == 3 else 'working'})
             entry.update({'trace_id': 'trace', 'capture_complete': final})
@@ -195,6 +197,32 @@ class LiveResumeTests(unittest.TestCase):
         checks = []
         self.assertIsNone(check_live_resume(execution, entry, checks, 'live'))
         self.assertTrue(all(check['passed'] for check in checks))
+        self.assertEqual([call[0] for call in client.calls], ['message/stream', 'tasks/resubscribe'])
+        self.assertEqual(captures, [(True, ['message/stream', 'tasks/resubscribe'])])
+
+    def test_rejected_resubscription_still_captures_and_archives_task(self):
+        client = FakeClient(error=Failure('http_error', 409))
+        client.product = lambda method, path, body=None: {'status': 'archived'}
+        case = {'id': 'J2-23', 'title': 'resume', 'workspace': 'journey-2', 'timeout_seconds': 300}
+        execution = Execution(client, case, self.evidence, self.root, 'model')
+        execution.root, execution.selector = '/workspaces/ws', {'agent_id': 'momo'}
+        execution.conversations.append({'id': 'conversation', 'selector': execution.selector, 'cleanup': 'pending'})
+        execution.collect_artifacts = lambda cid: []
+
+        def capture(entry, *, final=False):
+            self.evidence.append('events.jsonl', {'task_id': 'task', 'seq': 1, 'kind': 'lifecycle'})
+            entry.update({'trace_id': 'trace', 'event_count': 1, 'capture_complete': final})
+
+        execution.capture = capture
+        with self.assertRaises(Failure) as raised:
+            execution.send('conversation', 'live:reply', 'prompt', live_resume=True)
+        execution.record_failure(raised.exception)
+        execution.finalize()
+        self.assertEqual(execution.report['status'], 'failed')
+        self.assertEqual(execution.report['harness_errors'], [])
+        self.assertTrue(execution.report['capture_complete'])
+        self.assertEqual(execution.tasks[0]['trace_id'], 'trace')
+        self.assertEqual(execution.conversations[0]['cleanup'], 'archived')
         self.assertEqual([call[0] for call in client.calls], ['message/stream', 'tasks/resubscribe'])
 
 
