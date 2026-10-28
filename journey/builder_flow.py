@@ -4,7 +4,7 @@ import time
 from urllib.parse import urlencode
 
 from .agent_builder import candidate_from_task, candidate_output_from_task, candidate_outputs, cleanup_candidate
-from .client import Failure, segment
+from .client import Failure, error_record, segment
 
 
 class ProductCaseFailure(Exception):
@@ -346,8 +346,9 @@ class AgentBuilderFlow:
                             execution.report['harness_errors'].append({'stage': 'cleanup_agent',
                                 'reason': 'candidate_identity_unverified'})
                 except Exception as error:
-                    execution.report['harness_errors'].append({'stage': 'cleanup_agent',
-                        'reason': 'candidate_readback:' + type(error).__name__})
+                    failure = error_record('cleanup_agent', error)
+                    failure['reason'] = 'candidate_readback:' + failure['reason']
+                    execution.report['harness_errors'].append(failure)
             for agent_id, (candidate, _) in self.revisions.items():
                 if candidate['status'] != 'valid':
                     continue
@@ -359,8 +360,9 @@ class AgentBuilderFlow:
                             canceled.get('status') != 'superseded'):
                         raise Failure('revision_cancel_not_confirmed')
                 except Exception as error:
-                    execution.report['harness_errors'].append({'stage': 'cleanup_agent',
-                        'reason': 'revision_cancel:' + type(error).__name__})
+                    failure = error_record('cleanup_agent', error)
+                    failure['reason'] = 'revision_cancel:' + failure['reason']
+                    execution.report['harness_errors'].append(failure)
             for agent_id, (candidate, name) in self.seen.items():
                 path = execution.root + '/agents/' + segment(agent_id) + '?' + urlencode({'agent_workspace_id': self.workspace})
                 try:
@@ -379,6 +381,6 @@ class AgentBuilderFlow:
                 execution.agent_name, execution.workspace_id = name, self.workspace
                 cleanup_candidate(execution, allow_archive=agent_id in self.owned_published)
         except Exception as error:
-            execution.report['harness_errors'].append({'stage': 'cleanup_agent', 'reason': type(error).__name__})
+            execution.report['harness_errors'].append(error_record('cleanup_agent', error))
         finally:
             client.deadline = previous_deadline

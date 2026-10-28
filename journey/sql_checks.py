@@ -4,6 +4,19 @@ import re
 import shlex
 
 
+def is_output_limit_tail(parts):
+    """Accept a stderr merge and an optional, numeric head limit only."""
+    if parts and parts[0] == '2>&1':
+        parts = parts[1:]
+    if not parts:
+        return True
+    if parts[:2] != ['|', 'head']:
+        return False
+    args = parts[2:]
+    return (len(args) == 1 and bool(re.fullmatch(r'-[1-9]\d*', args[0]))) or (
+        len(args) == 2 and args[0] == '-n' and bool(re.fullmatch(r'[1-9]\d*', args[1])))
+
+
 def cli_query(command):
     """Recognize a direct CLI invocation; do not infer SQL from arbitrary shell text."""
     try:
@@ -19,7 +32,7 @@ def cli_query(command):
     query, query_file, index = None, False, 0
     while index < len(parts):
         item = parts[index]
-        if parts[index:] in (['2>&1'], ['|', 'head', '-80'], ['2>&1', '|', 'head', '-80']):
+        if parts[index] in {'2>&1', '|'} and is_output_limit_tail(parts[index:]):
             break
         if item in {'--db', '--limit'}:
             if index + 1 >= len(parts):

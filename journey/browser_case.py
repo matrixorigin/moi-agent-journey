@@ -12,7 +12,7 @@ from urllib.parse import urlencode
 
 from .catalog import ROOT, load_case
 from .agent_builder import candidate_from_task, cleanup_candidate
-from .client import Client, Failure, segment
+from .client import Client, Failure, error_record, segment
 from .evidence import Evidence, configured_secrets, utc_now
 from .hello import TERMINAL, discover, task_state
 from .run_case import Execution
@@ -110,8 +110,7 @@ def fetch_tasks(execution, observations, deadline):
                 execution.candidate = candidate_from_task(task, execution.agent_name, execution.workspace_id)
             execution.checkpoint()
         except Exception as error:
-            execution.report['harness_errors'].append({'stage': 'capture_browser_task', 'conversation_id': cid,
-                'reason': type(error).__name__ + ':' + str(error)})
+            execution.report['harness_errors'].append(error_record('capture_browser_task', error, conversation_id=cid))
 
 
 def browser_created_agent_owned(execution):
@@ -145,14 +144,12 @@ def cleanup(execution):
                 if task['state'] not in TERMINAL:
                     raise Failure('cancel_not_confirmed')
             except Exception as error:
-                execution.report['harness_errors'].append({'stage': 'cancel_task', 'task_id': task['task_id'],
-                    'reason': type(error).__name__ + ':' + str(error)})
+                execution.report['harness_errors'].append(error_record('cancel_task', error, task_id=task['task_id']))
         if not task['capture_complete']:
             try:
                 execution.capture(task, final=task['state'] in TERMINAL, selector=selector)
             except Exception as error:
-                execution.report['harness_errors'].append({'stage': 'final_capture', 'task_id': task['task_id'],
-                    'reason': type(error).__name__ + ':' + str(error)})
+                execution.report['harness_errors'].append(error_record('final_capture', error, task_id=task['task_id']))
     for conversation in execution.conversations:
         try:
             if conversation['cleanup'] == 'task_not_observed' or any(
@@ -166,8 +163,8 @@ def cleanup(execution):
             conversation['cleanup'] = 'archived'
         except Exception as error:
             conversation['cleanup'] = 'incomplete'
-            execution.report['harness_errors'].append({'stage': 'cleanup_conversation',
-                'conversation_id': conversation['id'], 'reason': type(error).__name__ + ':' + str(error)})
+            execution.report['harness_errors'].append(error_record('cleanup_conversation', error,
+                                                                  conversation_id=conversation['id']))
     cleanup_candidate(execution, allow_archive=browser_created_agent_owned(execution))
 
 
@@ -273,8 +270,7 @@ def run(case, evidence, work):
         execution.report['stage'] = 'complete'
     except Exception as error:
         execution.report['status'] = 'error'
-        execution.report['harness_errors'].append({'stage': execution.report['stage'],
-            'reason': type(error).__name__ + ':' + str(error)})
+        execution.report['harness_errors'].append(error_record(execution.report['stage'], error))
     finally:
         stop_process(process)
         execution.report['task_seconds'] = round(time.monotonic() - started, 3)

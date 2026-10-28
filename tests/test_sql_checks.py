@@ -64,6 +64,19 @@ class SqlEvidenceTests(unittest.TestCase):
                 self.assertFalse(checks[0]['passed'])
                 self.assertEqual(blocked, 'sql_command_unverifiable')
 
+    def test_numeric_head_limits_preserve_query_evidence(self):
+        base = "moi-cli -o sql run --db moi --query 'SELECT 17 * 19 AS product' --limit 10"
+        for tail in (' 2>&1 | head -40', ' | head -3', ' 2>&1 | head -n 40'):
+            with self.subTest(tail=tail):
+                checks, blocked = self.evaluate([self.call(base + tail), self.result()])
+                self.assertTrue(all(item['passed'] for item in checks))
+                self.assertIsNone(blocked)
+        for tail in (' | head -40 ; echo 323', ' | head -n other', ' | cat', ' 2>&1 | head -0'):
+            with self.subTest(tail=tail):
+                checks, blocked = self.evaluate([self.call(base + tail), self.result()])
+                self.assertFalse(checks[0]['passed'])
+                self.assertEqual(blocked, 'sql_command_unverifiable')
+
     def test_direct_workspace_sql_tool_is_also_validated(self):
         call = {'kind': 'tool_call', 'task_id': 'task', 'payload': {'tool_id': 'query_workspace_sql',
                 'call_id': 'direct', 'arguments': {'workspace_id': 'ws', 'sql': 'SELECT 17 * 19 AS product'}}}

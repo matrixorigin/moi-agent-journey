@@ -3,6 +3,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import Mock
 
 from journey.builder_flow import AgentBuilderFlow, ProductCaseFailure, same_published_config
 from journey.client import Failure
@@ -87,6 +88,17 @@ class BuilderFlowTests(unittest.TestCase):
         execution.root, execution.selector = '/workspaces/ws', {'agent_id': 'momo', 'agent_workspace_id': 'system'}
         checks = []
         return AgentBuilderFlow(execution, 'builder', checks, ['original', 'revised']), client, checks
+
+    def test_cleanup_readback_keeps_network_failure_details(self):
+        flow, client, _ = self.flow()
+        flow.execution.conversations.append({'id': 'conversation', 'selector': flow.execution.selector})
+        flow.execution.tasks.append({'phase': 'builder:create', 'conversation_id': 'conversation', 'task_id': 'task'})
+        client.rpc = Mock(side_effect=Failure('transport_error', details={'category': 'dns', 'exception': 'gaierror'}))
+        flow.cleanup()
+        error = flow.execution.report['harness_errors'][0]
+        self.assertEqual(error['reason'], 'candidate_readback:transport_error')
+        self.assertEqual(error['details']['category'], 'dns')
+        client.rpc.assert_called_once()
 
     def test_revision_rejects_old_candidate_and_publishes_the_new_identity(self):
         flow, client, checks = self.flow()

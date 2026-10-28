@@ -68,6 +68,21 @@ class FunctionalJourneyTests(unittest.TestCase):
             self.assertEqual((task['state'], agent['state'], delivery['state']), ('completed', 'completed', 'delivered'))
             self.assertEqual(len(quality['failed_checks']), 1)
 
+    def test_required_skill_is_checked_against_the_actual_task(self):
+        with qa_fixture('success') as (base, _state):
+            case = self.make_case()
+            case['sessions'][0]['turns'] = [{'phase': 'read', 'prompt': 'read PDF',
+                                              'skill_evidence': 'moi.agent.momo.skill.pdf'}]
+            execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+            check = {'session': 'context', 'rule': '实际调用指定 Skill 并成功',
+                     'passed': False, 'detail': 'skill_call_not_successful'}
+            with patch('journey.functional_case.check_skill_call', return_value=(check, None)) as validate:
+                result = execution.run()
+            self.assertEqual(result['status'], 'failed')
+            self.assertEqual(result['validation']['checks'][-1], check)
+            self.assertEqual(validate.call_args.args[1:], (result['tasks'][0]['task_id'],
+                                                          'moi.agent.momo.skill.pdf', 'context'))
+
     def test_empty_answer_is_not_reported_as_a_delivery(self):
         with qa_fixture('success') as (base, _state):
             case = self.make_case()
@@ -146,7 +161,8 @@ class FunctionalJourneyTests(unittest.TestCase):
             case_dir = root / 'cases' / 'journey-2' / 'J2-100'
             case_dir.mkdir(parents=True)
             (case_dir / 'case.json').write_text(json.dumps({'id': 'J2-100', 'workspace': 'journey-2'}))
-            (root / 'suites.json').write_text(json.dumps({'case_timeout_seconds': 60, 'model': 'test'}))
+            (root / 'suites.json').write_text(json.dumps({'case_timeout_seconds': 60, 'model': 'test',
+                                                           'journeys': [{'workspace': 'journey-2'}]}))
             with patch('journey.catalog.ROOT', root):
                 self.assertEqual(load_case('J2-100')['id'], 'J2-100')
                 with self.assertRaisesRegex(ValueError, 'invalid_case_id'):

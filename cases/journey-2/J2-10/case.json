@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "J2-10",
+  "workspace": "journey-2",
+  "title": "同轮多图识别与后续追问",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {
+      "path": "first.png",
+      "sha256": "bd87b258192dd71aab6198aa3302fc52483ef242d29de9824fac66632601e6ff"
+    },
+    {
+      "path": "second.png",
+      "sha256": "f2c919d5550c6209c9f7d53706ec7bae599ba4622182cfbb35dd4435ea37a901"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "multi_image",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "second",
+          "prompt": "这次上传了两张图片。请识别第二张图片中的编号，只回答第二张的编号，不要包含第一张的编号。",
+          "attachments": [
+            "first.png",
+            "second.png"
+          ],
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "HX-529",
+              "rule": "识别第二张图片的编号"
+            },
+            {
+              "type": "not_contains",
+              "value": "TB-764",
+              "rule": "不混入第一张图片的编号"
+            }
+          ]
+        },
+        {
+          "phase": "first",
+          "prompt": "接下来只回答第一张图片中的编号，保持原样，不要包含第二张的编号。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "TB-764",
+              "rule": "后续追问识别第一张图片"
+            },
+            {
+              "type": "not_contains",
+              "value": "HX-529",
+              "rule": "不混入第二张图片的编号"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

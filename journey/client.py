@@ -3,6 +3,7 @@
 import json
 import http.client
 import socket
+import ssl
 import time
 import urllib.error
 import urllib.parse
@@ -16,6 +17,42 @@ class Failure(Exception):
         self.code = code
         self.http_status = http_status
         self.details = details
+
+
+def error_record(stage, error, **context):
+    """Keep structured failure information when reporting an execution error."""
+    if isinstance(error, Failure):
+        return {'stage': stage, 'reason': error.code, 'http_status': error.http_status,
+                'details': error.details, **context}
+    return {'stage': stage, 'reason': type(error).__name__ + ':' + str(error), **context}
+
+
+def transport_details(error):
+    """Record a bounded network failure category without remote error text."""
+    reason = error.reason if isinstance(error, urllib.error.URLError) else error
+    if isinstance(reason, socket.gaierror):
+        category = 'dns'
+    elif isinstance(reason, ssl.SSLCertVerificationError):
+        category = 'tls_certificate'
+    elif isinstance(reason, ssl.SSLError):
+        category = 'tls'
+    elif isinstance(reason, ConnectionRefusedError):
+        category = 'connection_refused'
+    elif isinstance(reason, http.client.RemoteDisconnected):
+        category = 'connection_closed'
+    elif isinstance(reason, (ConnectionResetError, BrokenPipeError)):
+        category = 'connection_reset'
+    elif isinstance(reason, TimeoutError):
+        category = 'timeout'
+    elif isinstance(reason, http.client.HTTPException):
+        category = 'http_protocol'
+    else:
+        category = 'network'
+    details = {'category': category, 'exception': type(reason).__name__}
+    error_number = getattr(reason, 'errno', None)
+    if type(error_number) is int:
+        details['errno'] = error_number
+    return details
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -90,12 +127,10 @@ class Client:
             observe(status, {"error_body": payload}, dict(error.headers))
             error.close()
             raise Failure("http_error", status) from None
-        except (TimeoutError, socket.timeout):
-            raise Failure("deadline_exceeded") from None
-        except urllib.error.URLError:
-            raise Failure("transport_error") from None
-        except OSError:
-            raise Failure("transport_error") from None
+        except (TimeoutError, socket.timeout) as error:
+            raise Failure("deadline_exceeded", details=transport_details(error)) from None
+        except (urllib.error.URLError, OSError, http.client.HTTPException) as error:
+            raise Failure("transport_error", details=transport_details(error)) from None
         except (ValueError, UnicodeError):
             raise Failure("invalid_response") from None
 
@@ -182,10 +217,10 @@ class Client:
                     "response":{"error_body":error.read(65536).decode('utf-8',errors='replace')}})
             error.close()
             raise Failure("http_error", status) from None
-        except (TimeoutError, socket.timeout):
-            raise Failure("deadline_exceeded") from None
-        except (urllib.error.URLError, OSError, http.client.HTTPException):
-            raise Failure("transport_error") from None
+        except (TimeoutError, socket.timeout) as error:
+            raise Failure("deadline_exceeded", details=transport_details(error)) from None
+        except (urllib.error.URLError, OSError, http.client.HTTPException) as error:
+            raise Failure("transport_error", details=transport_details(error)) from None
         except (ValueError, UnicodeError):
             raise Failure("invalid_stream_response") from None
 
