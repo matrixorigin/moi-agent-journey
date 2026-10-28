@@ -79,6 +79,7 @@ def resource_changes(action):
 class FunctionalExecution(Execution):
     def run(self):
         current_search = None
+        current_search_tool = None
         builders = {}
         try:
             self.root, self.selector = discover(self.client, self.case['workspace'])
@@ -128,6 +129,7 @@ class FunctionalExecution(Execution):
                         raise Failure('invalid_turn_phase')
                     phases.add(turn['phase'])
                     current_search = session['id'] if turn.get('search_evidence') is True else None
+                    current_search_tool = turn.get('search_tool') if current_search else None
                     attachments = []
                     for name in turn.get('attachments', []):
                         if name not in fixtures:
@@ -171,7 +173,8 @@ class FunctionalExecution(Execution):
                     checks.extend(check_reply(session['id'], turn, reply, variables))
                     if current_search:
                         search_checks, blocked = evaluate_search(self.evidence.root / 'events.jsonl',
-                                                                  final_entry['task_id'], reply, session['id'])
+                                                                  final_entry['task_id'], reply, session['id'],
+                                                                  expected_tool=current_search_tool)
                         checks.extend(search_checks)
                         if blocked:
                             self.report['blocked'] = True
@@ -260,7 +263,8 @@ class FunctionalExecution(Execution):
             self.record_failure(error)
             if current_search and self.tasks and (self.evidence.root / 'events.jsonl').exists():
                 try:
-                    _, blocked = evaluate_search(self.evidence.root / 'events.jsonl', self.tasks[-1]['task_id'], '', current_search)
+                    _, blocked = evaluate_search(self.evidence.root / 'events.jsonl', self.tasks[-1]['task_id'], '',
+                                                  current_search, expected_tool=current_search_tool)
                     if blocked:
                         self.report['blocked'] = True
                         self.report['failures'].append({'stage': self.report['stage'], 'reason': blocked})

@@ -42,7 +42,8 @@
         {
           "phase": "search",
           "prompt": "请联网搜索 IANA 对 example.com 域名用途的说明，回答用途并给出搜索结果的来源链接。",
-          "search_evidence": true
+          "search_evidence": true,
+          "search_tool": "moi_web_search"
         }
       ]
     }
