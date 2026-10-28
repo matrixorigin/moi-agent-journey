@@ -187,8 +187,9 @@ def check_candidate_cancel(execution, task, task_id, name, checks, session_id):
                 readback('cleanup')
             except Exception as error:
                 execution.report['agent_cleanup'] = 'incomplete'
-                execution.report['harness_errors'].append({'stage': 'cleanup_agent',
-                    'reason': 'candidate_readback:' + type(error).__name__})
+                failure = error_record('cleanup_agent', error)
+                failure['reason'] = 'candidate_readback:' + failure['reason']
+                execution.report['harness_errors'].append(failure)
             else:
                 cleanup_candidate(execution)
         finally:
