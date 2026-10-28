@@ -13,7 +13,7 @@
 | `moi_bocha_web_search`, `moi_brave_web_search`, `moi_tavily_web_search` | J2-05 可验证一次搜索及其引用，但不逐个要求这些工具；需分别验证开放配置与错误边界 |
 | `moi_codex_run`, `moi_product_source` | 待设计功能 case |
 | `moi_feishu_card_message`, `moi_feishu_post_message`, `moi_feishu_text_message` | 缺专用飞书连接与可核对的测试接收端 |
-| `moi_github_issues`, `moi_github_pull_requests`, `moi_github_rate_limit`, `moi_github_repository`, `moi_github_workflows` | 缺专用 GitHub 连接和测试仓库；只读、写入和错误路径均需明确 |
+| `moi_github_issues`, `moi_github_pull_requests`, `moi_github_rate_limit`, `moi_github_repository`, `moi_github_workflows` | QA 尚未检测到 GitHub 插件连接；需要连接已有测试资源，验证只读、写入和错误路径 |
 | `moi_grafana_datasources`, `moi_grafana_health`, `moi_grafana_loki_query`, `moi_grafana_prometheus_query` | 待确认发行范围及专用测试服务 |
 | `moi_kubernetes_deployments`, `moi_kubernetes_events`, `moi_kubernetes_namespaces`, `moi_kubernetes_nodes`, `moi_kubernetes_pods`, `moi_kubernetes_services`, `moi_kubernetes_version` | 待确认发行范围及专用测试集群 |
 | `moi_qq_mail`, `moi_wecom_mail` | 缺专用邮箱连接和测试收件箱 |
@@ -29,9 +29,9 @@
 | `momo.xlsx`, `momo.docx`, `momo.pptx` | 分别由 J2-09、J2-18、J2-19 检查绑定、实际调用及生成文件内容；版式和复杂文件由其他任务补充 |
 | `momo.pdf` | 待设计真实调用和文件内容验收 |
 | `momo.agent-builder` | J2-01、04、08、09、12、15、16 验证部分创建与修改流程；尚未逐项覆盖所有配置和失败分支 |
-| `momo.image-analysis` | J2-02 检查图片识别结果，未要求实际调用特定 Skill；多图与错误边界待补充 |
+| `momo.image-analysis` | J2-02、J2-10 检查单图和多图识别结果，未要求实际调用特定 Skill；不同格式及错误边界待补充 |
 | `momo.web-search` | J2-05、12 检查搜索工具和来源，未要求调用此 Skill 本身 |
-| `momo.moi-cli-files`, `momo.moi-cli-semantic-model`, `momo.moi-cli-sql` | 上传文件已有 J2-06；SQL J2-13 已实现但未自动启用，尚未逐项验收 Skill 调用和知识库查询 |
+| `momo.moi-cli-files`, `momo.moi-cli-semantic-model`, `momo.moi-cli-sql` | 上传文件已有 J2-06；J2-13 检查 SQL 执行，尚未逐项验收 Skill 调用和知识库查询 |
 | `momo.feedback` | 待设计反馈流程 |
 | `momo.feishu`, `momo.github`, `momo.qq-mail`, `momo.slack`, `momo.wecom`, `momo.wecom-group-robot`, `momo.wecom-mail` | 缺专用第三方连接和接收端 |
 | `grafana`, `kubernetes` | 待确认发行范围及专用测试资源 |
