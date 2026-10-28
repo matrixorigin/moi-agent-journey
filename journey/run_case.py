@@ -16,6 +16,7 @@ from .a2a import final_reply
 from .client import Client, Failure, error_record, segment
 from .evidence import Evidence, configured_secrets, safe_extract, sha256, utc_now
 from .hello import TERMINAL, discover, task_state
+from .live_resume import live_resume_stream
 
 
 def task_outcome_failure(error):
@@ -23,7 +24,7 @@ def task_outcome_failure(error):
     return (error.code in {'agent_failed', 'agent_canceled', 'agent_rejected',
                            'agent_input-required', 'agent_auth-required',
                            'final_output_bundle_not_unique', 'missing_agent_reply', 'missing_final_reply'} or
-            error.code.startswith(('missing_deliverables:', 'invalid_output_archive:')))
+            error.code.startswith(('missing_deliverables:', 'invalid_output_archive:', 'live_resume_')))
 
 
 class Execution:
@@ -111,7 +112,9 @@ class Execution:
             entry["capture_complete"] = True
         self.checkpoint()
 
-    def send(self, cid, phase, prompt, attachments=(), *, cancel_after_admission=False):
+    def send(self, cid, phase, prompt, attachments=(), *, cancel_after_admission=False, live_resume=False):
+        if cancel_after_admission and live_resume:
+            raise Failure('invalid_live_resume_case')
         selector = self.conversation_selector(cid)
         message_id = str(uuid.uuid4())
         parts = [{"kind": "text", "text": prompt}]
@@ -129,7 +132,9 @@ class Execution:
         self.checkpoint()
         started = time.monotonic()
         entry = None
-        with contextlib.closing(self.client.stream_rpc(selector, params)) as stream:
+        source = (live_resume_stream(self, selector, params, cid, phase) if live_resume else
+                  self.client.stream_rpc(selector, params))
+        with contextlib.closing(source) as stream:
             for envelope in stream:
                 frame = envelope["result"]
                 self.evidence.append("stream.jsonl", {"recorded_at": utc_now(), "phase": phase,
@@ -147,7 +152,11 @@ class Execution:
                              "event_cursor": 0, "event_count": 0, "event_kinds": {}, "capture_complete": False}
                     self.tasks.append(entry)
                     self.pending_conversation = None
-                    self.capture(entry)
+                    # Live-resume must disconnect promptly; draining a growing event
+                    # log here can take longer than the task itself. Its events are
+                    # captured after resubscription (or during failure cleanup).
+                    if not live_resume:
+                        self.capture(entry)
                     if cancel_after_admission:
                         if state in TERMINAL:
                             entry['cancel_request'] = 'already_terminal'
@@ -192,7 +201,7 @@ class Execution:
             self.checkpoint()
             return entry, task
         if state in {"submitted", "working"}:
-            raise Failure("stream_closed_before_terminal")
+            raise Failure('live_resume_incomplete' if live_resume else 'stream_closed_before_terminal')
         entry["seconds"] = round(time.monotonic() - started, 3)
         self.checkpoint()
         if state != "completed":

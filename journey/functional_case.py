@@ -17,6 +17,7 @@ from .catalog import fixture_path, load_case
 from .client import Client, Failure
 from .evidence import Evidence, configured_secrets
 from .hello import discover
+from .live_resume import check_live_resume
 from .run_case import Execution
 from .resume_checks import check_resubscribe
 from .sandbox_checks import evaluate_python_hash
@@ -158,10 +159,13 @@ class FunctionalExecution(Execution):
                         attachments.append(uploaded[name])
                     prompt = turn['prompt'].format_map(variables)
                     cancel = turn.get('cancel_after_admission') is True
+                    live_resume = turn.get('live_resume', False)
+                    if type(live_resume) is not bool or (cancel and live_resume):
+                        raise Failure('invalid_live_resume_case')
                     if cancel and (turn.get('expected_state') != 'canceled' or turn.get('assertions') or turn.get('action')):
                         raise Failure('invalid_cancellation_case')
                     final_entry, task = self.send(cid, session['id'] + ':' + turn['phase'], prompt, attachments,
-                                                  cancel_after_admission=cancel)
+                                                  cancel_after_admission=cancel, live_resume=live_resume)
                     if cancel:
                         accepted = final_entry.get('cancel_request') == 'accepted'
                         canceled = task['status']['state'] == 'canceled'
@@ -185,6 +189,11 @@ class FunctionalExecution(Execution):
                     self.evidence.write('sessions/' + session['id'] + '/replies/' + turn['phase'] + '.json',
                                         {'task_id': final_entry['task_id'], 'text': reply})
                     checks.extend(check_reply(session['id'], turn, reply, variables))
+                    if live_resume:
+                        blocked = check_live_resume(self, final_entry, checks, session['id'])
+                        if blocked:
+                            self.report['blocked'] = True
+                            self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
                     required_skill = turn.get('skill_evidence')
                     if required_skill is not None:
                         self.check_skill(required_skill, final_entry['task_id'], session['id'], turn['phase'], checks)

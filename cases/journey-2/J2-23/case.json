@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "id": "J2-23",
+  "workspace": "journey-2",
+  "title": "任务运行时断线并续读事件",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["marker"],
+  "sessions": [
+    {
+      "id": "live_resume",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "reply",
+          "prompt": "请用一段中文简述如何整理办公桌，并在末尾原样输出标记 {marker}。",
+          "live_resume": true,
+          "assertions": [
+            {"type": "contains", "value": "{marker}", "rule": "最终答复包含指定标记"}
+          ]
+        }
+      ]
+    }
+  ]
+}
