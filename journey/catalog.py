@@ -32,7 +32,11 @@ def load_case(case_id):
         raise ValueError("invalid_case_id")
     case = json.loads((ROOT / "cases" / ("journey-" + case_id[1]) / case_id / "case.json").read_text())
     config = json.loads((ROOT / "suites.json").read_text())
-    case["timeout_seconds"] = config["case_timeout_seconds"]
+    suite = next(s for s in config['journeys'] if s['workspace'] == case['workspace'])
+    timeout = case.get('timeout_seconds', suite.get('case_timeout_seconds', config['case_timeout_seconds']))
+    if type(timeout) is not int or timeout <= 0:
+        raise ValueError('invalid_case_timeout:' + case_id)
+    case['timeout_seconds'] = timeout
     case["model"] = config["model"]
     return case
 
@@ -101,9 +105,11 @@ def main():
             executor = case_executor(case)
             if executor not in {"office", "browser", "api"}:
                 raise ValueError("invalid_case_executor:" + case_id)
-            matrix["include"].append({"case": case_id, "executor": executor})
+            # Leave bounded time after the QA deadline for evidence capture and cleanup.
+            matrix["include"].append({"case": case_id, "executor": executor,
+                                      "step_timeout_minutes": (case['timeout_seconds'] + 59) // 60 + 4})
         if not matrix["include"]:
-            matrix["include"].append({"case": "EMPTY", "executor": "empty"})
+            matrix["include"].append({"case": "EMPTY", "executor": "empty", "step_timeout_minutes": 1})
         output = json.dumps(matrix)
         if os.environ.get("GITHUB_OUTPUT"):
             with open(os.environ["GITHUB_OUTPUT"], "a") as f:

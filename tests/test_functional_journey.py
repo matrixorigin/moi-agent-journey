@@ -161,7 +161,8 @@ class FunctionalJourneyTests(unittest.TestCase):
             case_dir = root / 'cases' / 'journey-2' / 'J2-100'
             case_dir.mkdir(parents=True)
             (case_dir / 'case.json').write_text(json.dumps({'id': 'J2-100', 'workspace': 'journey-2'}))
-            (root / 'suites.json').write_text(json.dumps({'case_timeout_seconds': 60, 'model': 'test'}))
+            (root / 'suites.json').write_text(json.dumps({'case_timeout_seconds': 60, 'model': 'test',
+                                                           'journeys': [{'workspace': 'journey-2'}]}))
             with patch('journey.catalog.ROOT', root):
                 self.assertEqual(load_case('J2-100')['id'], 'J2-100')
                 with self.assertRaisesRegex(ValueError, 'invalid_case_id'):

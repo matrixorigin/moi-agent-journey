@@ -65,7 +65,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run QA task and capture events
         if: matrix.executor == 'office'
-        timeout-minutes: 63
+        timeout-minutes: ${{ matrix.step_timeout_minutes }}
         env:
           CASE_ID: ${{ matrix.case }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
@@ -73,7 +73,7 @@ jobs:
         run: python3 -m journey.run_case "$CASE_ID"
       - name: Run functional conversation and capture QA events
         if: matrix.executor == 'api'
-        timeout-minutes: 63
+        timeout-minutes: ${{ matrix.step_timeout_minutes }}
         env:
           CASE_ID: ${{ matrix.case }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
@@ -81,7 +81,7 @@ jobs:
         run: python3 -m journey.functional_case "$CASE_ID"
       - name: Run browser case and capture QA events
         if: matrix.executor == 'browser'
-        timeout-minutes: 63
+        timeout-minutes: ${{ matrix.step_timeout_minutes }}
         env:
           CASE_ID: ${{ matrix.case }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
