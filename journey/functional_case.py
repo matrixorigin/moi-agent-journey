@@ -161,7 +161,24 @@ class FunctionalExecution(Execution):
                         if name not in fixtures:
                             raise Failure('unknown_fixture')
                         if name not in uploaded:
-                            upload = self.client.upload(self.root, fixture_path(self.case, fixtures[name]))
+                            try:
+                                upload = self.client.upload(self.root, fixture_path(self.case, fixtures[name]))
+                            except Failure as error:
+                                if (error.code not in {'http_error', 'upload_product_error'} or
+                                        (error.code == 'http_error' and
+                                         (type(error.http_status) is not int or error.http_status in {401, 403}))):
+                                    raise
+                                detail = (error.code + ':' + str(error.http_status) if error.http_status is not None
+                                          else error.code)
+                                checks.append({'session': session['id'], 'rule': '附件上传成功', 'passed': False,
+                                               'detail': detail})
+                                self.report['validation'] = {'checks': checks}
+                                self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'],
+                                    'reason': error.code, 'http_status': error.http_status, 'details': error.details})
+                                if error.http_status in {408, 429, 503}:
+                                    self.report['blocked'] = True
+                                self.checkpoint()
+                                raise ProductCaseFailure('attachment_upload_failed') from None
                             self.uploads.append(upload)
                             self.evidence.write('uploads.json', self.uploads)
                             if any(not isinstance(upload.get(key), str) or not upload[key]

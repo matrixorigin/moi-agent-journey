@@ -74,7 +74,8 @@ def qa_fixture(mode):
                 method=body['method']
                 if method in {'message/send','message/stream'}:
                     tid='task-'+str(len(state['tasks'])+1)
-                    terminal='failed' if mode=='search_quota' or (mode=='agent_failure' and tid=='task-2') else 'completed'
+                    terminal=('working' if mode == 'runtime_stream_error' else
+                              'failed' if mode=='search_quota' or (mode=='agent_failure' and tid=='task-2') else 'completed')
                     state['tasks'][tid]={"state":terminal,"read":0}
                     if mode in {'timeout','async_cancel'}:state['client'].deadline=time.monotonic()+0.05
                 else:tid=body['params']['id']
@@ -95,6 +96,12 @@ def qa_fixture(mode):
                         initial['result']={'kind':'status-update','taskId':tid,'contextId':state['conversation'],
                             'status':{'state':'working'},'final':False}
                     self.wfile.write(('id: 1\nevent: message\ndata: '+json.dumps(initial)+'\n\n').encode());self.wfile.flush()
+                    if mode == 'runtime_stream_error':
+                        failure = {'jsonrpc': '2.0', 'id': body['id'], 'error': {'code': -32603,
+                                   'message': 'The agent runtime encountered an internal error.',
+                                   'data': {'domain': 'moi-core.agent_runtime', 'reason': 'INTERNAL'}}}
+                        self.wfile.write(('event: message\ndata: ' + json.dumps(failure) + '\n\n').encode())
+                        self.wfile.flush(); return
                     if mode in {'timeout','async_cancel'}:
                         time.sleep(0.1)
                         self.wfile.write(b': heartbeat\n\n');self.wfile.flush();return

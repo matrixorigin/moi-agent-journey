@@ -14,7 +14,8 @@ def assess(case, result, raw_status):
     matched = sum((Counter(expected_phases) & Counter(completed)).values())
     reasons = [item.get('reason', '') for item in result.get('failures', [])]
     agent_failure = (any(reason in {'agent_failed', 'agent_canceled', 'agent_rejected',
-                                    'agent_input-required', 'agent_auth-required'} for reason in reasons) or
+                                    'agent_input-required', 'agent_auth-required',
+                                    'agent_runtime_stream_error'} for reason in reasons) or
                      any(task.get('state') in {'failed', 'rejected'} for task in tasks))
     if expected_phases and matched == len(expected_phases):
         agent_state = 'canceled' if all(state == 'canceled' for _, state in expected_phases) else 'completed'

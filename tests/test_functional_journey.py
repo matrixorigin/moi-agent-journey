@@ -5,13 +5,15 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from journey.catalog import fixture_path, load_case
-from journey.client import Failure
+from journey.client import Client, Failure
 from journey.functional_case import FunctionalExecution, case_variables, check_distinct_attachment_ids, check_reply
 from journey.outcomes import assess
 from journey.report import finish_case
+from journey.run_case import agent_stream
 from test_journeys import qa_fixture
 
 
@@ -55,6 +57,47 @@ class FunctionalJourneyTests(unittest.TestCase):
             self.assertTrue(state['archived'])
             _, _, _, quality = assess(execution.case, result, result['status'])
             self.assertEqual((quality['state'], quality['reason']), ('partial', 'unfinished_turns'))
+
+    def test_admitted_runtime_stream_error_is_a_function_failure_with_trace(self):
+        with qa_fixture('runtime_stream_error') as (base, state):
+            case = self.make_case()
+            execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+            result = execution.run()
+            self.assertEqual(result['status'], 'failed')
+            self.assertEqual(result['harness_errors'], [])
+            self.assertEqual(result['failures'][0]['reason'], 'agent_runtime_stream_error')
+            self.assertEqual(result['failures'][0]['details']['data']['reason'], 'INTERNAL')
+            self.assertEqual(result['tasks'][0]['trace_id'], 'trace-task-1')
+            self.assertTrue(result['capture_complete'])
+            self.assertTrue(state['archived'])
+            sends = [body for _, path, body in state['methods'] if path == '/agents/a2a' and
+                     body.get('method') == 'message/stream']
+            self.assertEqual(len(sends), 1)
+            with tempfile.TemporaryDirectory() as directory:
+                shutil.copytree(base.evidence.root, Path(directory) / case['id'])
+                with patch('journey.report.load_case', return_value=case):
+                    report = finish_case(case['id'], directory)
+            self.assertEqual(report['test_status'], 'completed')
+            self.assertEqual(report['functional']['state'], 'fail')
+            self.assertEqual(report['agent']['state'], 'abnormal')
+
+    def test_only_an_admitted_matching_runtime_stream_error_is_reclassified(self):
+        details = {'code': -32603, 'data': {'domain': 'moi-core.agent_runtime', 'reason': 'INTERNAL'}}
+        def broken(error):
+            raise error
+            yield
+        for pending, phase, payload, expected in [
+            (None, 'session:turn', details, 'agent_runtime_stream_error'),
+            ('conversation', 'session:turn', details, 'rpc_error'),
+            (None, 'session:previous', details, 'rpc_error'),
+            (None, 'session:turn', {'code': -32603, 'data': {'domain': 'other', 'reason': 'INTERNAL'}}, 'rpc_error'),
+        ]:
+            execution = SimpleNamespace(pending_conversation=pending,
+                tasks=[{'conversation_id': 'conversation', 'phase': phase}])
+            with self.subTest(expected=expected, pending=pending, phase=phase), self.assertRaises(Failure) as raised:
+                list(agent_stream(broken(Failure('rpc_error', details=payload)), execution,
+                                  'conversation', 'session:turn'))
+            self.assertEqual(raised.exception.code, expected)
 
     def test_wrong_final_answer_fails_function_without_losing_evidence(self):
         with qa_fixture('success') as (base, state):
@@ -186,6 +229,49 @@ class FunctionalJourneyTests(unittest.TestCase):
                         report = finish_case(case['id'], directory)
                 self.assertEqual(report['test_status'], 'completed')
                 self.assertEqual(report['functional']['state'], 'fail')
+
+    def test_upload_error_distinguishes_product_rejection_from_environment_and_transport(self):
+        failures = [
+            (Failure('http_error', 409), 'completed', 'fail'),
+            (Failure('http_error', 500), 'completed', 'fail'),
+            (Failure('http_error', 429), 'completed', 'blocked'),
+            (Failure('http_error', 503), 'completed', 'blocked'),
+            (Failure('upload_product_error', details={'product_code': 'BAD_FILE'}), 'completed', 'fail'),
+            (Failure('http_error', 401), 'error', 'error'),
+            (Failure('transport_error', details={'category': 'timeout'}), 'error', 'error'),
+        ]
+        for error, test_status, verdict in failures:
+            with self.subTest(error=error.code, http_status=error.http_status), qa_fixture('success') as (base, state):
+                case = self.make_case()
+                case['fixtures'] = [{'path': 'sales.csv', 'sha256': 'test'}]
+                case['sessions'][0]['turns'] = [{'phase': 'read', 'prompt': 'read', 'attachments': ['sales.csv']}]
+                execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+                execution.collect_artifacts = lambda cid: []
+                with patch('journey.functional_case.fixture_path', return_value=base.work / 'sales.csv'), \
+                     patch.object(base.client, 'upload', side_effect=error):
+                    result = execution.run()
+                self.assertEqual(result['tasks'], [])
+                self.assertTrue(state['archived'])
+                errors = result['harness_errors'] if verdict == 'error' else result['failures']
+                observed = next(item for item in errors if item['reason'] == error.code)
+                self.assertEqual(observed['http_status'], error.http_status)
+                self.assertEqual(observed['details'], error.details)
+                with tempfile.TemporaryDirectory() as directory:
+                    shutil.copytree(base.evidence.root, Path(directory) / case['id'])
+                    with patch('journey.report.load_case', return_value=case):
+                        report = finish_case(case['id'], directory)
+                self.assertEqual(report['test_status'], test_status)
+                self.assertEqual(report['functional']['state'], verdict)
+
+    def test_upload_preserves_business_error_code(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'sample.csv'
+            path.write_text('data')
+            client = Client('https://fixture.invalid', 'secret_key')
+            with patch.object(client, 'request', return_value={'code': 'BAD_FILE'}), self.assertRaises(Failure) as raised:
+                client.upload('/workspaces/ws', path)
+            self.assertEqual(raised.exception.code, 'upload_product_error')
+            self.assertEqual(raised.exception.details, {'product_code': 'BAD_FILE'})
 
     def test_multiple_file_cases_only_change_filenames(self):
         normal, same_name = load_case('J2-24'), load_case('J2-25')
