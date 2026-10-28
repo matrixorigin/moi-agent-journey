@@ -97,6 +97,8 @@ class AgentBuilderFlow:
         self.current = None
         self.seen = {}
         self.revisions = {}
+        self.absent_before = set()
+        self.owned_published = set()
         self.created = None
         self.baseline_config = None
 
@@ -121,6 +123,7 @@ class AgentBuilderFlow:
         self.record('确认前没有发布智能体', absent, 'agent_already_published')
         if not absent:
             raise ProductCaseFailure('agent_already_published')
+        self.absent_before.add(output['agent_id'])
 
     def no_agent(self, agent_id):
         path = self.execution.root + '/agents/' + segment(agent_id) + '?' + urlencode({'agent_workspace_id': self.workspace})
@@ -166,8 +169,12 @@ class AgentBuilderFlow:
         path = (self.execution.root + '/agent-builder/candidates/' + segment(old['agent_id']) +
                 '/candidate-versions/' + segment(old['candidate_version']) + '/commit')
         try:
-            self.execution.client.product('POST', path, {'source_digest': old['source_digest']})
+            commit = self.execution.client.product('POST', path, {'source_digest': old['source_digest']})
             status = 200
+            if (old['agent_id'] in self.absent_before and commit.get('agent_id') == old['agent_id'] and
+                    commit.get('workspace_id') == self.workspace and commit.get('source_digest') == old['source_digest'] and
+                    isinstance(commit.get('load_version'), str) and commit['load_version']):
+                self.owned_published.add(old['agent_id'])
         except Failure as error:
             if error.code != 'http_error' or error.http_status is None:
                 raise
@@ -215,6 +222,8 @@ class AgentBuilderFlow:
     def commit(self, expected_resource=None, expected_description=None, *, capture_current=False, changes=None):
         output = self.current
         agent_id, candidate_version = output['agent_id'], output['candidate_version']
+        if output['mode'] == 'create' and agent_id not in self.absent_before:
+            raise ProductCaseFailure('agent_absence_not_verified')
         path = (self.execution.root + '/agent-builder/candidates/' + segment(agent_id) +
                 '/candidate-versions/' + segment(candidate_version) + '/commit')
         try:
@@ -230,6 +239,8 @@ class AgentBuilderFlow:
         self.record('候选发布成功', ok, 'commit_identity_mismatch')
         if not ok:
             raise ProductCaseFailure('candidate_commit_identity_mismatch')
+        if output['mode'] == 'create':
+            self.owned_published.add(agent_id)
         if agent_id in self.revisions:
             self.revisions[agent_id][0]['status'] = 'loaded'
         query = urlencode({'agent_workspace_id': self.workspace})
@@ -326,7 +337,7 @@ class AgentBuilderFlow:
                             candidate = candidate_from_task(task, name, self.workspace, mode=mode)
                             if candidate and mode == 'create':
                                 self.seen[candidate['agent_id']] = (candidate, name)
-                            elif candidate and mode == 'revise' and candidate['agent_id'] in self.seen:
+                            elif candidate and mode == 'revise' and candidate['agent_id'] in self.owned_published:
                                 self.revisions[candidate['agent_id']] = (candidate, name)
                             else:
                                 execution.report['harness_errors'].append({'stage': 'cleanup_agent',
@@ -366,7 +377,7 @@ class AgentBuilderFlow:
                     name = agent['name']
                 execution.candidate, execution.commit = candidate, None
                 execution.agent_name, execution.workspace_id = name, self.workspace
-                cleanup_candidate(execution)
+                cleanup_candidate(execution, allow_archive=agent_id in self.owned_published)
         except Exception as error:
             execution.report['harness_errors'].append({'stage': 'cleanup_agent', 'reason': type(error).__name__})
         finally:

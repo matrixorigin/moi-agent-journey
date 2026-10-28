@@ -114,6 +114,19 @@ def fetch_tasks(execution, observations, deadline):
                 'reason': type(error).__name__ + ':' + str(error)})
 
 
+def browser_created_agent_owned(execution):
+    candidate, commit = getattr(execution, 'candidate', None), getattr(execution, 'commit', None)
+    published = getattr(execution, 'published', None)
+    if not all(isinstance(item, dict) for item in (candidate, commit, published)):
+        return False
+    return (all(isinstance(candidate.get(key), str) and candidate[key]
+                for key in ('agent_id', 'candidate_version', 'source_digest')) and
+            all(commit.get(key) == candidate[key] and published.get(key) == candidate[key]
+                for key in ('agent_id', 'candidate_version', 'source_digest')) and
+            published.get('workspace_id') == execution.workspace_id and
+            isinstance(published.get('version'), str) and bool(published['version']))
+
+
 def cleanup(execution):
     """Only archive objects identified by this run, after recording their events."""
     client = execution.client
@@ -155,7 +168,7 @@ def cleanup(execution):
             conversation['cleanup'] = 'incomplete'
             execution.report['harness_errors'].append({'stage': 'cleanup_conversation',
                 'conversation_id': conversation['id'], 'reason': type(error).__name__ + ':' + str(error)})
-    cleanup_candidate(execution)
+    cleanup_candidate(execution, allow_archive=browser_created_agent_owned(execution))
 
 
 def run(case, evidence, work):
@@ -165,6 +178,7 @@ def run(case, evidence, work):
     execution.agent_name = 'J2_' + uuid.uuid4().hex[:16]
     execution.candidate = None
     execution.commit = None
+    execution.published = None
     process = None
     deadline = time.monotonic() + case['timeout_seconds']
     started = time.monotonic()
@@ -215,9 +229,11 @@ def run(case, evidence, work):
             evidence.append('browser.jsonl', item)
         results = [item for item in observations if item.get('kind') == 'result']
         commits = [item for item in observations if item.get('kind') == 'candidate_commit']
-        if len(commits) > 1 or len(results) > 1:
+        published = [item for item in observations if item.get('kind') == 'agent_created']
+        if len(commits) > 1 or len(published) > 1 or len(results) > 1:
             raise Failure('ambiguous_browser_result')
         execution.commit = commits[0] if commits else None
+        execution.published = published[0] if published else None
         if results:
             result = results[0]
             execution.report['status'] = result['status']

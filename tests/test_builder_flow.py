@@ -111,6 +111,44 @@ class BuilderFlowTests(unittest.TestCase):
         flow.cleanup()
         self.assertEqual(client.agent['status'], 'archived')
 
+    def test_existing_agent_with_same_name_is_never_archived(self):
+        flow, client, checks = self.flow()
+        client.agent = {'id': 'test-agent', 'workspace_id': 'ws', 'name': 'revised', 'status': 'active'}
+        with self.assertRaises(ProductCaseFailure):
+            flow.remember(task('revised', 'v2'), 'revised')
+        self.assertFalse(next(item for item in checks if item['rule'] == '确认前没有发布智能体')['passed'])
+        flow.cleanup()
+        self.assertEqual(client.agent['status'], 'active')
+        self.assertFalse(any(method == 'PATCH' for method, _ in client.calls))
+        self.assertTrue(any('cleanup_agent_ownership_unverified' in item.get('reason', '')
+                            for item in flow.execution.report['harness_errors']))
+
+    def test_unexpected_agent_after_absence_without_our_commit_is_not_archived(self):
+        flow, client, _ = self.flow()
+        flow.remember(task('revised', 'v2'), 'revised')
+        client.agent = {'id': 'test-agent', 'workspace_id': 'ws', 'name': 'revised', 'status': 'active'}
+        flow.cleanup()
+        self.assertEqual(client.agent['status'], 'active')
+        self.assertFalse(any(method == 'PATCH' for method, _ in client.calls))
+
+    def test_mismatched_commit_response_does_not_authorize_archive(self):
+        flow, client, _ = self.flow()
+        flow.remember(task('revised', 'v2'), 'revised')
+        product = client.product
+        def wrong_identity(method, path, body=None):
+            result = product(method, path, body)
+            if method == 'POST' and path.endswith('/commit'):
+                result['source_digest'] = 'other-digest'
+            return result
+        client.product = wrong_identity
+        with self.assertRaises(ProductCaseFailure):
+            flow.commit()
+        flow.cleanup()
+        self.assertEqual(client.agent['status'], 'active')
+        self.assertFalse(any(method == 'PATCH' for method, _ in client.calls))
+        self.assertTrue(any('cleanup_agent_ownership_unverified' in item.get('reason', '')
+                            for item in flow.execution.report['harness_errors']))
+
     def test_reordering_unchanged_resources_is_not_a_configuration_change(self):
         flow, _, checks = self.flow()
         first = task('original', 'v1', skills=['XLSX', 'Other'])

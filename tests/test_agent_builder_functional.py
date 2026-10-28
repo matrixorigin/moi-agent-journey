@@ -73,6 +73,26 @@ class BuilderFunctionalTests(unittest.TestCase):
         self.assertEqual(execution.report['agent_cleanup'], 'candidate_canceled')
         self.assertEqual(execution.report['harness_errors'], [])
 
+    def test_preexisting_agent_is_neither_mutated_nor_archived(self):
+        class ExistingClient(BuilderClient):
+            def product(self, method, path, body=None):
+                if method == 'GET':
+                    return {'id': 'our-agent', 'name': 'our-agent', 'workspace_id': 'ws', 'status': 'active'}
+                raise AssertionError('preexisting object must not be mutated')
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        client = ExistingClient()
+        case = {'id': 'J2-04', 'title': 'candidate', 'workspace': 'journey-2', 'timeout_seconds': 30}
+        execution = Execution(client, case, Evidence(Path(tmp.name)), tmp.name, 'model')
+        execution.root, execution.selector = '/workspaces/ws', {'agent_id': 'momo', 'agent_workspace_id': 'system'}
+        checks = []
+        self.assertFalse(check_candidate_cancel(execution, client.task(), 'task', 'our-agent', checks, 'candidate'))
+        self.assertFalse(next(check for check in checks if check['rule'] == '确认前无已发布智能体')['passed'])
+        self.assertEqual(client.mutations, [])
+        self.assertEqual(execution.report['agent_cleanup'], 'incomplete')
+        self.assertTrue(any('cleanup_agent_ownership_unverified' in item.get('reason', '')
+                            for item in execution.report['harness_errors']))
+
 
 if __name__ == '__main__':
     unittest.main()

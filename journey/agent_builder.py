@@ -41,7 +41,7 @@ def candidate_from_task(task, name, workspace, *, mode='create'):
             if output else None)
 
 
-def cleanup_candidate(execution):
+def cleanup_candidate(execution, *, allow_archive=False):
     """Clean only the candidate or Agent whose identity belongs to this case."""
     client = execution.client
     candidate = getattr(execution, 'candidate', None)
@@ -61,6 +61,8 @@ def cleanup_candidate(execution):
             if (agent.get('id'), agent.get('name'), agent.get('workspace_id')) != (
                     agent_id, execution.agent_name, execution.workspace_id):
                 raise Failure('cleanup_agent_identity_mismatch')
+            if not allow_archive:
+                raise Failure('cleanup_agent_ownership_unverified')
             if agent.get('status') != 'archived':
                 archived = client.product('PATCH', execution.root + '/agents/' + segment(agent_id) + '?' + query,
                                           {'status': 'archived'})
@@ -142,6 +144,8 @@ def check_candidate_cancel(execution, task, task_id, name, checks, session_id):
     try:
         absent = no_agent()
         record('确认前无已发布智能体', absent, '' if absent else 'agent_already_published')
+        if not absent:
+            return False
         if candidate['status'] != 'valid':
             return True
         wrong_digest = 'sha256:' + ('0' * 64 if candidate['source_digest'] != 'sha256:' + '0' * 64 else '1' * 64)

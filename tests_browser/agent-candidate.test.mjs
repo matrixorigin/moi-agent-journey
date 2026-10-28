@@ -58,7 +58,9 @@ q('send-btn').onclick = async () => {
   confirm.textContent = '确认创建';
   confirm.onclick = async () => {
     if (mode === 'js-error') throw new Error('fixture browser exception');
-    const response = await fetch('/newmoi/workspaces/ws/agent-builder/candidates/ag-test/candidate-versions/v1/commit', { method: 'POST' });
+    const response = await fetch('/newmoi/workspaces/ws/agent-builder/candidates/ag-test/candidate-versions/v1/commit', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source_digest: 'sha256:test' }),
+    });
     if (!response.ok) return;
     if (mode === 'no-chat') return;
     const open = document.createElement('button');
@@ -91,7 +93,8 @@ before(async () => {
       const isError = fixtureMode === 'commit-error';
       response.writeHead(isError ? 500 : 200, { 'content-type': 'application/json' });
       response.end(JSON.stringify(isError ? { code: 'INTERNAL' } : {
-        code: 0, data: { agent_id: 'ag-test', workspace_id: 'ws', load_version: '1.0.0' },
+        code: 0, data: { agent_id: 'ag-test', name: 'J2-Test-42', workspace_id: 'ws',
+          source_digest: fixtureMode === 'bad-digest' ? 'different' : 'sha256:test', load_version: '1.0.0' },
       }));
     } else if (request.url.endsWith('/a2a')) {
       response.writeHead(200, { 'content-type': 'application/json' });
@@ -163,6 +166,14 @@ test('reports the commit API failure instead of claiming an agent was created', 
   assert.equal(result.failure.reason, 'candidate_commit_failed');
   assert.equal(result.failure.http_status, 500);
   assert.equal(result.created_agent, null);
+});
+
+test('does not claim creation when the commit response has a different digest', async () => {
+  const { result, events } = await run('bad-digest');
+  assert.equal(result.status, 'failed');
+  assert.equal(result.failure.reason, 'candidate_commit_failed');
+  assert.equal(result.created_agent, null);
+  assert.equal(events.some((event) => event.kind === 'agent_created'), false);
 });
 
 test('reports an uncaught click error as a product failure', async () => {
