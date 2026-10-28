@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "J2-19",
+  "workspace": "journey-2",
+  "title": "创建绑定 PPTX Skill 的智能体并生成演示文稿",
+  "executor": "api",
+  "source": {"benchmark": "MOI product journey"},
+  "assets": [],
+  "oracles": [],
+  "random_tokens": ["agent_name", "filename", "content"],
+  "builder_names": ["agent_name"],
+  "sessions": [
+    {
+      "id": "builder",
+      "delivery_kind": "agent",
+      "expected_checks": 8,
+      "turns": [
+        {
+          "phase": "propose",
+          "prompt": "请创建一个名为 {agent_name} 的智能体，专门生成 PowerPoint 演示文稿，请明确绑定 pptx 技能（moi.agent.momo.skill.pptx）。先展示候选，暂时不要确认创建。",
+          "action": {"type": "commit_builder_with_resource", "agent_name": "{agent_name}",
+                     "resource_kind": "skills", "resource_id": "moi.agent.momo.skill.pptx"}
+        }
+      ]
+    },
+    {
+      "id": "pptx_agent",
+      "agent_from": "builder",
+      "delivery_kind": "file",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "generate",
+          "prompt": "请生成并交付名为 {filename}.pptx 的 PowerPoint 演示文稿，在幻灯片中写入标记 {content}。",
+          "action": {"type": "deliver_ooxml_with_skill", "kind": "pptx",
+                     "skill_id": "moi.agent.momo.skill.pptx", "filename": "{filename}.pptx", "content": "{content}"}
+        }
+      ]
+    }
+  ]
+}

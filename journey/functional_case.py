@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .a2a import final_reply
 from .agent_builder import check_candidate_cancel
-from .artifact_checks import check_text_artifact, check_xlsx_artifact
+from .artifact_checks import check_ooxml_artifact, check_text_artifact, check_xlsx_artifact
 from .builder_flow import AgentBuilderFlow, ProductCaseFailure
 from .catalog import fixture_path, load_case
 from .client import Client, Failure
@@ -233,7 +233,7 @@ class FunctionalExecution(Execution):
                             finally:
                                 if builder.created:
                                     session_report['created_agent'] = builder.created
-                        elif action.get('type') == 'deliver_xlsx_with_skill':
+                        elif action.get('type') in {'deliver_xlsx_with_skill', 'deliver_ooxml_with_skill'}:
                             check, blocked = check_skill_call(self.evidence.root / 'events.jsonl', final_entry['task_id'],
                                                               action['skill_id'], session['id'])
                             checks.append(check)
@@ -241,9 +241,13 @@ class FunctionalExecution(Execution):
                                 self.report['blocked'] = True
                                 self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'],
                                                                 'reason': blocked})
-                            artifact_delivered = check_xlsx_artifact(self, cid, final_entry['task_id'],
-                                action['filename'].format_map(variables), action['content'].format_map(variables),
-                                checks, session['id'])
+                            filename, content = action['filename'].format_map(variables), action['content'].format_map(variables)
+                            if action['type'] == 'deliver_xlsx_with_skill':
+                                artifact_delivered = check_xlsx_artifact(self, cid, final_entry['task_id'],
+                                    filename, content, checks, session['id'])
+                            else:
+                                artifact_delivered = check_ooxml_artifact(self, cid, final_entry['task_id'],
+                                    filename, content, action['kind'], checks, session['id'])
                         else:
                             raise Failure('invalid_case_action')
                     session_report.update({'candidate_verified': candidate_verified, 'artifact_delivered': artifact_delivered})
