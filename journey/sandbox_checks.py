@@ -105,7 +105,7 @@ def evaluate_python_recovery(path, task_id, session_id, marker, left, right, *, 
         if is_failure:
             if (isinstance(stderr, str) and marker in stderr and 'ValueError' in stderr and
                     (not require_failed_tool or output['exit_code'] != 0)):
-                failure_positions.append(result_position)
+                failure_positions.append((result_position, call_id, output['exit_code']))
             elif output.get('output_truncated') is True or not isinstance(stderr, str):
                 unknown = True
         if is_recovery and output['exit_code'] == 0 and payload.get('success') is True:
@@ -113,12 +113,18 @@ def evaluate_python_recovery(path, task_id, session_id, marker, left, right, *, 
                 success_positions.append(call_position)
             elif output.get('output_truncated') is True or not isinstance(stdout, str):
                 unknown = True
-    recovered = any(success > failure for failure in failure_positions for success in success_positions)
+    recovered = any(success > failure[0] for failure in failure_positions for success in success_positions)
     blocked = 'sandbox_recovery_evidence_unverifiable' if unknown and not recovered else None
-    return [
+    checks = [
         {'session': session_id, 'rule': ('观察到指定的 Python 错误且工具返回非零状态' if require_failed_tool
                                         else '观察到指定的 Python 错误'), 'passed': bool(failure_positions),
          'detail': '' if failure_positions else blocked or 'expected_python_failure_missing'},
         {'session': session_id, 'rule': '错误后独立运行 Python 并得到正确结果', 'passed': recovered,
          'detail': '' if recovered else blocked or 'python_recovery_missing'},
-    ], blocked
+    ]
+    if failure_positions:
+        _, call_id, exit_code = min(failure_positions)
+        if exit_code != 0:
+            checks[0]['expected_tool_error'] = {'task_id': task_id, 'call_id': call_id,
+                                                'kind': 'command_exit', 'code': str(exit_code)}
+    return checks, blocked

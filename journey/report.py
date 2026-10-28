@@ -39,6 +39,28 @@ def _unavailable_tools():
     return {'state': 'unavailable', 'metrics': None, 'errors': [], 'judge_errors': [], 'runtime_sessions': {}}
 
 
+def mark_expected_tool_errors(analysis, checks):
+    """Mark only the exact error observation verified by a negative test."""
+    expected = []
+    for check in checks:
+        ref = check.get('expected_tool_error') if isinstance(check, dict) else None
+        if ref is None:
+            continue
+        if (not isinstance(ref, dict) or set(ref) != {'task_id', 'call_id', 'kind', 'code'} or
+                any(not isinstance(value, str) or not value for value in ref.values())):
+            raise ValueError('invalid_expected_tool_error')
+        expected.append(ref)
+    for ref in expected:
+        matches = [item for call in analysis['errors']
+                   if call.get('task_id') == ref['task_id'] and call.get('call_id') == ref['call_id']
+                   for item in call['errors'] if item.get('kind') == ref['kind'] and
+                   str(item.get('code')) == ref['code']]
+        if not matches:
+            raise ValueError('expected_tool_error_not_in_events')
+        for item in matches:
+            item['expected'] = True
+
+
 def case_summary(result):
     test_status = TEST_LABELS[result['test_status']]
     agent, delivery, quality, tools = (result[key] for key in ('agent', 'delivery', 'quality', 'tools'))
@@ -98,6 +120,10 @@ def case_summary(result):
         if not tools['complete']:
             lines.append('- 工具统计仅基于已采集到的部分事件。')
         lines.append('- 调用成功率依据公开事件中的执行状态；跳过及结果不明确的调用不计入分母，不代表工具结果的业务正确性。')
+        expected_errors = sum(any(item.get('expected') is True for item in call.get('errors', []))
+                              for call in tools.get('errors', []))
+        if expected_errors:
+            lines.append(f'- 其中 {expected_errors} 次调用的错误由用例主动触发；错误明细已标记，仍计入实际调用成功率。')
         if metrics['by_tool']:
             lines += ['', '| 工具 | 调用 | 成功 | 失败 | 跳过 | 不明确 | 成功率 |', '|---|---:|---:|---:|---:|---:|---:|']
             for item in metrics['by_tool']:
@@ -150,7 +176,8 @@ def case_summary(result):
                   '| 阶段 | 工具 | 参数 | 错误 | 事件序号 |', '|---|---|---|---|---|']
         for call in observed:
             args = json.dumps(call.get('arguments'), ensure_ascii=False) if call.get('arguments') is not None else '未获取'
-            details = '; '.join(str(item.get('code') or item.get('kind')) + ': ' + str(item.get('detail') or '')
+            details = '; '.join(('［预期测试错误］' if item.get('expected') is True else '') +
+                                str(item.get('code') or item.get('kind')) + ': ' + str(item.get('detail') or '')
                                 for item in call['errors'])
             lines.append(f"| {cell(call.get('phase'))} | {cell(call.get('tool'))} | {cell(args)} | "
                          f"{cell(details)} | {cell(', '.join(map(str, call['seqs'])))} |")
@@ -257,6 +284,7 @@ def finish_case(case_id, directory):
     if events.exists():
         try:
             analysis = analyze_events(events, result.get('tasks', []))
+            mark_expected_tool_errors(analysis, checks)
             result['tools'] = {'state': 'available', 'complete': bool(result.get('capture_complete')), **analysis}
         except (OSError, ValueError, TypeError, UnicodeError) as error:
             result['harness_errors'].append({'stage': 'evidence', 'reason': 'invalid_event_log:' + str(error)})
@@ -535,16 +563,17 @@ def aggregate(source, destination, workspace='all'):
         for scope, calls in [('agent', row['tools'].get('errors', [])), ('judge', row['tools'].get('judge_errors', []))]:
             for call in calls:
                 for item in call['errors']:
-                    tool_errors[(scope, str(call.get('tool') or 'unknown'), str(item.get('code') or item.get('kind')))].add(
+                    tool_errors[(scope, str(call.get('tool') or 'unknown'), str(item.get('code') or item.get('kind')),
+                                 item.get('expected') is True)].add(
                         (row['case_id'], call['task_id'], call['call_id']))
     report = {'generated_at': utc_now(), 'workspace_selection': workspace, 'github_run_id': os.environ.get('GITHUB_RUN_ID'),
               'github_run_attempt': os.environ.get('GITHUB_RUN_ATTEMPT'), 'commit': os.environ.get('GITHUB_SHA'),
               **totals, 'journeys': suites, 'cases': rows,
               'task_errors': [{'stage': stage, 'reason': reason, 'cases': sorted(cases)}
                               for (stage, reason), cases in sorted(task_errors.items())],
-              'tool_errors': [{'scope': scope, 'tool': tool, 'code': code, 'records': len(calls),
+              'tool_errors': [{'scope': scope, 'tool': tool, 'code': code, 'expected': expected, 'records': len(calls),
                                'cases': sorted({case_id for case_id, _, _ in calls})}
-                              for (scope, tool, code), calls in sorted(tool_errors.items())],
+                              for (scope, tool, code, expected), calls in sorted(tool_errors.items())],
               'withheld_files': sum(len(row.get('publication', {}).get('withheld_files', [])) for row in rows)}
     (destination / 'summary.json').write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n')
     with (destination / 'summary.csv').open('w', newline='', encoding='utf-8') as stream:
@@ -597,7 +626,7 @@ def aggregate(source, destination, workspace='all'):
         f"{cell(report['task_seconds']['median'])} 秒，最长 {cell(report['task_seconds']['max'])} 秒。", '',
         f"其中正常结束并交付的任务（{report['completed_task_seconds']['count']} 个）：中位数 "
         f"{cell(report['completed_task_seconds']['median'])} 秒。", '',
-        '工具成功率依据公开事件中的执行状态；跳过及结果不明确的调用不计入分母，不代表业务正确率。', '',
+        '工具成功率依据公开事件中的执行状态；跳过及结果不明确的调用不计入分母。用例主动触发的错误仍计入成功率，并在错误统计中标记；该比例不代表业务正确率。', '',
         '| 工作区 | Case | 框架 | 功能验收 | 任务 | 智能体请求 | 交付 | 质量检查 | 耗时（秒） | 工具成功/已判定 |',
         '|---|---|---|---|---|---|---|---|---:|---|']
     for row in rows:
@@ -648,7 +677,8 @@ def aggregate(source, destination, workspace='all'):
         lines += ['', '## 工具错误统计', '']
         for item in report['tool_errors']:
             scope = '智能体' if item['scope'] == 'agent' else '评审'
-            lines.append(f"- {scope} / {cell(item['tool'])} / {cell(item['code'])}：{item['records']} 条记录，"
+            category = '预期测试错误' if item.get('expected') else '未标记为预期'
+            lines.append(f"- {scope} / {category} / {cell(item['tool'])} / {cell(item['code'])}：{item['records']} 条记录，"
                          f"涉及 {cell(', '.join(item['cases']))}。")
     lines += ['', '单个 case 的报告和 result.json 包含会话 ID、trace ID、质量判词、工具参数和错误；'
               'events.jsonl 保存公开事件（凭据已脱敏）。', '',

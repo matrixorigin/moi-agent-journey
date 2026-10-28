@@ -77,10 +77,13 @@ class SandboxChecksTests(unittest.TestCase):
 
         checks, blocked = evaluate(first + second)
         self.assertEqual([item['passed'] for item in checks], [True, True])
+        self.assertEqual(checks[0]['expected_tool_error'], {'task_id': 'task', 'call_id': 'bad',
+                                                           'kind': 'command_exit', 'code': '1'})
         self.assertIsNone(blocked)
         captured = [first[0], event('tool_result', 'bad', code=0, stderr='ValueError: marker')]
         checks, _ = evaluate(captured + second)
         self.assertEqual([item['passed'] for item in checks], [True, True])
+        self.assertNotIn('expected_tool_error', checks[0])
         checks, _ = evaluate(captured + second, require_failed_tool=True)
         self.assertEqual([item['passed'] for item in checks], [False, False])
         checks, _ = evaluate(first + second, require_failed_tool=True)
