@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "id": "J2-95",
+  "workspace": "journey-2",
+  "title": "同候选并发修改、旧版本拒绝和成功版本发布",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "builder_edge": "race",
+  "random_tokens": [
+    "code"
+  ],
+  "sessions": [
+    {
+      "id": "builder",
+      "agent_from_builder_input": true,
+      "delivery_kind": "answer",
+      "expected_checks": 15,
+      "turns": [
+        {
+          "phase": "use",
+          "prompt": "只回复这段代号：{code}",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{code}",
+              "rule": "新发布智能体实际完成对话"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

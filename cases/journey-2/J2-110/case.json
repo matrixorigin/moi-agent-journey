@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "id": "J2-110",
+  "workspace": "journey-2",
+  "title": "QQ 和企业邮箱向本测试邮箱发送、检索与读取",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "channels": [
+    "qq_mail",
+    "wecom_mail"
+  ],
+  "sessions": [
+    {
+      "id": "qq_mail",
+      "agent_from_channel": "qq_mail",
+      "delivery_kind": "answer",
+      "expected_checks": 18,
+      "turns": [
+        {
+          "phase": "send",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_qq_mail",
+            "arguments": {
+              "operation": "mail_send",
+              "to": "{qq_mail_email}",
+              "subject": "Journey {code}",
+              "body": "Journey-2 {code}"
+            },
+            "result_fields": {
+              "ok": true,
+              "to": "{qq_mail_email}",
+              "subject": "Journey {code}"
+            },
+            "capture": {
+              "qq_mail_message_id": "message_id"
+            }
+          }
+        },
+        {
+          "phase": "search",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_qq_mail",
+            "arguments": {
+              "operation": "mail_search",
+              "folder": "INBOX",
+              "subject": "Journey {code}",
+              "body_query": "{code}",
+              "page_size": 10
+            },
+            "result_fields": {
+              "ok": true,
+              "partial": false,
+              "has_more": false,
+              "messages.0.subject": "Journey {code}",
+              "messages.1": null
+            },
+            "capture": {
+              "qq_mail_uid": "messages.0.uid"
+            }
+          }
+        },
+        {
+          "phase": "read",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_qq_mail",
+            "arguments": {
+              "operation": "mail_read",
+              "folder": "INBOX",
+              "uid": "{qq_mail_uid}",
+              "include_body": true,
+              "include_attachments": false
+            },
+            "result_fields": {
+              "ok": true,
+              "message.uid": "{qq_mail_uid}",
+              "message.subject": "Journey {code}"
+            },
+            "contains_fields": {
+              "message.bodyText": "{code}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "wecom_mail",
+      "agent_from_channel": "wecom_mail",
+      "delivery_kind": "answer",
+      "expected_checks": 18,
+      "turns": [
+        {
+          "phase": "send",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_wecom_mail",
+            "arguments": {
+              "operation": "mail_send",
+              "to": "{wecom_mail_email}",
+              "subject": "Journey {code}",
+              "body": "Journey-2 {code}"
+            },
+            "result_fields": {
+              "ok": true,
+              "to": "{wecom_mail_email}",
+              "subject": "Journey {code}"
+            },
+            "capture": {
+              "wecom_mail_message_id": "message_id"
+            }
+          }
+        },
+        {
+          "phase": "search",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_wecom_mail",
+            "arguments": {
+              "operation": "mail_search",
+              "folder": "INBOX",
+              "subject": "Journey {code}",
+              "body_query": "{code}",
+              "page_size": 10
+            },
+            "result_fields": {
+              "ok": true,
+              "partial": false,
+              "has_more": false,
+              "messages.0.subject": "Journey {code}",
+              "messages.1": null
+            },
+            "capture": {
+              "wecom_mail_uid": "messages.0.uid"
+            }
+          }
+        },
+        {
+          "phase": "read",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_wecom_mail",
+            "arguments": {
+              "operation": "mail_read",
+              "folder": "INBOX",
+              "uid": "{wecom_mail_uid}",
+              "include_body": true,
+              "include_attachments": false
+            },
+            "result_fields": {
+              "ok": true,
+              "message.uid": "{wecom_mail_uid}",
+              "message.subject": "Journey {code}"
+            },
+            "contains_fields": {
+              "message.bodyText": "{code}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

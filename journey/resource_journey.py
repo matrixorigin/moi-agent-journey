@@ -58,7 +58,7 @@ class ResourceJourney:
             raise Failure('resource_agent_not_created')
         return {'agent_id': self.agent_id, 'agent_workspace_id': self.workspace}
 
-    def publish_agent(self, *, names, ids, instruction, binding=None):
+    def publish_agent(self, *, names, ids, instruction, binding=None, resource_workspace=None):
         if not self.absent(self.agent_path):
             raise Failure('resource_agent_id_exists')
         self.builder = AgentBuilderFlow(self.execution, self.session_id, self.checks, [self.agent_id])
@@ -71,7 +71,7 @@ class ResourceJourney:
         self.state['candidate'] = {key: candidate[key] for key in ('agent_id', 'candidate_version', 'source_digest')}
         if candidate['agent_id'] != self.agent_id:
             raise ProductCaseFailure('manual_agent_id_mismatch')
-        references = [self.builder.require_resource(self.kind + 's', resource_id, workspace_id=self.workspace)
+        references = [self.builder.require_resource(self.kind + 's', resource_id, workspace_id=resource_workspace or self.workspace)
                       for resource_id in ids]
         self.agent_pending = True
         self.state['agent_id'] = self.agent_id

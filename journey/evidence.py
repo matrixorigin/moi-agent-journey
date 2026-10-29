@@ -20,7 +20,8 @@ def utc_now():
 def configured_secrets():
     """Known sensitive configuration for every recording/publication boundary."""
     return [os.environ.get(name, '') for name in (
-        'MOI_PAT', 'MOI_BASE_URL', 'MOI_UI_ACCOUNT', 'MOI_UI_PASSWORD', 'MOI_UI_BASE_URL', 'MOI_UI_AUTH_ORIGIN')]
+        'MOI_PAT', 'MOI_BASE_URL', 'MOI_UI_ACCOUNT', 'MOI_UI_PASSWORD', 'MOI_UI_BASE_URL', 'MOI_UI_AUTH_ORIGIN', 'MOI_J2_SLACK_READ_TOKEN',
+        'MOI_J2_FEISHU_APP_ID', 'MOI_J2_FEISHU_APP_SECRET')]
 
 
 class Evidence:

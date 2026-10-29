@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "id": "J2-91",
+  "workspace": "journey-2",
+  "title": "HTTP 工具 schema 拒绝多余参数后正常调用",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "tool_journey": {
+    "mode": "arguments"
+  },
+  "sessions": [
+    {
+      "id": "tool",
+      "agent_from_tool": true,
+      "delivery_kind": "answer",
+      "expected_checks": 20,
+      "turns": [
+        {
+          "phase": "invalid",
+          "prompt": "请实际调用工具 {tool_name}，参数严格为 {{\"unexpected\":1}}。本轮只尝试一次，不要去掉参数重试。根据实际结果只回复 JSON，rejected 表示是否拒绝无效参数。",
+          "json_format": "object_or_fenced",
+          "json_fields": {
+            "rejected": true
+          },
+          "tool_failure": {
+            "kind": "arguments",
+            "tool_id": "{tool_id}"
+          }
+        },
+        {
+          "phase": "use",
+          "prompt": "请调用工具 {tool_name} 读取公开的测试资源。只返回 JSON，status 为实际 HTTP 状态码，case_id 为工具返回的 JSON 正文中的 id。",
+          "json_format": "object_or_fenced",
+          "json_fields": {
+            "status": 200,
+            "case_id": "J2-07"
+          },
+          "http_tool_evidence": {
+            "tool_id": "{tool_id}",
+            "status": 200,
+            "body_id": "J2-07"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -219,10 +219,17 @@ def evaluate_sql(path, task_id, session_id, expected_query, expected_column, exp
     ], blocked
 
 
-def evaluate_sql_failure(path, task_id, session_id, expected_query, error_marker, workspace_id):
+def evaluate_sql_failure(path, task_id, session_id, expected_query, error_marker, workspace_id, *, error_kind="column"):
     """Require a real workspace SQL error for the requested invalid statement."""
     if not all(isinstance(item, str) and item for item in (expected_query, error_marker, workspace_id)):
         raise ValueError('invalid_sql_failure_assertion')
+    if error_kind not in {'column', 'syntax'}:
+        raise ValueError('invalid_sql_error_kind')
+    def matches_error(text, marker):
+        if error_kind == 'column':
+            return unknown_column_error(text, marker)
+        return isinstance(text, str) and marker.casefold() in text.casefold() and bool(re.search(
+            r'syntax\s+error|parse\s+error|SQL\s+syntax|parse\s+sql', text, re.I))
     calls, matching, results, file_query, unknown_command = collect_sql_calls(path, task_id, expected_query, workspace_id)
     unknown, verified = False, None
     for call_id, (kind, capture_exit) in matching.items():
@@ -242,7 +249,7 @@ def evaluate_sql_failure(path, task_id, session_id, expected_query, error_marker
                 continue
             stderr = output.get('stderr')
             error_text = next((text for text in (stderr, stdout)
-                               if unknown_column_error(text, error_marker)), None)
+                               if matches_error(text, error_marker)), None)
             if cli_status != 0 and error_text is not None:
                 verified = []
                 if output['exit_code'] != 0:
@@ -259,7 +266,7 @@ def evaluate_sql_failure(path, task_id, session_id, expected_query, error_marker
                         error = None
                     if (isinstance(error, dict) and type(error.get('status')) is int and error['status'] >= 400 and
                             isinstance(error.get('code'), str) and error['code'] and
-                            unknown_column_error(error.get('message'), error_marker)):
+                            matches_error(error.get('message'), error_marker)):
                         verified.append({'task_id': task_id, 'call_id': call_id, 'kind': 'reported_http_error',
                                          'code': error['code']})
                 break
@@ -268,7 +275,7 @@ def evaluate_sql_failure(path, task_id, session_id, expected_query, error_marker
         else:
             error = payload.get('error')
             detail = (wrapper.get('error') or wrapper.get('message')) if isinstance(wrapper, dict) else wrapper
-            if payload.get('success') is False and unknown_column_error(detail or error, error_marker):
+            if payload.get('success') is False and matches_error(detail or error, error_marker):
                 verified = ([{'task_id': task_id, 'call_id': call_id, 'kind': 'tool_failure', 'code': error}] if (
                     isinstance(error, str) and error) else [])
                 break
@@ -277,7 +284,7 @@ def evaluate_sql_failure(path, task_id, session_id, expected_query, error_marker
     blocked = ('sql_query_file_unverifiable' if calls and not matching and file_query else
                'sql_command_unverifiable' if calls and not matching and unknown_command else
                'sql_failure_unverifiable' if matching and verified is None and unknown else None)
-    check = {'session': session_id, 'rule': '工作区 SQL 返回指定字段错误', 'passed': verified is not None,
+    check = {'session': session_id, 'rule': '工作区 SQL 返回指定'+ ('语法错误' if error_kind == 'syntax' else '字段错误'), 'passed': verified is not None,
              'detail': '' if verified is not None else blocked or 'expected_sql_error_missing'}
     if verified:
         check['expected_tool_errors'] = verified

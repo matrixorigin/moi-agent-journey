@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "id": "J2-97",
+  "workspace": "journey-2",
+  "title": "智能体归档和恢复后的会话历史、任务和成果",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "filename",
+    "code"
+  ],
+  "sessions": [
+    {
+      "id": "archive",
+      "delivery_kind": "file",
+      "expected_checks": 14,
+      "turns": [
+        {
+          "phase": "deliver",
+          "prompt": "请生成可下载的纯文本文件 {filename}.txt，文件只有一行内容 {code}。完成后把文件作为成果交付。",
+          "action": {
+            "type": "archive_text_artifact",
+            "filename": "{filename}.txt",
+            "content": "{code}",
+            "archive_agent": true
+          }
+        }
+      ],
+      "agent_from_package": true
+    }
+  ],
+  "package_journey": {
+    "mode": "archive"
+  }
+}

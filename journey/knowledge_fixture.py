@@ -70,7 +70,12 @@ class KnowledgeFixture:
         self.table_config = definition.get('table_config')
         self.verification = definition.get('verification')
         if self.kind == 'document':
-            if not isinstance(self.marker, str) or not self.marker or self.marker not in self.path.read_text(encoding='utf-8'):
+            if self.path.suffix.lower() == '.pdf':
+                from pypdf import PdfReader
+                text = '\n'.join(page.extract_text() or '' for page in PdfReader(self.path).pages)
+            else:
+                text = self.path.read_text(encoding='utf-8')
+            if not isinstance(self.marker, str) or not self.marker or self.marker not in text:
                 raise Failure('knowledge_fixture_marker_missing')
         else:
             table = self.table_config.get('create_table') if isinstance(self.table_config, dict) else None

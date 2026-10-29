@@ -14,7 +14,7 @@ class ToolJourney(ResourceJourney):
     kind = 'tool'
 
     def __init__(self, execution, definition, checks):
-        if not isinstance(definition, dict) or set(definition) != {'mode'} or definition['mode'] not in {'lifecycle', 'http_error', 'bindings', 'invalid'}:
+        if not isinstance(definition, dict) or set(definition) != {'mode'} or definition['mode'] not in {'lifecycle', 'http_error', 'bindings', 'invalid', 'arguments'}:
             raise Failure('invalid_tool_journey')
         self.execution, self.checks = execution, checks
         self.session_id = execution.case['sessions'][0]['id']

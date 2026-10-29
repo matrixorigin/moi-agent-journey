@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "id": "J2-94",
+  "title": "表单字段通过真实按钮提交后被智能体正确消费",
+  "random_tokens": [
+    "code"
+  ],
+  "sessions": [
+    {
+      "id": "form",
+      "delivery_kind": "answer",
+      "expected_checks": 9,
+      "turns": [
+        {
+          "phase": "ask",
+          "prompt": "请用 Interactive UI 技能给我一个 Form：包含标签为「项目」的 TextField、标签为「类型」的 ChoicePicker（选项精确 exact、全部 all）和提交 Button。按钮动作上下文需要绑定两个输入字段。等我提交后，只回复 JSON，project 为项目输入值，kind 为选择的类型值（字符串）。",
+          "a2ui_evidence": {
+            "component": "Form",
+            "fields": {}
+          }
+        },
+        {
+          "phase": "submit",
+          "prompt": "已提交",
+          "a2ui_form_submit": {
+            "fields": {
+              "项目": "{code}",
+              "类型": [
+                "exact"
+              ]
+            }
+          },
+          "json_format": "object_or_fenced",
+          "json_fields": {
+            "project": "{code}",
+            "kind": "exact"
+          }
+        }
+      ]
+    }
+  ]
+}

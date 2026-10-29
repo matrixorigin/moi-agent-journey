@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "id": "J2-106",
+  "workspace": "journey-2",
+  "title": "GitHub Channel 专用仓库读取、Issue 写入回读和不存在对象错误",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "channels": [
+    "github"
+  ],
+  "sessions": [
+    {
+      "id": "github",
+      "agent_from_channel": "github",
+      "delivery_kind": "answer",
+      "expected_checks": 21,
+      "turns": [
+        {
+          "phase": "repository",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_github_repository",
+            "arguments": {
+              "owner": "{github_owner}",
+              "repo": "{github_repo}",
+              "operation": "get_repository"
+            },
+            "result_fields": {
+              "ok": true,
+              "provider": "github",
+              "data.full_name": "{github_owner}/{github_repo}"
+            }
+          }
+        },
+        {
+          "phase": "create",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_github_create_issue",
+            "arguments": {
+              "owner": "{github_owner}",
+              "repo": "{github_repo}",
+              "title": "Journey functional {code}",
+              "body": "Synthetic Journey-2 fixture {code}"
+            },
+            "result_fields": {
+              "ok": true,
+              "provider": "github",
+              "operation": "create_issue",
+              "data.title": "Journey functional {code}"
+            },
+            "capture": {
+              "issue_number": "data.number"
+            }
+          }
+        },
+        {
+          "phase": "read",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_github_issues",
+            "arguments": {
+              "owner": "{github_owner}",
+              "repo": "{github_repo}",
+              "operation": "get_issue",
+              "number": "{issue_number}"
+            },
+            "result_fields": {
+              "ok": true,
+              "provider": "github",
+              "data.number": "{issue_number}",
+              "data.title": "Journey functional {code}",
+              "data.body": "Synthetic Journey-2 fixture {code}"
+            }
+          }
+        },
+        {
+          "phase": "missing",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_github_issues",
+            "arguments": {
+              "owner": "{github_owner}",
+              "repo": "{github_repo}",
+              "operation": "get_issue",
+              "number": 2147483647
+            },
+            "result_fields": {},
+            "expected_error": "(404|not found|NOT_FOUND)"
+          }
+        }
+      ]
+    }
+  ]
+}

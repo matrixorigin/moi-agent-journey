@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "J2-89",
+  "workspace": "journey-2",
+  "title": "不存在附件和 ID/URI 不一致被拒绝后继续读取合法附件",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "sessions": [
+    {
+      "id": "invalid_message",
+      "delivery_kind": "answer",
+      "expected_checks": 11,
+      "turns": [
+        {
+          "phase": "remember",
+          "prompt": "请记住本次对话的代号：{code}。只回复已记住。",
+          "action": {
+            "type": "reject_messages",
+            "defects": [
+              "attachment_missing",
+              "attachment_mismatch"
+            ]
+          },
+          "attachments": [
+            "sales.csv"
+          ]
+        },
+        {
+          "phase": "continue",
+          "prompt": "请再次读取附件 sales.csv，计算每行 quantity × unit_price 后求和，并回忆刚才的代号。只回复 JSON：code 是代号，total 是总和。",
+          "attachments": [
+            "sales.csv"
+          ],
+          "json_format": "object_or_fenced",
+          "json_fields": {
+            "code": "{code}",
+            "total": 41
+          }
+        }
+      ]
+    }
+  ],
+  "fixtures": [
+    {
+      "path": "sales.csv",
+      "sha256": "4724d4efb141dd396777b4283aca8452738179683f3efbcdf9c8bc3900e1f4fd"
+    }
+  ]
+}

@@ -200,12 +200,30 @@ def check_agent_scope(execution, conversation_id, other_conversation_id, session
     execution.evidence.write('sessions/' + session_id + '/conversation-scopes.json', evidence)
 
 
-def check_archived_delivery(execution, conversation_id, task_id, session_id, checks, filename, content):
+def check_archived_delivery(execution, conversation_id, task_id, session_id, checks, filename, content, *, archive_agent=False):
     import json
     from .a2a import final_reply
     import hashlib
 
     check = ConversationChecks(execution, conversation_id, session_id, checks)
+    def change_status(status):
+        if not archive_agent:
+            check.patch({'status': status})
+            return check.get()
+        owned_id = execution.report.get('package_journey', {}).get('agent_id')
+        if not owned_id or check.scope != {'agent_id': owned_id, 'agent_workspace_id': execution.root.rsplit('/', 1)[-1]}:
+            raise Failure('archive_agent_identity_unverified')
+        path = execution.root + '/agents/' + segment(owned_id)
+        before = check.request('GET', path, None, '本次智能体可读取')
+        if (before.get('id'), before.get('name'), before.get('workspace_id')) != (
+                owned_id, owned_id, check.scope['agent_workspace_id']):
+            raise Failure('archive_agent_identity_unverified')
+        check.request('PATCH', path, {'status': status}, '更新本次智能体状态')
+        after = check.request('GET', path, None, '本次智能体状态可回读')
+        if (after.get('id'), after.get('name'), after.get('workspace_id')) != (
+                owned_id, owned_id, check.scope['agent_workspace_id']):
+            raise ProductCaseFailure('archive_agent_readback_identity_mismatch')
+        return after
     inventory = execution.evidence.root / 'artifacts' / conversation_id / 'inventory.json'
     def artifact_ref():
         matches = [item for item in json.loads(inventory.read_text())
@@ -217,9 +235,8 @@ def check_archived_delivery(execution, conversation_id, task_id, session_id, che
     messages_path = check.path + '/messages?' + urlencode({**check.scope, 'all': 'true', 'offset': 0})
     before_messages = check.request('GET', messages_path, None, '归档前历史可读')
     before_task = execution.client.rpc(check.scope, 'tasks/get', {'id': task_id})
-    check.patch({'status': 'archived'})
-    archived = check.get()
-    check.record('会话归档后身份和状态可回读', check.identity(archived) and archived.get('status') == 'archived',
+    archived = change_status('archived')
+    check.record('归档对象身份和状态可回读', (archive_agent or check.identity(archived)) and archived.get('status') == 'archived',
                  'archived_conversation_mismatch')
     after_messages = check.request('GET', messages_path, None, '归档后历史可读')
     items = before_messages.get('items')
@@ -238,7 +255,7 @@ def check_archived_delivery(execution, conversation_id, task_id, session_id, che
                      '/versions/' + str(before_ref['version']))
     query = urlencode({**check.scope, 'conversation_id': conversation_id, 'page': 1, 'page_size': 100})
     archived_list = check.request('GET', execution.root + '/agent-artifacts?' + query, None, '归档后成果列表可读')
-    check.record('归档会话的成果从活动列表退出', archived_list.get('total') == 0 and archived_list.get('items') == [],
+    check.record('归档后的成果从活动列表退出', archived_list.get('total') == 0 and archived_list.get('items') == [],
                  'archived_artifact_still_listed')
     try:
         execution.client.product('GET', artifact_path)
@@ -247,10 +264,9 @@ def check_archived_delivery(execution, conversation_id, task_id, session_id, che
         if error.code != 'http_error' or error.http_status in {None, 401, 403}:
             raise
         status = error.http_status
-    check.record('归档会话的成果详情暂不可读', status == 404, 'archived_artifact_detail_status:' + str(status))
-    check.patch({'status': 'active'})
-    restored = check.get()
-    check.record('恢复会话状态', check.identity(restored) and restored.get('status') == 'active', 'conversation_restore_mismatch')
+    check.record('归档后的成果详情暂不可读', status == 404, 'archived_artifact_detail_status:' + str(status))
+    restored = change_status('active')
+    check.record('恢复对象状态', (archive_agent or check.identity(restored)) and restored.get('status') == 'active', 'conversation_restore_mismatch')
     detail = check.request('GET', artifact_path, None, '恢复后原成果可读')
     restored_ok = (all(detail.get(key) == before_ref[key] for key in ('artifact_id', 'version', 'file_id')) and
                    detail.get('conversation_id') == conversation_id and detail.get('task_id') == task_id)

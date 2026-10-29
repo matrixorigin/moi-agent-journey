@@ -1,6 +1,7 @@
 """Exercise invalid message admission without retrying the request."""
 
 import uuid
+import copy
 from urllib.parse import urlencode
 
 from .a2a import final_reply
@@ -30,11 +31,12 @@ def check_empty_message(execution, conversation_id, session_id, checks):
     check_invalid_message(execution, conversation_id, session_id, checks, 'empty_message')
 
 
-def check_invalid_message(execution, conversation_id, session_id, checks, defect, *, knowledge_id=None):
+def check_invalid_message(execution, conversation_id, session_id, checks, defect, *, knowledge_id=None, upload=None):
     labels = {'empty_message': '空消息', 'role': '无效消息角色', 'message_id': '缺失 messageId',
               'attachment_uri': '缺失附件 URI', 'files_shape': '非数组附件元数据',
               'knowledge_negative': '负数知识库 ID', 'knowledge_shape': '非数组知识库选择',
-              'deleted_knowledge': '已删除的知识库选择'}
+              'deleted_knowledge': '已删除的知识库选择', 'attachment_missing': '不存在的附件引用',
+              'attachment_mismatch': '附件 ID 和 URI 不一致'}
     if defect not in labels or (defect == 'deleted_knowledge' and
             (not isinstance(knowledge_id, str) or not knowledge_id.isdigit() or int(knowledge_id) <= 0)):
         raise Failure('invalid_message_defect')
@@ -58,7 +60,17 @@ def check_invalid_message(execution, conversation_id, session_id, checks, defect
               'contextId': conversation_id, 'parts': []}, 'model': execution.model,
               'idempotencyKey': message_id}
     message = params['message']
-    if defect != 'empty_message':
+    if defect in {'attachment_missing', 'attachment_mismatch'}:
+        if not isinstance(upload, dict) or not isinstance(upload.get('catalog_file'), dict):
+            raise Failure('invalid_attachment_defect_fixture')
+        item = copy.deepcopy(upload)
+        missing = 'j2-missing-' + str(uuid.uuid4())
+        if defect == 'attachment_missing':
+            item['file_id'] = item['catalog_file']['file_id'] = missing
+        message['metadata'] = {'files': [item]}
+        message['parts'] = [{'kind': 'file', 'file': {'uri': 'moi://files/' + missing,
+            'name': item['original_name'], 'mimeType': 'text/csv'}, 'metadata': {'file_id': item['file_id']}}]
+    elif defect != 'empty_message':
         message['parts'] = [{'kind': 'text', 'text': 'Synthetic admission check.'}]
     if defect == 'role':
         message['role'] = 'agent'
@@ -96,7 +108,7 @@ def check_invalid_message(execution, conversation_id, session_id, checks, defect
     finally:
         execution.client.observer = previous_observer
     expected = {400, 'rpc:-32602'}
-    if defect == 'deleted_knowledge':
+    if defect in {'deleted_knowledge', 'attachment_missing'}:
         expected |= {404, 'rpc:-32001'}
     record(label + '被明确拒绝', status in expected, defect + '_status:' + str(status))
     after = conversation_task_ids(execution, conversation_id)

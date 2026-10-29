@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "id": "J2-101",
+  "title": "逐个加载非外部集成内置 Skill 并验证实际调用结果",
+  "sessions": [
+    {
+      "id": "skills",
+      "delivery_kind": "answer",
+      "expected_checks": 48,
+      "turns": [
+        {
+          "phase": "load",
+          "prompt": "请逐个通过 skill 工具读取以下 Skill。这里只验证所有 Skill 可加载，不要执行技能中的业务操作，不创建文件或调用外部服务。每个都要实际加载；若加载失败也请继续其他项，最后汇总实际成功/失败的 ID：a2ui, algorithmic-art, brand-guidelines, canvas-design, finance-expense-review, frontend-design, moi.agent.momo.skill.agent-builder, moi.agent.momo.skill.docx, moi.agent.momo.skill.feedback, moi.agent.momo.skill.image-analysis, moi.agent.momo.skill.moi-cli-files, moi.agent.momo.skill.moi-cli-semantic-model, moi.agent.momo.skill.moi-cli-sql, moi.agent.momo.skill.pdf, moi.agent.momo.skill.pptx, moi.agent.momo.skill.web-search, moi.agent.momo.skill.xlsx, slack-gif-creator, theme-factory, web-artifacts-builder",
+          "skill_evidence": [
+            "a2ui",
+            "algorithmic-art",
+            "brand-guidelines",
+            "canvas-design",
+            "finance-expense-review",
+            "frontend-design",
+            "moi.agent.momo.skill.agent-builder",
+            "moi.agent.momo.skill.docx",
+            "moi.agent.momo.skill.feedback",
+            "moi.agent.momo.skill.image-analysis",
+            "moi.agent.momo.skill.moi-cli-files",
+            "moi.agent.momo.skill.moi-cli-semantic-model",
+            "moi.agent.momo.skill.moi-cli-sql",
+            "moi.agent.momo.skill.pdf",
+            "moi.agent.momo.skill.pptx",
+            "moi.agent.momo.skill.web-search",
+            "moi.agent.momo.skill.xlsx",
+            "slack-gif-creator",
+            "theme-factory",
+            "web-artifacts-builder"
+          ]
+        }
+      ],
+      "agent_from_builder_input": true
+    }
+  ],
+  "system_skills": [
+    "a2ui",
+    "algorithmic-art",
+    "brand-guidelines",
+    "canvas-design",
+    "finance-expense-review",
+    "frontend-design",
+    "moi.agent.momo.skill.agent-builder",
+    "moi.agent.momo.skill.docx",
+    "moi.agent.momo.skill.feedback",
+    "moi.agent.momo.skill.image-analysis",
+    "moi.agent.momo.skill.moi-cli-files",
+    "moi.agent.momo.skill.moi-cli-semantic-model",
+    "moi.agent.momo.skill.moi-cli-sql",
+    "moi.agent.momo.skill.pdf",
+    "moi.agent.momo.skill.pptx",
+    "moi.agent.momo.skill.web-search",
+    "moi.agent.momo.skill.xlsx",
+    "slack-gif-creator",
+    "theme-factory",
+    "web-artifacts-builder"
+  ]
+}

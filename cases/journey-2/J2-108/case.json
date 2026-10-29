@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "id": "J2-108",
+  "workspace": "journey-2",
+  "title": "Slack 文本、附件、Block 发送并由接收端回读",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "channels": [
+    "slack"
+  ],
+  "sessions": [
+    {
+      "id": "slack",
+      "agent_from_channel": "slack",
+      "delivery_kind": "answer",
+      "expected_checks": 21,
+      "turns": [
+        {
+          "phase": "text",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_slack_text_message",
+            "arguments": {
+              "channel_id": "{slack_channel_id}",
+              "text": "{code}"
+            },
+            "result_fields": {
+              "ok": true,
+              "provider": "slack",
+              "channel_id": "{slack_channel_id}"
+            },
+            "capture": {
+              "timestamp": "timestamp"
+            }
+          },
+          "receiver": "text"
+        },
+        {
+          "phase": "attachment",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_slack_attachment_message",
+            "arguments": {
+              "channel_id": "{slack_channel_id}",
+              "text": "{code}",
+              "attachments": [
+                {
+                  "text": "{code}",
+                  "color": "#336699"
+                }
+              ]
+            },
+            "result_fields": {
+              "ok": true,
+              "provider": "slack",
+              "channel_id": "{slack_channel_id}"
+            },
+            "capture": {
+              "timestamp": "timestamp"
+            }
+          },
+          "receiver": "attachments"
+        },
+        {
+          "phase": "blocks",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_slack_block_message",
+            "arguments": {
+              "channel_id": "{slack_channel_id}",
+              "text": "{code}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "{code}"
+                  }
+                }
+              ]
+            },
+            "result_fields": {
+              "ok": true,
+              "provider": "slack",
+              "channel_id": "{slack_channel_id}"
+            },
+            "capture": {
+              "timestamp": "timestamp"
+            }
+          },
+          "receiver": "blocks"
+        }
+      ]
+    }
+  ]
+}

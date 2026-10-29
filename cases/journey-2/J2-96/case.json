@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "id": "J2-96",
+  "workspace": "journey-2",
+  "title": "已有名称冲突后保留原智能体并更名创建",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "builder_edge": "name_conflict",
+  "random_tokens": [
+    "code"
+  ],
+  "sessions": [
+    {
+      "id": "builder",
+      "agent_from_builder_input": true,
+      "delivery_kind": "answer",
+      "expected_checks": 16,
+      "turns": [
+        {
+          "phase": "use",
+          "prompt": "只回复这段代号：{code}",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{code}",
+              "rule": "新发布智能体实际完成对话"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

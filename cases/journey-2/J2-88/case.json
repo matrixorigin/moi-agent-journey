@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "J2-88",
+  "workspace": "journey-2",
+  "title": "损坏图片的错误反馈后识别正常图片",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {
+      "path": "image.png",
+      "sha256": "df93dce32c81d3df5daabc6310ff0eea94ed9ee9af7747c1669fb17e9eaa865f"
+    },
+    {
+      "path": "broken.png",
+      "sha256": "15790db03507b40555473996d4e10ea5b1819f1a68ad2e52c5d3946bc8d0c4b3"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "file_recovery",
+      "delivery_kind": "answer",
+      "expected_checks": 7,
+      "turns": [
+        {
+          "phase": "broken",
+          "prompt": "请尝试读取附件并检查是否能正常解码出内容。只返回 JSON，readable 字段为布尔值，表示能否读取实际内容；不要猜测图片中的文字。",
+          "attachments": [
+            "broken.png"
+          ],
+          "json_format": "object_or_fenced",
+          "json_fields": {
+            "readable": false
+          },
+          "file_rejection": true
+        },
+        {
+          "phase": "recover",
+          "prompt": "请读取这张图片中最大的英文字母与数字，原样回答图片里的编号。",
+          "attachments": [
+            "image.png"
+          ],
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "QZ-47",
+              "rule": "图片编号识别正确"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
