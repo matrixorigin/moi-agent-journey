@@ -160,23 +160,26 @@ class FunctionalJourneyTests(unittest.TestCase):
             self.assertEqual(report['functional']['state'], 'fail')
             self.assertEqual(report['agent']['state'], 'abnormal')
 
-    def test_only_an_admitted_matching_runtime_stream_error_is_reclassified(self):
+    def test_runtime_error_distinguishes_admission_and_matching_admitted_task(self):
         details = {'code': -32603, 'data': {'domain': 'moi-core.agent_runtime', 'reason': 'INTERNAL'}}
         def broken(error):
             raise error
             yield
         for pending, phase, payload, expected in [
             (None, 'session:turn', details, 'agent_runtime_stream_error'),
-            ('conversation', 'session:turn', details, 'rpc_error'),
+            ('conversation', 'session:turn', details, 'agent_runtime_admission_error'),
             (None, 'session:previous', details, 'rpc_error'),
             (None, 'session:turn', {'code': -32603, 'data': {'domain': 'other', 'reason': 'INTERNAL'}}, 'rpc_error'),
         ]:
             execution = SimpleNamespace(pending_conversation=pending,
                 tasks=[{'conversation_id': 'conversation', 'phase': phase}])
             with self.subTest(expected=expected, pending=pending, phase=phase), self.assertRaises(Failure) as raised:
-                list(agent_stream(broken(Failure('rpc_error', details=payload)), execution,
+                list(agent_stream(broken(Failure('rpc_error', details=payload, trace_headers={'X-Trace-Id': 'request-trace'})), execution,
                                   'conversation', 'session:turn'))
             self.assertEqual(raised.exception.code, expected)
+            self.assertEqual(raised.exception.trace_headers, {'X-Trace-Id': 'request-trace'})
+            if expected == 'agent_runtime_admission_error':
+                self.assertEqual(execution.pending_rejection['trace_headers'], raised.exception.trace_headers)
 
     def test_wrong_final_answer_fails_function_without_losing_evidence(self):
         with qa_fixture('success') as (base, state):

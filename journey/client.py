@@ -12,18 +12,20 @@ import uuid
 
 
 class Failure(Exception):
-    def __init__(self, code, http_status=None, details=None):
+    def __init__(self, code, http_status=None, details=None, *, trace_headers=None):
         super().__init__(code)
         self.code = code
         self.http_status = http_status
         self.details = details
+        self.trace_headers = trace_headers or {}
 
 
 def error_record(stage, error, **context):
     """Keep structured failure information when reporting an execution error."""
     if isinstance(error, Failure):
         return {'stage': stage, 'reason': error.code, 'http_status': error.http_status,
-                'details': error.details, **context}
+                'details': error.details, **({'trace_headers': error.trace_headers} if error.trace_headers else {}),
+                **context}
     return {'stage': stage, 'reason': type(error).__name__ + ':' + str(error), **context}
 
 
@@ -170,9 +172,11 @@ class Client:
         self.requests += 1
         try:
             with self.opener.open(request, timeout=remaining) as response:
+                trace_headers = {k: v for k, v in response.headers.items()
+                                 if k.lower() in {'x-trace-id', 'x-request-id', 'traceparent'}}
                 if self.observer:
                     self.observer({"method": "POST", "path": "/agents/a2a", "request": body,
-                        "status": response.status, "response": {"stream": True}, "headers": {}, "seconds": 0})
+                        "status": response.status, "response": {"stream": True}, "headers": trace_headers, "seconds": 0})
                 if response.headers.get_content_type() != "text/event-stream":
                     if self.observer:
                         self.observer({"method":"POST","path":"/agents/a2a","status":response.status,
@@ -198,8 +202,9 @@ class Client:
                             raise Failure("invalid_rpc_response")
                         if "error" in frame:
                             if self.observer:
-                                self.observer({"method":"POST","path":"/agents/a2a","status":response.status,"response":frame})
-                            raise Failure("rpc_error",details=frame["error"])
+                                self.observer({"method":"POST","path":"/agents/a2a","status":response.status,
+                                               "response":frame,"headers":trace_headers})
+                            raise Failure("rpc_error", details=frame["error"], trace_headers=trace_headers)
                         if not isinstance(frame.get("result"), dict):
                             raise Failure("invalid_rpc_response")
                         yield {"sequence": sequence, "result": frame["result"]}

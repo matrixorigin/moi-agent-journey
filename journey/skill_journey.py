@@ -18,11 +18,11 @@ def same_skill_content(left, right):
 class SkillJourney(OwnedSkillJourney):
     kind = 'skill'
 
-    def __init__(self, execution, definition, variables, checks):
+    def __init__(self, execution, definition, variables, checks, *, identity_suffix=''):
         if (not isinstance(definition, dict) or set(definition) != {'mode', 'marker', 'initial_marker'} or
-                definition['mode'] not in {'versions', 'disabled', 'package', 'bindings', 'manual', 'invalid_package'}):
+                definition['mode'] not in {'use', 'versions', 'disabled', 'package', 'bindings', 'manual', 'invalid_package'}):
             raise Failure('invalid_skill_journey')
-        super().__init__(execution, checks)
+        super().__init__(execution, checks, identity_suffix=identity_suffix)
         self.mode = definition['mode']
         self.marker = definition['marker'].format_map(variables)
         self.initial_marker = definition['initial_marker'].format_map(variables)

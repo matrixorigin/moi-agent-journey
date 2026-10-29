@@ -23,23 +23,30 @@ def task_outcome_failure(error):
     """Recognize failures that actually describe an agent or its deliverable."""
     return (error.code in {'agent_failed', 'agent_canceled', 'agent_rejected',
                            'agent_input-required', 'agent_auth-required',
-                           'agent_runtime_stream_error',
+                           'agent_runtime_stream_error', 'agent_runtime_admission_error',
                            'final_output_bundle_not_unique', 'missing_agent_reply', 'missing_final_reply'} or
             error.code.startswith(('missing_deliverables:', 'invalid_output_archive:', 'live_resume_')))
 
 
 def agent_stream(source, execution, conversation_id, phase):
-    """Classify a product runtime error only after this stream admitted a task."""
+    """Keep an explicit runtime rejection distinct from a lost transport response."""
     try:
         yield from source
     except Failure as error:
         data = error.details.get('data') if isinstance(error.details, dict) else None
         current = execution.tasks[-1] if execution.tasks else None
-        if (error.code == 'rpc_error' and isinstance(error.details, dict) and error.details.get('code') == -32603 and
+        runtime_error = (error.code == 'rpc_error' and isinstance(error.details, dict) and error.details.get('code') == -32603 and
                 isinstance(data, dict) and data.get('domain') == 'moi-core.agent_runtime' and
-                data.get('reason') == 'INTERNAL' and execution.pending_conversation is None and
+                data.get('reason') == 'INTERNAL')
+        if runtime_error and execution.pending_conversation == conversation_id:
+            execution.pending_rejection = {'conversation_id': conversation_id, 'phase': phase,
+                                           'error': error.details, 'trace_headers': error.trace_headers}
+            raise Failure('agent_runtime_admission_error', error.http_status, error.details,
+                          trace_headers=error.trace_headers) from None
+        if (runtime_error and execution.pending_conversation is None and
                 current and current.get('conversation_id') == conversation_id and current.get('phase') == phase):
-            raise Failure('agent_runtime_stream_error', error.http_status, error.details) from None
+            raise Failure('agent_runtime_stream_error', error.http_status, error.details,
+                          trace_headers=error.trace_headers) from None
         raise
 
 
@@ -53,6 +60,7 @@ class Execution:
         self.conversations = []
         self.uploads = []
         self.pending_conversation = None
+        self.pending_rejection = None
         self.report = {"case_id": case["id"], "title": case["title"], "workspace": case["workspace"],
                        "run_id": str(uuid.uuid4()), "started_at": utc_now(), "status": "running",
                        "stage": "discovery", "timeout_seconds": case["timeout_seconds"],
@@ -165,6 +173,7 @@ class Execution:
             dialogue['a2ui_action'] = a2ui_action
         self.evidence.append("dialogue.jsonl", dialogue)
         self.pending_conversation = cid
+        self.pending_rejection = None
         self.checkpoint()
         started = time.monotonic()
         entry = None
@@ -360,13 +369,38 @@ class Execution:
                     **selector, "context_id": cid, "limit": 100, "offset": 0}))
                 known = {t["task_id"] for t in self.tasks}
                 candidates = [t for t in result["items"] if t["id"] not in known and t["context_id"] == cid]
-                if len(candidates) != 1:
+                if not candidates and self.pending_rejection:
+                    conversation = self.client.product('GET', self.root + '/conversations/' + segment(cid))
+                    expected = {t['task_id'] for t in self.tasks if t['conversation_id'] == cid}
+                    items = result.get('items', [])
+                    confirmed = (self.pending_rejection.get('conversation_id') == cid and
+                        result.get('total') == len(items) and
+                        {t.get('id') for t in items} == expected and len(items) == len(expected) and
+                        all(t.get('context_id') == cid and t.get('agent_id') == selector['agent_id'] and
+                            t.get('agent_workspace_id') == selector['agent_workspace_id'] and
+                            t.get('a2a_state') in TERMINAL for t in items) and
+                        conversation.get('id') == cid and
+                        all(conversation.get(k) == v for k, v in selector.items()) and
+                        not conversation.get('active_task_id') and
+                        (not conversation.get('latest_task_id') or conversation['latest_task_id'] in expected))
+                    self.evidence.write('admission-rejections/' + segment(cid) + '.json',
+                        {**self.pending_rejection, 'confirmed_no_new_task': confirmed,
+                         'conversation': conversation, 'tasks': result})
+                    if not confirmed:
+                        raise Failure('send_outcome_unknown')
+                    self.report.setdefault('admission_failures', []).append(
+                        {**self.pending_rejection, 'confirmed_no_new_task': True})
+                    self.pending_conversation = None
+                    self.pending_rejection = None
+                elif len(candidates) != 1:
                     raise Failure("send_outcome_unknown")
-                t = candidates[0]
-                self.tasks.append({"task_id": t["id"], "conversation_id": cid, "phase": "recovered_send",
-                    "state": t["a2a_state"], "event_cursor": 0, "event_count": 0,
-                    "event_kinds": {}, "capture_complete": False})
-                self.pending_conversation = None
+                else:
+                    t = candidates[0]
+                    self.tasks.append({"task_id": t["id"], "conversation_id": cid, "phase": "recovered_send",
+                        "state": t["a2a_state"], "event_cursor": 0, "event_count": 0,
+                        "event_kinds": {}, "capture_complete": False})
+                    self.pending_conversation = None
+                    self.pending_rejection = None
             except Exception as error:
                 self.report["harness_errors"].append(error_record("recover_send", error))
         for task in self.tasks:

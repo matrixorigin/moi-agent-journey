@@ -304,7 +304,7 @@ class AgentBuilderFlow:
                                            resource_workspace(item, self.workspace) == expected_resource['workspace_id'])
                                           for item in resources if isinstance(item, dict))
         self.record('发布版本保留指定配置', config_ok, 'published_configuration_mismatch')
-        self.execution.evidence.write('builder-published/' + segment(version) + '.json', {'agent_id': agent_id, 'workspace_id': self.workspace,
+        self.execution.evidence.write('builder-published/' + segment(agent_id) + '/' + segment(version) + '.json', {'agent_id': agent_id, 'workspace_id': self.workspace,
             'version': version, 'name': name, 'manifest': manifest})
         self.created = {'agent_id': agent_id, 'workspace_id': self.workspace, 'version': version,
                         'verified': identity}
@@ -325,7 +325,7 @@ class AgentBuilderFlow:
                                   item.get('name') == resource['name'] and item.get('status') == 'active'
                                   for item in actual) for resource in knowledge))
             self.record('发布智能体已绑定指定知识库', binding_ok, 'published_knowledge_binding_mismatch')
-            self.execution.evidence.write('builder-published/' + segment(version) + '-knowledge-bindings.json',
+            self.execution.evidence.write('builder-published/' + segment(agent_id) + '/' + segment(version) + '-knowledge-bindings.json',
                                           {'agent_id': agent_id, 'knowledge_bases': actual})
             if not binding_ok:
                 raise ProductCaseFailure('published_knowledge_binding_mismatch')
@@ -337,7 +337,7 @@ class AgentBuilderFlow:
                 if error.code != 'http_error' or error.http_status is None:
                     raise
                 current = {}
-            self.execution.evidence.write('builder-published/' + segment(version) + '-current.json', current)
+            self.execution.evidence.write('builder-published/' + segment(agent_id) + '/' + segment(version) + '-current.json', current)
             if capture_current:
                 config_read = (current.get('agent_id') == agent_id and current.get('name') == name and
                                same_published_config(current, current))
@@ -452,7 +452,7 @@ class AgentBuilderFlow:
         if not active_ok:
             raise ProductCaseFailure('agent_restore_not_confirmed')
         self.record('恢复后的智能体出现在工作区列表', listing('active'), 'restored_agent_missing_from_catalog')
-        self.execution.evidence.write('builder-published/lifecycle.json',
+        self.execution.evidence.write('builder-published/' + segment(agent_id) + '/lifecycle.json',
             {'agent_id': agent_id, 'duplicate_status': duplicate_status, 'disabled': disabled_readback,
              'restored': active_readback})
 

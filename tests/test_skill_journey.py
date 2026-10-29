@@ -90,7 +90,7 @@ class SkillJourneyTests(unittest.TestCase):
         journey.agent_pending = journey.skill_pending = True
         agent = {'id': journey.agent_id, 'workspace_id': 'ws', 'name': journey.agent_id}
         skill = {'id': journey.skill_id, 'workspace_id': 'ws', 'name': journey.name}
-        execution.client.product.side_effect = [agent, agent, {'status': 'archived'}, {}, {},
+        execution.client.product.side_effect = [agent, agent, {'status': 'archived'}, {'status': 'archived'}, {}, {},
                                                  skill, skill, {}, Failure('http_error', 404)]
         journey.cleanup(dependencies_confirmed=True)
         self.assertEqual(journey.state['cleanup'], 'completed')
