@@ -1,1 +1,3 @@
+# Preserve fixture bytes, including deliberately truncated PNG inputs.
+*.png binary
 *.pdf binary
