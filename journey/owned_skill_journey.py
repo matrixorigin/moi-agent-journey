@@ -12,17 +12,17 @@ from .evidence import sha256
 class OwnedSkillJourney(ResourceJourney):
     kind = 'skill'
 
-    def __init__(self, execution, checks):
+    def __init__(self, execution, checks, *, identity_suffix=''):
         self.execution, self.checks = execution, checks
         self.session_id = execution.case['sessions'][0]['id']
         self.workspace = execution.root.rsplit('/', 1)[-1]
-        suffix = execution.report['run_id'].replace('-', '')
+        suffix = execution.report['run_id'].replace('-', '') + identity_suffix
         self.name, self.agent_id, self.skill_id = 'j2-lookup-' + suffix, 'j2-agent-' + suffix, 'j2-skill-' + suffix
         self.agent_name = self.agent_id
         self.skill_pending = self.agent_pending = False
         self.builder = None
         self.state = {'name': self.name, 'cleanup': 'pending'}
-        execution.report['skill_journey'] = self.state
+        execution.report['skill_journey' + identity_suffix] = self.state
         self.previous_observer = execution.client.observer
         execution.client.observer = self.observe
 

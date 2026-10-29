@@ -13,14 +13,14 @@ FIXTURE_ROOT = 'https://raw.githubusercontent.com/matrixorigin/moi-agent-journey
 class ToolJourney(ResourceJourney):
     kind = 'tool'
 
-    def __init__(self, execution, definition, checks):
-        if not isinstance(definition, dict) or set(definition) != {'mode'} or definition['mode'] not in {'lifecycle', 'http_error', 'bindings', 'invalid', 'arguments'}:
+    def __init__(self, execution, definition, checks, *, identity_suffix=''):
+        if not isinstance(definition, dict) or set(definition) != {'mode'} or definition['mode'] not in {'use', 'lifecycle', 'http_error', 'bindings', 'invalid', 'arguments'}:
             raise Failure('invalid_tool_journey')
         self.execution, self.checks = execution, checks
         self.session_id = execution.case['sessions'][0]['id']
         self.mode = definition['mode']
         self.workspace = execution.root.rsplit('/', 1)[-1]
-        suffix = execution.report['run_id'].replace('-', '')
+        suffix = execution.report['run_id'].replace('-', '') + identity_suffix
         self.agent_id = 'j2-agent-' + suffix
         self.agent_pending, self.builder = False, None
         self.tools = [{'id': 'j2-http-' + suffix, 'name': 'journey_lookup_' + suffix,
@@ -30,7 +30,7 @@ class ToolJourney(ResourceJourney):
                                'uri': FIXTURE_ROOT + 'missing-' + suffix + '.json'})
         self.state = {'mode': self.mode, 'tools': self.tools, 'pending_ids': [], 'cleanup': 'pending',
                       'fixture_revision': FIXTURE_REVISION}
-        execution.report['tool_journey'] = self.state
+        execution.report['tool_journey' + identity_suffix] = self.state
         self.previous_observer = execution.client.observer
         execution.client.observer = self.observe
 

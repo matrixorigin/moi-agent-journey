@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "J2-119",
+  "workspace": "journey-2",
+  "title": "tool 多智能体共享引用、归档后修改与删除",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI resource lifecycle regression",
+    "issues": [
+      "https://github.com/matrixorigin/matrixflow/issues/19250",
+      "https://github.com/matrixorigin/matrixflow/issues/19944"
+    ]
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "ordinary_code"
+  ],
+  "resource_lifecycle": {
+    "kind": "tool",
+    "mode": "shared"
+  },
+  "sessions": [
+    {
+      "id": "shared",
+      "agent_from_lifecycle": true,
+      "delivery_kind": "answer",
+      "expected_checks": 44,
+      "turns": [
+        {
+          "phase": "baseline",
+          "prompt": "请实际调用工具 {primary_name}（{primary_id}），告诉我它返回的 JSON 正文中的 id。不要用之前的回答代替本次调用。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{primary_marker}",
+              "rule": "答复包含本次资源实际内容"
+            }
+          ],
+          "lifecycle_check": "primary",
+          "lifecycle_action": "shared_references"
+        }
+      ]
+    }
+  ]
+}

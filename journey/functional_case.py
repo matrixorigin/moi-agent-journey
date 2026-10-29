@@ -42,6 +42,7 @@ from .native_skill_journey import NativeSkillJourney
 from .native_skill_builder import NativeSkillBuilderJourney
 from .native_skill_source import NativeSkillUnavailable
 from .tool_journey import ToolJourney, evaluate_http_tool
+from .resource_lifecycle import ResourceLifecycleJourney
 from .builder_input_journey import BuilderInputJourney
 from .builder_edge_journey import BuilderEdgeJourney
 from .agent_package_journey import AgentPackageJourney
@@ -203,6 +204,7 @@ class FunctionalExecution(Execution):
         self.native_builder = None
         self.native_resources = None
         tool_journey = None
+        resource_lifecycle = None
         builder_input = None
         package_journey = None
         channel_journeys = {}
@@ -211,6 +213,10 @@ class FunctionalExecution(Execution):
             self.root, self.selector = discover(self.client, self.case['workspace'])
             start_version(self)
             variables = case_variables(self.case)
+            if self.case.get('resource_lifecycle') is not None:
+                self.report['stage'] = 'resource_lifecycle'
+                resource_lifecycle = ResourceLifecycleJourney(self, self.case['resource_lifecycle'], checks)
+                variables.update(resource_lifecycle.prepare())
             if self.case.get('channels') is not None:
                 self.report['stage'] = 'channel_preflight'
                 targets = channel_targets(self, self.case['channels'], checks)
@@ -273,9 +279,13 @@ class FunctionalExecution(Execution):
                 self.report['stage'] = 'session:' + session['id']
                 agent_from = session.get('agent_from')
                 selector = None
-                selectors = [session.get(key) for key in ('agent_from', 'agent_from_tool', 'agent_from_skill', 'agent_from_builder_input', 'agent_from_package', 'agent_from_channel')]
+                selectors = [session.get(key) for key in ('agent_from', 'agent_from_tool', 'agent_from_skill', 'agent_from_builder_input', 'agent_from_package', 'agent_from_channel', 'agent_from_lifecycle')]
                 if sum(bool(value) for value in selectors) > 1:
                     raise Failure('conflicting_agent_selectors')
+                if session.get('agent_from_lifecycle') is True:
+                    if not resource_lifecycle:
+                        raise Failure('invalid_lifecycle_session')
+                    selector = resource_lifecycle.selector()
                 if session.get('agent_from_channel'):
                     channel = channel_journeys.get(session['agent_from_channel'])
                     if not channel:
@@ -466,6 +476,10 @@ class FunctionalExecution(Execution):
                     self.evidence.write('sessions/' + session['id'] + '/replies/' + turn['phase'] + '.json',
                                         {'task_id': final_entry['task_id'], 'text': reply})
                     checks.extend(check_reply(session['id'], turn, reply, variables))
+                    if turn.get('lifecycle_check') is not None:
+                        if not resource_lifecycle:
+                            raise Failure('invalid_lifecycle_check')
+                        resource_lifecycle.evaluate(final_entry['task_id'], session['id'], turn['lifecycle_check'])
                     if self.native_skill:
                         artifact_delivered |= self.native_skill.evaluate(final_entry['task_id'], cid, session['id'],
                             turn['phase'], reply, turn['native_check'], variables)
@@ -756,6 +770,10 @@ class FunctionalExecution(Execution):
                                     filename, content, action['kind'], checks, session['id'])
                         else:
                             raise Failure('invalid_case_action')
+                    if turn.get('lifecycle_action') is not None:
+                        if not resource_lifecycle or turn.get('lifecycle_check') is None:
+                            raise Failure('invalid_lifecycle_action')
+                        resource_lifecycle.apply(turn['lifecycle_action'])
                     session_report.update({'candidate_verified': candidate_verified, 'artifact_delivered': artifact_delivered})
                 if final_entry is None:
                     raise Failure('session_has_no_turns')
@@ -836,6 +854,8 @@ class FunctionalExecution(Execution):
                 channel.cleanup(dependencies_confirmed=tasks_confirmed)
             if tool_journey:
                 tool_journey.cleanup(dependencies_confirmed=tasks_confirmed)
+            if resource_lifecycle:
+                resource_lifecycle.cleanup(dependencies_confirmed=tasks_confirmed)
             if builder_input:
                 builder_input.cleanup(dependencies_confirmed=tasks_confirmed)
             if package_journey:

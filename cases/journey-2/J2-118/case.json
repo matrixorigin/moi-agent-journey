@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "id": "J2-118",
+  "workspace": "journey-2",
+  "title": "skill 绑定后 draft、能力隔离与恢复",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI resource lifecycle regression",
+    "issues": [
+      "https://github.com/matrixorigin/matrixflow/issues/19250",
+      "https://github.com/matrixorigin/matrixflow/issues/19944"
+    ]
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "ordinary_code"
+  ],
+  "resource_lifecycle": {
+    "kind": "skill",
+    "mode": "isolation",
+    "status": "draft"
+  },
+  "sessions": [
+    {
+      "id": "live",
+      "agent_from_lifecycle": true,
+      "delivery_kind": "answer",
+      "expected_checks": 28,
+      "turns": [
+        {
+          "phase": "baseline",
+          "prompt": "请实际读取 Skill {primary_id}（{primary_name}），告诉我其中的公开项目编号。不要用之前的回答代替本次读取。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{primary_marker}",
+              "rule": "答复包含本次资源实际内容"
+            }
+          ],
+          "lifecycle_check": "primary",
+          "lifecycle_action": "deactivate"
+        },
+        {
+          "phase": "unaffected",
+          "prompt": "先回复本轮公开代号 {ordinary_code}，再完成以下任务：请实际读取 Skill {healthy_id}（{healthy_name}），告诉我其中的公开项目编号。不要用之前的回答代替本次读取。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{healthy_marker}",
+              "rule": "答复包含本次资源实际内容"
+            },
+            {
+              "type": "contains",
+              "value": "{ordinary_code}",
+              "rule": "资源失效不阻断普通对话"
+            }
+          ],
+          "lifecycle_check": "isolated"
+        }
+      ]
+    },
+    {
+      "id": "fresh",
+      "agent_from_lifecycle": true,
+      "delivery_kind": "answer",
+      "expected_checks": 9,
+      "turns": [
+        {
+          "phase": "unavailable",
+          "prompt": "先尝试查找并使用 Skill {primary_id}（{primary_name}）。如果当前不可用，请明确回复 RESOURCE_UNAVAILABLE。然后继续下面这个独立任务：请实际读取 Skill {healthy_id}（{healthy_name}），告诉我其中的公开项目编号。不要用之前的回答代替本次读取。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{healthy_marker}",
+              "rule": "答复包含本次资源实际内容"
+            },
+            {
+              "type": "contains",
+              "value": "RESOURCE_UNAVAILABLE",
+              "rule": "明确说明失效资源不可用"
+            }
+          ],
+          "lifecycle_check": "isolated",
+          "lifecycle_action": "activate"
+        },
+        {
+          "phase": "restored",
+          "prompt": "请实际读取 Skill {primary_id}（{primary_name}），告诉我其中的公开项目编号。不要用之前的回答代替本次读取。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{primary_marker}",
+              "rule": "答复包含本次资源实际内容"
+            }
+          ],
+          "lifecycle_check": "primary"
+        }
+      ]
+    }
+  ]
+}

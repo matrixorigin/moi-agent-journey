@@ -301,6 +301,16 @@ class JourneyTests(unittest.TestCase):
         self.assertEqual(result['judge_errors'][0]['arguments'],{'query':'source'})
         self.assertEqual(result['judge_errors'][0]['errors'][0]['code'],'quota')
 
+    def test_admission_rejection_report_has_request_trace_without_inventing_task(self):
+        result = self.finished_result('J1-01')
+        result['admission_failures'] = [{'phase': 'live:after', 'conversation_id': 'conversation',
+            'trace_headers': {'X-Trace-Id': 'rejected-request-trace'},
+            'error': {'code': -32603}, 'confirmed_no_new_task': True}]
+        markdown = case_summary(result)
+        self.assertIn('rejected-request-trace', markdown)
+        self.assertIn('请求 trace 不代表运行时 task trace', markdown)
+        self.assertIn('live:after', markdown)
+
     def test_expected_tool_error_marks_only_the_verified_observation(self):
         expected = {'task_id': 'task', 'call_id': 'intentional', 'kind': 'command_exit', 'code': '1'}
         calls = [

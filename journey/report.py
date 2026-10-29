@@ -178,6 +178,14 @@ def case_summary(result):
         lines += ['', f"事件与 trace 采集完整：{'是' if result.get('capture_complete') else '否'}。"]
     else:
         lines += ['', '## 会话与 trace', '', '未获取会话或 trace ID。']
+    if result.get('admission_failures'):
+        lines += ['', '## 任务受理失败', '',
+                  '以下请求被运行时明确拒绝，已核对会话和任务列表，确认没有创建新任务。请求 trace 不代表运行时 task trace。', '',
+                  '| 阶段 | MOI 会话 ID | 请求 Trace ID | 错误 |', '|---|---|---|---|']
+        for item in result['admission_failures']:
+            headers = {key.lower(): value for key, value in item.get('trace_headers', {}).items()}
+            lines.append(f"| {cell(item.get('phase'))} | {cell(item.get('conversation_id'))} | "
+                         f"{cell(headers.get('x-trace-id'))} | {cell(json.dumps(item.get('error'), ensure_ascii=False))} |")
     for label, observed in [('智能体', tools.get('errors', [])), ('评审', tools.get('judge_errors', []))]:
         if not observed:
             continue

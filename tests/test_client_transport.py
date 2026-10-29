@@ -1,4 +1,7 @@
 import http.client
+import io
+import json
+from email.message import Message
 import socket
 import ssl
 import tempfile
@@ -38,6 +41,27 @@ class ClientTransportTests(unittest.TestCase):
                 details = transport_details(error)
                 self.assertEqual(details['category'], category)
                 self.assertNotIn('private-host', str(details))
+
+    def test_stream_error_preserves_only_trace_headers(self):
+        observations = []
+        client = Client('https://example.invalid', 'synthetic-pat', observer=observations.append)
+        def open_stream(request, timeout):
+            body = json.loads(request.data)
+            frame = {'jsonrpc': '2.0', 'id': body['id'], 'error': {'code': -32603}}
+            response = io.BytesIO(('data: ' + json.dumps(frame) + '\n\n').encode())
+            response.status = 200
+            response.headers = Message()
+            for name, value in {'Content-Type': 'text/event-stream', 'X-Trace-Id': 'request-trace',
+                                'X-Request-Id': 'request-id', 'Set-Cookie': 'synthetic-cookie'}.items():
+                response.headers[name] = value
+            return response
+        client.opener.open = Mock(side_effect=open_stream)
+        with self.assertRaises(Failure) as raised:
+            list(client.stream_rpc({'agent_id': 'a'}, {}))
+        self.assertEqual(raised.exception.code, 'rpc_error')
+        self.assertEqual(raised.exception.trace_headers, {'X-Trace-Id': 'request-trace', 'X-Request-Id': 'request-id'})
+        self.assertTrue(all(item['headers'] == raised.exception.trace_headers for item in observations))
+        self.assertNotIn('synthetic-cookie', str(observations))
 
     def test_http_and_stream_paths_preserve_the_same_safe_category(self):
         client = Client('https://example.invalid', 'synthetic-pat')

@@ -89,7 +89,7 @@ class ResourceJourney:
                 'knowledge_base_names': [], 'channel_bindings': [], 'agent_md': instruction,
                 'change_reason': 'Synthetic resource verification.'}}
 
-    def detach_agent_resources(self, ids, *, agent_name):
+    def archive_owned_agent(self, *, agent_name):
         if self.builder:
             self.builder.cleanup()
         if self.agent_pending and not self.absent(self.agent_path):
@@ -101,6 +101,15 @@ class ResourceJourney:
                 raise Failure('cleanup_resource_agent_identity_mismatch')
             if agent.get('status') != 'archived':
                 client.product('PATCH', path, {'status': 'archived'})
+                if client.product('GET', path).get('status') != 'archived':
+                    raise Failure('cleanup_agent_archive_unconfirmed')
+            return True
+        return False
+
+    def detach_agent_resources(self, ids, *, agent_name):
+        if self.archive_owned_agent(agent_name=agent_name):
+            client = self.execution.client
+            path = self.execution.root + self.agent_path
             client.product('PATCH', path + '/bindings', {'binding_ops': [
                 {'op': 'remove', 'kind': self.kind,
                  'ref': {'id': resource_id, 'kind': self.kind, 'workspace_id': self.workspace}}
