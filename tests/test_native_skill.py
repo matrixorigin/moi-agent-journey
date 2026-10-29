@@ -119,7 +119,7 @@ class NativeSkillTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             execution=SimpleNamespace(report={'run_id':str(uuid.uuid4()),'harness_errors':[]},client=Mock(deadline=time.monotonic()+30),
                 case={'id':'J2-111'},evidence=Evidence(Path(tmp)),checkpoint=lambda:None)
-            data=NativeSkillData(execution,'initialize')
+            data=NativeSkillData(execution)
             for database in data.databases.values():database.update(id=1,catalog_id=1)
             data.cleanup(False);execution.client.product.assert_not_called();execution.client.request.assert_not_called()
             self.assertEqual(len(execution.report['harness_errors']),2)

@@ -1,7 +1,6 @@
 """Own two isolated databases and verify business effects independently of the Agent."""
 import re
 import time
-import uuid
 
 from .client import Failure, error_record
 
@@ -23,15 +22,12 @@ def literal(value):
 
 
 class NativeSkillData:
-    def __init__(self, execution, scenario):
-        self.execution, self.scenario = execution, scenario
+    def __init__(self, execution):
+        self.execution = execution
         suffix = execution.report['run_id'].replace('-', '')
         self.databases = {kind: {'name': 'j2_' + kind + '_' + suffix, 'cleanup': 'pending'}
                           for kind in ('employees', 'sales')}
-        self.ids = {name: str(uuid.uuid5(uuid.UUID(execution.report['run_id']), name))
-                    for name in ('customer_a', 'customer_b', 'item_a', 'item_b', 'item_c', 'item_d', 'item_e', 'item_f')}
-        self.employee_name = '林青'
-        self.state = {'databases': self.databases, 'ids': self.ids}
+        self.state = {'databases': self.databases}
         execution.report['native_data'] = self.state
 
     def catalog(self, path, body):
@@ -71,7 +67,7 @@ class NativeSkillData:
             self.sql(kind, 'INSERT INTO ' + identifier(table) + ' (' + ','.join(identifier(key) for key in row) + ') VALUES (' +
                      ','.join(literal(value) for value in row.values()) + ')')
 
-    def setup(self, schema):
+    def setup(self):
         catalogs = self.catalog('list', {'include_stats': False}).get('list', [])
         matches = [item for item in catalogs if item.get('name') == 'default']
         if len(matches) != 1:
@@ -91,37 +87,14 @@ class NativeSkillData:
         columns = ['employee_id VARCHAR(64) PRIMARY KEY', 'name VARCHAR(64) NOT NULL', 'github_id VARCHAR(120)',
                    'title VARCHAR(64)', 'city VARCHAR(64)', 'department VARCHAR(128)', 'division VARCHAR(64)',
                    'team VARCHAR(64)', 'manager_id VARCHAR(64)']
-        if self.scenario != 'initialize':
-            columns.extend(['english_name VARCHAR(120)', 'hiring_date DATE', 'is_active BOOLEAN'])
         self.sql('employees', 'CREATE TABLE employees (' + ','.join(columns) + ')')
         employees = []
         for eid, name, dept, title in [('0007', '林青', '销售部', '销售经理'), ('00018', '陈星', '工程部', '工程师'), ('00042', '周宁', '产品部', '产品经理')]:
             row = dict(employee_id=eid, name=name, github_id='fixture-' + eid, title=title, city='上海', department=dept,
                        division='华东', team='测试组', manager_id=None)
-            if self.scenario != 'initialize':
-                row.update(english_name='Fixture ' + eid, hiring_date='2020-01-01', is_active=1)
             employees.append(row)
         self.insert('employees', 'employees', employees)
         self.state['employees_before'] = self.sql('employees', 'SELECT * FROM employees ORDER BY employee_id')
-        if self.scenario != 'initialize':
-            for statement in schema.decode().split(';'):
-                if statement.strip():
-                    self.sql('sales', statement.strip())
-            fixed = {'created_at': '2026-01-01 00:00:00', 'updated_at': '2026-01-01 00:00:00', 'version': 1}
-            self.insert('sales', 'customers', [dict(customer_uuid=self.ids['customer_a'], name='Atlas', **fixed),
-                                               dict(customer_uuid=self.ids['customer_b'], name='Orion', **fixed)])
-            items = []
-            definitions = [('a','Atlas 联调','a','0007','in_progress','2000-01-01'),
-                ('b','Atlas 报价','a','0007','pending','2000-01-01'), ('c','Orion 验收','b','00018','done','2000-01-01'),
-                ('d','Orion 依赖','b','00018','blocked','2100-01-01'), ('e','Atlas 取消','a','00042','cancelled','2000-01-01'),
-                ('f','Orion 逾期','b','00018','pending','2000-01-01')]
-            for key, item, customer, owner, status, due in definitions:
-                items.append(dict(item_id=self.ids['item_' + key], customer_uuid=self.ids['customer_' + customer],
-                    owner_eid=owner, item=item, status=status, status_reason='等待环境' if status=='blocked' else None,
-                    resume_status='in_progress' if status=='blocked' else None, next_followup_at=None,
-                    completed_at='2026-01-01 00:00:00' if status=='done' else None, expected_end=due, notes='原始备注',
-                    eng_owner_eid='00018', product_owner_eid='00042', **fixed))
-            self.insert('sales', 'progress_items', items)
         self.state['ready'] = True
         self.save()
         return {'employees_table': 'default.' + self.databases['employees']['name'] + '.employees',
@@ -137,7 +110,6 @@ class NativeSkillData:
 
     def update_employee(self):
         self.sql('employees', 'UPDATE employees SET name=' + literal('林青新版') + " WHERE employee_id='0007'")
-        self.employee_name = '林青新版'
         self.state['employees_before'] = self.sql('employees', 'SELECT * FROM employees ORDER BY employee_id')
         self.save()
 
