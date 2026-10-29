@@ -12,11 +12,11 @@
   "fixtures": [
     {
       "path": "fern.txt",
-      "sha256": "40f52c452fa71078910b67b89c49f8816f357fd3c51ff7c331c825b29fa7c357"
+      "sha256": "ff9910cebaffc659da675da07a4c035316a669c67999bdf8a6163e4ed2b9c414"
     },
     {
       "path": "birch.txt",
-      "sha256": "8b03bb5c0f2b9061fda4b76d83888b2052fb219bbec70a272e08d460f430a4aa"
+      "sha256": "ba93c40352bcae3dd35d91f7537bfd9aa629bc1e7f2f008cde7680465779a6c3"
     }
   ],
   "knowledge_fixtures": {
@@ -38,7 +38,7 @@
       "turns": [
         {
           "phase": "query",
-          "prompt": "请根据我选择的知识库，回答 Project Fern 的 launch token，并引用来源。",
+          "prompt": "请根据我选择的知识库，回答 Project Fern 的 项目编号，并引用来源。",
           "knowledge_selection": [
             "fern",
             "birch"

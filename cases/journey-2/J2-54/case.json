@@ -1,0 +1,45 @@
+{
+  "title": "同轮读取图片和表格混合附件",
+  "sessions": [
+    {
+      "id": "mixed",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "read",
+          "prompt": "读取图片里的编号，再计算 CSV 每一行 quantity 乘 unit_price 的总和。请返回 JSON 对象，image 字段是图片编号字符串，total 字段是总金额数字。",
+          "attachments": [
+            "label.png",
+            "north.csv"
+          ],
+          "distinct_attachment_ids": true,
+          "json_format": "object_or_fenced",
+          "json_fields": {
+            "image": "TB-764",
+            "total": 29
+          }
+        }
+      ]
+    }
+  ],
+  "schema_version": 1,
+  "id": "J2-54",
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {
+      "path": "label.png",
+      "sha256": "bd87b258192dd71aab6198aa3302fc52483ef242d29de9824fac66632601e6ff"
+    },
+    {
+      "path": "north.csv",
+      "sha256": "f8aff2318be0e4e30899ee7c364851f50ac8757ec961e4980d7779f3d050824f"
+    }
+  ]
+}

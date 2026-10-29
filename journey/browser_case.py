@@ -214,16 +214,22 @@ def run(case, evidence, work):
             prepare_knowledge_fixtures(execution, knowledge, variables)
             selection = turns[0].get('knowledge_selection')
             knowledge_selection_ids(knowledge, selection)
+            deselection = turns[0].get('knowledge_deselect', [])
+            if (not isinstance(deselection, list) or any(not isinstance(alias, str) for alias in deselection) or
+                    len(set(deselection)) != len(deselection) or
+                    not set(deselection).issubset(selection) or len(deselection) == len(selection)):
+                raise Failure('invalid_knowledge_deselection')
             source_selection = turns[0].get('knowledge_evidence')
             knowledge_selection_ids(knowledge, source_selection)
-            if not set(source_selection).issubset(selection):
+            if not set(source_selection).issubset(set(selection) - set(deselection)):
                 raise Failure('invalid_knowledge_evidence')
             config.update({'prompt': turns[0]['prompt'].format_map(variables),
                            'knowledge': [{'id': str(knowledge[alias].state['model_id']),
                                           'name': knowledge[alias].state['name'],
                                           'file': knowledge[alias].path.name,
                                           'marker': knowledge[alias].marker,
-                                          'expected': alias in source_selection} for alias in selection]})
+                                          'expected': alias in source_selection,
+                                          'selected': alias not in deselection} for alias in selection]})
         else:
             raise Failure('invalid_browser_case')
         config['timeoutMs'] = max(1, int((deadline - time.monotonic()) * 1000))

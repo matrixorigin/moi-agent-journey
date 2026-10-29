@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "J2-62",
+  "workspace": "journey-2",
+  "executor": "api",
+  "title": "生成结构化表格并核对记录",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "surface",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "generate",
+          "prompt": "请使用 Interactive UI 技能展示一张交互式表格，字段 item 和 count，两条记录分别为 item=North、count=12，以及 item=South、count=7。",
+          "a2ui_evidence": {
+            "component": "Table",
+            "fields": {
+              "rows": [
+                {
+                  "item": "North",
+                  "count": 12
+                },
+                {
+                  "item": "South",
+                  "count": 7
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

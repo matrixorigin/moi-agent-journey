@@ -34,6 +34,8 @@ class BuilderClient:
         self.requests += 1
         if method == 'GET':
             raise Failure('http_error', 404)
+        if method == 'POST' and path.endswith('/commit') and self.status == 'superseded':
+            raise Failure('http_error', 409)
         if method != 'POST' or not path.endswith('/cancel'):
             raise AssertionError('unexpected mutation')
         self.mutations.append(body['source_digest'])
@@ -44,7 +46,7 @@ class BuilderClient:
 
 
 class BuilderFunctionalTests(unittest.TestCase):
-    def run_case(self, accept_bad_digest=False):
+    def run_case(self, accept_bad_digest=False, check_commit=False):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         client = BuilderClient(accept_bad_digest=accept_bad_digest)
@@ -52,7 +54,8 @@ class BuilderFunctionalTests(unittest.TestCase):
         execution = Execution(client, case, Evidence(Path(tmp.name)), tmp.name, 'model')
         execution.root, execution.selector = '/workspaces/ws', {'agent_id': 'momo', 'agent_workspace_id': 'system'}
         checks = []
-        verified = check_candidate_cancel(execution, client.task(), 'task', 'our-agent', checks, 'candidate')
+        verified = check_candidate_cancel(execution, client.task(), 'task', 'our-agent', checks, 'candidate',
+                                          check_commit=check_commit)
         return execution, client, checks, verified
 
     def test_bad_digest_rejected_then_candidate_canceled_and_read_back(self):
@@ -92,6 +95,13 @@ class BuilderFunctionalTests(unittest.TestCase):
         self.assertEqual(execution.report['agent_cleanup'], 'incomplete')
         self.assertTrue(any('cleanup_agent_ownership_unverified' in item.get('reason', '')
                             for item in execution.report['harness_errors']))
+
+    def test_canceled_candidate_cannot_be_committed(self):
+        execution, _, checks, verified = self.run_case(check_commit=True)
+        self.assertTrue(verified)
+        self.assertEqual(len(checks), 10)
+        self.assertTrue(all(item['passed'] for item in checks))
+        self.assertEqual(execution.report['agent_cleanup'], 'candidate_canceled')
 
 
 if __name__ == '__main__':

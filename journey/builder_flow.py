@@ -17,7 +17,7 @@ def same_entries(before, after):
             sorted(json.dumps(item, sort_keys=True) for item in after))
 
 
-def same_resource_transition(before_names, after_names, before_refs, after_refs, changes):
+def same_resource_transition(before_names, after_names, before_refs, after_refs, changes, workspace_id):
     if not all(isinstance(value, list) for value in (before_names, after_names, before_refs, after_refs)):
         return False
     if any(not isinstance(item, dict) for item in before_refs + after_refs):
@@ -28,8 +28,8 @@ def same_resource_transition(before_names, after_names, before_refs, after_refs,
         for resource_id in changes.get(operation, []):
             source, destination = (before_refs, after_refs) if operation == 'remove' else (after_refs, before_refs)
             source_names = before_names if operation == 'remove' else after_names
-            matches = [item for item in source if item.get('id') == resource_id and item.get('workspace_id') == 'system']
-            if (len(matches) != 1 or any(item.get('id') == resource_id and item.get('workspace_id') == 'system'
+            matches = [item for item in source if item.get('id') == resource_id and item.get('workspace_id') == workspace_id]
+            if (len(matches) != 1 or any(item.get('id') == resource_id and item.get('workspace_id') == workspace_id
                                          for item in destination) or
                     not isinstance(matches[0].get('name'), str) or matches[0]['name'] not in source_names):
                 return False
@@ -38,7 +38,7 @@ def same_resource_transition(before_names, after_names, before_refs, after_refs,
     return same_entries(before_refs, after_refs) and same_entries(before_names, after_names)
 
 
-def same_configuration(old, updated, changes=None):
+def same_configuration(old, updated, changes=None, *, workspace_id=None):
     old_display, new_display = old.get('display', {}), updated.get('display', {})
     old_refs, new_refs = old.get('resolved_refs'), updated.get('resolved_refs')
     if (old_display.get('model') != new_display.get('model') or
@@ -46,8 +46,12 @@ def same_configuration(old, updated, changes=None):
         return False
     for field in ('skills', 'tools', 'knowledge_bases', 'channel_bindings'):
         if changes and field in changes:
+            expected_workspace = workspace_id if field == 'knowledge_bases' else 'system'
+            if not expected_workspace:
+                return False
             if not same_resource_transition(old_display.get(field), new_display.get(field),
-                                            old_refs.get(field, []), new_refs.get(field, []), changes[field]):
+                                            old_refs.get(field, []), new_refs.get(field, []), changes[field],
+                                            expected_workspace):
                 return False
             continue
         pairs = ((old_display.get(field), new_display.get(field)),
@@ -57,7 +61,8 @@ def same_configuration(old, updated, changes=None):
     return True
 
 
-def same_published_config(old, updated, changes=None, *, keep_description=False, allow_instruction_change=False):
+def same_published_config(old, updated, changes=None, *, keep_description=False, allow_instruction_change=False,
+                          workspace_id=None):
     for key in ('agent_id', 'name', 'model_name'):
         if not isinstance(old.get(key), str) or not old[key] or old[key] != updated.get(key):
             return False
@@ -67,7 +72,7 @@ def same_published_config(old, updated, changes=None, *, keep_description=False,
         return False
     if keep_description and (not isinstance(old.get('description'), str) or old['description'] != updated.get('description')):
         return False
-    names = {'skills': 'skill_names', 'tools': 'tool_names'}
+    names = {'skills': 'skill_names', 'tools': 'tool_names', 'knowledge_bases': 'knowledge_base_names'}
     for key in ('tool_names', 'skill_names', 'knowledge_base_names', 'catalog_files', 'channel_bindings'):
         if changes and key in {names[field] for field in changes}:
             continue
@@ -78,8 +83,11 @@ def same_published_config(old, updated, changes=None, *, keep_description=False,
         return False
     for key in set(before) | set(after):
         if changes and key in changes:
+            expected_workspace = workspace_id if key == 'knowledge_bases' else 'system'
+            if not expected_workspace:
+                return False
             if not same_resource_transition(old.get(names[key]), updated.get(names[key]),
-                                            before.get(key, []), after.get(key, []), changes[key]):
+                                            before.get(key, []), after.get(key, []), changes[key], expected_workspace):
                 return False
             continue
         first, second = before.get(key, []), after.get(key, [])
@@ -202,7 +210,7 @@ class AgentBuilderFlow:
                       updated['candidate_version'] != old['candidate_version'] and
                       updated['source_digest'] != old['source_digest'])
         self.record('修订指向原智能体且生成新版本', same_agent, 'published_revision_identity_mismatch')
-        self.record('修订符合请求且保留其他模型与资源', same_configuration(old, updated, changes),
+        self.record('修订符合请求且保留其他模型与资源', same_configuration(old, updated, changes, workspace_id=self.workspace),
                     'requested_or_unrequested_configuration_mismatch')
         if updated['agent_id'] == self.created['agent_id']:
             self.revisions[updated['agent_id']] = (candidate_from_task(task, name, self.workspace, mode='revise'), name)
@@ -338,7 +346,8 @@ class AgentBuilderFlow:
                     raise ProductCaseFailure('published_description_or_configuration_mismatch')
             if changes is not None:
                 preserved = (self.baseline_config is not None and
-                             same_published_config(self.baseline_config, current, changes, keep_description=True))
+                             same_published_config(self.baseline_config, current, changes, keep_description=True,
+                                                   workspace_id=self.workspace))
                 self.record('发布版本仅改变指定资源', preserved, 'published_resource_transition_mismatch')
                 if not preserved:
                     raise ProductCaseFailure('published_resource_transition_mismatch')
@@ -358,6 +367,76 @@ class AgentBuilderFlow:
         if not identity or not config_ok:
             raise ProductCaseFailure('published_agent_mismatch')
         return self.created
+
+    def check_lifecycle(self):
+        """Change only the agent published and identified by this case."""
+        if (not self.created or not self.created['verified'] or
+                self.created['agent_id'] not in self.owned_published):
+            raise ProductCaseFailure('created_agent_unavailable')
+        agent_id, name = self.created['agent_id'], self.current['display']['agent_name']
+        query = urlencode({'agent_workspace_id': self.workspace})
+        path = self.execution.root + '/agents/' + segment(agent_id) + '?' + query
+
+        def product(method, target, body=None):
+            try:
+                return self.execution.client.product(method, target, body)
+            except Failure as error:
+                if error.code == 'product_error' or (error.code == 'http_error' and
+                        type(error.http_status) is int and error.http_status not in {401, 403}):
+                    self.record('智能体生命周期请求成功', False,
+                                method + ':' + str(error.http_status or error.code))
+                    raise ProductCaseFailure('agent_lifecycle_request_failed') from None
+                raise
+
+        def listing(status):
+            query = urlencode({'catalog': 'workspace', 'query': name, 'status': status, 'limit': 100})
+            result = product('GET', self.execution.root + '/agents?' + query)
+            items = result.get('items')
+            return isinstance(items, list) and any(isinstance(item, dict) and item.get('id') == agent_id and
+                item.get('workspace_id') == self.workspace and item.get('status') == status for item in items)
+
+        def identity(agent, status):
+            return (agent.get('id'), agent.get('workspace_id'), agent.get('name'), agent.get('status')) == (
+                agent_id, self.workspace, name, status)
+
+        baseline = product('GET', path)
+        if not identity(baseline, 'active'):
+            raise ProductCaseFailure('agent_lifecycle_identity_mismatch')
+        preserved_fields = ('description', 'instruction', 'metadata', 'runtime', 'binding', 'model', 'policy_refs')
+        def preserved(agent):
+            return all(agent.get(key) == baseline.get(key) for key in preserved_fields)
+
+        self.record('新智能体出现在工作区列表', listing('active'), 'active_agent_missing_from_catalog')
+        try:
+            self.execution.client.product('POST', self.execution.root + '/agents',
+                                          {'id': agent_id, 'name': name, 'status': 'active'})
+            duplicate_status = 'accepted'
+        except Failure as error:
+            if error.code != 'http_error' or error.http_status is None:
+                raise
+            duplicate_status = error.http_status
+        after_duplicate = product('GET', path)
+        unchanged = identity(after_duplicate, 'active') and preserved(after_duplicate)
+        self.record('重复智能体 ID 被拒绝且原对象未改变', duplicate_status == 409 and unchanged,
+                    'duplicate_agent_not_rejected:' + str(duplicate_status))
+        disabled = product('PATCH', path, {'status': 'disabled'})
+        disabled_readback = product('GET', path)
+        disabled_ok = (identity(disabled, 'disabled') and identity(disabled_readback, 'disabled') and
+                       preserved(disabled_readback))
+        self.record('禁用后详情回读为 disabled', disabled_ok, 'disabled_agent_readback_mismatch')
+        if not disabled_ok:
+            raise ProductCaseFailure('agent_disable_not_confirmed')
+        self.record('禁用智能体可按状态筛选', listing('disabled'), 'disabled_agent_missing_from_catalog')
+        active = product('PATCH', path, {'status': 'active'})
+        active_readback = product('GET', path)
+        active_ok = identity(active, 'active') and identity(active_readback, 'active') and preserved(active_readback)
+        self.record('恢复后详情回读为 active', active_ok, 'restored_agent_readback_mismatch')
+        if not active_ok:
+            raise ProductCaseFailure('agent_restore_not_confirmed')
+        self.record('恢复后的智能体出现在工作区列表', listing('active'), 'restored_agent_missing_from_catalog')
+        self.execution.evidence.write('builder-published/lifecycle.json',
+            {'agent_id': agent_id, 'duplicate_status': duplicate_status, 'disabled': disabled_readback,
+             'restored': active_readback})
 
     def cleanup(self):
         """Clean only identities observed in this case's own task outputs."""

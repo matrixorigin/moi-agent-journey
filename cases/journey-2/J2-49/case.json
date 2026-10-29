@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "J2-49",
+  "workspace": "journey-2",
+  "title": "页面取消知识库选择后提交并引用",
+  "executor": "browser",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {
+      "path": "fern.txt",
+      "sha256": "ff9910cebaffc659da675da07a4c035316a669c67999bdf8a6163e4ed2b9c414"
+    },
+    {
+      "path": "birch.txt",
+      "sha256": "ba93c40352bcae3dd35d91f7537bfd9aa629bc1e7f2f008cde7680465779a6c3"
+    }
+  ],
+  "knowledge_fixtures": {
+    "fern": {
+      "kind": "document",
+      "path": "fern.txt",
+      "marker": "FERN-WALNUT"
+    },
+    "birch": {
+      "kind": "document",
+      "path": "birch.txt",
+      "marker": "BIRCH-LEMON"
+    }
+  },
+  "sessions": [
+    {
+      "id": "browser",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "query",
+          "prompt": "请根据我选择的知识库，回答 Project Birch 的 项目编号，并引用来源。",
+          "knowledge_selection": [
+            "fern",
+            "birch"
+          ],
+          "knowledge_evidence": [
+            "birch"
+          ],
+          "knowledge_deselect": [
+            "fern"
+          ]
+        }
+      ]
+    }
+  ],
+  "scenario": "knowledge"
+}

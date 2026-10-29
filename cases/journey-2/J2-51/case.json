@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "J2-51",
+  "workspace": "journey-2",
+  "title": "提交负面反馈并按评价筛选",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "sessions": [
+    {
+      "id": "feedback",
+      "delivery_kind": "answer",
+      "expected_checks": 11,
+      "turns": [
+        {
+          "phase": "answer",
+          "prompt": "请只回复这个项目代号：{code}",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{code}",
+              "rule": "答复包含指定代号"
+            }
+          ],
+          "action": {
+            "type": "feedback",
+            "rating": "down",
+            "comment": "citation needs review",
+            "labels": [
+              "citation",
+              "quality"
+            ],
+            "check_filter": true
+          }
+        }
+      ]
+    }
+  ]
+}

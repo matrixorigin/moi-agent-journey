@@ -1,0 +1,46 @@
+{
+  "title": "读取 ZIP 中指定目录的文件",
+  "sessions": [
+    {
+      "id": "zip",
+      "delivery_kind": "answer",
+      "expected_checks": 3,
+      "turns": [
+        {
+          "phase": "read",
+          "prompt": "请解压附件，仅回答 approved/record.txt 中的项目编号，不要回答 draft 目录的编号。",
+          "attachments": [
+            "records.zip"
+          ],
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "APR-3187",
+              "rule": "读取指定目录中的文件"
+            },
+            {
+              "type": "not_contains",
+              "value": "DRAFT-6502",
+              "rule": "不混入另一目录中的同名文件"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "schema_version": 1,
+  "id": "J2-59",
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {
+      "path": "records.zip",
+      "sha256": "ee87a7c46df3a4db9c9d21c64cfa7d41c531e90ce0454a7daaa2be752163a748"
+    }
+  ]
+}

@@ -42,6 +42,43 @@ def check_text_artifact(execution, conversation_id, task_id, filename, expected,
     return delivered
 
 
+def check_text_artifacts(execution, conversation_id, task_id, files, checks, session_id):
+    if (not isinstance(files, list) or len(files) < 2 or
+            any(not isinstance(item, dict) or set(item) != {'filename', 'content'} or
+                not all(isinstance(value, str) and value for value in item.values()) for item in files) or
+            len({item['filename'] for item in files}) != len(files)):
+        raise Failure('invalid_artifact_assertion')
+    delivered = []
+    for item in files:
+        start = len(checks)
+        delivered.append(check_text_artifact(execution, conversation_id, task_id,
+                         item['filename'], item['content'], checks, session_id))
+        for check in checks[start:]:
+            check['rule'] += ' (' + item['filename'] + ')'
+    return all(delivered)
+
+
+def check_pdf_artifact(execution, conversation_id, task_id, filename, expected, checks, session_id):
+    from pypdf import PdfReader
+    from pypdf.errors import PdfReadError
+    if not filename.endswith('.pdf') or not isinstance(expected, str) or not expected:
+        raise Failure('invalid_artifact_assertion')
+    path = find_task_artifact(execution, conversation_id, task_id, filename, checks, session_id)
+    delivered, content_ok = path is not None, False
+    if delivered:
+        try:
+            reader = PdfReader(path, strict=True)
+            content_ok = (not reader.is_encrypted and 0 < len(reader.pages) <= 10 and
+                          expected in '\n'.join(page.extract_text() or '' for page in reader.pages))
+        except (PdfReadError, ValueError, KeyError, TypeError):
+            content_ok = False
+    checks.append({'session': session_id, 'rule': '下载的 PDF 可解析且包含指定内容', 'passed': content_ok,
+                   'detail': '' if content_ok else 'pdf_content_missing_or_invalid'})
+    execution.report['validation'] = {'checks': checks}
+    execution.checkpoint()
+    return delivered
+
+
 def validate_ooxml_archive(archive):
     items = archive.infolist()
     if (len(items) > 1000 or sum(item.file_size for item in items) > 20_000_000 or

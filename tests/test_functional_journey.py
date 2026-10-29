@@ -525,12 +525,21 @@ class FunctionalJourneyTests(unittest.TestCase):
     def test_resource_change_spec_rejects_ambiguous_operations(self):
         from journey.client import Failure
         from journey.functional_case import resource_changes
+        from types import SimpleNamespace
         valid = {'resource_changes': {'skills': {'remove': ['skill.xlsx']}, 'tools': {'add': ['tool.search']}}}
         self.assertEqual(resource_changes(valid), valid['resource_changes'])
         for invalid in ({}, {'skills': {'add': ['same'], 'remove': ['same']}},
                         {'knowledge_bases': {'add': ['kb']}}, {'skills': {'remove': []}}):
             with self.subTest(invalid=invalid), self.assertRaises(Failure):
                 resource_changes({'resource_changes': invalid})
+        fixtures = {'fern': SimpleNamespace(state={'status': 'ready', 'model_id': 42}),
+                    'birch': SimpleNamespace(state={'status': 'ready', 'model_id': 84})}
+        change = {'resource_changes': {'knowledge_bases': {'remove': ['{fern}'], 'add': ['{birch}']}}}
+        self.assertEqual(resource_changes(change, {'fern': '42', 'birch': '84'}, fixtures),
+                         {'knowledge_bases': {'remove': ['42'], 'add': ['84']}})
+        for variables in ({'fern': '42', 'birch': '99'}, {'fern': '42', 'birch': '42'}, {'fern': '42'}):
+            with self.subTest(variables=variables), self.assertRaises(Failure):
+                resource_changes(change, variables, fixtures)
 
     def test_committed_fixture_is_checksum_verified_and_cannot_escape_case_directory(self):
         with tempfile.TemporaryDirectory() as tmp:

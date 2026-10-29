@@ -28,10 +28,11 @@ const q = (id) => document.querySelector('[data-testid="' + id + '"]');
 q('plus-btn').onclick = () => { document.querySelector('#menu').hidden = !document.querySelector('#menu').hidden; };
 q('home-picker-knowledge').onclick = () => { document.querySelector('#picker').hidden = false; };
 for (const id of ['42', '84']) q('home-picker-knowledge-item-' + id).onclick = (event) => {
-  event.currentTarget.setAttribute('aria-checked', 'true');
+  event.currentTarget.setAttribute('aria-checked', event.currentTarget.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
 };
 q('send-btn').onclick = async () => {
-  const ids = mode === 'missing-scope' ? ['42'] : ['42', '84'];
+  const ids = mode === 'missing-scope' ? ['42'] : mode === 'stale-scope' ? ['42', '84'] :
+    ['42', '84'].filter((id) => q('home-picker-knowledge-item-' + id).getAttribute('aria-checked') === 'true');
   await fetch('/newmoi/workspaces/ws/agents/zero/a2a', {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({agent_id: 'zero', agent_workspace_id: 'system', params: {message: {
@@ -48,7 +49,8 @@ q('send-btn').onclick = async () => {
     source.onclick = () => {
       if (mode === 'broken-preview') return;
       const preview = document.createElement('div'); preview.dataset.testid = 'file-preview-content';
-      preview.textContent = 'Project Fern: FERN-WALNUT'; document.querySelector('#messages').append(preview);
+      preview.textContent = name === 'fern.txt' ? 'Project Fern: FERN-WALNUT' : 'Project Birch: BIRCH-LEMON';
+      document.querySelector('#messages').append(preview);
     };
     sources.append(source);
   }
@@ -75,7 +77,7 @@ after(async () => {
   if (server) await new Promise((resolve) => server.close(resolve));
 });
 
-async function run(nextMode, expectedBoth = true) {
+async function run(nextMode, expectedBoth = true, deselectFern = false) {
   mode = nextMode;
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
@@ -83,8 +85,8 @@ async function run(nextMode, expectedBoth = true) {
   try {
     const result = await selectKnowledgeInChat(page, { workspaceId: 'ws', model: 'model',
       prompt: '请回答问题并引用来源', timeoutMs: 3000, knowledge: [
-        { id: '42', name: 'Fern', file: 'fern.txt', marker: 'FERN-WALNUT', expected: true },
-        { id: '84', name: 'Birch', file: 'birch.txt', marker: 'BIRCH-LEMON', expected: expectedBoth },
+        { id: '42', name: 'Fern', file: 'fern.txt', marker: 'FERN-WALNUT', expected: !deselectFern, selected: !deselectFern },
+        { id: '84', name: 'Birch', file: 'birch.txt', marker: 'BIRCH-LEMON', expected: deselectFern || expectedBoth, selected: true },
       ] }, (event) => events.push(event));
     return { result, events };
   } finally { await context.close(); }
@@ -100,7 +102,20 @@ test('selects both knowledge bases and verifies the actual message and displayed
 test('fails when the page drops a selected knowledge base from the message', async () => {
   const { result } = await run('missing-scope');
   assert.equal(result.status, 'failed');
-  assert.equal(result.failure.reason, 'selected_knowledge_missing_from_request');
+  assert.equal(result.failure.reason, 'knowledge_scope_mismatch');
+});
+
+test('removes a deselected source from the submitted scope and uses the remaining source', async () => {
+  const { result, events } = await run('success', false, true);
+  assert.equal(result.status, 'passed');
+  assert.deepEqual(events.find((event) => event.kind === 'task_request').knowledge_ids, ['84']);
+  assert.ok(result.checks.some((check) => check.rule === '输入框取消知识库 Fern' && check.passed));
+});
+
+test('fails when the request retains a deselected knowledge base', async () => {
+  const { result } = await run('stale-scope', false, true);
+  assert.equal(result.status, 'failed');
+  assert.equal(result.failure.reason, 'knowledge_scope_mismatch');
 });
 
 test('selects two sources while answering a simple question from one of them', async () => {

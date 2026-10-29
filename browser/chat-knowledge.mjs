@@ -5,7 +5,8 @@ export async function selectKnowledgeInChat(page, options, observe = () => {}) {
   const { workspaceId, model, prompt, knowledge, timeoutMs } = options;
   if (![workspaceId, model, prompt].every((value) => typeof value === 'string' && value) ||
       !Array.isArray(knowledge) || !knowledge.length ||
-      knowledge.some((item) => !item || typeof item.expected !== 'boolean' || ![item.id, item.name, item.file, item.marker]
+      knowledge.some((item) => !item || typeof item.expected !== 'boolean' || typeof item.selected !== 'boolean' ||
+        (item.expected && !item.selected) || ![item.id, item.name, item.file, item.marker]
         .every((value) => typeof value === 'string' && value)) || !knowledge.some((item) => item.expected) ||
       new Set(knowledge.map((item) => item.id)).size !== knowledge.length ||
       !Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
@@ -56,6 +57,13 @@ export async function selectKnowledgeInChat(page, options, observe = () => {}) {
         Math.min(remaining(), 10_000), 'selection', 'knowledge_option_not_selected');
       record(`输入框选中知识库 ${item.name}`, true);
     }
+    for (const item of knowledge.filter((entry) => !entry.selected)) {
+      await search.fill(item.name);
+      await page.getByTestId(`home-picker-knowledge-item-${item.id}`).click();
+      await waitVisible(page.locator(`[data-testid="home-picker-knowledge-item-${item.id}"][aria-checked="false"]`),
+        Math.min(remaining(), 10_000), 'selection', 'knowledge_option_not_deselected');
+      record(`输入框取消知识库 ${item.name}`, true);
+    }
     stage = 'submit';
     observe({ kind: 'ui_stage', stage });
     const [response] = await Promise.all([
@@ -63,11 +71,11 @@ export async function selectKnowledgeInChat(page, options, observe = () => {}) {
       page.getByTestId('send-btn').click({ timeout: remaining() }),
     ]);
     if (!response.ok()) throw new ScenarioFailure('query', 'knowledge_message_failed', { http_status: response.status() });
-    if (!request || knowledge.some((item) => !request.knowledge_ids.includes(item.id))) {
-      record('发送请求包含选择的知识库', false, 'selected_knowledge_missing_from_request');
-      throw new ScenarioFailure('query', 'selected_knowledge_missing_from_request');
+    if (!request || knowledge.some((item) => request.knowledge_ids.includes(item.id) !== item.selected)) {
+      record('发送请求中的知识库与最终选择一致', false, 'knowledge_scope_mismatch');
+      throw new ScenarioFailure('query', 'knowledge_scope_mismatch');
     }
-    record('发送请求包含选择的知识库', true);
+    record('发送请求中的知识库与最终选择一致', true);
     stage = 'stream';
     if (await response.finished()) throw new ScenarioFailure('query', 'knowledge_stream_failed');
     await waitVisible(page.getByTestId('send-btn'), remaining(), 'query', 'knowledge_stream_not_finished');

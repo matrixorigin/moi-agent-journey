@@ -10,8 +10,10 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from .a2a import final_reply
+from .a2ui_checks import evaluate_a2ui
 from .agent_builder import check_candidate_cancel
-from .artifact_checks import check_ooxml_artifact, check_text_artifact, check_xlsx_artifact
+from .artifact_checks import (check_ooxml_artifact, check_text_artifact, check_xlsx_artifact,
+                              check_text_artifacts, check_pdf_artifact)
 from .artifact_lifecycle import check_artifact_delete
 from .builder_flow import AgentBuilderFlow, ProductCaseFailure
 from .catalog import fixture_path, load_case
@@ -131,21 +133,32 @@ def check_distinct_attachment_ids(session_id, names, attachments):
             'detail': '' if distinct else 'attachment_ids_missing_or_duplicate'}
 
 
-def resource_changes(action):
+def resource_changes(action, variables=None, knowledge=None):
     changes = action.get('resource_changes')
-    if not isinstance(changes, dict) or not changes or not set(changes).issubset({'skills', 'tools'}):
+    if not isinstance(changes, dict) or not changes or not set(changes).issubset({'skills', 'tools', 'knowledge_bases'}):
         raise Failure('invalid_resource_changes')
-    for operations in changes.values():
+    resolved = {}
+    for kind, operations in changes.items():
         if not isinstance(operations, dict) or not operations or not set(operations).issubset({'add', 'remove'}):
             raise Failure('invalid_resource_changes')
-        all_ids = []
-        for values in operations.values():
+        all_ids, resolved[kind] = [], {}
+        for operation, values in operations.items():
             if not isinstance(values, list) or not values or any(not isinstance(value, str) or not value for value in values):
                 raise Failure('invalid_resource_changes')
+            try:
+                values = [value.format_map(variables or {}) for value in values]
+            except (KeyError, ValueError):
+                raise Failure('invalid_resource_changes') from None
+            resolved[kind][operation] = values
             all_ids.extend(values)
         if len(all_ids) != len(set(all_ids)):
             raise Failure('invalid_resource_changes')
-    return changes
+        if kind == 'knowledge_bases':
+            owned = {str(item.state['model_id']) for item in (knowledge or {}).values()
+                     if item.state.get('status') == 'ready' and type(item.state.get('model_id')) is int}
+            if not set(all_ids).issubset(owned):
+                raise Failure('invalid_resource_changes')
+    return resolved
 
 
 class FunctionalExecution(Execution):
@@ -206,7 +219,8 @@ class FunctionalExecution(Execution):
                 builder_types = {'capture_builder_candidate', 'create_builder_agent', 'commit_builder_with_resource',
                                  'commit_builder_with_resources',
                                  'revise_builder_and_commit', 'revise_published_and_commit',
-                                 'revise_published_resources_and_commit', 'revise_published_instruction_and_commit'}
+                                 'revise_published_resources_and_commit', 'revise_published_instruction_and_commit',
+                                 'create_builder_agent_and_check_lifecycle'}
                 if any((turn.get('action') or {}).get('type') in builder_types for turn in session['turns']):
                     names = [variables[key] for key in self.case.get('builder_names', [])]
                     if not names:
@@ -300,6 +314,17 @@ class FunctionalExecution(Execution):
                             self.report['blocked'] = True
                             self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'],
                                                             'reason': 'task_finished_before_cancel_observed'})
+                        self.report['validation'] = {'checks': checks}
+                        self.checkpoint()
+                        continue
+                    if 'a2ui_evidence' in turn:
+                        if turn.get('assertions') or turn.get('action') or turn.get('json_fields'):
+                            raise Failure('ambiguous_a2ui_case')
+                        surface_checks, delivered = evaluate_a2ui(self.evidence.root / 'events.jsonl',
+                            final_entry['task_id'], session['id'], turn['a2ui_evidence'])
+                        checks.extend(surface_checks)
+                        session_report.update({'final_task_id': final_entry['task_id'], 'answer_delivered': delivered})
+                        self.check_skill('a2ui', final_entry['task_id'], session['id'], turn['phase'], checks)
                         self.report['validation'] = {'checks': checks}
                         self.checkpoint()
                         continue
@@ -405,7 +430,9 @@ class FunctionalExecution(Execution):
                         elif action.get('type') == 'cancel_completed':
                             check_completed_cancellation(self, cid, session['id'], task, checks)
                         elif action.get('type') == 'feedback':
-                            check_feedback(self, cid, session['id'], task, checks)
+                            check_feedback(self, cid, session['id'], task, checks,
+                                rating=action.get('rating', 'up'), comment=action.get('comment'),
+                                labels=action.get('labels'), check_filter=action.get('check_filter', False))
                         elif action.get('type') == 'conversation_lifecycle':
                             check_lifecycle(self, cid, session['id'], checks, action['title'].format_map(variables))
                         elif action.get('type') == 'conversation_history':
@@ -416,12 +443,17 @@ class FunctionalExecution(Execution):
                         elif action.get('type') == 'reject_invalid_digest_and_cancel':
                             name = action['agent_name'].format_map(variables)
                             candidate_verified = check_candidate_cancel(self, task, final_entry['task_id'],
-                                                                         name, checks, session['id'])
+                                name, checks, session['id'], check_commit=action.get('check_canceled_commit') is True)
                         elif action.get('type') == 'deliver_text_artifact':
                             filename = action['filename'].format_map(variables)
                             content = action['content'].format_map(variables)
                             artifact_delivered = check_text_artifact(self, cid, final_entry['task_id'],
                                                                      filename, content, checks, session['id'])
+                        elif action.get('type') == 'deliver_text_artifacts':
+                            files = [{key: value.format_map(variables) for key, value in item.items()}
+                                     for item in action['files']]
+                            artifact_delivered = check_text_artifacts(self, cid, final_entry['task_id'],
+                                                                      files, checks, session['id'])
                         elif action.get('type') == 'delete_text_artifact':
                             filename = action['filename'].format_map(variables)
                             content = action['content'].format_map(variables)
@@ -448,10 +480,12 @@ class FunctionalExecution(Execution):
                                     builder.record('修订发布了新版本', revised['version'] != prior_version,
                                                    'published_version_not_advanced')
                                 elif action['type'] == 'revise_published_resources_and_commit':
-                                    changes = resource_changes(action)
+                                    changes = resource_changes(action, variables, knowledge)
                                     prior_version = builder.created['version'] if builder.created else None
                                     builder.revise_published(task, name, changes)
-                                    revised = builder.commit(changes=changes)
+                                    added = [builder.require_resource('knowledge_bases', resource_id)
+                                             for resource_id in changes.get('knowledge_bases', {}).get('add', [])]
+                                    revised = builder.commit(added, changes=changes)
                                     builder.record('修订发布了新版本', revised['version'] != prior_version,
                                                    'published_version_not_advanced')
                                 elif action['type'] == 'revise_published_instruction_and_commit':
@@ -477,16 +511,21 @@ class FunctionalExecution(Execution):
                                         resources = [builder.require_resource(item['kind'], item['id'].format_map(variables))
                                                      for item in requested]
                                         builder.commit(resources, capture_current=action.get('capture_current') is True)
-                                    elif action['type'] == 'create_builder_agent':
+                                    elif action['type'] in {'create_builder_agent', 'create_builder_agent_and_check_lifecycle'}:
                                         builder.commit()
+                                        if action['type'] == 'create_builder_agent_and_check_lifecycle':
+                                            builder.check_lifecycle()
                             finally:
                                 if builder.created:
                                     session_report['created_agent'] = builder.created
-                        elif action.get('type') in {'deliver_xlsx_with_skill', 'deliver_ooxml_with_skill'}:
+                        elif action.get('type') in {'deliver_xlsx_with_skill', 'deliver_ooxml_with_skill', 'deliver_pdf_with_skill'}:
                             self.check_skill(action['skill_id'], final_entry['task_id'], session['id'], turn['phase'], checks)
                             filename, content = action['filename'].format_map(variables), action['content'].format_map(variables)
                             if action['type'] == 'deliver_xlsx_with_skill':
                                 artifact_delivered = check_xlsx_artifact(self, cid, final_entry['task_id'],
+                                    filename, content, checks, session['id'])
+                            elif action['type'] == 'deliver_pdf_with_skill':
+                                artifact_delivered = check_pdf_artifact(self, cid, final_entry['task_id'],
                                     filename, content, checks, session['id'])
                             else:
                                 artifact_delivered = check_ooxml_artifact(self, cid, final_entry['task_id'],

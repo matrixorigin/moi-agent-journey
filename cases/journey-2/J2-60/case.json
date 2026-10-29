@@ -1,0 +1,47 @@
+{
+  "title": "读取 PPTX 的指定幻灯片",
+  "sessions": [
+    {
+      "id": "presentation",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "read",
+          "prompt": "请使用 PPTX 技能（moi.agent.momo.skill.pptx）读取附件，只回答第二页 Approved 的项目编号，不要回答第一页的编号。",
+          "attachments": [
+            "project.pptx"
+          ],
+          "skill_evidence": "moi.agent.momo.skill.pptx",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "APR-7316",
+              "rule": "读取第二页的编号"
+            },
+            {
+              "type": "not_contains",
+              "value": "DRAFT-5208",
+              "rule": "不混入第一页的编号"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "schema_version": 1,
+  "id": "J2-60",
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {
+      "path": "project.pptx",
+      "sha256": "fadf169844cdce3e9ab1d55370b1744fa6b173297e4966a3ab05e3c6047c3de4"
+    }
+  ]
+}

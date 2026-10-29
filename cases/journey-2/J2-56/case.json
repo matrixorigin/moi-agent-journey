@@ -1,0 +1,42 @@
+{
+  "title": "读取 XLSX 的指定工作表并计算",
+  "sessions": [
+    {
+      "id": "workbook",
+      "delivery_kind": "answer",
+      "expected_checks": 3,
+      "turns": [
+        {
+          "phase": "read",
+          "prompt": "请使用 XLSX 技能（moi.agent.momo.skill.xlsx）读取附件，只计算 South 工作表中 quantity 乘 unit_price 的合计。只用阿拉伯数字回答总金额。",
+          "attachments": [
+            "sales.xlsx"
+          ],
+          "skill_evidence": "moi.agent.momo.skill.xlsx",
+          "assertions": [
+            {
+              "type": "single_number",
+              "value": "37",
+              "rule": "South 工作表总额正确"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "schema_version": 1,
+  "id": "J2-56",
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {
+      "path": "sales.xlsx",
+      "sha256": "4ed35d30d4c5dc43fd9f4fa2df7fe4235a74206fe226a991bc7144f969a9e882"
+    }
+  ]
+}

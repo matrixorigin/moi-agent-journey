@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "J2-61",
+  "workspace": "journey-2",
+  "executor": "api",
+  "title": "生成结构化柱状图并核对数据",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "surface",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "generate",
+          "prompt": "请使用 Interactive UI 技能，把以下已知数据展示成一张柱状图：类别 North、South，数值分别为 12、7；序列名称为 Sales。",
+          "a2ui_evidence": {
+            "component": "Chart",
+            "fields": {
+              "type": "bar",
+              "xAxis": {
+                "type": "category",
+                "data": [
+                  "North",
+                  "South"
+                ]
+              },
+              "series": [
+                {
+                  "name": "Sales",
+                  "data": [
+                    12,
+                    7
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

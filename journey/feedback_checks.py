@@ -8,7 +8,13 @@ from .client import Failure
 from .message_controls import conversation_task_ids
 
 
-def check_feedback(execution, conversation_id, session_id, task, checks):
+def check_feedback(execution, conversation_id, session_id, task, checks, *, rating='up', comment=None, labels=None,
+                   check_filter=False):
+    if (rating not in {'up', 'down', 'neutral'} or (comment is not None and
+            (not isinstance(comment, str) or not comment)) or (labels is not None and
+            (not isinstance(labels, list) or any(not isinstance(label, str) or not label for label in labels))) or
+            type(check_filter) is not bool):
+        raise Failure('invalid_feedback_case')
     selector = execution.conversation_selector(conversation_id)
     task_id = task.get('id')
     message = task.get('status', {}).get('message', {})
@@ -31,8 +37,10 @@ def check_feedback(execution, conversation_id, session_id, task, checks):
     if conversation_task_ids(execution, conversation_id) != known:
         raise Failure('conversation_task_list_mismatch')
 
-    def feedback_list(message_id):
+    def feedback_list(message_id, rating_filter=None):
         query = {**selector, 'message_id': message_id, 'limit': 100, 'offset': 0}
+        if rating_filter is not None:
+            query['rating'] = rating_filter
         try:
             return execution.client.product('GET', execution.root + '/feedback?' + urlencode(query))
         except Failure as error:
@@ -42,11 +50,16 @@ def check_feedback(execution, conversation_id, session_id, task, checks):
             raise ProductCaseFailure('feedback_read_failed') from None
 
     def control(feedback_id, message_id, target_id):
-        return {'message': {'kind': 'message', 'role': 'user', 'messageId': message_id,
-                            'contextId': conversation_id, 'parts': [{'kind': 'data', 'data': {
+        data = {
                                 'type': 'moi.feedback.submit', 'version': 1, 'feedbackId': feedback_id,
                                 'target': {'agentId': selector['agent_id'], 'messageId': target_id},
-                                'rating': 'up', 'intent': 'record_only'}}]}}
+                                'rating': rating, 'intent': 'record_only'}
+        if comment is not None:
+            data['comment'] = comment
+        if labels is not None:
+            data['labels'] = labels
+        return {'message': {'kind': 'message', 'role': 'user', 'messageId': message_id,
+                            'contextId': conversation_id, 'parts': [{'kind': 'data', 'data': data}]}}
 
     invalid_id, valid_id = 'j2-' + uuid.uuid4().hex, 'j2-' + uuid.uuid4().hex
     missing_message_id = 'missing-' + uuid.uuid4().hex
@@ -106,11 +119,21 @@ def check_feedback(execution, conversation_id, session_id, task, checks):
                 feedback.get('workspace_id') == execution.root.rsplit('/', 1)[-1] and
                 feedback.get('agent_id') == selector['agent_id'] and feedback.get('context_id') == conversation_id and
                 feedback.get('task_id') == task_id and feedback.get('message_id') == assistant_id and
-                feedback.get('rating') == 'up' and feedback.get('intent') == 'record_only')
+                feedback.get('rating') == rating and feedback.get('intent') == 'record_only' and
+                (comment is None or feedback.get('comment') == comment) and
+                (labels is None or feedback.get('labels') == labels))
     record('反馈可按答复回读且内容正确', saved_ok, 'feedback_persistence_mismatch')
     execution.evidence.write('sessions/' + session_id + '/feedback.json',
                              {'invalid_status': status, 'invalid_list': invalid_list,
                               'receipt': receipt, 'saved': saved})
+    if check_filter:
+        matching = feedback_list(assistant_id, rating)
+        opposite = feedback_list(assistant_id, 'up' if rating != 'up' else 'down')
+        record('评价类型筛选能找到对应反馈', matching == saved, 'feedback_rating_filter_mismatch')
+        record('其他评价类型不会匹配', opposite.get('total') == 0 and opposite.get('items') == [],
+               'feedback_opposite_filter_mismatch')
+        execution.evidence.write('sessions/' + session_id + '/feedback-filter.json',
+                                 {'matching': matching, 'opposite': opposite})
 
     # Replaying this specific request deliberately tests feedback idempotency.
     replay = execution.client.rpc(selector, 'message/send', params)
