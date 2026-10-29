@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code",
+    "old_code"
+  ],
+  "id": "J2-64",
+  "title": "自定义 Skill 禁用后不可用、启用后可调用",
+  "skill_journey": {
+    "mode": "disabled",
+    "marker": "{code}",
+    "initial_marker": "{old_code}"
+  },
+  "sessions": [
+    {
+      "id": "disabled",
+      "agent_from_skill": true,
+      "delivery_kind": "answer",
+      "expected_checks": 14,
+      "turns": [
+        {
+          "phase": "ask",
+          "prompt": "请读取 Skill {skill_name}，告诉我其中的公开项目编号；如果该技能不可用，回答 SKILL_UNAVAILABLE。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "SKILL_UNAVAILABLE",
+              "rule": "禁用技能被报告为不可用"
+            },
+            {
+              "type": "not_contains",
+              "value": "{code}",
+              "rule": "禁用技能内容没有进入答复"
+            }
+          ],
+          "action": {
+            "type": "enable_custom_skill"
+          }
+        }
+      ]
+    },
+    {
+      "id": "enabled",
+      "agent_from_skill": true,
+      "delivery_kind": "answer",
+      "expected_checks": 3,
+      "turns": [
+        {
+          "phase": "use",
+          "prompt": "请读取 Skill {skill_name}，告诉我其中的公开项目编号。",
+          "skill_evidence": "{skill_id}",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{code}",
+              "rule": "实际回答来自当前 Skill 内容"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

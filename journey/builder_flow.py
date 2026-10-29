@@ -3,12 +3,18 @@ import json
 import time
 from urllib.parse import urlencode
 
-from .agent_builder import candidate_from_task, candidate_output_from_task, candidate_outputs, cleanup_candidate
+from .agent_builder import candidate_from_task, candidate_output_from_task, candidate_outputs, candidate_matches, cleanup_candidate
 from .client import Failure, error_record, segment
 
 
 class ProductCaseFailure(Exception):
     """A product prerequisite failed; later dependent actions cannot be sent."""
+
+
+def resource_workspace(reference, current_workspace):
+    # Manual Builder/package refs omit workspace_id for a local resource;
+    # runtime-authoring views materialize it. Both are defined product forms.
+    return reference.get('workspace_id', current_workspace)
 
 
 def same_entries(before, after):
@@ -119,11 +125,17 @@ class AgentBuilderFlow:
 
     def remember(self, task, name):
         output = candidate_output_from_task(task, name, self.workspace)
+        self.remember_candidate(output, name)
+
+    def remember_candidate(self, output, name):
+        if not candidate_matches(output, name, self.workspace):
+            output = None
         self.record('指定名称的候选已产生', output is not None, 'candidate_missing_or_mismatched')
         if not output:
             raise ProductCaseFailure('candidate_missing_or_mismatched')
         self.current = output
-        self.seen[output['agent_id']] = (candidate_from_task(task, name, self.workspace), name)
+        self.seen[output['agent_id']] = ({key: output[key] for key in
+                                        ('agent_id', 'candidate_version', 'source_digest', 'status')}, name)
         valid = output['status'] == 'valid'
         self.record('候选有效', valid, 'candidate_status:' + str(output['status']))
         if not valid:
@@ -144,21 +156,24 @@ class AgentBuilderFlow:
                 return True
             raise
 
-    def require_resource(self, kind, resource_id):
+    def require_resource(self, kind, resource_id, *, workspace_id=None):
         if kind not in {'skills', 'tools', 'knowledge_bases'}:
             raise Failure('invalid_builder_resource_kind')
         resolved = self.current.get('resolved_refs')
         refs = resolved.get(kind, []) if isinstance(resolved, dict) else []
         refs = refs if isinstance(refs, list) else []
-        resource_workspace = self.workspace if kind == 'knowledge_bases' else 'system'
+        if workspace_id is not None and workspace_id not in {self.workspace, 'system'}:
+            raise Failure('invalid_builder_resource_workspace')
+        expected_workspace = workspace_id if workspace_id is not None else self.workspace if kind == 'knowledge_bases' else 'system'
         matches = [item for item in refs if isinstance(item, dict) and item.get('id') == resource_id and
-                   item.get('workspace_id') == resource_workspace and isinstance(item.get('name'), str) and item['name']]
+                   resource_workspace(item, self.workspace) == expected_workspace and
+                   isinstance(item.get('name'), str) and item['name']]
         label = {'skills': 'Skill', 'tools': '工具', 'knowledge_bases': '知识库'}[kind]
         self.record('候选绑定指定' + label + ' ' + resource_id, len(matches) == 1,
                     'resource_reference_missing_or_ambiguous:' + resource_id)
         if len(matches) != 1:
             raise ProductCaseFailure('resource_reference_missing_or_ambiguous')
-        return {**matches[0], 'kind': kind}
+        return {**matches[0], 'kind': kind, 'workspace_id': expected_workspace}
 
     def revise(self, task, name):
         old = self.current
@@ -231,7 +246,7 @@ class AgentBuilderFlow:
         self.current = updated
 
     def commit(self, expected_resources=(), expected_description=None, *, capture_current=False, changes=None,
-               expected_instruction=None):
+               expected_instruction=None, binding=None):
         output = self.current
         agent_id, candidate_version = output['agent_id'], output['candidate_version']
         if output['mode'] == 'create' and agent_id not in self.absent_before:
@@ -239,7 +254,10 @@ class AgentBuilderFlow:
         path = (self.execution.root + '/agent-builder/candidates/' + segment(agent_id) +
                 '/candidate-versions/' + segment(candidate_version) + '/commit')
         try:
-            commit = self.execution.client.product('POST', path, {'source_digest': output['source_digest']})
+            body = {'source_digest': output['source_digest']}
+            if binding is not None:
+                body['binding'] = binding
+            commit = self.execution.client.product('POST', path, body)
         except Failure as error:
             if error.code != 'http_error' or error.http_status is None:
                 raise
@@ -283,7 +301,7 @@ class AgentBuilderFlow:
             resources = resources if isinstance(resources, list) else []
             config_ok = config_ok and any(item.get('name') == expected_resource['name'] and
                                           (expected_resource['kind'] == 'knowledge_bases' or
-                                           item.get('workspace_id') == expected_resource['workspace_id'])
+                                           resource_workspace(item, self.workspace) == expected_resource['workspace_id'])
                                           for item in resources if isinstance(item, dict))
         self.record('发布版本保留指定配置', config_ok, 'published_configuration_mismatch')
         self.execution.evidence.write('builder-published/' + segment(version) + '.json', {'agent_id': agent_id, 'workspace_id': self.workspace,

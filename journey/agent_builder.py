@@ -18,16 +18,22 @@ def candidate_outputs(task):
     return outputs
 
 
+def candidate_matches(output, name, workspace, mode='create'):
+    if not isinstance(output, dict):
+        return False
+    display = output.get('display', {})
+    return (isinstance(display, dict) and display.get('agent_name') == name and
+            output.get('workspace_id') == workspace and output.get('mode') == mode and
+            output.get('agent_id') == display.get('agent_id') and
+            all(isinstance(output.get(key), str) and output[key]
+                for key in ('agent_id', 'candidate_version', 'source_digest', 'status')))
+
+
 def candidate_output_from_task(task, name, workspace, *, mode='create'):
     """Read only a candidate tied to this task, name and workspace."""
     matches = []
     for output in candidate_outputs(task):
-        display = output.get('display', {})
-        if (isinstance(display, dict) and display.get('agent_name') == name and
-                output.get('workspace_id') == workspace and output.get('mode') == mode and
-                output.get('agent_id') == display.get('agent_id') and
-                all(isinstance(output.get(key), str) and output[key]
-                    for key in ('agent_id', 'candidate_version', 'source_digest', 'status'))):
+        if candidate_matches(output, name, workspace, mode):
             matches.append(output)
     if len(matches) > 1:
         raise Failure('candidate_identity_not_unique')

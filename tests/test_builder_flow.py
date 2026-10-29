@@ -100,6 +100,19 @@ class BuilderFlowTests(unittest.TestCase):
         self.assertEqual(error['details']['category'], 'dns')
         client.rpc.assert_called_once()
 
+    def test_manual_candidate_local_scope_is_not_confused_with_system_or_foreign_skill(self):
+        flow, _, _ = self.flow()
+        output = task('original', 'v1', skills=['XLSX'])['status']['message']['parts'][0]['data']['output']['output']
+        output['resolved_refs']['skills'][0].pop('workspace_id')
+        flow.remember_candidate(output, 'original')
+        local = flow.require_resource('skills', 'skill.xlsx', workspace_id='ws')
+        self.assertEqual(local['workspace_id'], 'ws')
+        with self.assertRaises(ProductCaseFailure):
+            flow.require_resource('skills', 'skill.xlsx')
+        output['resolved_refs']['skills'][0]['workspace_id'] = 'foreign'
+        with self.assertRaises(ProductCaseFailure):
+            flow.require_resource('skills', 'skill.xlsx', workspace_id='ws')
+
     def test_revision_rejects_old_candidate_and_publishes_the_new_identity(self):
         flow, client, checks = self.flow()
         flow.remember(task('original', 'v1'), 'original')
@@ -112,6 +125,23 @@ class BuilderFlowTests(unittest.TestCase):
         flow.cleanup()
         self.assertEqual(client.agent['status'], 'archived')
         self.assertEqual(flow.execution.report['harness_errors'], [])
+
+    def test_manual_binding_rejection_is_not_retried_without_the_binding(self):
+        flow, client, checks = self.flow()
+        flow.remember(task('original', 'v1'), 'original')
+        product = client.product
+        def request(method, path, body=None):
+            if path.endswith('/commit'):
+                raise Failure('http_error', 400)
+            return product(method, path, body)
+        client.product = Mock(side_effect=request)
+        binding = {'skill_refs': [{'id': 'skill', 'workspace_id': 'ws', 'kind': 'skill'}]}
+        with self.assertRaises(ProductCaseFailure):
+            flow.commit(binding=binding)
+        commits = [call for call in client.product.call_args_list if call.args[1].endswith('/commit')]
+        self.assertEqual(len(commits), 1)
+        self.assertEqual(commits[0].args[2], {'source_digest': 'sha256:v1', 'binding': binding})
+        self.assertFalse(checks[-1]['passed'])
 
     def test_accepted_old_candidate_fails_and_only_our_agent_is_archived(self):
         flow, client, checks = self.flow(accept_old=True)

@@ -20,6 +20,12 @@ class FeedbackClient:
         if '/agent-runtime-tasks?' in path:
             return {'items': [{'id': item, 'context_id': 'conversation'} for item in self.tasks],
                     'total': len(self.tasks)}
+        if '/feedback/stats?' in path:
+            query = parse_qs(urlsplit(path).query)
+            assert query['message_id'] == ['assistant']
+            items = self.saved.get('assistant', [])
+            return {'total': len(items), 'by_rating': {
+                key: sum(item['rating'] == key for item in items) for key in ('up', 'down', 'neutral')}}
         if '/feedback?' in path:
             query = parse_qs(urlsplit(path).query)
             target = query['message_id'][0]
@@ -111,6 +117,14 @@ class FeedbackChecksTests(unittest.TestCase):
             check_feedback(runner, 'conversation', 'session', task, [])
         self.assertEqual(runner.client.sends, 1)
         self.assertEqual(runner.pending_conversation, 'conversation')
+
+    def test_neutral_stats_are_answer_scoped_and_replay_does_not_increase_them(self):
+        runner, task = self.execution()
+        checks = []
+        check_feedback(runner, 'conversation', 'session', task, checks, rating='neutral',
+                       check_filter=True, check_stats=True)
+        self.assertEqual(len(checks), 12)
+        self.assertTrue(all(item['passed'] for item in checks))
 
 
 if __name__ == '__main__':

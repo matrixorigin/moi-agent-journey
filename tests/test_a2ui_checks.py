@@ -3,7 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from journey.a2ui_checks import CATALOG, evaluate_a2ui
+from journey.a2ui_checks import CATALOG, evaluate_a2ui, question_action
 
 
 class A2UICheckTests(unittest.TestCase):
@@ -56,3 +56,33 @@ class A2UICheckTests(unittest.TestCase):
         self.assertTrue(all(item['passed'] for item in self.check(events)[0]))
         components[0]['children'].append('root')
         self.assertFalse(all(item['passed'] for item in self.check(events)[0]))
+
+    def test_question_submission_uses_observed_ids_values_and_unguessed_answer_path(self):
+        events = self.events()
+        components = events[-1]['payload']['updateComponents']['components']
+        components[1] = {'id': 'table', 'component': 'Question', 'title': '2+3?', 'type': 'single',
+                         'answerPath': '/answers/math', 'options': [
+                             {'label': '4', 'value': 'opaque-no'}, {'label': '5', 'value': 'opaque-yes'}]}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'events.jsonl'
+            def action(rows):
+                path.write_text(''.join(json.dumps(row) + '\n' for row in rows))
+                return question_action(path, 'task', ['4', '5'], '5')
+            result = action(events)['action']
+            self.assertEqual(result['surfaceId'], 'surface')
+            self.assertEqual(result['sourceComponentId'], 'table')
+            self.assertEqual(result['context'], {'math': 'opaque-yes'})
+            for field, value in [('result', 'correct'), ('answerPath', '/unexpected/math'),
+                                 ('options', [{'label': '4', 'value': 'same'}, {'label': '5', 'value': 'same'}])]:
+                bad = copy.deepcopy(events)
+                bad[-1]['payload']['updateComponents']['components'][1][field] = value
+                self.assertIsNone(action(bad))
+            update = copy.deepcopy(events[-1])
+            update['task_id'] = 'next'
+            update['payload']['updateComponents']['components'][1]['result'] = 'correct'
+            expected = {'component': 'Question', 'fields': {'id': 'table', 'result': 'correct'}}
+            for task_id, passed in [('next', True), ('unrelated', False)]:
+                update['task_id'] = task_id
+                action(events + [update])
+                checks, _ = evaluate_a2ui(path, 'next', 'session', expected, prior_task_id='task')
+                self.assertEqual(all(check['passed'] for check in checks), passed)

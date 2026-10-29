@@ -10,7 +10,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from .a2a import final_reply
-from .a2ui_checks import evaluate_a2ui
+from .a2ui_checks import evaluate_a2ui, question_action
 from .agent_builder import check_candidate_cancel
 from .artifact_checks import (check_ooxml_artifact, check_text_artifact, check_xlsx_artifact,
                               check_text_artifacts, check_pdf_artifact)
@@ -30,9 +30,10 @@ from .message_controls import check_completed_cancellation, check_empty_message
 from .run_case import Execution
 from .regeneration import regenerate
 from .resume_checks import check_resubscribe
-from .sandbox_checks import evaluate_python_hash, evaluate_python_recovery
+from .sandbox_checks import evaluate_file_state, evaluate_python_hash, evaluate_python_recovery
 from .search_checks import evaluate_search
 from .skill_checks import check_skill_call
+from .skill_journey import SkillJourney
 from .sql_checks import evaluate_sql, evaluate_sql_failure
 from .version import finish_version, start_version
 from .web_open_checks import evaluate_open
@@ -178,10 +179,16 @@ class FunctionalExecution(Execution):
         builders = {}
         knowledge = {}
         database = None
+        skill_journey = None
+        checks = []
         try:
             self.root, self.selector = discover(self.client, self.case['workspace'])
             start_version(self)
             variables = case_variables(self.case)
+            if self.case.get('skill_journey') is not None:
+                self.report['stage'] = 'skill_journey'
+                skill_journey = SkillJourney(self, self.case['skill_journey'], variables, checks)
+                variables.update(skill_journey.prepare())
             prepare_knowledge_fixtures(self, knowledge, variables)
             if self.case.get('database_fixture') is not None:
                 self.report['stage'] = 'database_fixture'
@@ -192,7 +199,6 @@ class FunctionalExecution(Execution):
             if len(fixtures) != len(self.case.get('fixtures', [])):
                 raise Failure('duplicate_fixture')
             uploaded = {}
-            checks = []
             session_ids = set()
             for session in self.case['sessions']:
                 if (not isinstance(session.get('id'), str) or
@@ -202,6 +208,10 @@ class FunctionalExecution(Execution):
                 self.report['stage'] = 'session:' + session['id']
                 agent_from = session.get('agent_from')
                 selector = None
+                if session.get('agent_from_skill') is True:
+                    if not skill_journey or agent_from is not None:
+                        raise Failure('invalid_skill_agent_session')
+                    selector = skill_journey.selector()
                 if agent_from is not None:
                     builder = builders.get(agent_from)
                     if not builder or not builder.created or not builder.created['verified']:
@@ -279,6 +289,20 @@ class FunctionalExecution(Execution):
                         self.report['validation'] = {'checks': checks}
                         self.checkpoint()
                     prompt = turn['prompt'].format_map(variables)
+                    action_data, prior_surface_task = None, None
+                    if turn.get('a2ui_submit') is not None:
+                        config = turn['a2ui_submit']
+                        if final_entry is None or 'a2ui_evidence' not in turn:
+                            raise Failure('invalid_a2ui_submit_case')
+                        prior_surface_task = final_entry['task_id']
+                        action_data = question_action(self.evidence.root / 'events.jsonl', prior_surface_task,
+                                                      config['labels'], config['answer'])
+                        checks.append({'session': session['id'], 'rule': '从实际问题中读取可提交的选项和组件身份',
+                            'passed': action_data is not None, 'detail': '' if action_data else 'a2ui_question_not_submittable'})
+                        self.report['validation'] = {'checks': checks}
+                        self.checkpoint()
+                        if action_data is None:
+                            raise ProductCaseFailure('a2ui_question_not_submittable')
                     selection = turn.get('knowledge_selection')
                     knowledge_ids = knowledge_selection_ids(knowledge, selection) if selection is not None else None
                     cancel = turn.get('cancel_after_admission') is True
@@ -298,7 +322,7 @@ class FunctionalExecution(Execution):
                     else:
                         final_entry, task = self.send(cid, session['id'] + ':' + turn['phase'], prompt, attachments,
                                                       cancel_after_admission=cancel, live_resume=live_resume,
-                                                      knowledge_ids=knowledge_ids)
+                                                      knowledge_ids=knowledge_ids, a2ui_action=action_data)
                     if cancel:
                         accepted = final_entry.get('cancel_request') == 'accepted'
                         canceled = task['status']['state'] == 'canceled'
@@ -320,11 +344,16 @@ class FunctionalExecution(Execution):
                     if 'a2ui_evidence' in turn:
                         if turn.get('assertions') or turn.get('action') or turn.get('json_fields'):
                             raise Failure('ambiguous_a2ui_case')
+                        expected_surface = turn['a2ui_evidence']
+                        if action_data:
+                            expected_surface = {**expected_surface, 'fields': {**expected_surface['fields'],
+                                                'id': action_data['action']['sourceComponentId']}}
                         surface_checks, delivered = evaluate_a2ui(self.evidence.root / 'events.jsonl',
-                            final_entry['task_id'], session['id'], turn['a2ui_evidence'])
+                            final_entry['task_id'], session['id'], expected_surface, prior_task_id=prior_surface_task)
                         checks.extend(surface_checks)
                         session_report.update({'final_task_id': final_entry['task_id'], 'answer_delivered': delivered})
-                        self.check_skill('a2ui', final_entry['task_id'], session['id'], turn['phase'], checks)
+                        if action_data is None:
+                            self.check_skill('a2ui', final_entry['task_id'], session['id'], turn['phase'], checks)
                         self.report['validation'] = {'checks': checks}
                         self.checkpoint()
                         continue
@@ -340,7 +369,7 @@ class FunctionalExecution(Execution):
                             self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
                     required_skill = turn.get('skill_evidence')
                     if required_skill is not None:
-                        self.check_skill(required_skill, final_entry['task_id'], session['id'], turn['phase'], checks)
+                        self.check_skill(required_skill.format_map(variables), final_entry['task_id'], session['id'], turn['phase'], checks)
                     if current_search:
                         search_checks, blocked = evaluate_search(self.evidence.root / 'events.jsonl',
                                                                   final_entry['task_id'], reply, session['id'],
@@ -370,6 +399,15 @@ class FunctionalExecution(Execution):
                             variables[config['marker']], config['left'], config['right'],
                             require_failed_tool=config.get('require_failed_tool', False))
                         checks.extend(recovery_checks)
+                        if blocked:
+                            self.report['blocked'] = True
+                            self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
+                    if turn.get('sandbox_file'):
+                        config = turn['sandbox_file']
+                        file_checks, blocked = evaluate_file_state(self.evidence.root / 'events.jsonl',
+                            final_entry['task_id'], session['id'], config['path'].format_map(variables),
+                            variables[config['content']], config['mode'])
+                        checks.extend(file_checks)
                         if blocked:
                             self.report['blocked'] = True
                             self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
@@ -425,14 +463,19 @@ class FunctionalExecution(Execution):
                     self.checkpoint()
                     action = turn.get('action')
                     if action:
-                        if action.get('type') == 'reject_empty_message':
+                        if action.get('type') == 'enable_custom_skill':
+                            if not skill_journey or skill_journey.mode != 'disabled':
+                                raise Failure('invalid_skill_enable_action')
+                            skill_journey.set_status('active')
+                        elif action.get('type') == 'reject_empty_message':
                             check_empty_message(self, cid, session['id'], checks)
                         elif action.get('type') == 'cancel_completed':
                             check_completed_cancellation(self, cid, session['id'], task, checks)
                         elif action.get('type') == 'feedback':
                             check_feedback(self, cid, session['id'], task, checks,
                                 rating=action.get('rating', 'up'), comment=action.get('comment'),
-                                labels=action.get('labels'), check_filter=action.get('check_filter', False))
+                                labels=action.get('labels'), check_filter=action.get('check_filter', False),
+                                check_stats=action.get('check_stats', False))
                         elif action.get('type') == 'conversation_lifecycle':
                             check_lifecycle(self, cid, session['id'], checks, action['title'].format_map(variables))
                         elif action.get('type') == 'conversation_history':
@@ -596,6 +639,8 @@ class FunctionalExecution(Execution):
                     fixture.cleanup(dependencies_confirmed=dependencies_confirmed)
             if database:
                 database.cleanup(dependencies_confirmed=tasks_confirmed)
+            if skill_journey:
+                skill_journey.cleanup(dependencies_confirmed=tasks_confirmed)
             self.report['cleanup_seconds'] += round(time.monotonic() - cleanup_started, 3)
             self.checkpoint()
         return self.report

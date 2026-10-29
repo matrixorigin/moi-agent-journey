@@ -1,14 +1,30 @@
 import http.client
 import socket
 import ssl
+import tempfile
 import unittest
 import urllib.error
+from pathlib import Path
 from unittest.mock import Mock
 
 from journey.client import Client, Failure, transport_details
 
 
 class ClientTransportTests(unittest.TestCase):
+    def test_upload_response_code_is_endpoint_specific(self):
+        client = Client('https://example.invalid', 'synthetic-pat')
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'fixture.zip'
+            path.write_bytes(b'synthetic')
+            for expected in ('OK', 0):
+                for actual in ('OK', 0, 1):
+                    client.request = Mock(return_value={'code': actual, 'data': {'id': 'fixture'}})
+                    if actual == expected:
+                        self.assertEqual(client.upload_multipart('/upload', path, expected_code=expected), {'id': 'fixture'})
+                    else:
+                        with self.assertRaises(Failure):
+                            client.upload_multipart('/upload', path, expected_code=expected)
+
     def test_network_failures_are_classified_without_remote_error_text(self):
         for error, category in (
             (urllib.error.URLError(socket.gaierror(-2, 'private-host.example')), 'dns'),

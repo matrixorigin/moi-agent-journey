@@ -9,11 +9,11 @@ from .message_controls import conversation_task_ids
 
 
 def check_feedback(execution, conversation_id, session_id, task, checks, *, rating='up', comment=None, labels=None,
-                   check_filter=False):
+                   check_filter=False, check_stats=False):
     if (rating not in {'up', 'down', 'neutral'} or (comment is not None and
             (not isinstance(comment, str) or not comment)) or (labels is not None and
             (not isinstance(labels, list) or any(not isinstance(label, str) or not label for label in labels))) or
-            type(check_filter) is not bool):
+            type(check_filter) is not bool or type(check_stats) is not bool):
         raise Failure('invalid_feedback_case')
     selector = execution.conversation_selector(conversation_id)
     task_id = task.get('id')
@@ -60,6 +60,17 @@ def check_feedback(execution, conversation_id, session_id, task, checks, *, rati
             data['labels'] = labels
         return {'message': {'kind': 'message', 'role': 'user', 'messageId': message_id,
                             'contextId': conversation_id, 'parts': [{'kind': 'data', 'data': data}]}}
+
+    def stats():
+        # Scope to this answer so parallel cases cannot change the expected count.
+        return execution.client.product('GET', execution.root + '/feedback/stats?' +
+                                        urlencode({**selector, 'message_id': assistant_id}))
+
+    if check_stats:
+        initial_stats = stats()
+        record('本次答复的初始反馈统计为空', initial_stats.get('total') == 0 and
+               initial_stats.get('by_rating') == {'up': 0, 'down': 0, 'neutral': 0}, 'initial_feedback_stats_mismatch')
+        execution.evidence.write('sessions/' + session_id + '/feedback-stats-initial.json', initial_stats)
 
     invalid_id, valid_id = 'j2-' + uuid.uuid4().hex, 'j2-' + uuid.uuid4().hex
     missing_message_id = 'missing-' + uuid.uuid4().hex
@@ -134,6 +145,12 @@ def check_feedback(execution, conversation_id, session_id, task, checks, *, rati
                'feedback_opposite_filter_mismatch')
         execution.evidence.write('sessions/' + session_id + '/feedback-filter.json',
                                  {'matching': matching, 'opposite': opposite})
+    if check_stats:
+        saved_stats = stats()
+        record('反馈统计对应本次评价类型', saved_stats.get('total') == 1 and
+               saved_stats.get('by_rating') == {key: int(key == rating) for key in ('up', 'down', 'neutral')},
+               'feedback_stats_mismatch')
+        execution.evidence.write('sessions/' + session_id + '/feedback-stats-saved.json', saved_stats)
 
     # Replaying this specific request deliberately tests feedback idempotency.
     replay = execution.client.rpc(selector, 'message/send', params)
@@ -142,6 +159,10 @@ def check_feedback(execution, conversation_id, session_id, task, checks, *, rati
            'feedback_replay_changed_result')
     execution.evidence.write('sessions/' + session_id + '/feedback-replay.json',
                              {'receipt': replay, 'saved': replay_list})
+    if check_stats:
+        replay_stats = stats()
+        record('反馈重放不重复计数', replay_stats == saved_stats, 'feedback_replay_increased_stats')
+        execution.evidence.write('sessions/' + session_id + '/feedback-stats-replay.json', replay_stats)
     unchanged = conversation_task_ids(execution, conversation_id) == known
     record('反馈操作没有创建智能体任务', unchanged, 'feedback_created_task')
     if not unchanged:

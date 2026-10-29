@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code",
+    "old_code"
+  ],
+  "id": "J2-63",
+  "title": "自定义 Skill 修改、版本回退与真实调用",
+  "skill_journey": {
+    "mode": "versions",
+    "marker": "{code}",
+    "initial_marker": "{old_code}"
+  },
+  "sessions": [
+    {
+      "id": "skill",
+      "agent_from_skill": true,
+      "delivery_kind": "answer",
+      "expected_checks": 22,
+      "turns": [
+        {
+          "phase": "use",
+          "prompt": "请读取 Skill {skill_name}，告诉我其中的公开项目编号。",
+          "skill_evidence": "{skill_id}",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{code}",
+              "rule": "实际回答来自当前 Skill 内容"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
