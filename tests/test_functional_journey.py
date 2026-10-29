@@ -364,6 +364,102 @@ class FunctionalJourneyTests(unittest.TestCase):
         self.assertTrue(check_reply('query', turn, '合计 115.00，来自 2 条记录。', {})[-1]['passed'])
         self.assertFalse(check_reply('query', turn, '合计 1150，来自 2 条记录。', {})[-1]['passed'])
 
+    def test_json_null_must_be_present_and_not_fabricated(self):
+        turn = {'phase': 'lookup', 'json_fields': {'found': False, 'phone': None}}
+        self.assertTrue(all(item['passed'] for item in
+                            check_reply('lookup', turn, '{"found": false, "phone": null}', {})))
+        for reply in ('{"found": false}', '{"found": 0, "phone": null}',
+                      '{"found": false, "phone": "12345678"}', 'not json'):
+            self.assertFalse(all(item['passed'] for item in check_reply('lookup', turn, reply, {})))
+
+    def test_json_with_citation_has_an_explicit_unambiguous_format(self):
+        turn = {'phase': 'lookup', 'json_format': 'object_or_fenced',
+                'json_fields': {'found': False, 'phone': None}}
+        reply = '```json\n{"found": false, "phone": null}\n```\n\n依据：support.txt。'
+        self.assertTrue(all(item['passed'] for item in check_reply('lookup', turn, reply, {})))
+        self.assertTrue(all(item['passed'] for item in
+                            check_reply('lookup', turn, '{"found": false, "phone": null}', {})))
+        self.assertTrue(all(item['passed'] for item in
+                            check_reply('lookup', turn, '{"found": false, "phone": null}\n依据：support.txt。', {})))
+        ambiguous = reply + '\n```json\n{"found": true, "phone": "123"}\n```'
+        self.assertFalse(all(item['passed'] for item in check_reply('lookup', turn, ambiguous, {})))
+        two_objects = '{"found": false, "phone": null}\n{"found": true, "phone": "123"}'
+        self.assertFalse(all(item['passed'] for item in check_reply('lookup', turn, two_objects, {})))
+        strict = {'phase': 'lookup', 'json_fields': {'found': False, 'phone': None}}
+        self.assertFalse(all(item['passed'] for item in check_reply('lookup', strict, reply, {})))
+
+    def test_unconfirmed_agent_cleanup_keeps_knowledge_dependency(self):
+        with qa_fixture('success') as (base, _state):
+            case = self.make_case()
+            case['knowledge_fixture'] = {'kind': 'document'}
+            case['builder_names'] = ['code']
+            case['sessions'][0]['turns'] = [{'phase': 'create', 'prompt': 'create {code}',
+                'action': {'type': 'create_builder_agent', 'agent_name': '{code}'}}]
+            execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+            class Fixture:
+                def __init__(self): self.confirmed = None
+                def setup(self): return {}
+                def cleanup(self, *, dependencies_confirmed): self.confirmed = dependencies_confirmed
+            class Builder:
+                created = None
+                def __init__(self, runner, *_args): self.runner = runner
+                def remember(self, *_args): raise ProductCaseFailure('candidate_commit_failed')
+                def cleanup(self): self.runner.report['harness_errors'].append({'stage': 'cleanup_agent', 'reason': 'http_error'})
+            fixture = Fixture()
+            with patch('journey.functional_case.KnowledgeFixture', return_value=fixture), \
+                    patch('journey.functional_case.AgentBuilderFlow', Builder):
+                execution.run()
+            self.assertFalse(fixture.confirmed)
+
+    def test_unconfirmed_task_keeps_resource_dependencies(self):
+        for resource, fixture_type in (('knowledge', 'KnowledgeFixture'), ('database', 'DatabaseFixture')):
+            for unresolved in ('pending', 'running'):
+                with self.subTest(resource=resource, unresolved=unresolved), qa_fixture('success') as (base, _state):
+                    case = self.make_case()
+                    case[resource + '_fixture'] = {}
+                    execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+                    class Fixture:
+                        def __init__(self): self.confirmed = None
+                        def setup(self): return {}
+                        def cleanup(self, *, dependencies_confirmed): self.confirmed = dependencies_confirmed
+                    fixture = Fixture()
+                    finalize = execution.finalize
+                    def unresolved_finalize():
+                        finalize()
+                        if unresolved == 'pending':
+                            execution.pending_conversation = 'unknown-send'
+                        else:
+                            execution.tasks[0]['state'] = 'working'
+                    with patch('journey.functional_case.' + fixture_type, return_value=fixture), \
+                            patch.object(execution, 'finalize', side_effect=unresolved_finalize):
+                        execution.run()
+                    self.assertFalse(fixture.confirmed)
+
+    def test_unconfirmed_task_keeps_created_agent(self):
+        with qa_fixture('success') as (base, _state):
+            case = self.make_case()
+            case['builder_names'] = ['code']
+            case['sessions'][0]['turns'] = [{'phase': 'create', 'prompt': 'create {code}',
+                'action': {'type': 'create_builder_agent', 'agent_name': '{code}'}}]
+            execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+            class Builder:
+                created = {'id': 'owned-agent'}
+                cleaned = False
+                def __init__(self, *_args): pass
+                def remember(self, *_args): raise ProductCaseFailure('candidate_commit_failed')
+                def cleanup(self): self.cleaned = True
+            builder = Builder()
+            finalize = execution.finalize
+            def unresolved_finalize():
+                finalize()
+                execution.tasks[0]['state'] = 'working'
+            with patch('journey.functional_case.AgentBuilderFlow', return_value=builder), \
+                    patch.object(execution, 'finalize', side_effect=unresolved_finalize):
+                execution.run()
+            self.assertFalse(builder.cleaned)
+            self.assertIn({'stage': 'cleanup_agent', 'reason': 'dependent_task_unconfirmed'},
+                          execution.report['harness_errors'])
+
     def test_each_case_run_allocates_distinct_context_tokens(self):
         case = load_case('J2-03')
         first, second = case_variables(case), case_variables(case)

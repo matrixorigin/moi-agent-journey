@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "J2-42",
+  "workspace": "journey-2",
+  "title": "知识库缺失信息时不编造答案",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {
+      "path": "support.txt",
+      "sha256": "cd9b82c6bed3474623ea29068d6451bb9216ececc016790e8cd98261fc3217cd"
+    }
+  ],
+  "knowledge_fixture": {
+    "kind": "document",
+    "path": "support.txt",
+    "marker": "J2-KESTREL-9A6C4E2D"
+  },
+  "random_tokens": [
+    "agent_name"
+  ],
+  "builder_names": [
+    "agent_name"
+  ],
+  "sessions": [
+    {
+      "id": "builder",
+      "delivery_kind": "agent",
+      "expected_checks": 9,
+      "turns": [
+        {
+          "phase": "create",
+          "prompt": "请创建一个名为 {agent_name} 的智能体，专门回答知识库问题，请明确绑定知识库 {knowledge_name}（ID {knowledge_id}）。先展示候选，暂时不要确认创建。",
+          "action": {
+            "type": "commit_builder_with_resource",
+            "agent_name": "{agent_name}",
+            "resource_kind": "knowledge_bases",
+            "resource_id": "{knowledge_id}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "query",
+      "agent_from": "builder",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "missing_phone",
+          "prompt": "请查阅绑定知识库中的 Project Kestrel 手册，判断里面是否提供客服电话。请引用你查看的文档作为依据。请用一个 JSON 对象表达结果（可以直接输出或放在 Markdown 代码块中），并给出来源说明：found 为布尔值，phone 为原文中的电话号码字符串；没有提供电话号码时 found 为 false、phone 为 null。不要编造。",
+          "knowledge_evidence": true,
+          "json_format": "object_or_fenced",
+          "json_fields": {
+            "found": false,
+            "phone": null
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -43,13 +43,19 @@ def mark_expected_tool_errors(analysis, checks):
     """Mark only the exact error observation verified by a negative test."""
     expected = []
     for check in checks:
-        ref = check.get('expected_tool_error') if isinstance(check, dict) else None
-        if ref is None:
+        if not isinstance(check, dict):
             continue
-        if (not isinstance(ref, dict) or set(ref) != {'task_id', 'call_id', 'kind', 'code'} or
-                any(not isinstance(value, str) or not value for value in ref.values())):
+        refs = check.get('expected_tool_errors', [])
+        if not isinstance(refs, list):
             raise ValueError('invalid_expected_tool_error')
-        expected.append(ref)
+        ref = check.get('expected_tool_error')
+        if ref is not None:
+            refs = [*refs, ref]
+        for ref in refs:
+            if (not isinstance(ref, dict) or set(ref) != {'task_id', 'call_id', 'kind', 'code'} or
+                    any(not isinstance(value, str) or not value for value in ref.values())):
+                raise ValueError('invalid_expected_tool_error')
+            expected.append(ref)
     for ref in expected:
         matches = [item for call in analysis['errors']
                    if call.get('task_id') == ref['task_id'] and call.get('call_id') == ref['call_id']

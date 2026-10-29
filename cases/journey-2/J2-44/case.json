@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "J2-44",
+  "workspace": "journey-2",
+  "title": "工作区 SQL 错误反馈后继续查询",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "database_fixture": {
+    "table": "orders",
+    "columns": [
+      {
+        "name": "department",
+        "type": "VARCHAR(64)"
+      },
+      {
+        "name": "amount",
+        "type": "INT"
+      }
+    ],
+    "rows": [
+      [
+        "atlas",
+        80
+      ],
+      [
+        "orion",
+        120
+      ],
+      [
+        "atlas",
+        35
+      ]
+    ]
+  },
+  "sessions": [
+    {
+      "id": "sql_recovery",
+      "delivery_kind": "answer",
+      "expected_checks": 7,
+      "turns": [
+        {
+          "phase": "invalid",
+          "prompt": "请在当前工作区执行这条 SQL：SELECT missing_column FROM {database_name}.orders。请先原样执行，不要改写；如果执行失败，请说明错误并指出字段名 missing_column。",
+          "sql_error_evidence": {
+            "query": "SELECT missing_column FROM {database_name}.orders",
+            "error_contains": "missing_column"
+          },
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "missing_column",
+              "rule": "答复指出出错的字段"
+            }
+          ]
+        },
+        {
+          "phase": "recover",
+          "prompt": "请继续在同一工作区执行正确的 SQL：SELECT SUM(amount) AS total FROM {database_name}.orders WHERE department = 'atlas'。只回复 total 的数字结果。",
+          "sql_evidence": {
+            "query": "SELECT SUM(amount) AS total FROM {database_name}.orders WHERE department = 'atlas'",
+            "column": "total",
+            "value": "115"
+          },
+          "assertions": [
+            {
+              "type": "single_number",
+              "value": "115",
+              "rule": "错误后仍能查询正确结果"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

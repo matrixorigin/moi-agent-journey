@@ -3,7 +3,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from journey.sql_checks import evaluate_sql
+from journey.diagnostics import analyze_events
+from journey.report import mark_expected_tool_errors
+from journey.sql_checks import evaluate_sql, evaluate_sql_failure
 
 
 class SqlEvidenceTests(unittest.TestCase):
@@ -103,6 +105,103 @@ class SqlEvidenceTests(unittest.TestCase):
         call['payload']['arguments']['workspace_id'] = 'other'
         checks, _ = self.evaluate([call, result])
         self.assertFalse(checks[0]['passed'])
+
+    def test_expected_query_error_requires_the_actual_failed_call_and_field(self):
+        query = 'SELECT missing_column FROM journey_db.orders'
+        call = self.call('moi-cli -o sql run --query "' + query + '"')
+        result = self.result(exit_code=1)
+        result['payload']['output']['output']['stderr'] = 'Unknown column missing_column'
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'events.jsonl'
+            def check(events):
+                path.write_text(''.join(json.dumps(event) + '\n' for event in events))
+                return evaluate_sql_failure(path, 'task', 'sql', query, 'missing_column', 'ws')
+            checks, blocked = check([call, result])
+            self.assertTrue(checks[0]['passed'])
+            self.assertEqual(checks[0]['expected_tool_errors'],
+                             [{'task_id': 'task', 'call_id': 'call', 'kind': 'command_exit', 'code': '1'}])
+            self.assertIsNone(blocked)
+            result['payload']['output']['output']['stderr'] = 'network timeout'
+            checks, blocked = check([call, result])
+            self.assertFalse(checks[0]['passed'])
+            self.assertIsNone(blocked)
+            result['payload']['output']['output']['stderr'] = 'network timeout executing SELECT missing_column'
+            checks, _ = check([call, result])
+            self.assertFalse(checks[0]['passed'])
+            checks, blocked = check([call])
+            self.assertFalse(checks[0]['passed'])
+            self.assertEqual(blocked, 'sql_failure_unverifiable')
+
+    def test_literal_cd_and_reported_exit_preserve_result_and_expected_error(self):
+        good = self.call('cd /sandbox/.moi && moi-cli -o sql run --query '
+                         '"SELECT 17 * 19 AS product"; echo "EXIT=$?"')
+        success = self.result()
+        success['payload']['output']['output']['stdout'] += '\nEXIT=0\n'
+        checks, blocked = self.evaluate([good, success])
+        self.assertTrue(all(item['passed'] for item in checks))
+        self.assertIsNone(blocked)
+        success['payload']['output']['output']['stdout'] = success['payload']['output']['output']['stdout'].replace('EXIT=0', 'EXIT=1')
+        checks, _ = self.evaluate([good, success])
+        self.assertFalse(checks[1]['passed'])
+
+        query = 'SELECT missing_column FROM journey_db.orders'
+        call = self.call('cd /sandbox/.moi && moi-cli -o sql run --query "' + query + '"; echo "EXIT=$?"')
+        result = self.result()
+        result['payload']['output']['output'].update({'stdout': 'EXIT=1\n', 'stderr': json.dumps(
+            {'code': '500', 'status': 500, 'message': 'column missing_column does not exist'})})
+        call['seq'], result['seq'] = 1, 2
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'events.jsonl'
+            path.write_text(''.join(json.dumps(event) + '\n' for event in (call, result)))
+            checks, blocked = evaluate_sql_failure(path, 'task', 'sql', query, 'missing_column', 'ws')
+            self.assertTrue(checks[0]['passed'])
+            self.assertIsNone(blocked)
+            analysis = analyze_events(path, [{'task_id': 'task', 'phase': 'sql:invalid', 'event_count': 2}])
+            mark_expected_tool_errors(analysis, checks)
+            self.assertEqual(analysis['metrics']['failed'], 1)
+            self.assertEqual({error['kind'] for error in analysis['errors'][0]['errors']},
+                             {'reported_http_error', 'captured_command_exit'})
+            self.assertTrue(all(error.get('expected') for error in analysis['errors'][0]['errors']))
+
+        altered = self.call('cd /sandbox/.moi && moi-cli -o sql run --query '
+                            '"SELECT 17 * 19 AS product"; echo "EXIT=0"')
+        checks, blocked = self.evaluate([altered, success])
+        self.assertFalse(checks[0]['passed'])
+        self.assertEqual(blocked, 'sql_command_unverifiable')
+
+    def test_reported_exit_label_is_not_hard_coded(self):
+        command = ('cd /sandbox/.moi && moi-cli -o sql run --query '
+                   '"SELECT 17 * 19 AS product"; echo "EXIT_STATUS=$?"')
+        result = self.result()
+        result['payload']['output']['output']['stdout'] += '\nEXIT_STATUS=0\n'
+        checks, blocked = self.evaluate([self.call(command), result])
+        self.assertTrue(all(item['passed'] for item in checks))
+        self.assertIsNone(blocked)
+        result['payload']['output']['output']['stdout'] = result['payload']['output']['output']['stdout'].replace(
+            'EXIT_STATUS=0', 'OTHER=0')
+        checks, blocked = self.evaluate([self.call(command), result])
+        self.assertFalse(checks[1]['passed'])
+        self.assertEqual(blocked, 'sql_result_unverifiable')
+
+    def test_sql_error_redirected_to_stdout_is_still_identified(self):
+        query = 'SELECT missing_column FROM journey_db.orders'
+        call = self.call('moi-cli -o sql run --query "' + query + '" 2>&1; echo "EXIT=$?"')
+        result = self.result()
+        response = {'code': '500', 'status': 500, 'message': 'column missing_column does not exist'}
+        call['seq'], result['seq'] = 1, 2
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'events.jsonl'
+            for content in (json.dumps(response), json.dumps(response, indent=2)):
+                with self.subTest(content=content):
+                    result['payload']['output']['output'].update({'stdout': content + '\nEXIT=1\n', 'stderr': ''})
+                    path.write_text(''.join(json.dumps(event) + '\n' for event in (call, result)))
+                    checks, blocked = evaluate_sql_failure(path, 'task', 'sql', query, 'missing_column', 'ws')
+                    self.assertTrue(checks[0]['passed'])
+                    self.assertIsNone(blocked)
+                    analysis = analyze_events(path, [{'task_id': 'task', 'phase': 'sql:invalid', 'event_count': 2}])
+                    mark_expected_tool_errors(analysis, checks)
+                    self.assertEqual(analysis['metrics']['failed'], 1)
+                    self.assertTrue(all(error.get('expected') for error in analysis['errors'][0]['errors']))
 
 
 if __name__ == '__main__':

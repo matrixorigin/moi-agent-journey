@@ -144,6 +144,16 @@ class KnowledgeFixtureTests(unittest.TestCase):
         self.assertFalse(client.connector_deleted)
         self.assertEqual(runner.report['harness_errors'][0]['reason'], 'knowledge_fixture_in_use')
 
+    def test_unconfirmed_agent_cleanup_preserves_the_knowledge_and_upload(self):
+        fixture, client, runner = self.fixture('J2-41')
+        with patch('journey.knowledge_fixture.time.sleep'):
+            fixture.setup()
+        fixture.cleanup(dependencies_confirmed=False)
+        self.assertFalse(client.deleted)
+        self.assertFalse(client.connector_deleted)
+        self.assertEqual(fixture.state['cleanup'], 'retained')
+        self.assertEqual(runner.report['harness_errors'][0]['reason'], 'dependent_agent_or_task_unconfirmed')
+
     def test_upload_cleanup_error_is_reported(self):
         fixture, client, runner = self.fixture('J2-41', connector_error=True)
         with patch('journey.knowledge_fixture.time.sleep'):

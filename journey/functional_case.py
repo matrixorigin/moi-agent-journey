@@ -17,9 +17,10 @@ from .builder_flow import AgentBuilderFlow, ProductCaseFailure
 from .catalog import fixture_path, load_case
 from .client import Client, Failure
 from .conversation_checks import check_history_and_invalid_update, check_lifecycle
+from .database_fixture import DatabaseFixture, DatabaseFixtureUnavailable
 from .evidence import Evidence, configured_secrets
 from .feedback_checks import check_feedback
-from .hello import discover
+from .hello import TERMINAL, discover
 from .knowledge_checks import evaluate_knowledge, evaluate_knowledge_table
 from .knowledge_fixture import KnowledgeFixture, KnowledgeFixtureUnavailable
 from .live_resume import check_live_resume
@@ -30,7 +31,7 @@ from .resume_checks import check_resubscribe
 from .sandbox_checks import evaluate_python_hash, evaluate_python_recovery
 from .search_checks import evaluate_search
 from .skill_checks import check_skill_call
-from .sql_checks import evaluate_sql
+from .sql_checks import evaluate_sql, evaluate_sql_failure
 from .version import finish_version, start_version
 from .web_open_checks import evaluate_open
 
@@ -41,6 +42,32 @@ def case_variables(case):
             any(not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9_]*', name) for name in names)):
         raise Failure('invalid_case_variables')
     return {name: 'J2_' + uuid.uuid4().hex[:16].upper() for name in names}
+
+
+def json_answer(reply, json_format):
+    if json_format == 'object':
+        return json.loads(reply)
+    decoder = json.JSONDecoder()
+    fences = list(re.finditer(r'(?m)^```[^\n]*$', reply))
+    if fences:
+        blocks = list(re.finditer(r'(?ims)^```(?:json)?[ \t]*\r?\n(.*?)\r?\n```[ \t]*$', reply))
+        if len(fences) != 2 or len(blocks) != 1:
+            raise ValueError('ambiguous_json_answer')
+        block = blocks[0]
+        parsed = json.loads(block.group(1))
+        surrounding = reply[:block.start()] + reply[block.end():]
+    else:
+        text = reply.lstrip()
+        parsed, end = decoder.raw_decode(text)
+        surrounding = text[end:]
+    for match in re.finditer(r'\{', surrounding):
+        try:
+            other, _ = decoder.raw_decode(surrounding[match.start():])
+        except ValueError:
+            continue
+        if isinstance(other, dict):
+            raise ValueError('ambiguous_json_answer')
+    return parsed
 
 
 def check_reply(session_id, turn, reply, variables):
@@ -71,11 +98,14 @@ def check_reply(session_id, turn, reply, variables):
     expected_json = turn.get('json_fields')
     if expected_json is not None:
         if (not isinstance(expected_json, dict) or not expected_json or
-                any(not isinstance(key, str) or not key or type(value) not in {str, int, bool}
+                any(not isinstance(key, str) or not key or type(value) not in {str, int, bool, type(None)}
                     for key, value in expected_json.items())):
             raise Failure('invalid_json_fields')
+        json_format = turn.get('json_format', 'object')
+        if json_format not in {'object', 'object_or_fenced'}:
+            raise Failure('invalid_json_format')
         try:
-            parsed = json.loads(reply)
+            parsed = json_answer(reply, json_format)
         except (ValueError, TypeError):
             parsed = None
         valid = isinstance(parsed, dict)
@@ -84,7 +114,7 @@ def check_reply(session_id, turn, reply, variables):
         for key, value in expected_json.items():
             expected = value.format_map(variables) if isinstance(value, str) else value
             actual = parsed.get(key) if valid else None
-            passed = type(actual) is type(expected) and actual == expected
+            passed = valid and key in parsed and type(actual) is type(expected) and actual == expected
             checks.append({'session': session_id, 'rule': 'JSON 字段 ' + key + ' 类型和值正确',
                            'passed': passed, 'detail': '' if passed else 'json_field_mismatch:' + key})
     return checks
@@ -134,6 +164,7 @@ class FunctionalExecution(Execution):
         current_open = None
         builders = {}
         knowledge = None
+        database = None
         try:
             self.root, self.selector = discover(self.client, self.case['workspace'])
             start_version(self)
@@ -142,6 +173,10 @@ class FunctionalExecution(Execution):
                 self.report['stage'] = 'knowledge_fixture'
                 knowledge = KnowledgeFixture(self, self.case['knowledge_fixture'])
                 variables.update(knowledge.setup())
+            if self.case.get('database_fixture') is not None:
+                self.report['stage'] = 'database_fixture'
+                database = DatabaseFixture(self, self.case['database_fixture'])
+                variables.update(database.setup())
             self.evidence.write('parameters.json', variables)
             fixtures = {item['path']: item for item in self.case.get('fixtures', [])}
             if len(fixtures) != len(self.case.get('fixtures', [])):
@@ -315,9 +350,18 @@ class FunctionalExecution(Execution):
                             self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
                     if turn.get('sql_evidence'):
                         sql_checks, blocked = evaluate_sql(self.evidence.root / 'events.jsonl', final_entry['task_id'],
-                            session['id'], turn['sql_evidence']['query'], turn['sql_evidence']['column'],
+                            session['id'], turn['sql_evidence']['query'].format_map(variables), turn['sql_evidence']['column'],
                             turn['sql_evidence']['value'], self.root.rsplit('/', 1)[-1])
                         checks.extend(sql_checks)
+                        if blocked:
+                            self.report['blocked'] = True
+                            self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
+                    if turn.get('sql_error_evidence'):
+                        config = turn['sql_error_evidence']
+                        failure_checks, blocked = evaluate_sql_failure(self.evidence.root / 'events.jsonl',
+                            final_entry['task_id'], session['id'], config['query'].format_map(variables),
+                            config['error_contains'], self.root.rsplit('/', 1)[-1])
+                        checks.extend(failure_checks)
                         if blocked:
                             self.report['blocked'] = True
                             self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
@@ -452,6 +496,10 @@ class FunctionalExecution(Execution):
             self.report['status'] = 'failed'
             self.report['blocked'] = True
             self.report['failures'].append({'stage': 'knowledge_fixture', 'reason': str(error)})
+        except DatabaseFixtureUnavailable as error:
+            self.report['status'] = 'failed'
+            self.report['blocked'] = True
+            self.report['failures'].append({'stage': 'database_fixture', 'reason': str(error)})
         except ProductCaseFailure as error:
             self.report['status'] = 'failed'
             self.report['failures'].append({'stage': self.report['stage'], 'reason': 'acceptance_checks_failed',
@@ -481,10 +529,20 @@ class FunctionalExecution(Execution):
             finish_version(self)
             self.finalize()
             cleanup_started = time.monotonic()
-            for builder in builders.values():
-                builder.cleanup()
+            tasks_confirmed = (self.pending_conversation is None and
+                               all(task.get('state') in TERMINAL for task in self.tasks))
+            if tasks_confirmed:
+                for builder in builders.values():
+                    builder.cleanup()
+            elif builders:
+                self.report['harness_errors'].append(
+                    {'stage': 'cleanup_agent', 'reason': 'dependent_task_unconfirmed'})
             if knowledge:
-                knowledge.cleanup()
+                dependencies_confirmed = (tasks_confirmed and not any(
+                    item.get('stage') == 'cleanup_agent' for item in self.report['harness_errors']))
+                knowledge.cleanup(dependencies_confirmed=dependencies_confirmed)
+            if database:
+                database.cleanup(dependencies_confirmed=tasks_confirmed)
             self.report['cleanup_seconds'] += round(time.monotonic() - cleanup_started, 3)
             self.checkpoint()
         return self.report
