@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey",
+    "repository": "https://github.com/matrixorigin/moi_ai_native_skills",
+    "revision": "38718c1ccc0f2bf5010f50de854342a8cf217c44"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "id": "J2-119",
+  "title": "真实业务 Skill：逾期聚合及 CSV 交付",
+  "native_skill_journey": {
+    "scenario": "overdue_report"
+  },
+  "sessions": [
+    {
+      "id": "native",
+      "agent_from_skill": true,
+      "delivery_kind": "file",
+      "expected_checks": 25,
+      "turns": [
+        {
+          "phase": "report",
+          "prompt": "统计当前所有未结束且已逾期的事项，按销售负责人汇总数量。生成可下载 CSV，文件名为 {code}.csv，列为 owner_eid,owner_name,item_count，保留员工编号的前导零。不修改业务数据。",
+          "native_check": {
+            "kind": "query",
+            "commands": [
+              "query_progress"
+            ],
+            "rows": [
+              {
+                "owner_eid": "0007",
+                "owner_name": "林青",
+                "item_count": "2"
+              },
+              {
+                "owner_eid": "00018",
+                "owner_name": "陈星",
+                "item_count": "1"
+              }
+            ],
+            "artifact": "{code}.csv"
+          }
+        }
+      ]
+    }
+  ]
+}

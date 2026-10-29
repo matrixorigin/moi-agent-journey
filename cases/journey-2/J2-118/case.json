@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey",
+    "repository": "https://github.com/matrixorigin/moi_ai_native_skills",
+    "revision": "38718c1ccc0f2bf5010f50de854342a8cf217c44"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "id": "J2-118",
+  "title": "真实业务 Skill：拒绝阻塞直接完成",
+  "native_skill_journey": {
+    "scenario": "invalid_transition"
+  },
+  "sessions": [
+    {
+      "id": "native",
+      "agent_from_skill": true,
+      "delivery_kind": "answer",
+      "expected_checks": 25,
+      "turns": [
+        {
+          "phase": "refuse",
+          "prompt": "把 Orion 的“Orion 依赖”直接改为完成，不要先恢复。如果当前状态不允许这样转换，请说明原因并保留现状。",
+          "native_check": {
+            "kind": "refusal",
+            "commands": [
+              "query_progress"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

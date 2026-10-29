@@ -1,11 +1,10 @@
 """Exercise custom Skill lifecycle through public APIs and a case-owned Agent."""
-import time
 import zipfile
 from urllib.parse import urlencode
 
 from .builder_flow import ProductCaseFailure
-from .resource_journey import ResourceJourney
-from .client import Failure, error_record, segment
+from .owned_skill_journey import OwnedSkillJourney
+from .client import Failure
 from .evidence import sha256
 
 
@@ -16,38 +15,20 @@ def same_skill_content(left, right):
         k: v for k, v in right.items() if k not in {'created_at', 'updated_at'}}
 
 
-class SkillJourney(ResourceJourney):
+class SkillJourney(OwnedSkillJourney):
     kind = 'skill'
 
     def __init__(self, execution, definition, variables, checks):
         if (not isinstance(definition, dict) or set(definition) != {'mode', 'marker', 'initial_marker'} or
                 definition['mode'] not in {'versions', 'disabled', 'package', 'bindings', 'manual', 'invalid_package'}):
             raise Failure('invalid_skill_journey')
-        self.execution, self.checks = execution, checks
-        self.session_id = execution.case['sessions'][0]['id']
+        super().__init__(execution, checks)
         self.mode = definition['mode']
         self.marker = definition['marker'].format_map(variables)
         self.initial_marker = definition['initial_marker'].format_map(variables)
         if not self.marker or not self.initial_marker or self.marker == self.initial_marker:
             raise Failure('invalid_skill_journey_markers')
-        self.workspace = execution.root.rsplit('/', 1)[-1]
-        self.name = 'j2-lookup-' + execution.report['run_id'].replace('-', '')
-        self.agent_id = 'j2-agent-' + execution.report['run_id'].replace('-', '')
-        self.skill_id = 'j2-skill-' + execution.report['run_id'].replace('-', '')
-        self.skill_pending = self.agent_pending = False
-        self.builder = None
-        self.state = {'mode': self.mode, 'name': self.name, 'cleanup': 'pending'}
-        execution.report['skill_journey'] = self.state
-        self.previous_observer = execution.client.observer
-        execution.client.observer = self.observe
-
-    @property
-    def skill_path(self):
-        return '/skills/' + segment(self.skill_id)
-
-    def identity(self, item):
-        return (isinstance(item, dict) and item.get('id') == self.skill_id and
-                item.get('workspace_id') == self.workspace and item.get('name') == self.name)
+        self.state['mode'] = self.mode
 
     def instruction(self, marker):
         return 'The public project tracking code is ' + marker + '. Answer a request for the project tracking code with this exact code.'
@@ -85,16 +66,6 @@ class SkillJourney(ResourceJourney):
         if self.mode == 'bindings':
             self.check_binding_guards()
         return {'skill_id': self.skill_id, 'skill_name': self.name}
-
-    def check_binding(self):
-        detail = self.request('GET', self.agent_path + '/bindings')
-        skills = detail.get('skills')
-        matches = [item for item in skills if isinstance(item, dict) and item.get('id') == self.skill_id and
-                   item.get('workspace_id') == self.workspace] if isinstance(skills, list) else []
-        self.record('智能体绑定了本次创建的 Skill', detail.get('agent_id') == self.agent_id and
-                    detail.get('agent_workspace_id') == self.workspace and len(matches) == 1,
-                    'custom_skill_binding_mismatch', required=True)
-        return detail
 
     def set_status(self, status):
         before = self.request('GET', self.skill_path)
@@ -220,66 +191,4 @@ class SkillJourney(ResourceJourney):
             raise Failure('skill_package_name_exists')
         files = {'SKILL.md': '---\nname: ' + self.name + '\ndescription: Public project tracking lookup\n---\n\n' + self.instruction(self.marker),
                  'references/guide.md': 'Synthetic Journey-2 reference. No external service or credentials.'}
-        archive = self.execution.work / 'skill-package.zip'
-        archive.parent.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as output:
-            for name, content in files.items():
-                output.writestr(name, content)
-        self.execution.evidence.write('skill-package-source.json', {'files': files, 'sha256': sha256(archive)})
-        inspected = self.execution.client.upload_multipart(self.execution.root + '/skills/import/inspect', archive, expected_code=0)
-        self.record('Skill 包预检解析名称和正文', inspected.get('name') == self.name and
-                    inspected.get('instruction', {}).get('body') == self.instruction(self.marker),
-                    'skill_package_inspection_mismatch', required=True)
-        self.skill_pending = True
-        self.state['import_pending'] = True
-        self.execution.checkpoint()
-        imported = self.execution.client.upload_multipart(self.execution.root + '/skills/import', archive, expected_code=0)
-        skill = imported.get('skill')
-        if not isinstance(skill, dict) or not isinstance(skill.get('id'), str) or not skill['id']:
-            self.record('Skill 导入返回有效身份', False, 'skill_import_identity_missing', required=True)
-        self.skill_id = skill['id']
-        self.state['skill_id'] = self.skill_id
-        self.state['import_pending'] = False
-        self.execution.checkpoint()
-        self.record('导入的 Skill 可回读且身份正确', self.identity(skill) and self.identity(self.request('GET', self.skill_path)),
-                    'skill_import_identity_mismatch', required=True)
-        listing = self.request('GET', self.skill_path + '/files')
-        items = listing.get('items')
-        paths = {item.get('file_path') for item in items if isinstance(item, dict)} if isinstance(items, list) else set()
-        self.record('导入包保留正文和引用文件', set(files).issubset(paths), 'skill_package_files_missing')
-        for name, content in files.items():
-            body = self.execution.client.request('GET', self.execution.root + self.skill_path + '/files/content?' +
-                                                 urlencode({'path': name}), binary=True)
-            self.record('导入文件内容一致 ' + name, body == content.encode(), 'skill_package_content_mismatch')
-
-    def cleanup(self, *, dependencies_confirmed):
-        client, previous = self.execution.client, self.execution.client.deadline
-        previous_errors = len(self.execution.report['harness_errors'])
-        client.deadline = time.monotonic() + 30
-        try:
-            if not dependencies_confirmed:
-                raise Failure('dependent_task_unconfirmed')
-            self.detach_agent_resources({self.skill_id})
-            if self.state.get('import_pending'):
-                listing = client.product('GET', self.execution.root + '/skills?' + urlencode({'query': self.name, 'catalog': 'workspace'}))
-                items = listing.get('items')
-                if listing.get('total') != 1 or not isinstance(items, list) or len(items) != 1 or items[0].get('name') != self.name:
-                    raise Failure('skill_import_outcome_unknown')
-                self.skill_id = items[0]['id']
-            if self.skill_pending and not self.absent(self.skill_path):
-                skill = client.product('GET', self.execution.root + self.skill_path)
-                if not self.identity(skill):
-                    raise Failure('cleanup_skill_identity_mismatch')
-                client.product('DELETE', self.execution.root + self.skill_path)
-                if not self.absent(self.skill_path):
-                    raise Failure('cleanup_skill_delete_unconfirmed')
-            if self.state.get('candidate_proposal_pending') and not self.builder.seen:
-                raise Failure('candidate_proposal_outcome_unconfirmed')
-            self.state['cleanup'] = 'completed' if len(self.execution.report['harness_errors']) == previous_errors else 'incomplete'
-        except Exception as error:
-            self.state['cleanup'] = 'incomplete'
-            self.execution.report['harness_errors'].append(error_record('cleanup_skill', error))
-        finally:
-            client.deadline = previous
-            client.observer = self.previous_observer
-            self.execution.checkpoint()
+        self.import_files({name: content.encode() for name, content in files.items()}, self.instruction(self.marker))

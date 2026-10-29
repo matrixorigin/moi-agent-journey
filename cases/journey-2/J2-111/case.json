@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey",
+    "repository": "https://github.com/matrixorigin/moi_ai_native_skills",
+    "revision": "38718c1ccc0f2bf5010f50de854342a8cf217c44"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "id": "J2-111",
+  "title": "真实业务 Skill：初始化与可选员工列兼容",
+  "native_skill_journey": {
+    "scenario": "initialize"
+  },
+  "sessions": [
+    {
+      "id": "native",
+      "agent_from_skill": true,
+      "delivery_kind": "answer",
+      "expected_checks": 25,
+      "turns": [
+        {
+          "phase": "initialize",
+          "prompt": "请初始化你已配置的业务数据库。我明确同意初始化。然后给我当前员工编号、姓名和可用事项状态；不要新增业务记录。",
+          "native_check": {
+            "kind": "initialize",
+            "commands": [
+              "init",
+              "reference_data"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

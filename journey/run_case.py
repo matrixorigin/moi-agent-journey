@@ -350,8 +350,7 @@ class Execution:
         self.report["semantic_judge"] = {"method": "independent_Momo_conversations", "model": self.model,
             "passed": all(c["passed"] for verdict in verdicts for c in verdict["checks"])}
 
-    def cleanup(self):
-        self.client.deadline = time.monotonic() + 100
+    def cleanup_tasks(self):
         if self.pending_conversation:
             # Diagnose a lost send response by its fresh context; never resend a prompt.
             cid = self.pending_conversation
@@ -394,12 +393,18 @@ class Execution:
                     self.capture(task, final=False)
                 except Exception as capture_error:
                     self.report["harness_errors"].append(error_record("partial_capture", capture_error, task_id=task["task_id"]))
+
+    def cleanup(self, *, cleanup_outputs=None):
+        self.client.deadline = time.monotonic() + 100
+        self.cleanup_tasks()
         for conversation in self.conversations:
             cid = conversation["id"]
             try:
                 self.collect_artifacts(cid)
                 if self.pending_conversation == cid or any(t["conversation_id"] == cid and t["state"] not in TERMINAL for t in self.tasks):
                     raise Failure("active_task_not_archived")
+                if cleanup_outputs:
+                    cleanup_outputs(cid)
                 result = self.client.product("PATCH", self.root + "/conversations/" + segment(cid) + "?" + urlencode(self.conversation_selector(cid)), {"status": "archived"})
                 if result.get("status") != "archived":
                     raise Failure("archive_not_confirmed")

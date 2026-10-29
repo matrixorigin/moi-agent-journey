@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey",
+    "repository": "https://github.com/matrixorigin/moi_ai_native_skills",
+    "revision": "38718c1ccc0f2bf5010f50de854342a8cf217c44"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "id": "J2-112",
+  "title": "真实业务 Skill：客户预览后单条确认",
+  "native_skill_journey": {
+    "scenario": "customer_create"
+  },
+  "sessions": [
+    {
+      "id": "native",
+      "agent_from_skill": true,
+      "delivery_kind": "answer",
+      "expected_checks": 31,
+      "turns": [
+        {
+          "phase": "preview",
+          "prompt": "请新增客户“客户-{code}”，先给我变更预览。",
+          "native_check": {
+            "kind": "preview",
+            "commands": [
+              "prepare_change"
+            ],
+            "expected": [
+              {
+                "entity": "customer",
+                "action": "create",
+                "capture": "change",
+                "fields": {
+                  "name": "客户-{code}"
+                }
+              }
+            ],
+            "checklist": false
+          }
+        },
+        {
+          "phase": "confirm",
+          "prompt": "确认 {change}",
+          "native_check": {
+            "kind": "settle",
+            "commands": [
+              "confirm_change"
+            ],
+            "ids": [
+              "{change}"
+            ],
+            "status": "committed"
+          }
+        }
+      ]
+    }
+  ]
+}

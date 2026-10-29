@@ -11,7 +11,7 @@
 | 工作区 | 当前内容 | 最大并发 |
 |---|---|---:|
 | journey-1 | 18 个文档与办公任务 | 9 |
-| journey-2 | 110 个智能体功能用例 | 3 |
+| journey-2 | 120 个智能体功能用例 | 3 |
 | journey-3 | 空 | 3 |
 | journey-4 | 空 | 3 |
 | journey-5 | 空 | 3 |
@@ -152,7 +152,7 @@ J2-79～J2-82 验证消息角色/ID、附件元数据、知识库选择的错误
 
 J2-87～J2-102 继续覆盖损坏文件、附件引用、运行时成果大小限制、HTTP 工具参数、沙箱超时、SQL 语法、表单提交、候选并发/名称冲突、智能体包和归档恢复、引用打开、20 个内置 Skill 绑定后的加载、分页与过滤。J2-103～J2-105 分别实际调用 Bocha、Tavily、Brave；J2-106～J2-110 提供专用 Channel 的真实发送及回执/回读测试，缺配置明确 blocked，配置方式见[单向 Channel 测试](docs/journey-2-channels.md)。
 
-本轮计划的 32 条均已实现并执行 QA 检查，套件共 110 条；完整结果及失败分析见[本轮实测](docs/journey-2-final-qa-2026-10-29.md)。功能边界和待核定能力见[覆盖清单](docs/journey-2-coverage.md)及[逐项实施清单](docs/journey-2-remaining.md)。当前仍为 `coverage_status: incomplete`，注册数量不等于已经验证 100% 功能。
+此前计划的 32 条均已实现并执行 QA 检查；完整结果及失败分析见[本轮实测](docs/journey-2-final-qa-2026-10-29.md)。功能边界和待核定能力见[覆盖清单](docs/journey-2-coverage.md)及[逐项实施清单](docs/journey-2-remaining.md)。当前仍为 `coverage_status: incomplete`，注册数量不等于已经验证 100% 功能。
 
 公开仓库的原始事件可能包含智能体访问到的其他工作区文件或数据库信息；凭据扫描不能识别所有业务数据。运行用例的工作区应只包含允许公开的测试数据。
 
@@ -248,3 +248,5 @@ python3 -m journey.functional_case J2-02
 python3 -m journey.report case J2-02
 python3 -m journey.publish
 ```
+
+J2-111～J2-120 增加真实自定义业务 Skill 包的上传、候选创建/确认、绑定后自然业务对话和清理，当前共 120 条。详见[业务 Skill 场景与验收](docs/journey-2-native-skills.md)。

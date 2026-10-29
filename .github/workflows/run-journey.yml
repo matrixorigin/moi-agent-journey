@@ -82,6 +82,7 @@ jobs:
           CASE_ID: ${{ matrix.case }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ secrets.MOI_PAT }}
+          MOI_J2_NATIVE_SKILL_SOURCE_FILE_ID: ${{ vars.MOI_J2_NATIVE_SKILL_SOURCE_FILE_ID }}
           MOI_J2_CHANNEL_TARGETS: ${{ vars.MOI_J2_CHANNEL_TARGETS }}
           MOI_J2_SLACK_READ_TOKEN: ${{ secrets.MOI_J2_SLACK_READ_TOKEN }}
           MOI_J2_FEISHU_APP_ID: ${{ secrets.MOI_J2_FEISHU_APP_ID }}

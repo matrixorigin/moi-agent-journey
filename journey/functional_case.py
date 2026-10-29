@@ -38,6 +38,8 @@ from .sandbox_checks import evaluate_file_state, evaluate_python_hash, evaluate_
 from .search_checks import evaluate_search
 from .skill_checks import check_skill_call
 from .skill_journey import SkillJourney
+from .native_skill_journey import NativeSkillJourney
+from .native_skill_source import NativeSkillUnavailable
 from .tool_journey import ToolJourney, evaluate_http_tool
 from .builder_input_journey import BuilderInputJourney
 from .builder_edge_journey import BuilderEdgeJourney
@@ -175,6 +177,10 @@ def resource_changes(action, variables=None, knowledge=None):
 
 
 class FunctionalExecution(Execution):
+    def cleanup(self):
+        native = getattr(self, "native_skill", None)
+        super().cleanup(cleanup_outputs=native.cleanup_outputs if native else None)
+
     def check_skill(self, skill_id, task_id, session_id, phase, checks):
         if not isinstance(skill_id, str) or not skill_id:
             raise Failure('invalid_skill_evidence')
@@ -192,6 +198,7 @@ class FunctionalExecution(Execution):
         knowledge = {}
         database = None
         skill_journey = None
+        self.native_skill = None
         tool_journey = None
         builder_input = None
         package_journey = None
@@ -224,6 +231,12 @@ class FunctionalExecution(Execution):
                 self.report['stage'] = 'builder_input_journey'
                 builder_input = BuilderInputJourney(self, checks)
                 builder_input.prepare()
+            if self.case.get('native_skill_journey') is not None:
+                if self.case.get('skill_journey') is not None:
+                    raise Failure('conflicting_skill_journeys')
+                self.report['stage'] = 'native_skill_journey'
+                skill_journey = self.native_skill = NativeSkillJourney(self, self.case['native_skill_journey'], checks)
+                variables.update(skill_journey.prepare())
             if self.case.get('skill_journey') is not None:
                 self.report['stage'] = 'skill_journey'
                 skill_journey = SkillJourney(self, self.case['skill_journey'], variables, checks)
@@ -392,6 +405,8 @@ class FunctionalExecution(Execution):
                     regeneration = turn.get('regenerate', False)
                     if type(regeneration) is not bool:
                         raise Failure('invalid_regeneration_case')
+                    if self.native_skill:
+                        self.native_skill.before_turn()
                     if regeneration:
                         if (final_entry is None or attachments or cancel or live_resume or prompt or knowledge_ids is not None
                                 or turn.get('file_only') or action_data is not None):
@@ -441,6 +456,9 @@ class FunctionalExecution(Execution):
                     self.evidence.write('sessions/' + session['id'] + '/replies/' + turn['phase'] + '.json',
                                         {'task_id': final_entry['task_id'], 'text': reply})
                     checks.extend(check_reply(session['id'], turn, reply, variables))
+                    if self.native_skill:
+                        artifact_delivered |= self.native_skill.evaluate(final_entry['task_id'], cid, session['id'],
+                            turn['phase'], reply, turn['native_check'], variables)
                     if live_resume:
                         blocked = check_live_resume(self, final_entry, checks, session['id'])
                         if blocked:
@@ -730,6 +748,10 @@ class FunctionalExecution(Execution):
                 self.report['status'] = 'failed'
                 self.report['failures'].append({'stage': 'validation', 'reason': 'acceptance_checks_failed'})
             self.report['stage'] = 'complete'
+        except NativeSkillUnavailable as error:
+            self.report['status'] = 'failed'
+            self.report['blocked'] = True
+            self.report['failures'].append({'stage': 'native_skill_source', 'reason': str(error)})
         except ChannelUnavailable as error:
             self.report['status'] = 'failed'
             self.report['blocked'] = True
