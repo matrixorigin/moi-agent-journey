@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "J2-72",
+  "workspace": "journey-2",
+  "title": "两个 HTTP 工具绑定与 404 后继续调用",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "tool_journey": {
+    "mode": "http_error"
+  },
+  "sessions": [
+    {
+      "id": "tool",
+      "agent_from_tool": true,
+      "delivery_kind": "answer",
+      "expected_checks": 23,
+      "turns": [
+        {
+          "phase": "missing",
+          "prompt": "请调用 {missing_tool_name}。只返回 JSON，status 为实际 HTTP 状态码，found 为是否成功取得资源的布尔值。",
+          "json_format": "object_or_fenced",
+          "json_fields": {
+            "status": 404,
+            "found": false
+          },
+          "http_tool_evidence": {
+            "tool_id": "{missing_tool_id}",
+            "status": 404
+          }
+        },
+        {
+          "phase": "use",
+          "prompt": "请调用工具 {tool_name} 读取公开的测试资源。只返回 JSON，status 为实际 HTTP 状态码，case_id 为工具返回的 JSON 正文中的 id。",
+          "json_format": "object_or_fenced",
+          "json_fields": {
+            "status": 200,
+            "case_id": "J2-07"
+          },
+          "http_tool_evidence": {
+            "tool_id": "{tool_id}",
+            "status": 200,
+            "body_id": "J2-07"
+          }
+        }
+      ]
+    }
+  ]
+}

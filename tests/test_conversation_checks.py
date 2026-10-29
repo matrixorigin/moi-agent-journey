@@ -112,5 +112,69 @@ class ConversationChecksTests(unittest.TestCase):
                 self.assertFalse(all(check['passed'] for check in check_reply('json', turn, reply, {'code': 'ABC'})))
 
 
-if __name__ == '__main__':
+class ConversationBoundaryTests(unittest.TestCase):
+    def test_scope_checks_detect_cross_agent_list_and_detail_leaks(self):
+        from unittest.mock import Mock
+        from journey.conversation_checks import check_agent_scope
+        for defect in (None, 'list', 'detail', 'identity'):
+            own = {'id': 'own', 'workspace_id': 'workspace', 'agent_id': 'agent', 'agent_workspace_id': 'workspace'}
+            other = {**own, 'id': 'other', 'agent_id': 'other-agent'}
+            initial = {**own, 'agent_id': 'wrong'} if defect == 'identity' else own
+            client = Mock()
+            client.product.side_effect = [initial, {}, other, {},
+                {'total': 2, 'items': [own, other]} if defect == 'list' else {'total': 1, 'items': [own]},
+                own if defect == 'detail' else Failure('http_error', 404),
+                {'total': 1, 'items': [other]}, Failure('http_error', 404)]
+            ex = execution(client)
+            ex.report['run_id'] = 'unique'
+            ex.conversation_selector = lambda cid: {'agent_id': 'agent' if cid == 'own' else 'other-agent',
+                                                    'agent_workspace_id': 'workspace'}
+            checks = []
+            if defect == 'identity':
+                with self.assertRaises(ProductCaseFailure):
+                    check_agent_scope(ex, 'own', 'other', 'session', checks)
+                self.assertFalse(any(call.args[0] == 'PATCH' for call in client.product.call_args_list))
+            else:
+                check_agent_scope(ex, 'own', 'other', 'session', checks)
+                self.assertEqual(len(checks), 6)
+                self.assertEqual(all(item['passed'] for item in checks), defect is None)
+
+    def test_archived_artifacts_retire_and_restore_with_fresh_download(self):
+        import hashlib
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import Mock
+        from journey.conversation_checks import check_archived_delivery
+        from journey.evidence import Evidence
+        for defect in (None, 'history', 'task', 'archived-list', 'archived-detail', 'restored-id', 'download'):
+            with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
+                client = Mock()
+                ex = execution(client)
+                ex.evidence = Evidence(Path(directory))
+                ref = {'task_id': 'task', 'file_name': 'out.txt', 'artifact_id': 'artifact', 'version': 1,
+                       'file_id': 'file', 'sha256': hashlib.sha256(b'CODE').hexdigest()}
+                ex.evidence.write('artifacts/conversation/inventory.json', [ref])
+                conversation = {'id': 'conversation', 'workspace_id': 'workspace', 'agent_id': 'agent',
+                                'agent_workspace_id': 'system', 'status': 'archived'}
+                messages = {'items': [{'role': role, 'task_id': 'task', 'conversation_id': 'conversation'} for role in ('user', 'agent')]}
+                task = {'id': 'task', 'kind': 'task', 'contextId': 'conversation', 'status': {'state': 'completed'},
+                        'history': []}
+                task['status']['message'] = {'role': 'agent', 'parts': [{'kind': 'text', 'text': 'Delivered'}]}
+                restored_artifact = {**ref, 'conversation_id': 'conversation'}
+                client.product.side_effect = [messages, {}, conversation, {} if defect == 'history' else messages,
+                    {'items': [ref], 'total': 1} if defect == 'archived-list' else {'items': [], 'total': 0},
+                    ref if defect == 'archived-detail' else Failure('http_error', 404), {},
+                    {**conversation, 'status': 'active'},
+                    {**restored_artifact, 'file_id': 'other'} if defect == 'restored-id' else restored_artifact]
+                client.rpc.side_effect = [task, {**task, 'id': 'other'} if defect == 'task' else task]
+                client.request.return_value = b'WRONG' if defect == 'download' else b'CODE'
+                checks = []
+                check_archived_delivery(ex, 'conversation', 'task', 'session', checks, 'out.txt', 'CODE')
+                self.assertEqual(len(checks), 8)
+                self.assertEqual(all(item['passed'] for item in checks), defect is None)
+                client.request.assert_called_once_with('GET', '/workspaces/workspace/files/file/download', binary=True)
+
+
+if __name__ == "__main__":
     unittest.main()

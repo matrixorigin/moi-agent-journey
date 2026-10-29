@@ -86,3 +86,30 @@ class A2UICheckTests(unittest.TestCase):
                 action(events + [update])
                 checks, _ = evaluate_a2ui(path, 'next', 'session', expected, prior_task_id='task')
                 self.assertEqual(all(check['passed'] for check in checks), passed)
+
+    def test_multiple_and_text_answers_use_typed_observed_components(self):
+        for kind, labels, answer, selected in [('multiple', ['2', '3', '4'], ['2', '4'], ['id-2', 'id-4']),
+                                               ('text', [], 'cats', 'cats')]:
+            events = self.events()
+            question = {'id': 'table', 'component': 'Question', 'title': 'question', 'type': kind,
+                        'answerPath': '/answers/observed'}
+            if labels:
+                question['options'] = [{'label': label, 'value': 'id-'+label} for label in labels]
+            events[-1]['payload']['updateComponents']['components'][1] = question
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / 'events.jsonl'
+                path.write_text(''.join(json.dumps(row)+'\n' for row in events))
+                actual = question_action(path, 'task', labels, answer, question_type=kind)
+                self.assertEqual(actual['action']['context'], {'observed': selected})
+                self.assertIsNone(question_action(path, 'task', ['2', '3', '4'], '2', question_type='single'))
+                question['result'] = 'correct'
+                path.write_text(''.join(json.dumps(row)+'\n' for row in events))
+                self.assertIsNone(question_action(path, 'task', labels, answer, question_type=kind))
+
+    def test_invalid_answer_definitions_fail_before_submission(self):
+        from journey.client import Failure
+        for kind, labels, answer in [('multiple', ['2', '4'], '2'), ('multiple', ['2', '4'], ['2', '2']),
+                                     ('multiple', ['2', '4'], ['unknown']), ('text', ['cats'], 'cats'),
+                                     ('text', [], []), ('text', [], '')]:
+            with self.assertRaises(Failure):
+                question_action(Path('does-not-exist'), 'task', labels, answer, question_type=kind)

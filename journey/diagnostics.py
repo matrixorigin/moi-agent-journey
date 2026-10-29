@@ -21,6 +21,13 @@ def _output_observations(output):
         return [], False
     terminal = output['output']
     observations = []
+    metadata = output.get('metadata')
+    http_status = terminal.get('status_code')
+    http_failed = (isinstance(metadata, dict) and metadata.get('source') == 'http_api' and
+                   type(http_status) is int and 400 <= http_status <= 599)
+    if http_failed:
+        observations.append({'kind': 'http_response_failure', 'code': str(http_status),
+                             'detail': str(terminal.get('body') or '')[:4096]})
     exit_code = terminal.get('exit_code')
     failed = isinstance(exit_code, int) and not isinstance(exit_code, bool) and exit_code != 0
     if failed:
@@ -61,7 +68,7 @@ def _output_observations(output):
                 observations.append({'kind': 'reported_http_error', 'channel': channel, 'status': status,
                                      'code': code, 'request_id': message.get('request_id'),
                                      'detail': str(message.get('message') or '')[:4096]})
-    return observations, failed
+    return observations, failed or http_failed
 
 
 def analyze_events(path, tasks):

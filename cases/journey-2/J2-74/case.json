@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "J2-74",
+  "workspace": "journey-2",
+  "title": "多选问题提交与原组件反馈",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "question",
+      "delivery_kind": "answer",
+      "expected_checks": 8,
+      "turns": [
+        {
+          "phase": "ask",
+          "prompt": "请使用 Interactive UI 技能展示一道多选题：选择以下数字中的全部偶数。只给 2、3、4 三个选项，标签分别为数字 2、3、4。先不要展示答案，等我提交后，在原问题上标记答对或答错。",
+          "a2ui_evidence": {
+            "component": "Question",
+            "fields": {
+              "type": "multiple"
+            }
+          }
+        },
+        {
+          "phase": "submit",
+          "prompt": "已提交",
+          "a2ui_submit": {
+            "type": "multiple",
+            "labels": [
+              "2",
+              "3",
+              "4"
+            ],
+            "answer": [
+              "2",
+              "4"
+            ]
+          },
+          "a2ui_evidence": {
+            "component": "Question",
+            "fields": {
+              "type": "multiple",
+              "result": "correct"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

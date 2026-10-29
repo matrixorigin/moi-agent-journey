@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "J2-75",
+  "workspace": "journey-2",
+  "title": "文本问题提交与原组件反馈",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "question",
+      "delivery_kind": "answer",
+      "expected_checks": 8,
+      "turns": [
+        {
+          "phase": "ask",
+          "prompt": "请使用 Interactive UI 技能展示一道文本填空题：英语单词 cat 的复数形式是什么？先不要展示答案，等我提交后，在原问题上标记答对或答错。",
+          "a2ui_evidence": {
+            "component": "Question",
+            "fields": {
+              "type": "text"
+            }
+          }
+        },
+        {
+          "phase": "submit",
+          "prompt": "已提交",
+          "a2ui_submit": {
+            "type": "text",
+            "labels": [],
+            "answer": "cats"
+          },
+          "a2ui_evidence": {
+            "component": "Question",
+            "fields": {
+              "type": "text",
+              "result": "correct"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

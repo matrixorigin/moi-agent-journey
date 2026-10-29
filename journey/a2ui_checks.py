@@ -80,26 +80,40 @@ def read_surface(path, task_ids):
 
 def question_valid(question):
     options = question.get('options')
-    return (question.get('type') == 'single' and isinstance(question.get('title'), str) and bool(question['title'].strip()) and
+    valid = (question.get('type') in {'single', 'multiple', 'boolean', 'text'} and
+            isinstance(question.get('title'), str) and bool(question['title'].strip()) and
             isinstance(question.get('answerPath'), str) and question['answerPath'].startswith('/answers/') and
-            len(question['answerPath'].split('/')) == 3 and bool(question['answerPath'].split('/')[-1]) and
-            isinstance(options, list) and len(options) >= 2 and all(isinstance(option, dict) and
+            len(question['answerPath'].split('/')) == 3 and bool(question['answerPath'].split('/')[-1]))
+    if question.get('type') == 'text':
+        return valid
+    return (valid and isinstance(options, list) and len(options) >= 2 and all(isinstance(option, dict) and
                 isinstance(option.get('value'), str) and option['value'] and isinstance(option.get('label'), str) and
                 option['label'] for option in options) and len({option['value'] for option in options}) == len(options))
 
 
-def question_action(path, task_id, labels, answer):
+def question_action(path, task_id, labels, answer, *, question_type='single'):
+    choices = answer if question_type == 'multiple' else [answer]
     if (not isinstance(labels, list) or any(not isinstance(label, str) for label in labels) or
-            len(set(labels)) != len(labels) or answer not in labels):
+            len(set(labels)) != len(labels) or question_type not in {'single', 'multiple', 'boolean', 'text'} or
+            not isinstance(choices, list) or not choices or any(not isinstance(value, str) or not value for value in choices) or
+            len(set(choices)) != len(choices) or
+            (question_type == 'text' and labels) or
+            (question_type != 'text' and not set(choices).issubset(labels))):
         raise Failure('invalid_a2ui_answer_case')
     surface, components, reachable, valid, count = read_surface(path, {task_id})
     questions = [components[key] for key in reachable if key in components and components[key].get('component') == 'Question']
     if not valid or not count or len(questions) != 1 or not question_valid(questions[0]):
         return None
     question = questions[0]
-    if sorted(option['label'] for option in question['options']) != sorted(labels) or 'result' in question:
+    if question.get('type') != question_type or 'result' in question:
         return None
-    selected = next(option['value'] for option in question['options'] if option['label'] == answer)
+    if question_type == 'text':
+        selected = answer
+    else:
+        if sorted(option['label'] for option in question['options']) != sorted(labels):
+            return None
+        values = {option['label']: option['value'] for option in question['options']}
+        selected = [values[label] for label in choices] if question_type == 'multiple' else values[answer]
     return {'version': 'v0.9', 'action': {'name': 'submit_answer', 'surfaceId': surface,
         'sourceComponentId': question['id'], 'timestamp': utc_now(),
         'context': {question['answerPath'].split('/')[-1]: selected}}}
