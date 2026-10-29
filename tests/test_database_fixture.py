@@ -122,6 +122,15 @@ class DatabaseFixtureTests(unittest.TestCase):
         self.assertFalse(client.database_deleted)
         self.assertEqual(runner.report['harness_errors'][0]['reason'], 'database_fixture_in_use')
 
+    def test_unconfirmed_task_retains_the_database(self):
+        fixture, client, runner = self.fixture()
+        fixture.setup()
+        fixture.cleanup(dependencies_confirmed=False)
+        self.assertFalse(client.table_deleted)
+        self.assertFalse(client.database_deleted)
+        self.assertEqual(fixture.state['cleanup'], 'retained')
+        self.assertEqual(runner.report['harness_errors'][0]['reason'], 'dependent_task_unconfirmed')
+
     def test_table_reference_prevents_deleting_the_table_and_database(self):
         fixture, client, runner = self.fixture(table_referenced=True)
         fixture.setup()

@@ -135,7 +135,14 @@ class DatabaseFixture:
         self.save()
         return {'database_name': self.state['name'], 'database_id': str(database_id), 'table_id': str(table_id)}
 
-    def cleanup(self):
+    def cleanup(self, *, dependencies_confirmed=True):
+        if not dependencies_confirmed:
+            self.state['cleanup'] = 'retained'
+            self.state['cleanup_reason'] = 'dependent_task_unconfirmed'
+            self.execution.report['harness_errors'].append(
+                {'stage': 'cleanup_database', 'reason': 'dependent_task_unconfirmed'})
+            self.save()
+            return
         client = self.execution.client
         previous_deadline = client.deadline
         client.deadline = time.monotonic() + 100

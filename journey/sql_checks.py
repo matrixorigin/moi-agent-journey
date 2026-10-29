@@ -241,7 +241,9 @@ def evaluate_sql_failure(path, task_id, session_id, expected_query, error_marker
                 unknown = True
                 continue
             stderr = output.get('stderr')
-            if cli_status != 0 and unknown_column_error(stderr, error_marker):
+            error_text = next((text for text in (stderr, stdout)
+                               if unknown_column_error(text, error_marker)), None)
+            if cli_status != 0 and error_text is not None:
                 verified = []
                 if output['exit_code'] != 0:
                     verified.append({'task_id': task_id, 'call_id': call_id, 'kind': 'command_exit',
@@ -250,7 +252,9 @@ def evaluate_sql_failure(path, task_id, session_id, expected_query, error_marker
                     verified.append({'task_id': task_id, 'call_id': call_id, 'kind': 'captured_command_exit',
                                      'code': str(cli_status)})
                     try:
-                        error = json.loads(stderr)
+                        # The diagnostic collector records HTTP errors from JSON lines.
+                        lines = error_text.strip().splitlines()
+                        error = json.loads(lines[0]) if len(lines) == 1 else None
                     except ValueError:
                         error = None
                     if (isinstance(error, dict) and type(error.get('status')) is int and error['status'] >= 400 and
@@ -259,7 +263,7 @@ def evaluate_sql_failure(path, task_id, session_id, expected_query, error_marker
                         verified.append({'task_id': task_id, 'call_id': call_id, 'kind': 'reported_http_error',
                                          'code': error['code']})
                 break
-            if output.get('output_truncated') is True or not isinstance(stderr, str):
+            if output.get('output_truncated') is True or (not isinstance(stderr, str) and not isinstance(stdout, str)):
                 unknown = True
         else:
             error = payload.get('error')

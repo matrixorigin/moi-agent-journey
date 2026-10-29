@@ -52,8 +52,9 @@
       "turns": [
         {
           "phase": "missing_phone",
-          "prompt": "请查阅绑定知识库中的 Project Kestrel 手册，判断里面是否提供客服电话。请引用你查看的文档作为依据。答复必须是一个 JSON 对象：found 为布尔值，phone 为原文中的电话号码字符串；没有提供电话号码时 found 为 false、phone 为 null。不要编造。",
+          "prompt": "请查阅绑定知识库中的 Project Kestrel 手册，判断里面是否提供客服电话。请引用你查看的文档作为依据。请用一个 JSON 对象表达结果（可以直接输出或放在 Markdown 代码块中），并给出来源说明：found 为布尔值，phone 为原文中的电话号码字符串；没有提供电话号码时 found 为 false、phone 为 null。不要编造。",
           "knowledge_evidence": true,
+          "json_format": "object_or_fenced",
           "json_fields": {
             "found": false,
             "phone": null

@@ -372,6 +372,22 @@ class FunctionalJourneyTests(unittest.TestCase):
                       '{"found": false, "phone": "12345678"}', 'not json'):
             self.assertFalse(all(item['passed'] for item in check_reply('lookup', turn, reply, {})))
 
+    def test_json_with_citation_has_an_explicit_unambiguous_format(self):
+        turn = {'phase': 'lookup', 'json_format': 'object_or_fenced',
+                'json_fields': {'found': False, 'phone': None}}
+        reply = '```json\n{"found": false, "phone": null}\n```\n\n依据：support.txt。'
+        self.assertTrue(all(item['passed'] for item in check_reply('lookup', turn, reply, {})))
+        self.assertTrue(all(item['passed'] for item in
+                            check_reply('lookup', turn, '{"found": false, "phone": null}', {})))
+        self.assertTrue(all(item['passed'] for item in
+                            check_reply('lookup', turn, '{"found": false, "phone": null}\n依据：support.txt。', {})))
+        ambiguous = reply + '\n```json\n{"found": true, "phone": "123"}\n```'
+        self.assertFalse(all(item['passed'] for item in check_reply('lookup', turn, ambiguous, {})))
+        two_objects = '{"found": false, "phone": null}\n{"found": true, "phone": "123"}'
+        self.assertFalse(all(item['passed'] for item in check_reply('lookup', turn, two_objects, {})))
+        strict = {'phase': 'lookup', 'json_fields': {'found': False, 'phone': None}}
+        self.assertFalse(all(item['passed'] for item in check_reply('lookup', strict, reply, {})))
+
     def test_unconfirmed_agent_cleanup_keeps_knowledge_dependency(self):
         with qa_fixture('success') as (base, _state):
             case = self.make_case()
@@ -394,6 +410,30 @@ class FunctionalJourneyTests(unittest.TestCase):
                     patch('journey.functional_case.AgentBuilderFlow', Builder):
                 execution.run()
             self.assertFalse(fixture.confirmed)
+
+    def test_unconfirmed_task_keeps_resource_dependencies(self):
+        for resource, fixture_type in (('knowledge', 'KnowledgeFixture'), ('database', 'DatabaseFixture')):
+            for unresolved in ('pending', 'running'):
+                with self.subTest(resource=resource, unresolved=unresolved), qa_fixture('success') as (base, _state):
+                    case = self.make_case()
+                    case[resource + '_fixture'] = {}
+                    execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+                    class Fixture:
+                        def __init__(self): self.confirmed = None
+                        def setup(self): return {}
+                        def cleanup(self, *, dependencies_confirmed): self.confirmed = dependencies_confirmed
+                    fixture = Fixture()
+                    finalize = execution.finalize
+                    def unresolved_finalize():
+                        finalize()
+                        if unresolved == 'pending':
+                            execution.pending_conversation = 'unknown-send'
+                        else:
+                            execution.tasks[0]['state'] = 'working'
+                    with patch('journey.functional_case.' + fixture_type, return_value=fixture), \
+                            patch.object(execution, 'finalize', side_effect=unresolved_finalize):
+                        execution.run()
+                    self.assertFalse(fixture.confirmed)
 
     def test_each_case_run_allocates_distinct_context_tokens(self):
         case = load_case('J2-03')

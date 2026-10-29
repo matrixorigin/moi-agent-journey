@@ -184,9 +184,9 @@ class KnowledgeFixture:
     def cleanup(self, *, dependencies_confirmed=True):
         if not dependencies_confirmed:
             self.state['cleanup'] = 'retained'
-            self.state['cleanup_reason'] = 'agent_cleanup_unconfirmed'
+            self.state['cleanup_reason'] = 'dependent_agent_or_task_unconfirmed'
             self.execution.report['harness_errors'].append(
-                {'stage': 'cleanup_knowledge', 'reason': 'agent_cleanup_unconfirmed'})
+                {'stage': 'cleanup_knowledge', 'reason': 'dependent_agent_or_task_unconfirmed'})
             self.save()
             return
         client = self.execution.client

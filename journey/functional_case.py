@@ -20,7 +20,7 @@ from .conversation_checks import check_history_and_invalid_update, check_lifecyc
 from .database_fixture import DatabaseFixture, DatabaseFixtureUnavailable
 from .evidence import Evidence, configured_secrets
 from .feedback_checks import check_feedback
-from .hello import discover
+from .hello import TERMINAL, discover
 from .knowledge_checks import evaluate_knowledge, evaluate_knowledge_table
 from .knowledge_fixture import KnowledgeFixture, KnowledgeFixtureUnavailable
 from .live_resume import check_live_resume
@@ -42,6 +42,32 @@ def case_variables(case):
             any(not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9_]*', name) for name in names)):
         raise Failure('invalid_case_variables')
     return {name: 'J2_' + uuid.uuid4().hex[:16].upper() for name in names}
+
+
+def json_answer(reply, json_format):
+    if json_format == 'object':
+        return json.loads(reply)
+    decoder = json.JSONDecoder()
+    fences = list(re.finditer(r'(?m)^```[^\n]*$', reply))
+    if fences:
+        blocks = list(re.finditer(r'(?ims)^```(?:json)?[ \t]*\r?\n(.*?)\r?\n```[ \t]*$', reply))
+        if len(fences) != 2 or len(blocks) != 1:
+            raise ValueError('ambiguous_json_answer')
+        block = blocks[0]
+        parsed = json.loads(block.group(1))
+        surrounding = reply[:block.start()] + reply[block.end():]
+    else:
+        text = reply.lstrip()
+        parsed, end = decoder.raw_decode(text)
+        surrounding = text[end:]
+    for match in re.finditer(r'\{', surrounding):
+        try:
+            other, _ = decoder.raw_decode(surrounding[match.start():])
+        except ValueError:
+            continue
+        if isinstance(other, dict):
+            raise ValueError('ambiguous_json_answer')
+    return parsed
 
 
 def check_reply(session_id, turn, reply, variables):
@@ -75,8 +101,11 @@ def check_reply(session_id, turn, reply, variables):
                 any(not isinstance(key, str) or not key or type(value) not in {str, int, bool, type(None)}
                     for key, value in expected_json.items())):
             raise Failure('invalid_json_fields')
+        json_format = turn.get('json_format', 'object')
+        if json_format not in {'object', 'object_or_fenced'}:
+            raise Failure('invalid_json_format')
         try:
-            parsed = json.loads(reply)
+            parsed = json_answer(reply, json_format)
         except (ValueError, TypeError):
             parsed = None
         valid = isinstance(parsed, dict)
@@ -502,12 +531,14 @@ class FunctionalExecution(Execution):
             cleanup_started = time.monotonic()
             for builder in builders.values():
                 builder.cleanup()
+            tasks_confirmed = (self.pending_conversation is None and
+                               all(task.get('state') in TERMINAL for task in self.tasks))
             if knowledge:
-                agent_cleanup_confirmed = not any(item.get('stage') == 'cleanup_agent' for item in
-                                                  self.report['harness_errors'])
-                knowledge.cleanup(dependencies_confirmed=agent_cleanup_confirmed)
+                dependencies_confirmed = (tasks_confirmed and not any(
+                    item.get('stage') == 'cleanup_agent' for item in self.report['harness_errors']))
+                knowledge.cleanup(dependencies_confirmed=dependencies_confirmed)
             if database:
-                database.cleanup()
+                database.cleanup(dependencies_confirmed=tasks_confirmed)
             self.report['cleanup_seconds'] += round(time.monotonic() - cleanup_started, 3)
             self.checkpoint()
         return self.report

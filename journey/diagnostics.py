@@ -164,8 +164,9 @@ def analyze_events(path, tasks):
                 status = reported_shell_exit(command, terminal)
                 if status is not None and status != 0:
                     failed = True
+                    detail = terminal.get('stderr') or terminal.get('stdout') or '前一条命令报告非零退出码'
                     observations.append({'kind': 'captured_command_exit', 'code': str(status),
-                                         'detail': '前一条命令报告非零退出码'})
+                                         'detail': str(detail)[:4096]})
                 call['failed'] |= failed
                 for item in observations:
                     call['errors'].append({'seq': seq, **item})

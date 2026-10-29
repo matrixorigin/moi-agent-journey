@@ -152,7 +152,7 @@ class KnowledgeFixtureTests(unittest.TestCase):
         self.assertFalse(client.deleted)
         self.assertFalse(client.connector_deleted)
         self.assertEqual(fixture.state['cleanup'], 'retained')
-        self.assertEqual(runner.report['harness_errors'][0]['reason'], 'agent_cleanup_unconfirmed')
+        self.assertEqual(runner.report['harness_errors'][0]['reason'], 'dependent_agent_or_task_unconfirmed')
 
     def test_upload_cleanup_error_is_reported(self):
         fixture, client, runner = self.fixture('J2-41', connector_error=True)

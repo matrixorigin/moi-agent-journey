@@ -183,6 +183,26 @@ class SqlEvidenceTests(unittest.TestCase):
         self.assertFalse(checks[1]['passed'])
         self.assertEqual(blocked, 'sql_result_unverifiable')
 
+    def test_sql_error_redirected_to_stdout_is_still_identified(self):
+        query = 'SELECT missing_column FROM journey_db.orders'
+        call = self.call('moi-cli -o sql run --query "' + query + '" 2>&1; echo "EXIT=$?"')
+        result = self.result()
+        response = {'code': '500', 'status': 500, 'message': 'column missing_column does not exist'}
+        call['seq'], result['seq'] = 1, 2
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'events.jsonl'
+            for content in (json.dumps(response), json.dumps(response, indent=2)):
+                with self.subTest(content=content):
+                    result['payload']['output']['output'].update({'stdout': content + '\nEXIT=1\n', 'stderr': ''})
+                    path.write_text(''.join(json.dumps(event) + '\n' for event in (call, result)))
+                    checks, blocked = evaluate_sql_failure(path, 'task', 'sql', query, 'missing_column', 'ws')
+                    self.assertTrue(checks[0]['passed'])
+                    self.assertIsNone(blocked)
+                    analysis = analyze_events(path, [{'task_id': 'task', 'phase': 'sql:invalid', 'event_count': 2}])
+                    mark_expected_tool_errors(analysis, checks)
+                    self.assertEqual(analysis['metrics']['failed'], 1)
+                    self.assertTrue(all(error.get('expected') for error in analysis['errors'][0]['errors']))
+
 
 if __name__ == '__main__':
     unittest.main()
