@@ -20,6 +20,8 @@ from .conversation_checks import check_history_and_invalid_update, check_lifecyc
 from .evidence import Evidence, configured_secrets
 from .feedback_checks import check_feedback
 from .hello import discover
+from .knowledge_checks import evaluate_knowledge, evaluate_knowledge_table
+from .knowledge_fixture import KnowledgeFixture, KnowledgeFixtureUnavailable
 from .live_resume import check_live_resume
 from .message_controls import check_completed_cancellation, check_empty_message
 from .run_case import Execution
@@ -46,16 +48,17 @@ def check_reply(session_id, turn, reply, variables):
                'passed': bool(reply.strip()), 'detail': '' if reply.strip() else 'empty_final_reply'}]
     for assertion in turn.get('assertions', []):
         kind = assertion['type']
-        if kind not in {'contains', 'not_contains', 'single_number'} or not isinstance(assertion.get('value'), str):
+        if kind not in {'contains', 'not_contains', 'single_number', 'number_present'} or not isinstance(assertion.get('value'), str):
             raise Failure('invalid_case_assertion')
         expected = assertion['value'].format_map(variables)
         if not expected:
             raise Failure('empty_expected_value')
-        if kind == 'single_number':
+        if kind in {'single_number', 'number_present'}:
             try:
                 target = Decimal(expected)
                 numbers = re.findall(r'(?<![\d.])[+-]?\d+(?:\.\d+)?(?![\d.])', reply)
-                passed = target.is_finite() and len(numbers) == 1 and Decimal(numbers[0]) == target
+                matches = [number for number in numbers if Decimal(number) == target]
+                passed = target.is_finite() and bool(matches) and (kind != 'single_number' or len(numbers) == 1)
             except InvalidOperation:
                 raise Failure('invalid_expected_number') from None
             detail = 'numeric_result_mismatch'
@@ -130,10 +133,15 @@ class FunctionalExecution(Execution):
         current_search_tool = None
         current_open = None
         builders = {}
+        knowledge = None
         try:
             self.root, self.selector = discover(self.client, self.case['workspace'])
             start_version(self)
             variables = case_variables(self.case)
+            if self.case.get('knowledge_fixture') is not None:
+                self.report['stage'] = 'knowledge_fixture'
+                knowledge = KnowledgeFixture(self, self.case['knowledge_fixture'])
+                variables.update(knowledge.setup())
             self.evidence.write('parameters.json', variables)
             fixtures = {item['path']: item for item in self.case.get('fixtures', [])}
             if len(fixtures) != len(self.case.get('fixtures', [])):
@@ -313,6 +321,24 @@ class FunctionalExecution(Execution):
                         if blocked:
                             self.report['blocked'] = True
                             self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
+                    if turn.get('knowledge_evidence') is True:
+                        if not knowledge or knowledge.kind != 'document' or knowledge.state.get('status') != 'ready':
+                            raise Failure('knowledge_fixture_not_ready')
+                        knowledge_checks, blocked = evaluate_knowledge(self.evidence.root / 'events.jsonl',
+                            final_entry['task_id'], session['id'], knowledge.state, knowledge.marker)
+                        checks.extend(knowledge_checks)
+                        if blocked:
+                            self.report['blocked'] = True
+                            self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
+                    if turn.get('knowledge_table_evidence') is True:
+                        if not knowledge or knowledge.kind != 'table' or knowledge.state.get('status') != 'ready':
+                            raise Failure('knowledge_fixture_not_ready')
+                        table_checks, blocked = evaluate_knowledge_table(self.evidence.root / 'events.jsonl',
+                            final_entry['task_id'], session['id'], knowledge.state, knowledge.verification)
+                        checks.extend(table_checks)
+                        if blocked:
+                            self.report['blocked'] = True
+                            self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
                     self.report['validation'] = {'checks': checks}
                     self.checkpoint()
                     action = turn.get('action')
@@ -380,17 +406,19 @@ class FunctionalExecution(Execution):
                                 else:
                                     builder.remember(task, name)
                                     if action['type'] == 'commit_builder_with_resource':
-                                        resource = builder.require_resource(action['resource_kind'], action['resource_id'])
+                                        resource = builder.require_resource(action['resource_kind'],
+                                                                            action['resource_id'].format_map(variables))
                                         builder.commit([resource], capture_current=action.get('capture_current') is True)
                                     elif action['type'] == 'commit_builder_with_resources':
                                         requested = action.get('resources')
                                         if (not isinstance(requested, list) or not requested or
                                                 any(not isinstance(item, dict) or set(item) != {'kind', 'id'} or
-                                                    item['kind'] not in {'skills', 'tools'} or
+                                                    item['kind'] not in {'skills', 'tools', 'knowledge_bases'} or
                                                     not isinstance(item['id'], str) or not item['id'] for item in requested) or
                                                 len({(item['kind'], item['id']) for item in requested}) != len(requested)):
                                             raise Failure('invalid_builder_resources')
-                                        resources = [builder.require_resource(item['kind'], item['id']) for item in requested]
+                                        resources = [builder.require_resource(item['kind'], item['id'].format_map(variables))
+                                                     for item in requested]
                                         builder.commit(resources, capture_current=action.get('capture_current') is True)
                                     elif action['type'] == 'create_builder_agent':
                                         builder.commit()
@@ -420,6 +448,10 @@ class FunctionalExecution(Execution):
                 self.report['status'] = 'failed'
                 self.report['failures'].append({'stage': 'validation', 'reason': 'acceptance_checks_failed'})
             self.report['stage'] = 'complete'
+        except KnowledgeFixtureUnavailable as error:
+            self.report['status'] = 'failed'
+            self.report['blocked'] = True
+            self.report['failures'].append({'stage': 'knowledge_fixture', 'reason': str(error)})
         except ProductCaseFailure as error:
             self.report['status'] = 'failed'
             self.report['failures'].append({'stage': self.report['stage'], 'reason': 'acceptance_checks_failed',
@@ -451,6 +483,8 @@ class FunctionalExecution(Execution):
             cleanup_started = time.monotonic()
             for builder in builders.values():
                 builder.cleanup()
+            if knowledge:
+                knowledge.cleanup()
             self.report['cleanup_seconds'] += round(time.monotonic() - cleanup_started, 3)
             self.checkpoint()
         return self.report

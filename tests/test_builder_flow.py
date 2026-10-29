@@ -246,6 +246,38 @@ class BuilderFlowTests(unittest.TestCase):
                     flow.commit(expected_instruction='unique-marker')
                     self.assertTrue(all(check['passed'] for check in checks))
 
+    def test_knowledge_binding_requires_the_correct_workspace_and_published_identity(self):
+        for wrong in (None, 'workspace', 'binding_id'):
+            with self.subTest(wrong=wrong):
+                flow, client, checks = self.flow()
+                candidate = task('revised', 'v2')
+                output = candidate['status']['message']['parts'][0]['data']['output']['output']
+                output['resolved_refs']['knowledge_bases'] = [
+                    {'id': '42', 'name': 'our-kb', 'workspace_id': 'other' if wrong == 'workspace' else 'ws'}]
+                flow.remember(candidate, 'revised')
+                if wrong == 'workspace':
+                    with self.assertRaises(ProductCaseFailure):
+                        flow.require_resource('knowledge_bases', '42')
+                    continue
+                resource = flow.require_resource('knowledge_bases', '42')
+                original_product = client.product
+                def product(method, path, body=None):
+                    if method == 'GET' and '/bindings?' in path:
+                        return {'agent_id': 'test-agent', 'knowledge_bases': [{'id': 'other' if wrong else '42',
+                            'name': 'our-kb', 'workspace_id': 'ws', 'status': 'active'}]}
+                    result = original_product(method, path, body)
+                    if method == 'GET' and '/versions?' in path:
+                        for item in result['items']:
+                            item['manifest']['moiResourceRefs']['knowledgeBases'] = [{'name': 'our-kb'}]
+                    return result
+                client.product = product
+                if wrong == 'binding_id':
+                    with self.assertRaises(ProductCaseFailure):
+                        flow.commit([resource])
+                else:
+                    flow.commit([resource])
+                    self.assertTrue(all(check['passed'] for check in checks))
+
     def test_uncommitted_revision_is_canceled_before_archiving_our_agent(self):
         flow, client, _ = self.flow()
         flow.remember(task('revised', 'v2'), 'revised')
