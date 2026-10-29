@@ -22,11 +22,11 @@ def literal(value):
 
 
 class NativeSkillData:
-    def __init__(self, execution):
+    def __init__(self, execution, *, business_database=True):
         self.execution = execution
         suffix = execution.report['run_id'].replace('-', '')
         self.databases = {kind: {'name': 'j2_' + kind + '_' + suffix, 'cleanup': 'pending'}
-                          for kind in ('employees', 'sales')}
+                          for kind in (('employees', 'sales') if business_database else ('employees',))}
         self.state = {'databases': self.databases}
         execution.report['native_data'] = self.state
 
@@ -97,8 +97,10 @@ class NativeSkillData:
         self.state['employees_before'] = self.sql('employees', 'SELECT * FROM employees ORDER BY employee_id')
         self.state['ready'] = True
         self.save()
-        return {'employees_table': 'default.' + self.databases['employees']['name'] + '.employees',
-                'sales_database': self.databases['sales']['name']}
+        values = {'employees_table': 'default.' + self.databases['employees']['name'] + '.employees'}
+        if 'sales' in self.databases:
+            values['sales_database'] = self.databases['sales']['name']
+        return values
 
     def snapshot(self):
         tables = self.sql('sales', 'SHOW TABLES')
@@ -117,7 +119,7 @@ class NativeSkillData:
         client, deadline = self.execution.client, self.execution.client.deadline
         client.deadline = time.monotonic() + 90
         try:
-            for kind in ('sales', 'employees'):
+            for kind in reversed(self.databases):
                 database = self.databases[kind]
                 try:
                     if not dependencies_confirmed:

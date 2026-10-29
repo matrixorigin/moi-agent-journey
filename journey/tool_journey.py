@@ -129,7 +129,7 @@ class ToolJourney(ResourceJourney):
         try:
             if not dependencies_confirmed:
                 raise Failure('dependent_task_unconfirmed')
-            self.detach_agent_resources(set(self.state['pending_ids']))
+            self.detach_agent_resources(set(self.state['pending_ids']), agent_name=self.agent_id)
             for tool in self.tools:
                 if tool['id'] not in self.state['pending_ids'] or self.absent(self.path(tool)):
                     continue

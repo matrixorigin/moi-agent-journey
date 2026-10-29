@@ -39,6 +39,7 @@ from .search_checks import evaluate_search
 from .skill_checks import check_skill_call
 from .skill_journey import SkillJourney
 from .native_skill_journey import NativeSkillJourney
+from .native_skill_builder import NativeSkillBuilderJourney
 from .native_skill_source import NativeSkillUnavailable
 from .tool_journey import ToolJourney, evaluate_http_tool
 from .builder_input_journey import BuilderInputJourney
@@ -178,7 +179,7 @@ def resource_changes(action, variables=None, knowledge=None):
 
 class FunctionalExecution(Execution):
     def cleanup(self):
-        native = getattr(self, "native_skill", None)
+        native = getattr(self, "native_resources", None)
         super().cleanup(cleanup_outputs=native.cleanup_outputs if native else None)
 
     def check_skill(self, skill_id, task_id, session_id, phase, checks):
@@ -199,6 +200,8 @@ class FunctionalExecution(Execution):
         database = None
         skill_journey = None
         self.native_skill = None
+        self.native_builder = None
+        self.native_resources = None
         tool_journey = None
         builder_input = None
         package_journey = None
@@ -232,10 +235,16 @@ class FunctionalExecution(Execution):
                 builder_input = BuilderInputJourney(self, checks)
                 builder_input.prepare()
             if self.case.get('native_skill_journey') is not None:
-                if self.case.get('skill_journey') is not None:
+                if self.case.get('skill_journey') is not None or self.case.get('native_skill_builder'):
                     raise Failure('conflicting_skill_journeys')
                 self.report['stage'] = 'native_skill_journey'
-                skill_journey = self.native_skill = NativeSkillJourney(self, self.case['native_skill_journey'], checks)
+                skill_journey = self.native_resources = self.native_skill = NativeSkillJourney(self, self.case['native_skill_journey'], checks)
+                variables.update(skill_journey.prepare())
+            if self.case.get('native_skill_builder') is True:
+                if self.case.get('skill_journey') is not None:
+                    raise Failure('conflicting_skill_journeys')
+                self.report['stage'] = 'native_skill_builder'
+                skill_journey = self.native_resources = self.native_builder = NativeSkillBuilderJourney(self, checks)
                 variables.update(skill_journey.prepare())
             if self.case.get('skill_journey') is not None:
                 self.report['stage'] = 'skill_journey'
@@ -460,6 +469,8 @@ class FunctionalExecution(Execution):
                     if self.native_skill:
                         artifact_delivered |= self.native_skill.evaluate(final_entry['task_id'], cid, session['id'],
                             turn['phase'], reply, turn['native_check'], variables)
+                    if self.native_builder:
+                        self.native_builder.check_execution(final_entry['task_id'], session['id'] + ':' + turn['phase'])
                     if live_resume:
                         blocked = check_live_resume(self, final_entry, checks, session['id'])
                         if blocked:
@@ -671,6 +682,14 @@ class FunctionalExecution(Execution):
                                 check_artifact_delete(self, cid, final_entry['task_id'], filename, checks, session['id'])
                         elif action.get('type') == 'check_resubscribe':
                             check_resubscribe(self, final_entry, checks, session['id'])
+                        elif action.get('type') == 'commit_native_skill_builder':
+                            if not self.native_builder:
+                                raise Failure('native_skill_builder_missing')
+                            try:
+                                self.native_builder.commit(task)
+                            finally:
+                                if self.native_builder.builder.created:
+                                    session_report['created_agent'] = self.native_builder.builder.created
                         elif action.get('type') in builder_types:
                             builder = builders[session['id']]
                             name = action['agent_name'].format_map(variables)

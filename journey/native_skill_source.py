@@ -5,6 +5,7 @@ import json
 import os
 import re
 import zipfile
+from urllib.parse import urlencode
 
 from .catalog import ROOT
 from .client import Failure, segment
@@ -51,3 +52,12 @@ def with_unique_name(files, name):
         raise Failure('native_skill_name_contract_changed')
     header = header.replace('\nname: 进度管理\n', '\nname: ' + name + '\n')
     return {**files, 'SKILL.md': ('---' + header + '---' + instruction).encode()}, instruction.strip()
+
+
+def import_native_skill(journey):
+    files = source_files(journey.execution)
+    listing = journey.request('GET', '/skills?' + urlencode({'query': journey.name, 'catalog': 'workspace'}))
+    if listing.get('total') != 0 or listing.get('items') != []:
+        raise Failure('native_skill_name_not_free')
+    files, instruction = with_unique_name(files, journey.name)
+    journey.import_files(files, instruction)

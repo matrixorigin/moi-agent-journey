@@ -180,7 +180,7 @@ class NativeSkillTests(unittest.TestCase):
 
     def test_independent_file_cleanup_runs_even_when_sandbox_cleanup_fails(self):
         journey=SimpleNamespace(state={},execution=SimpleNamespace(checkpoint=lambda:None))
-        with patch('journey.native_skill_journey.cleanup_sandbox',side_effect=Failure('error')), patch('journey.native_skill_journey.cleanup_artifacts') as artifacts:
+        with patch('journey.native_skill_resources.cleanup_sandbox',side_effect=Failure('error')), patch('journey.native_skill_resources.cleanup_artifacts') as artifacts:
             with self.assertRaises(Failure):NativeSkillJourney.cleanup_outputs(journey,'cid')
             artifacts.assert_called_once_with(journey,'cid')
 

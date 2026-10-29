@@ -2,41 +2,27 @@
 import json
 import re
 import time
-from urllib.parse import urlencode
 
 from .channel_journey import resolve_values
-from .client import Failure, error_record
+from .client import Failure
 from .native_skill_checks import (business_effect, confirmation_reply, csv_matches, observations, query_result_matches)
-from .native_skill_cleanup import cleanup_artifacts, cleanup_sandbox
-from .native_skill_data import NativeSkillData
-from .native_skill_source import source_files, with_unique_name
 from .native_skill_stages import NativeSkillStages
-from .owned_skill_journey import OwnedSkillJourney
+from .native_skill_resources import NativeSkillResources
 
-class NativeSkillJourney(OwnedSkillJourney):
+
+class NativeSkillJourney(NativeSkillResources):
     def __init__(self, execution, definition, checks):
         if (not isinstance(definition, dict) or set(definition) != {'stages', 'turn_timeout_seconds'} or
                 type(definition['turn_timeout_seconds']) is not int or not 0 < definition['turn_timeout_seconds'] <= 300):
             raise Failure('invalid_native_skill_case')
-        super().__init__(execution, checks)
+        super().__init__(execution, checks, business_database=True)
         self.progress = NativeSkillStages(execution, definition['stages'])
         self.turn_timeout = definition['turn_timeout_seconds']
-        suffix = execution.report['run_id'].replace('-', '')
-        self.name = '进度管理-j2-' + suffix
-        self.temp_dir = '/tmp/j2-native-' + suffix
-        self.state.update(name=self.name, temp_dir=self.temp_dir)
-        self.data = NativeSkillData(execution)
         self.discovered = self.downloaded = False
         self.before = None
 
     def prepare(self):
-        files = source_files(self.execution)
-        variables = self.data.setup()
-        listing = self.request('GET', '/skills?' + urlencode({'query': self.name, 'catalog': 'workspace'}))
-        if listing.get('total') != 0 or listing.get('items') != []:
-            raise Failure('native_skill_name_not_free')
-        files, instruction = with_unique_name(files, self.name)
-        self.import_files(files, instruction)
+        variables = self.prepare_resources()
         agent_instruction = (
             '你是客户和事项进度管理助手，按已绑定能力处理用户的真实业务请求。\n'
             '以下配置已经为本智能体持久保存，不要重新分配或改用其他数据库：\n'
@@ -117,26 +103,3 @@ class NativeSkillJourney(OwnedSkillJourney):
         evidence_only = incomplete and valid and employees_unchanged and self.discovered and reply_ok and prior_checks_ok
         self.progress.complete(phase, self.checks, ready=bool(ready), incomplete=bool(evidence_only))
         return artifact_delivered
-
-    def cleanup_outputs(self, conversation_id):
-        errors = []
-        for stage, cleanup in (('cleanup_sandbox', cleanup_sandbox), ('cleanup_artifacts', cleanup_artifacts)):
-            try:
-                cleanup(self, conversation_id)
-            except Exception as error:
-                errors.append(error_record(stage, error))
-        if errors:
-            self.state['output_cleanup_errors'] = errors
-            self.execution.checkpoint()
-            raise Failure('native_output_cleanup_incomplete', details={'errors': errors})
-
-    def cleanup(self, *, dependencies_confirmed):
-        sandbox_records = self.state.get('sandbox_cleanup', {})
-        confirmed = dependencies_confirmed and all(item.get('tasks_confirmed') is True for item in sandbox_records.values())
-        self.data.cleanup(confirmed)
-        super().cleanup(dependencies_confirmed=confirmed)
-        if (self.state.get('output_cleanup_errors') or
-                any(item.get('cleanup') != 'archived' for item in self.execution.conversations) or any(db['cleanup'] not in {'deleted', 'not_created'} for db in self.data.databases.values()) or
-                any(item.get('status') != 'deleted' for item in sandbox_records.values())):
-            self.state['cleanup'] = 'incomplete'
-            self.execution.checkpoint()
