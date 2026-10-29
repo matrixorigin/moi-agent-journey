@@ -529,10 +529,14 @@ class FunctionalExecution(Execution):
             finish_version(self)
             self.finalize()
             cleanup_started = time.monotonic()
-            for builder in builders.values():
-                builder.cleanup()
             tasks_confirmed = (self.pending_conversation is None and
                                all(task.get('state') in TERMINAL for task in self.tasks))
+            if tasks_confirmed:
+                for builder in builders.values():
+                    builder.cleanup()
+            elif builders:
+                self.report['harness_errors'].append(
+                    {'stage': 'cleanup_agent', 'reason': 'dependent_task_unconfirmed'})
             if knowledge:
                 dependencies_confirmed = (tasks_confirmed and not any(
                     item.get('stage') == 'cleanup_agent' for item in self.report['harness_errors']))

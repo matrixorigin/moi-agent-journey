@@ -435,6 +435,31 @@ class FunctionalJourneyTests(unittest.TestCase):
                         execution.run()
                     self.assertFalse(fixture.confirmed)
 
+    def test_unconfirmed_task_keeps_created_agent(self):
+        with qa_fixture('success') as (base, _state):
+            case = self.make_case()
+            case['builder_names'] = ['code']
+            case['sessions'][0]['turns'] = [{'phase': 'create', 'prompt': 'create {code}',
+                'action': {'type': 'create_builder_agent', 'agent_name': '{code}'}}]
+            execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+            class Builder:
+                created = {'id': 'owned-agent'}
+                cleaned = False
+                def __init__(self, *_args): pass
+                def remember(self, *_args): raise ProductCaseFailure('candidate_commit_failed')
+                def cleanup(self): self.cleaned = True
+            builder = Builder()
+            finalize = execution.finalize
+            def unresolved_finalize():
+                finalize()
+                execution.tasks[0]['state'] = 'working'
+            with patch('journey.functional_case.AgentBuilderFlow', return_value=builder), \
+                    patch.object(execution, 'finalize', side_effect=unresolved_finalize):
+                execution.run()
+            self.assertFalse(builder.cleaned)
+            self.assertIn({'stage': 'cleanup_agent', 'reason': 'dependent_task_unconfirmed'},
+                          execution.report['harness_errors'])
+
     def test_each_case_run_allocates_distinct_context_tokens(self):
         case = load_case('J2-03')
         first, second = case_variables(case), case_variables(case)
