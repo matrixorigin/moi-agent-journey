@@ -17,6 +17,7 @@ from .builder_flow import AgentBuilderFlow, ProductCaseFailure
 from .catalog import fixture_path, load_case
 from .client import Client, Failure
 from .conversation_checks import check_history_and_invalid_update, check_lifecycle
+from .database_fixture import DatabaseFixture, DatabaseFixtureUnavailable
 from .evidence import Evidence, configured_secrets
 from .feedback_checks import check_feedback
 from .hello import discover
@@ -30,7 +31,7 @@ from .resume_checks import check_resubscribe
 from .sandbox_checks import evaluate_python_hash, evaluate_python_recovery
 from .search_checks import evaluate_search
 from .skill_checks import check_skill_call
-from .sql_checks import evaluate_sql
+from .sql_checks import evaluate_sql, evaluate_sql_failure
 from .version import finish_version, start_version
 from .web_open_checks import evaluate_open
 
@@ -71,7 +72,7 @@ def check_reply(session_id, turn, reply, variables):
     expected_json = turn.get('json_fields')
     if expected_json is not None:
         if (not isinstance(expected_json, dict) or not expected_json or
-                any(not isinstance(key, str) or not key or type(value) not in {str, int, bool}
+                any(not isinstance(key, str) or not key or type(value) not in {str, int, bool, type(None)}
                     for key, value in expected_json.items())):
             raise Failure('invalid_json_fields')
         try:
@@ -84,7 +85,7 @@ def check_reply(session_id, turn, reply, variables):
         for key, value in expected_json.items():
             expected = value.format_map(variables) if isinstance(value, str) else value
             actual = parsed.get(key) if valid else None
-            passed = type(actual) is type(expected) and actual == expected
+            passed = valid and key in parsed and type(actual) is type(expected) and actual == expected
             checks.append({'session': session_id, 'rule': 'JSON 字段 ' + key + ' 类型和值正确',
                            'passed': passed, 'detail': '' if passed else 'json_field_mismatch:' + key})
     return checks
@@ -134,6 +135,7 @@ class FunctionalExecution(Execution):
         current_open = None
         builders = {}
         knowledge = None
+        database = None
         try:
             self.root, self.selector = discover(self.client, self.case['workspace'])
             start_version(self)
@@ -142,6 +144,10 @@ class FunctionalExecution(Execution):
                 self.report['stage'] = 'knowledge_fixture'
                 knowledge = KnowledgeFixture(self, self.case['knowledge_fixture'])
                 variables.update(knowledge.setup())
+            if self.case.get('database_fixture') is not None:
+                self.report['stage'] = 'database_fixture'
+                database = DatabaseFixture(self, self.case['database_fixture'])
+                variables.update(database.setup())
             self.evidence.write('parameters.json', variables)
             fixtures = {item['path']: item for item in self.case.get('fixtures', [])}
             if len(fixtures) != len(self.case.get('fixtures', [])):
@@ -315,9 +321,18 @@ class FunctionalExecution(Execution):
                             self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
                     if turn.get('sql_evidence'):
                         sql_checks, blocked = evaluate_sql(self.evidence.root / 'events.jsonl', final_entry['task_id'],
-                            session['id'], turn['sql_evidence']['query'], turn['sql_evidence']['column'],
+                            session['id'], turn['sql_evidence']['query'].format_map(variables), turn['sql_evidence']['column'],
                             turn['sql_evidence']['value'], self.root.rsplit('/', 1)[-1])
                         checks.extend(sql_checks)
+                        if blocked:
+                            self.report['blocked'] = True
+                            self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
+                    if turn.get('sql_error_evidence'):
+                        config = turn['sql_error_evidence']
+                        failure_checks, blocked = evaluate_sql_failure(self.evidence.root / 'events.jsonl',
+                            final_entry['task_id'], session['id'], config['query'].format_map(variables),
+                            config['error_contains'], self.root.rsplit('/', 1)[-1])
+                        checks.extend(failure_checks)
                         if blocked:
                             self.report['blocked'] = True
                             self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
@@ -452,6 +467,10 @@ class FunctionalExecution(Execution):
             self.report['status'] = 'failed'
             self.report['blocked'] = True
             self.report['failures'].append({'stage': 'knowledge_fixture', 'reason': str(error)})
+        except DatabaseFixtureUnavailable as error:
+            self.report['status'] = 'failed'
+            self.report['blocked'] = True
+            self.report['failures'].append({'stage': 'database_fixture', 'reason': str(error)})
         except ProductCaseFailure as error:
             self.report['status'] = 'failed'
             self.report['failures'].append({'stage': self.report['stage'], 'reason': 'acceptance_checks_failed',
@@ -485,6 +504,8 @@ class FunctionalExecution(Execution):
                 builder.cleanup()
             if knowledge:
                 knowledge.cleanup()
+            if database:
+                database.cleanup()
             self.report['cleanup_seconds'] += round(time.monotonic() - cleanup_started, 3)
             self.checkpoint()
         return self.report

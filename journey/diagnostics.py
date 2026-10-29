@@ -4,6 +4,8 @@ import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from .shell_output import reported_shell_exit
+
 
 CLI_ERROR = re.compile(r'^\s*Error:\s*\[([A-Za-z][\w.-]*)\]\s*(.*)$')
 
@@ -155,6 +157,15 @@ def analyze_events(path, tasks):
                 if payload.get('success') is True:
                     call['reported_success'] = True
                 observations, failed = _output_observations(payload.get('output'))
+                wrapper = payload.get('output')
+                terminal = wrapper.get('output') if isinstance(wrapper, dict) else None
+                arguments = call.get('arguments')
+                command = arguments.get('command') if isinstance(arguments, dict) else None
+                status = reported_shell_exit(command, terminal)
+                if status is not None and status != 0:
+                    failed = True
+                    observations.append({'kind': 'captured_command_exit', 'code': str(status),
+                                         'detail': '前一条命令报告非零退出码'})
                 call['failed'] |= failed
                 for item in observations:
                     call['errors'].append({'seq': seq, **item})

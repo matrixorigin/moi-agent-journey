@@ -364,6 +364,14 @@ class FunctionalJourneyTests(unittest.TestCase):
         self.assertTrue(check_reply('query', turn, '合计 115.00，来自 2 条记录。', {})[-1]['passed'])
         self.assertFalse(check_reply('query', turn, '合计 1150，来自 2 条记录。', {})[-1]['passed'])
 
+    def test_json_null_must_be_present_and_not_fabricated(self):
+        turn = {'phase': 'lookup', 'json_fields': {'found': False, 'phone': None}}
+        self.assertTrue(all(item['passed'] for item in
+                            check_reply('lookup', turn, '{"found": false, "phone": null}', {})))
+        for reply in ('{"found": false}', '{"found": 0, "phone": null}',
+                      '{"found": false, "phone": "12345678"}', 'not json'):
+            self.assertFalse(all(item['passed'] for item in check_reply('lookup', turn, reply, {})))
+
     def test_each_case_run_allocates_distinct_context_tokens(self):
         case = load_case('J2-03')
         first, second = case_variables(case), case_variables(case)
