@@ -57,7 +57,7 @@ class ToolJourneyTests(unittest.TestCase):
         journey.agent_pending = True
         agent = {'id': journey.agent_id, 'workspace_id': 'ws', 'name': journey.agent_id, 'status': 'archived'}
         execution.client.product.side_effect = [agent, agent, {}, {'tools': [{'id': 'builtin', 'workspace_id': 'system'}]}]
-        journey.detach_agent_resources({tool['id']})
+        journey.detach_agent_resources({tool['id']}, agent_name=journey.agent_id)
         mutations = [call.args for call in execution.client.product.call_args_list if call.args[0] == 'PATCH']
         self.assertEqual(mutations, [('PATCH', '/workspaces/ws' + journey.agent_path + '/bindings',
             {'binding_ops': [{'op': 'remove', 'kind': 'tool', 'ref': {'id': tool['id'], 'kind': 'tool', 'workspace_id': 'ws'}}]})])

@@ -17,6 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlsplit
 
 from journey.client import Client, Failure
 from journey.catalog import load_case
@@ -76,7 +77,7 @@ def qa_fixture(mode):
                     tid='task-'+str(len(state['tasks'])+1)
                     terminal=('working' if mode == 'runtime_stream_error' else
                               'failed' if mode=='search_quota' or (mode=='agent_failure' and tid=='task-2') else 'completed')
-                    state['tasks'][tid]={"state":terminal,"read":0}
+                    state['tasks'][tid]={"state":terminal,"read":0,"conversation":state['conversation']}
                     if mode in {'timeout','async_cancel'}:state['client'].deadline=time.monotonic()+0.05
                 else:tid=body['params']['id']
                 task=state['tasks'][tid]
@@ -88,7 +89,7 @@ def qa_fixture(mode):
                     if task['read']>=2:task['state']='canceled'
                 phase=task['state']
                 if mode in {'timeout','async_cancel'} and not task.get('cancel_requested'):phase='working'
-                response={"jsonrpc":"2.0","id":body['id'],"result":{"kind":"task","id":tid,"contextId":state['conversation'],"status":{"state":phase,"message":{"role":"agent","parts":[{"kind":"text","text":"done"}]}}}}
+                response={"jsonrpc":"2.0","id":body['id'],"result":{"kind":"task","id":tid,"contextId":task['conversation'],"status":{"state":phase,"message":{"role":"agent","parts":[{"kind":"text","text":"done"}]}}}}
                 if method=='message/stream':
                     self.send_response(200);self.send_header('Content-Type','text/event-stream');self.end_headers()
                     initial=json.loads(json.dumps(response));initial['result']['status']['state']='working'
@@ -124,10 +125,11 @@ def qa_fixture(mode):
                         events=[{"id":tid+'-'+str(seq),"task_id":tid,"seq":seq,"kind":kind,"payload":payload}
                             for seq,kind,payload in values if seq>after]
                         response={"code":0,"data":{"items":events,"total":len(events),"after_seq":after}}
-                else:response={"code":0,"data":{"id":tid,"context_id":state['conversation'],"trace_id":"trace-"+tid,"event_cursor":8,"state":task['state']}}
+                else:response={"code":0,"data":{"id":tid,"context_id":task['conversation'],"trace_id":"trace-"+tid,"event_cursor":8,"state":task['state']}}
             elif '/agent-artifacts?' in self.path:
-                last=list(state['tasks'])[-1]
-                response={"code":0,"data":{"items":[{"artifact_id":"artifact","version":1,"file_id":"output","file_name":"journey-output.zip","conversation_id":state['conversation'],"task_id":last}],"total":1}}
+                conversation=parse_qs(urlsplit(self.path).query)['conversation_id'][0]
+                last=[tid for tid,task in state['tasks'].items() if task['conversation']==conversation][-1]
+                response={"code":0,"data":{"items":[{"artifact_id":"artifact","version":1,"file_id":"output","file_name":"journey-output.zip","conversation_id":conversation,"task_id":last}],"total":1}}
             elif self.path.endswith('/files/output/download'):
                 self.send_response(200);self.end_headers();self.wfile.write(binary);return
             else:raise AssertionError(self.path)

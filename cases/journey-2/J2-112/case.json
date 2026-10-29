@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "id": "J2-112",
+  "workspace": "journey-2",
+  "title": "自然语言创建绑定上传 Skill 的智能体并实际检查数据源",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey",
+    "repository": "https://github.com/matrixorigin/moi_ai_native_skills",
+    "revision": "38718c1ccc0f2bf5010f50de854342a8cf217c44"
+  },
+  "assets": [],
+  "oracles": [],
+  "native_skill_builder": true,
+  "sessions": [
+    {
+      "id": "builder",
+      "delivery_kind": "agent",
+      "expected_checks": 24,
+      "turns": [
+        {
+          "phase": "create",
+          "prompt": "请创建一个名为 {native_agent_name} 的客户进度管理智能体，绑定我已上传的“{skill_name}”（ID：{skill_id}）。共享员工表是 {employees_table}。请读取该能力的指导，完成创建前要求的检查，把员工数据来源和刷新规则写入智能体指令；不要静态复制员工名单。所有下载、缓存和临时文件只放在 {native_temp_dir} 下，并将这个限制写入新智能体指令。现在只创建候选，先不要确认发布，不初始化业务数据库，不新增客户或事项。",
+          "action": {
+            "type": "commit_native_skill_builder"
+          }
+        }
+      ]
+    },
+    {
+      "id": "published",
+      "delivery_kind": "answer",
+      "agent_from_skill": true,
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "check_source",
+          "prompt": "请根据你已绑定的业务能力，检查配置中的共享员工数据源能否使用，列出缺少的可选字段。只检查，不初始化业务数据库、不新增客户或事项。"
+        }
+      ]
+    }
+  ]
+}

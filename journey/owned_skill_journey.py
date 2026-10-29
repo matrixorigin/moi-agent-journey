@@ -18,6 +18,7 @@ class OwnedSkillJourney(ResourceJourney):
         self.workspace = execution.root.rsplit('/', 1)[-1]
         suffix = execution.report['run_id'].replace('-', '')
         self.name, self.agent_id, self.skill_id = 'j2-lookup-' + suffix, 'j2-agent-' + suffix, 'j2-skill-' + suffix
+        self.agent_name = self.agent_id
         self.skill_pending = self.agent_pending = False
         self.builder = None
         self.state = {'name': self.name, 'cleanup': 'pending'}
@@ -83,7 +84,7 @@ class OwnedSkillJourney(ResourceJourney):
         try:
             if not dependencies_confirmed:
                 raise Failure('dependent_task_unconfirmed')
-            self.detach_agent_resources({self.skill_id})
+            self.detach_agent_resources({self.skill_id}, agent_name=self.agent_name)
             if self.state.get('import_pending'):
                 listing = client.product('GET', self.execution.root + '/skills?' + urlencode({'query': self.name, 'catalog': 'workspace'}))
                 items = listing.get('items')
