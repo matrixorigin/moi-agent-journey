@@ -18,6 +18,7 @@ from journey.native_skill_data import NativeSkillData
 from journey.native_skill_cleanup import delete_owned_file, cleanup_artifacts, same_cleanup_command
 from journey.native_skill_source import read_package, with_unique_name
 from journey.native_skill_journey import NativeSkillJourney
+from journey.owned_skill_journey import OwnedSkillJourney
 
 
 def snapshot():
@@ -167,6 +168,15 @@ class NativeSkillTests(unittest.TestCase):
             with patch('journey.native_skill_cleanup.delete_owned_file') as delete:
                 cleanup_artifacts(journey,'cid');delete.assert_called_once_with(execution,'file','cid',{'task'})
             self.assertEqual(len(client.product.call_args.args[2]['items']),2)
+
+    def test_collection_error_cannot_mark_output_cleanup_completed(self):
+        journey=NativeSkillJourney.__new__(NativeSkillJourney)
+        journey.state={}
+        journey.data=SimpleNamespace(databases={'sales':{'cleanup':'deleted'}},cleanup=Mock())
+        journey.execution=SimpleNamespace(conversations=[{'cleanup':'incomplete'}],checkpoint=lambda:None)
+        with patch.object(OwnedSkillJourney,'cleanup',side_effect=lambda **kwargs:journey.state.update(cleanup='completed')):
+            journey.cleanup(dependencies_confirmed=True)
+        self.assertEqual(journey.state['cleanup'],'incomplete')
 
     def test_independent_file_cleanup_runs_even_when_sandbox_cleanup_fails(self):
         journey=SimpleNamespace(state={},execution=SimpleNamespace(checkpoint=lambda:None))

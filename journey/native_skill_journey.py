@@ -121,7 +121,8 @@ class NativeSkillJourney(OwnedSkillJourney):
         confirmed = dependencies_confirmed and all(item.get('tasks_confirmed') is True for item in sandbox_records.values())
         self.data.cleanup(confirmed)
         super().cleanup(dependencies_confirmed=confirmed)
-        if (self.state.get('output_cleanup_errors') or any(db['cleanup'] not in {'deleted', 'not_created'} for db in self.data.databases.values()) or
+        if (self.state.get('output_cleanup_errors') or
+                any(item.get('cleanup') != 'archived' for item in self.execution.conversations) or any(db['cleanup'] not in {'deleted', 'not_created'} for db in self.data.databases.values()) or
                 any(item.get('status') != 'deleted' for item in sandbox_records.values())):
             self.state['cleanup'] = 'incomplete'
             self.execution.checkpoint()
