@@ -181,7 +181,14 @@ class KnowledgeFixture:
                     str(rows[0][0]) != str(expected)):
                 raise Failure('knowledge_table_fixture_mismatch', details={'check': column})
 
-    def cleanup(self):
+    def cleanup(self, *, dependencies_confirmed=True):
+        if not dependencies_confirmed:
+            self.state['cleanup'] = 'retained'
+            self.state['cleanup_reason'] = 'agent_cleanup_unconfirmed'
+            self.execution.report['harness_errors'].append(
+                {'stage': 'cleanup_knowledge', 'reason': 'agent_cleanup_unconfirmed'})
+            self.save()
+            return
         client = self.execution.client
         previous_deadline = client.deadline
         client.deadline = time.monotonic() + 100

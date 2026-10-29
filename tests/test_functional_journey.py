@@ -372,6 +372,29 @@ class FunctionalJourneyTests(unittest.TestCase):
                       '{"found": false, "phone": "12345678"}', 'not json'):
             self.assertFalse(all(item['passed'] for item in check_reply('lookup', turn, reply, {})))
 
+    def test_unconfirmed_agent_cleanup_keeps_knowledge_dependency(self):
+        with qa_fixture('success') as (base, _state):
+            case = self.make_case()
+            case['knowledge_fixture'] = {'kind': 'document'}
+            case['builder_names'] = ['code']
+            case['sessions'][0]['turns'] = [{'phase': 'create', 'prompt': 'create {code}',
+                'action': {'type': 'create_builder_agent', 'agent_name': '{code}'}}]
+            execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+            class Fixture:
+                def __init__(self): self.confirmed = None
+                def setup(self): return {}
+                def cleanup(self, *, dependencies_confirmed): self.confirmed = dependencies_confirmed
+            class Builder:
+                created = None
+                def __init__(self, runner, *_args): self.runner = runner
+                def remember(self, *_args): raise ProductCaseFailure('candidate_commit_failed')
+                def cleanup(self): self.runner.report['harness_errors'].append({'stage': 'cleanup_agent', 'reason': 'http_error'})
+            fixture = Fixture()
+            with patch('journey.functional_case.KnowledgeFixture', return_value=fixture), \
+                    patch('journey.functional_case.AgentBuilderFlow', Builder):
+                execution.run()
+            self.assertFalse(fixture.confirmed)
+
     def test_each_case_run_allocates_distinct_context_tokens(self):
         case = load_case('J2-03')
         first, second = case_variables(case), case_variables(case)

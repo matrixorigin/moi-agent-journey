@@ -503,7 +503,9 @@ class FunctionalExecution(Execution):
             for builder in builders.values():
                 builder.cleanup()
             if knowledge:
-                knowledge.cleanup()
+                agent_cleanup_confirmed = not any(item.get('stage') == 'cleanup_agent' for item in
+                                                  self.report['harness_errors'])
+                knowledge.cleanup(dependencies_confirmed=agent_cleanup_confirmed)
             if database:
                 database.cleanup()
             self.report['cleanup_seconds'] += round(time.monotonic() - cleanup_started, 3)

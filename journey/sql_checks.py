@@ -108,7 +108,7 @@ def cli_output(output, capture_exit):
         return None, None
     if not capture_exit:
         return stdout, output.get('exit_code')
-    return split_reported_exit(stdout)
+    return split_reported_exit(stdout, capture_exit)
 
 
 def unknown_column_error(text, marker):

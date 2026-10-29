@@ -169,6 +169,20 @@ class SqlEvidenceTests(unittest.TestCase):
         self.assertFalse(checks[0]['passed'])
         self.assertEqual(blocked, 'sql_command_unverifiable')
 
+    def test_reported_exit_label_is_not_hard_coded(self):
+        command = ('cd /sandbox/.moi && moi-cli -o sql run --query '
+                   '"SELECT 17 * 19 AS product"; echo "EXIT_STATUS=$?"')
+        result = self.result()
+        result['payload']['output']['output']['stdout'] += '\nEXIT_STATUS=0\n'
+        checks, blocked = self.evaluate([self.call(command), result])
+        self.assertTrue(all(item['passed'] for item in checks))
+        self.assertIsNone(blocked)
+        result['payload']['output']['output']['stdout'] = result['payload']['output']['output']['stdout'].replace(
+            'EXIT_STATUS=0', 'OTHER=0')
+        checks, blocked = self.evaluate([self.call(command), result])
+        self.assertFalse(checks[1]['passed'])
+        self.assertEqual(blocked, 'sql_result_unverifiable')
+
 
 if __name__ == '__main__':
     unittest.main()
