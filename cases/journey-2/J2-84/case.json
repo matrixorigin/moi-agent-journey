@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "J2-84",
+  "workspace": "journey-2",
+  "title": "仅上传图片承接上一轮的识别要求",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {
+      "path": "image.png",
+      "sha256": "df93dce32c81d3df5daabc6310ff0eea94ed9ee9af7747c1669fb17e9eaa865f"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "file_only",
+      "delivery_kind": "answer",
+      "expected_checks": 3,
+      "turns": [
+        {
+          "phase": "instruction",
+          "prompt": "下一条我只上传图片，请识别图片中的代号，只回复代号。现在先回复准备好了。"
+        },
+        {
+          "phase": "upload",
+          "prompt": "",
+          "file_only": true,
+          "attachments": [
+            "image.png"
+          ],
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "QZ-47",
+              "rule": "仅图片消息正确识别 QZ-47"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "J2-90",
+  "workspace": "journey-2",
+  "title": "运行时成果超过 32 MiB 时拒绝，随后正常交付小文件",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "filename",
+    "code"
+  ],
+  "sessions": [
+    {
+      "id": "size",
+      "delivery_kind": "file",
+      "expected_checks": 8,
+      "turns": [
+        {
+          "phase": "limit",
+          "prompt": "请用沙箱 Python 创建 /tmp/{filename}.bin，大小恰好 33*1024*1024 字节。然后实际执行 moi-cli -o file upload --yes --file /tmp/{filename}.bin --publish-artifact 一次，作为独立 bash command，不追加 echo、cat 或重定向，不覆盖退出码。不要拆分、压缩或换其他上传入口。根据实际结果只回复 JSON，rejected 字段表示是否因大小上限拒绝。",
+          "json_format": "object_or_fenced",
+          "json_fields": {
+            "rejected": true
+          },
+          "tool_failure": {
+            "kind": "artifact_size",
+            "marker": "{filename}.bin"
+          }
+        },
+        {
+          "phase": "small",
+          "prompt": "现在请创建并交付可下载的纯文本 {filename}.txt，只有一行 {code}。",
+          "action": {
+            "type": "deliver_text_artifact",
+            "filename": "{filename}.txt",
+            "content": "{code}"
+          }
+        }
+      ]
+    }
+  ]
+}

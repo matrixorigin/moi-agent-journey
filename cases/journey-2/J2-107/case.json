@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "id": "J2-107",
+  "workspace": "journey-2",
+  "title": "飞书文本、富文本、卡片发送并由接收端回读",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "channels": [
+    "feishu"
+  ],
+  "sessions": [
+    {
+      "id": "feishu",
+      "agent_from_channel": "feishu",
+      "delivery_kind": "answer",
+      "expected_checks": 21,
+      "turns": [
+        {
+          "phase": "text",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_feishu_text_message",
+            "arguments": {
+              "receive_id": "{feishu_receive_id}",
+              "receive_id_type": "{feishu_receive_id_type}",
+              "content": "{code}"
+            },
+            "result_fields": {
+              "ok": true,
+              "provider": "feishu",
+              "receive_id": "{feishu_receive_id}",
+              "receive_id_type": "chat_id",
+              "chat_id": "{feishu_receive_id}"
+            },
+            "capture": {
+              "message_id": "message_id"
+            }
+          },
+          "receiver": "text"
+        },
+        {
+          "phase": "post",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_feishu_post_message",
+            "arguments": {
+              "receive_id": "{feishu_receive_id}",
+              "receive_id_type": "{feishu_receive_id_type}",
+              "content_json": {
+                "zh_cn": {
+                  "title": "Journey test",
+                  "content": [
+                    [
+                      {
+                        "tag": "text",
+                        "text": "{code}"
+                      }
+                    ]
+                  ]
+                }
+              }
+            },
+            "result_fields": {
+              "ok": true,
+              "provider": "feishu",
+              "receive_id": "{feishu_receive_id}",
+              "receive_id_type": "chat_id",
+              "chat_id": "{feishu_receive_id}"
+            },
+            "capture": {
+              "message_id": "message_id"
+            }
+          },
+          "receiver": "post"
+        },
+        {
+          "phase": "card",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_feishu_card_message",
+            "arguments": {
+              "receive_id": "{feishu_receive_id}",
+              "receive_id_type": "{feishu_receive_id_type}",
+              "content_json": {
+                "elements": [
+                  {
+                    "tag": "div",
+                    "text": {
+                      "tag": "plain_text",
+                      "content": "{code}"
+                    }
+                  }
+                ]
+              }
+            },
+            "result_fields": {
+              "ok": true,
+              "provider": "feishu",
+              "receive_id": "{feishu_receive_id}",
+              "receive_id_type": "chat_id",
+              "chat_id": "{feishu_receive_id}"
+            },
+            "capture": {
+              "message_id": "message_id"
+            }
+          },
+          "receiver": "interactive"
+        }
+      ]
+    }
+  ]
+}

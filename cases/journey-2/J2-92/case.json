@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "J2-92",
+  "workspace": "journey-2",
+  "title": "有界沙箱命令超时后继续独立执行",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "sessions": [
+    {
+      "id": "timeout",
+      "delivery_kind": "answer",
+      "expected_checks": 9,
+      "turns": [
+        {
+          "phase": "timeout",
+          "prompt": "请实际调用 bash 工具，timeout 参数设为 0.1 秒，command 严格使用：python3 -c 'import time; print(\"{code}\", flush=True); time.sleep(3)'。仅尝试一次。根据真实结果只回复 JSON，timed_out 表示工具是否超时。",
+          "json_format": "object_or_fenced",
+          "json_fields": {
+            "timed_out": true
+          },
+          "tool_failure": {
+            "kind": "timeout",
+            "marker": "{code}"
+          }
+        },
+        {
+          "phase": "recover",
+          "prompt": "请在沙箱里用 Python hashlib.sha256 计算 UTF-8 文本 {code} 的 SHA256（不含换行），直接将该文本写入 Python 命令。只回复实际执行得到的哈希。",
+          "sandbox_hash": "code"
+        }
+      ]
+    }
+  ]
+}

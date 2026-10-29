@@ -121,7 +121,7 @@ def question_action(path, task_id, labels, answer, *, question_type='single'):
 
 def evaluate_a2ui(path, task_id, session_id, expected, *, prior_task_id=None):
     if (not isinstance(expected, dict) or set(expected) != {'component', 'fields'} or
-            expected['component'] not in {'Chart', 'Table', 'Question'} or not isinstance(expected['fields'], dict)):
+            expected['component'] not in {'Chart', 'Table', 'Question', 'Form'} or not isinstance(expected['fields'], dict)):
         raise Failure('invalid_a2ui_case')
     surface, components, reachable, valid, count = read_surface(path, {task_id, prior_task_id} - {None})
     root = components.get('root', {})
@@ -140,3 +140,44 @@ def evaluate_a2ui(path, task_id, session_id, expected, *, prior_task_id=None):
          'detail': '' if content_ok else 'a2ui_data_mismatch'},
     ]
     return checks, delivered
+
+
+def form_action(path, task_id, fields):
+    """Resolve a real Button's event context from its real input bindings."""
+    if not isinstance(fields, dict) or not fields or any(not isinstance(k, str) for k in fields):
+        raise Failure('invalid_form_case')
+    surface, components, reachable, valid, count = read_surface(path, {task_id})
+    nodes = [components[key] for key in reachable if key in components]
+    buttons = [node for node in nodes if node.get('component') == 'Button']
+    inputs = [node for node in nodes if node.get('component') in {'TextField', 'ChoicePicker'}]
+    if (not valid or not count or len(buttons) != 1 or len(inputs) != len(fields) or
+            {node.get('label') for node in inputs} != set(fields)):
+        return None
+    values = {}
+    for node in inputs:
+        binding = node.get('value')
+        if not isinstance(binding, dict) or set(binding) != {'path'} or not isinstance(binding['path'], str):
+            return None
+        value = fields[node['label']]
+        if node['component'] == 'ChoicePicker':
+            options = node.get('options', [])
+            choices = [option.get('value') for option in options if isinstance(option, dict)]
+            if not isinstance(value, list) or not value or any(item not in choices for item in value):
+                return None
+        elif not isinstance(value, str):
+            return None
+        if binding['path'] in values:
+            return None
+        values[binding['path']] = value
+    action = buttons[0].get('action', {})
+    event = action.get('event', {}) if isinstance(action, dict) else {}
+    context = event.get('context')
+    if not isinstance(event.get('name'), str) or not event['name'] or not isinstance(context, dict):
+        return None
+    if any(not isinstance(v, dict) or set(v) != {'path'} or v['path'] not in values for v in context.values()):
+        return None
+    if {v['path'] for v in context.values()} != set(values):
+        return None
+    return {'version': 'v0.9', 'action': {'name': event['name'], 'surfaceId': surface,
+        'sourceComponentId': buttons[0]['id'], 'timestamp': utc_now(),
+        'context': {key: values[value['path']] for key, value in context.items()}}}

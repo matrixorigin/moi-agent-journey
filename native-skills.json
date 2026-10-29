@@ -1,0 +1,10 @@
+{
+  "business-progress": {
+    "repository": "matrixorigin/moi_ai_native_skills",
+    "commit": "38718c1ccc0f2bf5010f50de854342a8cf217c44",
+    "path": "business_process_management/dist/business-progress-management.zip",
+    "sha256": "9694ffa539d49fcc7ff1882fa271713c3639a60c0a83c9c49e7e30fa8d483ce0",
+    "source_file_variable": "MOI_J2_NATIVE_SKILL_SOURCE_FILE_ID",
+    "files": ["SKILL.md", "references/employees-directory.md", "references/schema.sql", "scripts/employee_directory.py", "scripts/progress.py", "scripts/sql_client.py", "scripts/status.py"]
+  }
+}

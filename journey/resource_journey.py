@@ -58,14 +58,28 @@ class ResourceJourney:
             raise Failure('resource_agent_not_created')
         return {'agent_id': self.agent_id, 'agent_workspace_id': self.workspace}
 
-    def publish_agent(self, *, names, ids, instruction, binding=None):
+    def publish_agent(self, *, names, ids, instruction, binding=None, resource_workspace=None):
         if not self.absent(self.agent_path):
             raise Failure('resource_agent_id_exists')
         self.builder = AgentBuilderFlow(self.execution, self.session_id, self.checks, [self.agent_id])
         resources = self.request('GET', '/agent-builder/resources')
         self.state['candidate_proposal_pending'] = True
         self.execution.checkpoint()
-        candidate = self.request('POST', '/agent-builder/candidates', {
+        candidate = self.request('POST', '/agent-builder/candidates', self.candidate_request(names, instruction, resources))
+        self.builder.remember_candidate(candidate, self.agent_id)
+        self.state['candidate_proposal_pending'] = False
+        self.state['candidate'] = {key: candidate[key] for key in ('agent_id', 'candidate_version', 'source_digest')}
+        if candidate['agent_id'] != self.agent_id:
+            raise ProductCaseFailure('manual_agent_id_mismatch')
+        references = [self.builder.require_resource(self.kind + 's', resource_id, workspace_id=resource_workspace or self.workspace)
+                      for resource_id in ids]
+        self.agent_pending = True
+        self.state['agent_id'] = self.agent_id
+        self.execution.checkpoint()
+        self.builder.commit(references, binding=binding)
+
+    def candidate_request(self, names, instruction, resources):
+        return {
             'mode': 'create', 'conversation_id': 'manual-' + self.execution.report['run_id'],
             'raw_advice': 'Create a synthetic resource verification Agent.', 'resources': resources,
             'candidate': {'agent_id': self.agent_id, 'name': self.agent_id,
@@ -73,18 +87,7 @@ class ResourceJourney:
                 'tool_names': names if self.kind == 'tool' else [],
                 'skill_names': names if self.kind == 'skill' else [],
                 'knowledge_base_names': [], 'channel_bindings': [], 'agent_md': instruction,
-                'change_reason': 'Synthetic resource verification.'}})
-        self.builder.remember_candidate(candidate, self.agent_id)
-        self.state['candidate_proposal_pending'] = False
-        self.state['candidate'] = {key: candidate[key] for key in ('agent_id', 'candidate_version', 'source_digest')}
-        if candidate['agent_id'] != self.agent_id:
-            raise ProductCaseFailure('manual_agent_id_mismatch')
-        references = [self.builder.require_resource(self.kind + 's', resource_id, workspace_id=self.workspace)
-                      for resource_id in ids]
-        self.agent_pending = True
-        self.state['agent_id'] = self.agent_id
-        self.execution.checkpoint()
-        self.builder.commit(references, binding=binding)
+                'change_reason': 'Synthetic resource verification.'}}
 
     def detach_agent_resources(self, ids):
         if self.builder:

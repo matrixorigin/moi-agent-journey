@@ -14,7 +14,7 @@ class ToolJourney(ResourceJourney):
     kind = 'tool'
 
     def __init__(self, execution, definition, checks):
-        if not isinstance(definition, dict) or set(definition) != {'mode'} or definition['mode'] not in {'lifecycle', 'http_error', 'bindings'}:
+        if not isinstance(definition, dict) or set(definition) != {'mode'} or definition['mode'] not in {'lifecycle', 'http_error', 'bindings', 'invalid', 'arguments'}:
             raise Failure('invalid_tool_journey')
         self.execution, self.checks = execution, checks
         self.session_id = execution.case['sessions'][0]['id']
@@ -47,14 +47,22 @@ class ToolJourney(ResourceJourney):
                 raise Failure('tool_fixture_id_exists')
             self.state['pending_ids'].append(tool['id'])
             self.execution.checkpoint()
-            created = self.request('POST', '/tools', {
+            definition = {
                 'id': tool['id'], 'name': tool['name'], 'kind': 'http_api', 'status': 'active',
                 'description': 'Fetch the public synthetic journey case fixture via HTTP GET.',
                 'category': 'retrieval', 'side_effect_class': 'read', 'tags': ['journey-2'],
                 'source_ref': {'type': 'http_api', 'uri': tool['uri'],
                                'config': {'method': 'GET', 'timeout_seconds': 20}},
                 'input_schema': {'type': 'object', 'properties': {}, 'additionalProperties': False},
-                'output_schema': {'type': 'object'}})
+                'output_schema': {'type': 'object'}}
+            if self.mode == 'invalid':
+                for field in ('kind', 'side_effect_class'):
+                    self.record('工具定义拒绝非法字段 ' + field,
+                        self.rejected('POST', '/tools', {**definition, field: 'invalid-value'}, 400),
+                        'invalid_tool_definition_accepted')
+                    self.record('拒绝后没有创建工具 ' + field, self.absent(self.path(tool)),
+                                'invalid_tool_definition_created', required=True)
+            created = self.request('POST', '/tools', definition)
             self.record('自定义工具创建后可回读且可绑定 ' + tool['id'],
                 self.identity(created, tool) and created.get('version') == 1 and created.get('bindable') is True and
                 self.identity(self.request('GET', self.path(tool)), tool), 'tool_create_mismatch', required=True)

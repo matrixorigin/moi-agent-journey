@@ -19,6 +19,42 @@ from test_journeys import qa_fixture
 
 
 class FunctionalJourneyTests(unittest.TestCase):
+    def test_file_only_turn_has_no_text_part_and_uses_the_previous_conversation(self):
+        with qa_fixture('success') as (base, state):
+            case = self.make_case()
+            case['fixtures'] = [{'path': 'sales.csv', 'sha256': 'test'}]
+            case['sessions'][0]['turns'][1] = {'phase': 'file', 'prompt': '', 'file_only': True,
+                                              'attachments': ['sales.csv']}
+            execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+            upload = {'file_id': 'our-file', 'original_name': 'sales.csv', 'catalog_file': {
+                'workspace_id': 'ws', 'file_id': 'our-file', 'volume_id': 9}}
+            with patch('journey.functional_case.fixture_path', return_value=base.work / 'sales.csv'), \
+                 patch.object(base.client, 'upload', return_value=upload):
+                result = execution.run()
+            self.assertEqual(result['status'], 'passed')
+            messages = [body['params']['message'] for _, path, body in state['methods']
+                        if path == '/agents/a2a' and body.get('method') == 'message/stream']
+            self.assertEqual(len(messages), 2)
+            self.assertEqual(messages[0]['contextId'], messages[1]['contextId'])
+            self.assertEqual(messages[1]['parts'], [{'kind': 'file', 'file': {
+                'uri': 'moi://files/our-file', 'name': 'sales.csv', 'mimeType': 'text/csv'},
+                'metadata': {'file_id': 'our-file'}}])
+            self.assertEqual(messages[1]['metadata']['files'], [upload])
+            self.assertTrue(result['capture_complete'])
+
+    def test_invalid_file_only_configuration_is_rejected_before_admission(self):
+        from unittest.mock import Mock
+        from journey.run_case import Execution
+        execution = Execution(Mock(), self.make_case(), Mock(), Path('.'), 'model')
+        execution.conversation_selector = Mock(return_value={})
+        for prompt, attachments, options in [('text', [{'file_id': 'id'}], {}),
+                                             ('', [], {}), ('', [{'file_id': 'id'}], {'a2ui_action': {}})]:
+            with self.subTest(prompt=prompt, attachments=attachments, options=options), \
+                 self.assertRaisesRegex(Failure, 'invalid_file_only_message'):
+                execution.send('cid', 'test', prompt, attachments, file_only=True, **options)
+        execution.client.stream_rpc.assert_not_called()
+        self.assertIsNone(execution.pending_conversation)
+
     def make_case(self):
         return {'id': 'J2-03', 'title': 'fixture', 'workspace': 'journey-1', 'executor': 'api',
                 'timeout_seconds': 30, 'assets': [], 'oracles': [], 'source': {'benchmark': 'fixture'},

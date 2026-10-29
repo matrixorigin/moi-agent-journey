@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey",
+    "repository": "https://github.com/matrixorigin/moi_ai_native_skills",
+    "revision": "38718c1ccc0f2bf5010f50de854342a8cf217c44"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "id": "J2-115",
+  "title": "真实业务 Skill：取消预览不写主表",
+  "native_skill_journey": {
+    "scenario": "cancel_preview"
+  },
+  "sessions": [
+    {
+      "id": "native",
+      "agent_from_skill": true,
+      "delivery_kind": "answer",
+      "expected_checks": 31,
+      "turns": [
+        {
+          "phase": "preview",
+          "prompt": "准备新增客户“取消-{code}”，先预览，暂不提交。",
+          "native_check": {
+            "kind": "preview",
+            "commands": [
+              "prepare_change"
+            ],
+            "expected": [
+              {
+                "entity": "customer",
+                "action": "create",
+                "capture": "change",
+                "fields": {
+                  "name": "取消-{code}"
+                }
+              }
+            ],
+            "checklist": false
+          }
+        },
+        {
+          "phase": "cancel",
+          "prompt": "我不新增了，请取消变更 {change}。",
+          "native_check": {
+            "kind": "settle",
+            "commands": [
+              "cancel_change"
+            ],
+            "ids": [
+              "{change}"
+            ],
+            "status": "canceled"
+          }
+        }
+      ]
+    }
+  ]
+}

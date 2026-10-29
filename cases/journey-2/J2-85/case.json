@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "id": "J2-85",
+  "workspace": "journey-2",
+  "title": "手动候选拒绝缺失字段和非法模式后正常发布与对话",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "builder_input_journey": true,
+  "random_tokens": [
+    "code"
+  ],
+  "sessions": [
+    {
+      "id": "builder_input",
+      "agent_from_builder_input": true,
+      "delivery_kind": "answer",
+      "expected_checks": 12,
+      "turns": [
+        {
+          "phase": "echo",
+          "prompt": "请只回复代号：{code}",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{code}",
+              "rule": "拒绝错误候选后正常发布的智能体可真实对话"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

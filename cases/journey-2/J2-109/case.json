@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "id": "J2-109",
+  "workspace": "journey-2",
+  "title": "企微应用单向文本、媒体上传下载、文件发送与撤回",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "channels": [
+    "wecom"
+  ],
+  "sessions": [
+    {
+      "id": "wecom",
+      "agent_from_channel": "wecom",
+      "delivery_kind": "answer",
+      "expected_checks": 27,
+      "turns": [
+        {
+          "phase": "text",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_wecom_message_send",
+            "arguments": {
+              "msg_type": "text",
+              "to_userids": [
+                "{wecom_userid}"
+              ],
+              "content": "{code}"
+            },
+            "result_fields": {
+              "ok": true,
+              "result.errcode": 0
+            },
+            "capture": {
+              "msgid": "result.msgid"
+            },
+            "empty_fields": [
+              "result.invalid_user",
+              "result.invalid_party",
+              "result.invalid_tag"
+            ]
+          }
+        },
+        {
+          "phase": "recall_text",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_wecom_message_recall",
+            "arguments": {
+              "msgid": "{msgid}"
+            },
+            "result_fields": {
+              "ok": true,
+              "operation": "recall"
+            }
+          }
+        },
+        {
+          "phase": "upload",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_wecom_media_upload",
+            "arguments": {
+              "media_type": "file",
+              "filename": "{code}.txt",
+              "content_base64": "Sk9VUk5FWS1NRURJQQ=="
+            },
+            "result_fields": {
+              "ok": true
+            },
+            "capture": {
+              "media_id": "result.media_id"
+            }
+          }
+        },
+        {
+          "phase": "download",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_wecom_media_download",
+            "arguments": {
+              "media_id": "{media_id}",
+              "max_bytes": 1024
+            },
+            "result_fields": {
+              "ok": true,
+              "media.content_base64": "Sk9VUk5FWS1NRURJQQ==",
+              "media.byte_size": 13,
+              "media.content_base64_included": true,
+              "media.content_base64_truncated": false
+            }
+          }
+        },
+        {
+          "phase": "file",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_wecom_message_send",
+            "arguments": {
+              "msg_type": "file",
+              "to_userids": [
+                "{wecom_userid}"
+              ],
+              "media_id": "{media_id}"
+            },
+            "result_fields": {
+              "ok": true,
+              "result.errcode": 0
+            },
+            "capture": {
+              "msgid": "result.msgid"
+            },
+            "empty_fields": [
+              "result.invalid_user",
+              "result.invalid_party",
+              "result.invalid_tag"
+            ]
+          }
+        },
+        {
+          "phase": "recall_file",
+          "prompt": "请执行下面这次已授权的专用测试资源操作，只调用一次，不重试、不更换目标。完成后简要说明真实结果。",
+          "channel_evidence": {
+            "tool": "moi_wecom_message_recall",
+            "arguments": {
+              "msgid": "{msgid}"
+            },
+            "result_fields": {
+              "ok": true,
+              "operation": "recall"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "id": "J2-100",
+  "workspace": "journey-2",
+  "title": "知识库 PDF 和表格引用可打开且内容与来源一致",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {
+      "path": "records.pdf",
+      "sha256": "91ea9bc4dd0f1624ce14882cd7d12d1603d9dc435867bfc528b9bfbe45a3d70c"
+    },
+    {
+      "path": "orders.csv",
+      "sha256": "52f60aa77ae176bb9fa3de3d1762aa7d52729dc5f8066cd948698b44ec96baaf"
+    }
+  ],
+  "knowledge_fixtures": {
+    "pdf": {
+      "kind": "document",
+      "path": "records.pdf",
+      "marker": "VT-5634"
+    },
+    "table": {
+      "kind": "table",
+      "path": "orders.csv",
+      "table_config": {
+        "new_table": true,
+        "isColumnName": true,
+        "columnNameRow": 1,
+        "rowStart": 2,
+        "csv": {
+          "separator": ",",
+          "delimiter": "\"",
+          "isEscape": true
+        },
+        "create_table": {
+          "name": "orders",
+          "tableColumn": [
+            {
+              "column": "department",
+              "dataType": "VARCHAR",
+              "precision": [
+                255
+              ],
+              "col_num_in_file": 1
+            },
+            {
+              "column": "amount",
+              "dataType": "INT",
+              "col_num_in_file": 2
+            }
+          ]
+        }
+      },
+      "verification": {
+        "sum_column": "amount",
+        "filter_column": "department",
+        "filter_value": "atlas",
+        "expected_rows": 3,
+        "expected_sum": 115
+      }
+    }
+  },
+  "sessions": [
+    {
+      "id": "citations",
+      "delivery_kind": "answer",
+      "expected_checks": 12,
+      "turns": [
+        {
+          "phase": "pdf",
+          "prompt": "请根据我选择的知识库，回答第二页 Record identifier 的值，并引用该 PDF 来源。",
+          "knowledge_selection": [
+            "pdf"
+          ],
+          "knowledge_evidence": [
+            "pdf"
+          ],
+          "citation_open": "pdf",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "VT-5634",
+              "rule": "正确提取 PDF 第二页编号"
+            }
+          ]
+        },
+        {
+          "phase": "table",
+          "prompt": "请根据现在选择的知识库，统计 orders 表 atlas 部门的 amount 总额，回答合计并引用 SQL 来源。",
+          "knowledge_selection": [
+            "table"
+          ],
+          "knowledge_table_evidence": "table",
+          "citation_open": "table",
+          "assertions": [
+            {
+              "type": "number_present",
+              "value": "115",
+              "rule": "表格合计正确"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

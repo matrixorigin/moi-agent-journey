@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "id": "J2-99",
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "title": "损坏智能体包和版本内容冲突被拒绝后原版本可用",
+  "package_journey": {
+    "mode": "invalid"
+  },
+  "sessions": [
+    {
+      "id": "package",
+      "agent_from_package": true,
+      "delivery_kind": "answer",
+      "expected_checks": 9,
+      "turns": [
+        {
+          "phase": "use",
+          "prompt": "请按照你的指令回复代号。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{package_code}",
+              "rule": "实际对话使用正确的默认版本指令"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

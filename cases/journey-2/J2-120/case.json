@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey",
+    "repository": "https://github.com/matrixorigin/moi_ai_native_skills",
+    "revision": "38718c1ccc0f2bf5010f50de854342a8cf217c44"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "id": "J2-120",
+  "title": "真实业务 Skill：员工资料变化后实时关联",
+  "native_skill_journey": {
+    "scenario": "employee_refresh"
+  },
+  "sessions": [
+    {
+      "id": "native",
+      "agent_from_skill": true,
+      "delivery_kind": "answer",
+      "expected_checks": 31,
+      "turns": [
+        {
+          "phase": "first",
+          "prompt": "查询 Atlas 的“Atlas 联调”，告诉我事项名称、销售负责人姓名及完整员工编号。",
+          "native_check": {
+            "kind": "query",
+            "commands": [
+              "query_progress"
+            ],
+            "rows": [
+              {
+                "item_id": "{item_a}",
+                "owner_eid": "0007",
+                "owner_name": "林青"
+              }
+            ],
+            "reply_contains": [
+              "0007",
+              "林青"
+            ],
+            "refresh_employee": true
+          }
+        },
+        {
+          "phase": "refresh",
+          "prompt": "员工目录刚刚更新了，请再查一次同一事项，给出此刻的销售负责人姓名和完整员工编号。",
+          "native_check": {
+            "kind": "query",
+            "commands": [
+              "query_progress"
+            ],
+            "rows": [
+              {
+                "item_id": "{item_a}",
+                "owner_eid": "0007",
+                "owner_name": "林青新版"
+              }
+            ],
+            "reply_contains": [
+              "0007",
+              "林青新版"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -53,6 +53,12 @@ def evaluate_search(path, task_id, reply, session_id, *, expected_tool=None):
     for call_id, payload in results:
         if call_id not in calls:
             continue
+        provider = {'moi_bocha_web_search': 'bocha', 'moi_tavily_web_search': 'tavily',
+                    'moi_brave_web_search': 'brave'}.get(payload.get('tool_id'))
+        if (provider and payload.get('success') is False and isinstance(payload.get('output'), str) and
+                payload['output'] == 'automation runtime tool credential is invalid: no usable ' + provider +
+                ' Channel instance is configured for this workspace'):
+            errors.add('channel_not_configured:' + provider)
         wrapper = payload.get('output')
         if not isinstance(wrapper, dict):
             unstructured |= payload.get('success') is True

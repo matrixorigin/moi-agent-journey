@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "id": "J2-104",
+  "workspace": "journey-2",
+  "title": "指定 moi_tavily_web_search 真实检索和引用",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "search",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "query",
+          "prompt": "请只使用 moi_tavily_web_search 搜索 IANA 对 example.com 域名用途的说明，回答用途并引用这个工具实际返回的来源链接。如果工具不可用，请说明，不要换其他搜索供应商。",
+          "search_evidence": true,
+          "search_tool": "moi_tavily_web_search"
+        }
+      ]
+    }
+  ]
+}

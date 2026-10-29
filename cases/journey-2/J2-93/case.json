@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "J2-93",
+  "workspace": "journey-2",
+  "title": "SQL 语法错误后同会话继续正确查询",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "database_fixture": {
+    "table": "orders",
+    "columns": [
+      {
+        "name": "department",
+        "type": "VARCHAR(64)"
+      },
+      {
+        "name": "amount",
+        "type": "INT"
+      }
+    ],
+    "rows": [
+      [
+        "atlas",
+        80
+      ],
+      [
+        "orion",
+        120
+      ],
+      [
+        "atlas",
+        35
+      ]
+    ]
+  },
+  "sessions": [
+    {
+      "id": "sql_recovery",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "invalid",
+          "prompt": "请原样执行 SQL：SELEC SUM(amount) FROM {database_name}.orders。这是一条故意有语法错误的测试语句，先不要修正；请说明实际执行错误。",
+          "sql_error_evidence": {
+            "query": "SELEC SUM(amount) FROM {database_name}.orders",
+            "error_contains": "SELEC",
+            "error_kind": "syntax"
+          },
+          "assertions": []
+        },
+        {
+          "phase": "recover",
+          "prompt": "请继续在同一工作区执行正确的 SQL：SELECT SUM(amount) AS total FROM {database_name}.orders WHERE department = 'atlas'。只回复 total 的数字结果。",
+          "sql_evidence": {
+            "query": "SELECT SUM(amount) AS total FROM {database_name}.orders WHERE department = 'atlas'",
+            "column": "total",
+            "value": "115"
+          },
+          "assertions": [
+            {
+              "type": "single_number",
+              "value": "115",
+              "rule": "错误后仍能查询正确结果"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

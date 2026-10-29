@@ -1,0 +1,128 @@
+"""Upload the real upstream Skill, publish a bound Agent, and test natural requests."""
+import json
+import re
+from urllib.parse import urlencode
+
+from .builder_flow import ProductCaseFailure
+from .channel_journey import resolve_values
+from .client import Failure, error_record
+from .native_skill_checks import (business_effect, confirmation_reply, csv_matches, observations, query_result_matches)
+from .native_skill_cleanup import cleanup_artifacts, cleanup_sandbox
+from .native_skill_data import NativeSkillData
+from .native_skill_source import source_files, with_unique_name
+from .owned_skill_journey import OwnedSkillJourney
+
+SCENARIOS = {'initialize', 'customer_create', 'progress_create', 'update_fields', 'cancel_preview',
+             'selective_confirmation', 'block_resume', 'invalid_transition', 'overdue_report', 'employee_refresh'}
+
+
+class NativeSkillJourney(OwnedSkillJourney):
+    def __init__(self, execution, definition, checks):
+        if not isinstance(definition, dict) or set(definition) != {'scenario'} or definition['scenario'] not in SCENARIOS:
+            raise Failure('invalid_native_skill_case')
+        super().__init__(execution, checks)
+        self.scenario = definition['scenario']
+        suffix = execution.report['run_id'].replace('-', '')
+        self.name = '进度管理-j2-' + suffix
+        self.temp_dir = '/tmp/j2-native-' + suffix
+        self.state.update(name=self.name, scenario=self.scenario, temp_dir=self.temp_dir)
+        self.data = NativeSkillData(execution, self.scenario)
+        self.discovered = self.downloaded = False
+        self.before = None
+
+    def prepare(self):
+        files = source_files(self.execution)
+        variables = self.data.setup(files['references/schema.sql'])
+        listing = self.request('GET', '/skills?' + urlencode({'query': self.name, 'catalog': 'workspace'}))
+        if listing.get('total') != 0 or listing.get('items') != []:
+            raise Failure('native_skill_name_not_free')
+        files, instruction = with_unique_name(files, self.name)
+        self.import_files(files, instruction)
+        agent_instruction = (
+            '你是客户和事项进度管理助手，按已绑定能力处理用户的真实业务请求。\n'
+            '以下配置已经为本智能体持久保存，不要重新分配或改用其他数据库：\n'
+            'employees_table: ' + variables['employees_table'] + '\n'
+            'sales_database: ' + variables['sales_database'] + '\n'
+            '员工表已经验证可读取，作为只读共享来源；业务写入只允许落在上述 sales_database。'
+            '按能力要求区分预览和用户后续确认，不擅自确认、修改脚本或直接 SQL 绕过规则。'
+            '员工目录每天首次使用刷新，超过 24 小时或来源变化先刷新；事项查询实时关联员工表。\n'
+            '所有下载、缓存、参数和生成的临时文件必须放在本次会话专用目录 ' + self.temp_dir +
+            ' 下（可以先创建这个父目录，Skill 下载目标用其下不存在的新目录）。不要在其他路径创建持久文件。')
+        self.publish_agent(names=[self.name], ids=[self.skill_id], instruction=agent_instruction)
+        self.check_binding()
+        current = self.request('GET', '/agent-builder/agents/' + self.agent_id + '/versions/' + self.builder.created['version'] + '/current-agent')
+        saved = current.get('agent_md', '')
+        self.record('创建确认后员工来源、业务库和临时目录持久保存',
+            all(value in saved for value in (*variables.values(), self.temp_dir)), 'native_agent_configuration_missing', required=True)
+        return {**variables, **self.data.ids, 'skill_id': self.skill_id, 'skill_name': self.name}
+
+    def before_turn(self):
+        self.before = self.data.snapshot()
+
+    def evaluate(self, task_id, conversation_id, session_id, phase, reply, definition, variables):
+        spec = resolve_values(definition, variables)
+        discovered, downloaded, scripts = observations(self.execution.evidence.root / 'events.jsonl', task_id, self.skill_id, self.name)
+        self.discovered |= discovered
+        self.downloaded |= downloaded
+        script_ok = self.downloaded and all(any(item['succeeded'] and item['objects'] and
+            re.search(r'\b' + re.escape(command) + r'\b', item['command']) for item in scripts) for command in spec['commands'])
+        self.record('自然业务请求使新智能体自行发现并成功读取绑定 Skill', self.discovered, 'native_skill_not_discovered')
+        incomplete = not script_ok and any(item['truncated'] for item in scripts)
+        if incomplete:
+            self.execution.report['blocked'] = True
+            self.execution.report['failures'].append({'stage': phase, 'reason': 'native_tool_result_truncated'})
+        self.record('下载实际绑定文件并执行所需脚本命令', script_ok,
+                    'native_tool_result_truncated' if incomplete else 'native_packaged_script_not_executed')
+        after = self.data.snapshot()
+        self.record('共享员工数据保持只读', after['employees'] == self.data.state['employees_before'], 'native_employee_source_mutated')
+        valid, ids = business_effect(spec, self.before, after, variables)
+        self.record('独立 SQL 回读符合本轮业务效果与未授权写入约束', valid, 'native_business_state_mismatch:' + phase)
+        artifact_delivered = False
+        if spec['kind'] in {'preview', 'settle'}:
+            reply_ok = confirmation_reply(reply, ids, checklist=spec.get('checklist', False))
+        elif spec['kind'] == 'initialize':
+            reply_ok = all(value in reply for value in ('0007', '00018', '00042', '林青', '陈星', '周宁'))
+        elif spec['kind'] == 'refusal':
+            reply_ok = bool(re.search(r'不能|不允许|不合法|无法直接|不支持直接|先.*恢复', reply))
+        elif spec['kind'] == 'query':
+            reply_ok = query_result_matches(scripts, spec['rows']) and all(value in reply for value in spec.get('reply_contains', []))
+            if spec.get('artifact'):
+                self.execution.collect_artifacts(conversation_id)
+                items = json.loads((self.execution.evidence.root / 'artifacts' / conversation_id / 'inventory.json').read_text())
+                matches = [item for item in items if item.get('task_id') == task_id and item.get('file_name') == spec['artifact']]
+                artifact_delivered = len(matches) == 1 and csv_matches(
+                    (self.execution.evidence.root / matches[0]['local_path']).read_bytes(), spec['rows'])
+                reply_ok &= artifact_delivered
+        else:
+            raise Failure('invalid_native_effect_kind')
+        self.record('回复保留真实确认 ID 或交付与脚本结果一致', reply_ok, 'native_reply_or_delivery_mismatch:' + phase)
+        self.execution.evidence.write('native-state-' + phase + '.json',
+            {'task_id': task_id, 'spec': spec, 'before': self.before, 'after': after, 'captured_change_ids': ids, 'scripts': scripts})
+        if spec['kind'] == 'preview' and not valid:
+            raise ProductCaseFailure('native_preview_not_verified')
+        if spec.get('refresh_employee'):
+            self.data.update_employee()
+        return artifact_delivered
+
+    def cleanup_outputs(self, conversation_id):
+        errors = []
+        for stage, cleanup in (('cleanup_sandbox', cleanup_sandbox), ('cleanup_artifacts', cleanup_artifacts)):
+            try:
+                cleanup(self, conversation_id)
+            except Exception as error:
+                errors.append(error_record(stage, error))
+        if errors:
+            self.state['output_cleanup_errors'] = errors
+            self.execution.checkpoint()
+            raise Failure('native_output_cleanup_incomplete', details={'errors': errors})
+
+    def cleanup(self, *, dependencies_confirmed):
+        sandbox_records = self.state.get('sandbox_cleanup', {})
+        confirmed = dependencies_confirmed and all(item.get('tasks_confirmed') is True for item in sandbox_records.values())
+        self.data.cleanup(confirmed)
+        super().cleanup(dependencies_confirmed=confirmed)
+        if (self.state.get('output_cleanup_errors') or
+                any(item.get('cleanup') != 'archived' for item in self.execution.conversations) or any(db['cleanup'] not in {'deleted', 'not_created'} for db in self.data.databases.values()) or
+                any(item.get('status') != 'deleted' for item in sandbox_records.values())):
+            self.state['cleanup'] = 'incomplete'
+            self.execution.checkpoint()
