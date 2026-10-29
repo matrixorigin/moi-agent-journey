@@ -27,7 +27,7 @@ from .hello import TERMINAL, discover
 from .knowledge_checks import evaluate_knowledge, evaluate_knowledge_table
 from .knowledge_fixture import KnowledgeFixtureUnavailable, knowledge_selection_ids, prepare_knowledge_fixtures
 from .live_resume import check_live_resume
-from .message_controls import check_completed_cancellation, check_empty_message
+from .message_controls import check_completed_cancellation, check_empty_message, check_invalid_message
 from .run_case import Execution
 from .regeneration import regenerate
 from .resume_checks import check_resubscribe
@@ -36,6 +36,7 @@ from .search_checks import evaluate_search
 from .skill_checks import check_skill_call
 from .skill_journey import SkillJourney
 from .tool_journey import ToolJourney, evaluate_http_tool
+from .builder_input_journey import BuilderInputJourney
 from .sql_checks import evaluate_sql, evaluate_sql_failure
 from .version import finish_version, start_version
 from .web_open_checks import evaluate_open
@@ -183,11 +184,16 @@ class FunctionalExecution(Execution):
         database = None
         skill_journey = None
         tool_journey = None
+        builder_input = None
         checks = []
         try:
             self.root, self.selector = discover(self.client, self.case['workspace'])
             start_version(self)
             variables = case_variables(self.case)
+            if self.case.get('builder_input_journey') is True:
+                self.report['stage'] = 'builder_input_journey'
+                builder_input = BuilderInputJourney(self, checks)
+                builder_input.prepare()
             if self.case.get('skill_journey') is not None:
                 self.report['stage'] = 'skill_journey'
                 skill_journey = SkillJourney(self, self.case['skill_journey'], variables, checks)
@@ -215,6 +221,13 @@ class FunctionalExecution(Execution):
                 self.report['stage'] = 'session:' + session['id']
                 agent_from = session.get('agent_from')
                 selector = None
+                selectors = [session.get(key) for key in ('agent_from', 'agent_from_tool', 'agent_from_skill', 'agent_from_builder_input')]
+                if sum(bool(value) for value in selectors) > 1:
+                    raise Failure('conflicting_agent_selectors')
+                if session.get('agent_from_builder_input') is True:
+                    if not builder_input:
+                        raise Failure('invalid_builder_input_session')
+                    selector = builder_input.selector()
                 if session.get('agent_from_tool') is True:
                     if not tool_journey or agent_from is not None or session.get('agent_from_skill'):
                         raise Failure('invalid_tool_agent_session')
@@ -327,14 +340,15 @@ class FunctionalExecution(Execution):
                     if type(regeneration) is not bool:
                         raise Failure('invalid_regeneration_case')
                     if regeneration:
-                        if final_entry is None or attachments or cancel or live_resume or prompt or knowledge_ids is not None:
+                        if (final_entry is None or attachments or cancel or live_resume or prompt or knowledge_ids is not None
+                                or turn.get('file_only') or action_data is not None):
                             raise Failure('invalid_regeneration_case')
                         final_entry, task = regenerate(self, cid, session['id'],
                                                       session['id'] + ':' + turn['phase'], final_entry, checks)
                     else:
                         final_entry, task = self.send(cid, session['id'] + ':' + turn['phase'], prompt, attachments,
                                                       cancel_after_admission=cancel, live_resume=live_resume,
-                                                      knowledge_ids=knowledge_ids, a2ui_action=action_data)
+                                                      knowledge_ids=knowledge_ids, a2ui_action=action_data, file_only=turn.get("file_only", False))
                     if cancel:
                         accepted = final_entry.get('cancel_request') == 'accepted'
                         canceled = task['status']['state'] == 'canceled'
@@ -492,6 +506,25 @@ class FunctionalExecution(Execution):
                                 rating=action.get('rating', 'up'), comment=action.get('comment'),
                                 labels=action.get('labels'), check_filter=action.get('check_filter', False),
                                 check_stats=action.get('check_stats', False))
+                        elif action.get('type') == 'reject_messages':
+                            defects = action.get('defects')
+                            if not isinstance(defects, list) or not defects or len(set(defects)) != len(defects):
+                                raise Failure('invalid_message_defects')
+                            for defect in defects:
+                                check_invalid_message(self, cid, session['id'], checks, defect)
+                        elif action.get('type') == 'delete_selected_knowledge':
+                            fixture = knowledge.get(action.get('fixture'))
+                            if not fixture or fixture.state.get('status') != 'ready':
+                                raise Failure('invalid_knowledge_retirement')
+                            tasks_confirmed = self.pending_conversation is None and all(item.get('state') in TERMINAL for item in self.tasks)
+                            fixture.cleanup(dependencies_confirmed=tasks_confirmed)
+                            deleted = fixture.state.get('cleanup') == 'deleted'
+                            checks.append({'session': session['id'], 'rule': '本次知识库已删除并确认不可读取',
+                                'passed': deleted, 'detail': '' if deleted else 'knowledge_delete_unconfirmed'})
+                            if not deleted:
+                                raise ProductCaseFailure('knowledge_delete_unconfirmed')
+                            check_invalid_message(self, cid, session['id'], checks, 'deleted_knowledge',
+                                                  knowledge_id=str(fixture.state['model_id']))
                         elif action.get('type') == 'conversation_lifecycle':
                             check_lifecycle(self, cid, session['id'], checks, action['title'].format_map(variables))
                         elif action.get('type') == 'conversation_agent_scope':
@@ -667,6 +700,8 @@ class FunctionalExecution(Execution):
                 skill_journey.cleanup(dependencies_confirmed=tasks_confirmed)
             if tool_journey:
                 tool_journey.cleanup(dependencies_confirmed=tasks_confirmed)
+            if builder_input:
+                builder_input.cleanup(dependencies_confirmed=tasks_confirmed)
             self.report['cleanup_seconds'] += round(time.monotonic() - cleanup_started, 3)
             self.checkpoint()
         return self.report

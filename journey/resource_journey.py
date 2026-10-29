@@ -65,15 +65,7 @@ class ResourceJourney:
         resources = self.request('GET', '/agent-builder/resources')
         self.state['candidate_proposal_pending'] = True
         self.execution.checkpoint()
-        candidate = self.request('POST', '/agent-builder/candidates', {
-            'mode': 'create', 'conversation_id': 'manual-' + self.execution.report['run_id'],
-            'raw_advice': 'Create a synthetic resource verification Agent.', 'resources': resources,
-            'candidate': {'agent_id': self.agent_id, 'name': self.agent_id,
-                'description': 'Synthetic resource verification', 'model_name': self.execution.model,
-                'tool_names': names if self.kind == 'tool' else [],
-                'skill_names': names if self.kind == 'skill' else [],
-                'knowledge_base_names': [], 'channel_bindings': [], 'agent_md': instruction,
-                'change_reason': 'Synthetic resource verification.'}})
+        candidate = self.request('POST', '/agent-builder/candidates', self.candidate_request(names, instruction, resources))
         self.builder.remember_candidate(candidate, self.agent_id)
         self.state['candidate_proposal_pending'] = False
         self.state['candidate'] = {key: candidate[key] for key in ('agent_id', 'candidate_version', 'source_digest')}
@@ -85,6 +77,17 @@ class ResourceJourney:
         self.state['agent_id'] = self.agent_id
         self.execution.checkpoint()
         self.builder.commit(references, binding=binding)
+
+    def candidate_request(self, names, instruction, resources):
+        return {
+            'mode': 'create', 'conversation_id': 'manual-' + self.execution.report['run_id'],
+            'raw_advice': 'Create a synthetic resource verification Agent.', 'resources': resources,
+            'candidate': {'agent_id': self.agent_id, 'name': self.agent_id,
+                'description': 'Synthetic resource verification', 'model_name': self.execution.model,
+                'tool_names': names if self.kind == 'tool' else [],
+                'skill_names': names if self.kind == 'skill' else [],
+                'knowledge_base_names': [], 'channel_bindings': [], 'agent_md': instruction,
+                'change_reason': 'Synthetic resource verification.'}}
 
     def detach_agent_resources(self, ids):
         if self.builder:

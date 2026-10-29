@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "J2-80",
+  "workspace": "journey-2",
+  "title": "拒绝缺少 URI 和格式错误的附件后继续对话",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "sessions": [
+    {
+      "id": "invalid_message",
+      "delivery_kind": "answer",
+      "expected_checks": 9,
+      "turns": [
+        {
+          "phase": "remember",
+          "prompt": "请记住本次对话的代号：{code}。只回复已记住。",
+          "action": {
+            "type": "reject_messages",
+            "defects": [
+              "attachment_uri",
+              "files_shape"
+            ]
+          }
+        },
+        {
+          "phase": "continue",
+          "prompt": "刚才告诉你的代号是什么？只回复代号。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{code}",
+              "rule": "拒绝错误消息后上下文保留且能继续对话"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

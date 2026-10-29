@@ -104,6 +104,9 @@ class KnowledgeFixtureTests(unittest.TestCase):
         self.assertTrue(client.deleted)
         self.assertEqual(fixture.state['cleanup'], 'deleted')
         self.assertEqual(runner.report['harness_errors'], [])
+        calls = list(client.calls)
+        fixture.cleanup()
+        self.assertEqual(client.calls, calls, 'a deliberately retired fixture is not deleted again in finally')
 
     def test_named_fixtures_have_distinct_identities_and_evidence(self):
         temp = tempfile.TemporaryDirectory()

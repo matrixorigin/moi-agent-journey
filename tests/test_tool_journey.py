@@ -8,11 +8,41 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from journey.client import Failure
+from journey.builder_flow import ProductCaseFailure
 from journey.evidence import Evidence
 from journey.tool_journey import ToolJourney, evaluate_http_tool
 
 
 class ToolJourneyTests(unittest.TestCase):
+    def test_invalid_definition_that_creates_a_tool_stops_publication_and_is_cleaned(self):
+        journey, execution = self.fixture()
+        journey.mode = 'invalid'
+        journey.publish_agent = Mock()
+        tool, stored = journey.tools[0], {}
+        def product(method, path, body=None):
+            if method == 'GET':
+                if not stored:
+                    raise Failure('http_error', 404)
+                return stored.copy()
+            if method == 'POST':
+                stored.update({**body, 'workspace_id': 'ws', 'version': 1, 'bindable': True})
+                return stored.copy()
+            if method == 'DELETE':
+                stored.clear()
+                return {}
+            raise AssertionError((method, path))
+        execution.client.product.side_effect = product
+        with self.assertRaisesRegex(ProductCaseFailure, 'invalid_tool_definition_created'):
+            journey.prepare()
+        journey.publish_agent.assert_not_called()
+        self.assertEqual(journey.state['pending_ids'], [tool['id']])
+        self.assertFalse(journey.checks[0]['passed'])
+        journey.cleanup(dependencies_confirmed=True)
+        self.assertEqual(journey.state['cleanup'], 'completed')
+        self.assertEqual(stored, {})
+        posts = [call for call in execution.client.product.call_args_list if call.args[0] == 'POST']
+        self.assertEqual(len(posts), 1, 'the invalid creation is not retried or overwritten')
+
     def fixture(self):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)

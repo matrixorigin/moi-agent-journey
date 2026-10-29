@@ -129,12 +129,14 @@ class Execution:
         self.checkpoint()
 
     def send(self, cid, phase, prompt, attachments=(), *, cancel_after_admission=False, live_resume=False,
-             knowledge_ids=None, a2ui_action=None):
+             knowledge_ids=None, a2ui_action=None, file_only=False):
         if cancel_after_admission and live_resume:
             raise Failure('invalid_live_resume_case')
         selector = self.conversation_selector(cid)
         message_id = str(uuid.uuid4())
-        parts = [{"kind": "text", "text": prompt}]
+        if type(file_only) is not bool or (file_only and (prompt or not attachments or a2ui_action is not None)):
+            raise Failure('invalid_file_only_message')
+        parts = [] if file_only else [{"kind": "text", "text": prompt}]
         if a2ui_action is not None:
             if (not isinstance(a2ui_action, dict) or a2ui_action.get('version') != 'v0.9' or
                     not isinstance(a2ui_action.get('action'), dict)):
@@ -156,7 +158,7 @@ class Execution:
                   "model": self.model, "idempotencyKey": message_id}
         dialogue = {"at": utc_now(), "phase": phase,
             "conversation_id": cid, "message_id": message_id, "prompt": prompt,
-            "attachments": list(attachments)}
+            "attachments": list(attachments), "file_only": file_only}
         if knowledge_ids is not None:
             dialogue['knowledge_ids'] = knowledge_ids
         if a2ui_action is not None:

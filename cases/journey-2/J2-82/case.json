@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "J2-82",
+  "workspace": "journey-2",
+  "title": "已删除知识库的旧选择被拒绝后取消选择继续对话",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "fixtures": [
+    {
+      "path": "cedar.txt",
+      "sha256": "3fafc7b2a3e8cb7bcb49ed4593ff0bf66d877a69de6b3fdb553006ff9930b740"
+    }
+  ],
+  "knowledge_fixture": {
+    "kind": "document",
+    "path": "cedar.txt",
+    "marker": "Lantern"
+  },
+  "sessions": [
+    {
+      "id": "deleted_knowledge",
+      "delivery_kind": "answer",
+      "expected_checks": 7,
+      "turns": [
+        {
+          "phase": "remember",
+          "prompt": "请记住本次对话的代号：{code}。只回复已记住。",
+          "knowledge_selection": [
+            "default"
+          ],
+          "action": {
+            "type": "delete_selected_knowledge",
+            "fixture": "default"
+          }
+        },
+        {
+          "phase": "continue",
+          "prompt": "刚才告诉你的代号是什么？只回复代号。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{code}",
+              "rule": "取消失效知识库选择后仍能正常追问"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

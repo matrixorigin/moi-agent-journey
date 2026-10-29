@@ -229,6 +229,8 @@ class KnowledgeFixture:
                 raise Failure('knowledge_table_fixture_mismatch', details={'check': column})
 
     def cleanup(self, *, dependencies_confirmed=True):
+        if self.state.get('cleanup') == 'deleted':
+            return
         if not dependencies_confirmed:
             self.state['cleanup'] = 'retained'
             self.state['cleanup_reason'] = 'dependent_agent_or_task_unconfirmed'

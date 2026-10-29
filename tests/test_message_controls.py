@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 from journey.builder_flow import ProductCaseFailure
 from journey.client import Failure
-from journey.message_controls import check_completed_cancellation, check_empty_message
+from journey.message_controls import check_completed_cancellation, check_empty_message, check_invalid_message
 
 
 class MessageClient:
@@ -11,17 +11,27 @@ class MessageClient:
         self.mode = mode
         self.items = [{'id': 'task-1', 'context_id': 'conversation'}]
         self.calls = 0
+        self.params = None
+        self.observer = None
 
     def product(self, _method, _path, _body=None):
         return {'items': list(self.items), 'total': len(self.items)}
 
     def rpc(self, _selector, _method, params):
         self.calls += 1
-        assert params['message']['parts'] == []
+        self.params = params
+        if self.observer:
+            self.observer({'method': 'POST', 'path': '/agents/a2a', 'request': params,
+                           'status': 500 if self.mode == 'internal' else 400,
+                           'response': {'error_body': 'synthetic rejection'}, 'headers': {'X-Trace-Id': 'request-trace'}})
         if self.mode == 'rejected':
             raise Failure('http_error', 400)
         if self.mode == 'network':
             raise Failure('transport_error')
+        if self.mode == 'internal':
+            raise Failure('http_error', 500)
+        if self.mode == 'rpc_rejected':
+            raise Failure('rpc_error', details={'code': -32602})
         if self.mode == 'accepted_task':
             self.items.append({'id': 'task-2', 'context_id': 'conversation'})
         return {'kind': 'task'}
@@ -35,6 +45,46 @@ def execution(client):
 
 
 class MessageControlTests(unittest.TestCase):
+    def test_invalid_inputs_are_sent_exactly_once_and_keep_raw_rejection_evidence(self):
+        variants = {
+            'role': lambda m: m['role'] == 'agent',
+            'message_id': lambda m: 'messageId' not in m,
+            'attachment_uri': lambda m: m['parts'][0]['kind'] == 'file' and 'uri' not in m['parts'][0]['file'],
+            'files_shape': lambda m: m['metadata']['files'] == {'invalid': True},
+            'knowledge_negative': lambda m: m['metadata']['semantic_model_ids'] == [-1],
+            'knowledge_shape': lambda m: m['metadata']['semantic_model_ids'] == {'invalid': True},
+            'deleted_knowledge': lambda m: m['metadata']['semantic_model_ids'] == ['42'],
+        }
+        for defect, matches in variants.items():
+            with self.subTest(defect=defect):
+                client = MessageClient('rpc_rejected')
+                runner, checks, evidence = execution(client), [], []
+                runner.evidence.write = lambda path, value: evidence.append((path, value))
+                check_invalid_message(runner, 'conversation', 'test', checks, defect, knowledge_id='42')
+                self.assertEqual([item['passed'] for item in checks], [True, True, True])
+                self.assertTrue(matches(client.params['message']))
+                self.assertEqual(client.calls, 1)
+                self.assertIsNone(runner.pending_conversation)
+                self.assertEqual(evidence[0][1]['request'], client.params)
+                self.assertEqual(evidence[0][1]['response']['details']['code'], -32602)
+
+    def test_server_error_is_not_a_valid_input_rejection_even_without_new_task(self):
+        client, checks = MessageClient('internal'), []
+        runner = execution(client)
+        recorded, observed = [], []
+        runner.evidence.append = lambda name, item: recorded.append((name, item))
+        previous = client.observer = lambda item: observed.append(item)
+        check_invalid_message(runner, 'conversation', 'test', checks, 'files_shape')
+        self.assertEqual([item['passed'] for item in checks], [True, False, True])
+        self.assertEqual(checks[1]['detail'], 'files_shape_status:500')
+        self.assertIsNone(runner.pending_conversation)
+        self.assertEqual(client.calls, 1)
+        http = next(item for name, item in recorded if name == 'message-controls-http.jsonl')
+        self.assertEqual(http['response']['error_body'], 'synthetic rejection')
+        self.assertEqual(http['headers']['X-Trace-Id'], 'request-trace')
+        self.assertEqual(len(observed), 1)
+        self.assertIs(client.observer, previous)
+
     def test_rejected_empty_message_preserves_the_existing_task(self):
         client = MessageClient('rejected')
         runner, checks = execution(client), []

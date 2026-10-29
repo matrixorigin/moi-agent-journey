@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "id": "J2-83",
+  "workspace": "journey-2",
+  "title": "仅上传 CSV 承接上一轮的计算要求",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {
+      "path": "sales.csv",
+      "sha256": "4724d4efb141dd396777b4283aca8452738179683f3efbcdf9c8bc3900e1f4fd"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "file_only",
+      "delivery_kind": "answer",
+      "expected_checks": 3,
+      "turns": [
+        {
+          "phase": "instruction",
+          "prompt": "下一条我只上传 CSV 文件，请按每行数量乘单价，再汇总总金额，只回答总金额。现在先回复准备好了。"
+        },
+        {
+          "phase": "upload",
+          "prompt": "",
+          "file_only": true,
+          "attachments": [
+            "sales.csv"
+          ],
+          "assertions": [
+            {
+              "type": "single_number",
+              "value": "41",
+              "rule": "仅文件消息读取 CSV 后计算得到 41"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
