@@ -98,7 +98,7 @@ def preview(spec, before, after, variables):
     valid = (same_main(before, after) and len(added) == len(spec['expected']) and
              same_records(before['progress_changes'], kept, 'change_id') and
              set(after['tables']) == set(before['tables']) | {item['branch_name'] for item in added})
-    captures = {}
+    captures, change_ids = {}, []
     for expected in spec['expected']:
         matches = []
         for item in added:
@@ -118,6 +118,7 @@ def preview(spec, before, after, variables):
         valid &= (item.get('status') == 'pending' and re.fullmatch(r'[a-f0-9]{12}', item.get('change_id', '')) is not None and
                   item.get('branch_name') in after['tables'])
         table, key = ('customers', 'customer_uuid') if expected['entity'] == 'customer' else ('progress_items', 'item_id')
+        valid &= record.get(key) == item['record_id']
         previous = [row for row in before[table] if row[key] == item['record_id']]
         if expected['action'] == 'update':
             saved = json.loads(item['before_json'])
@@ -130,10 +131,13 @@ def preview(spec, before, after, variables):
         else:
             valid &= not previous and json.loads(item['before_json']) is None and str(record.get('version')) == '1'
         captures[expected['capture']] = item['change_id']
-    valid &= len(set(captures.values())) == len(spec['expected'])
+        change_ids.append(item['change_id'])
+        if expected.get('capture_record'):
+            captures[expected['capture_record']] = record[key]
+    valid &= len(set(change_ids)) == len(spec['expected'])
     if valid:
         variables.update(captures)
-    return bool(valid), list(captures.values())
+    return bool(valid), change_ids
 
 
 def settle(spec, before, after):

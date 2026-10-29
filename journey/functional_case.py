@@ -318,6 +318,8 @@ class FunctionalExecution(Execution):
                             not re.fullmatch(r'[a-z][a-z0-9_-]*', turn['phase']) or turn['phase'] in phases):
                         raise Failure('invalid_turn_phase')
                     phases.add(turn['phase'])
+                    if self.native_skill and not self.native_skill.admit(turn):
+                        continue
                     current_search = session['id'] if turn.get('search_evidence') is True else None
                     current_search_tool = turn.get('search_tool') if current_search else None
                     current_open = (session['id'], turn['open_evidence']) if turn.get('open_evidence') else None
@@ -405,8 +407,6 @@ class FunctionalExecution(Execution):
                     regeneration = turn.get('regenerate', False)
                     if type(regeneration) is not bool:
                         raise Failure('invalid_regeneration_case')
-                    if self.native_skill:
-                        self.native_skill.before_turn()
                     if regeneration:
                         if (final_entry is None or attachments or cancel or live_resume or prompt or knowledge_ids is not None
                                 or turn.get('file_only') or action_data is not None):
@@ -414,7 +414,8 @@ class FunctionalExecution(Execution):
                         final_entry, task = regenerate(self, cid, session['id'],
                                                       session['id'] + ':' + turn['phase'], final_entry, checks)
                     else:
-                        final_entry, task = self.send(cid, session['id'] + ':' + turn['phase'], prompt, attachments,
+                        sender = self.native_skill.send if self.native_skill else self.send
+                        final_entry, task = sender(cid, session['id'] + ':' + turn['phase'], prompt, attachments,
                                                       cancel_after_admission=cancel, live_resume=live_resume,
                                                       knowledge_ids=knowledge_ids, a2ui_action=action_data, file_only=turn.get("file_only", False))
                     if cancel:
@@ -792,6 +793,8 @@ class FunctionalExecution(Execution):
             signal.alarm(0)
             finish_version(self)
             self.finalize()
+            if self.native_skill:
+                self.native_skill.progress.finish()
             cleanup_started = time.monotonic()
             tasks_confirmed = (self.pending_conversation is None and
                                all(task.get('state') in TERMINAL for task in self.tasks))

@@ -11,7 +11,7 @@
 | 工作区 | 当前内容 | 最大并发 |
 |---|---|---:|
 | journey-1 | 18 个文档与办公任务 | 9 |
-| journey-2 | 120 个智能体功能用例 | 3 |
+| journey-2 | 111 个智能体功能用例 | 3 |
 | journey-3 | 空 | 3 |
 | journey-4 | 空 | 3 |
 | journey-5 | 空 | 3 |
@@ -249,4 +249,4 @@ python3 -m journey.report case J2-02
 python3 -m journey.publish
 ```
 
-J2-111～J2-120 增加真实自定义业务 Skill 包的上传、候选创建/确认、绑定后自然业务对话和清理，当前共 120 条。详见[业务 Skill 场景与验收](docs/journey-2-native-skills.md)和[真实 QA 结果](docs/journey-2-native-skills-qa-2026-10-29.md)。
+J2-111 使用真实自定义业务 Skill 包，在同一个新智能体、同一会话内完成 10 个阶段、19 轮连续业务追问，并统一清理；当前共 111 条用例。该复杂场景总限时 15 分钟、单轮 5 分钟。详见[业务 Skill 场景与验收](docs/journey-2-native-skills.md)。

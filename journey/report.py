@@ -17,6 +17,7 @@ from .catalog import ROOT, case_executor, is_functional_case, load_case
 from .diagnostics import analyze_events, success_rate
 from .evidence import Evidence, configured_secrets, utc_now,TOKEN_BYTES
 from .outcomes import assess
+from .native_skill_stages import LABELS as NATIVE_STAGE_LABELS
 
 FINAL = {"passed", "failed", "timeout", "error"}
 AGENT_LABELS = {'completed': '请求正常结束', 'canceled': '按请求取消', 'abnormal': '请求异常', 'timeout': '超时', 'unknown': '无法确认'}
@@ -138,6 +139,8 @@ def case_summary(result):
                              f"{item['skipped']} | {item['unknown']} | {item_rate} |")
     else:
         lines.append('- 工具：没有可用的事件数据。')
+    if result.get('native_skill_stages'):
+        lines += native_stage_summary(result['native_skill_stages'])
     failures = result.get('failures', [])
     errors = result.get('harness_errors', [])
     if failures or errors:
@@ -192,6 +195,27 @@ def case_summary(result):
               '公开包中被隔离的文件见 publication.json。', '',
               '智能体问题和质量检查不改变测试框架状态；质量判据需结合原始证据复核。', '']
     return '\n'.join(lines)
+
+
+def native_stage_summary(stages):
+    lines = ['', '## 连续会话阶段', '',
+             '阶段共享同一个智能体和会话；依赖阻塞的轮次没有发送，不计作新的功能失败。', '',
+             '| 阶段 | 结果 | 已验收/计划轮次 | 已记录耗时（秒） | 未执行原因 |',
+             '|---|---|---:|---:|---|']
+    for stage in stages:
+        reasons = [turn['phase'] + ': ' + ', '.join(turn.get('blocked_by', []))
+                   for turn in stage['turns'] if turn['status'] == 'dependency_blocked']
+        reasons += [turn['phase'] + ': ' + turn.get('reason', '')
+                    for turn in stage['turns'] if turn['status'] in {'not_run', 'error'}]
+        lines.append(f"| {cell(stage['id'])} · {cell(stage['title'])} | {NATIVE_STAGE_LABELS[stage['status']]} | "
+                     f"{stage.get('completed_turns', 0)}/{len(stage['turns'])} | {cell(stage.get('seconds'))} | "
+                     f"{cell('; '.join(reasons))} |")
+    lines += ['', '| 阶段 / 轮次 | 结果 | Trace ID | 未通过的验收项 |', '|---|---|---|---|']
+    for stage in stages:
+        for turn in stage['turns']:
+            lines.append(f"| {cell(stage['id'])} / {cell(turn['phase'])} | {NATIVE_STAGE_LABELS[turn['status']]} | "
+                         f"{cell(turn.get('trace_id'))} | {cell('; '.join(turn.get('failed_checks', [])))} |")
+    return lines
 
 
 def finish_case(case_id, directory):

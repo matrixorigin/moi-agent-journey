@@ -13,18 +13,90 @@
     "code"
   ],
   "id": "J2-111",
-  "title": "真实业务 Skill：初始化与可选员工列兼容",
+  "title": "真实业务 Skill：同一智能体连续追问的十阶段业务流程",
+  "timeout_seconds": 900,
   "native_skill_journey": {
-    "scenario": "initialize"
+    "turn_timeout_seconds": 300,
+    "stages": [
+      {
+        "id": "initialize",
+        "title": "初始化业务库",
+        "depends_on": []
+      },
+      {
+        "id": "customer",
+        "title": "新增客户",
+        "depends_on": [
+          "initialize"
+        ]
+      },
+      {
+        "id": "progress",
+        "title": "新增客户事项",
+        "depends_on": [
+          "customer"
+        ]
+      },
+      {
+        "id": "update",
+        "title": "修改备注及负责人",
+        "depends_on": [
+          "progress"
+        ]
+      },
+      {
+        "id": "cancel",
+        "title": "取消另一客户的新增预览",
+        "depends_on": [
+          "initialize"
+        ]
+      },
+      {
+        "id": "select",
+        "title": "批量预览后只确认勾选项",
+        "depends_on": [
+          "initialize"
+        ]
+      },
+      {
+        "id": "block",
+        "title": "阻塞当前事项",
+        "depends_on": [
+          "progress"
+        ]
+      },
+      {
+        "id": "resume",
+        "title": "拒绝非法完成后恢复原阶段",
+        "depends_on": [
+          "block"
+        ]
+      },
+      {
+        "id": "report",
+        "title": "逾期汇总及 CSV 交付",
+        "depends_on": [
+          "progress"
+        ]
+      },
+      {
+        "id": "refresh",
+        "title": "员工资料变更后实时关联",
+        "depends_on": [
+          "progress"
+        ]
+      }
+    ]
   },
   "sessions": [
     {
       "id": "native",
       "agent_from_skill": true,
       "delivery_kind": "answer",
-      "expected_checks": 25,
+      "expected_checks": 133,
       "turns": [
         {
+          "stage": "initialize",
           "phase": "initialize",
           "prompt": "请初始化你已配置的业务数据库。我明确同意初始化。然后给我当前员工编号、姓名和可用事项状态；不要新增业务记录。",
           "native_check": {
@@ -32,6 +104,366 @@
             "commands": [
               "init",
               "reference_data"
+            ]
+          }
+        },
+        {
+          "stage": "customer",
+          "phase": "customer_preview",
+          "prompt": "请新增客户“Atlas-{code}”，先给我变更预览。",
+          "native_check": {
+            "kind": "preview",
+            "commands": [
+              "prepare_change"
+            ],
+            "expected": [
+              {
+                "entity": "customer",
+                "action": "create",
+                "capture": "customer_change",
+                "fields": {
+                  "name": "Atlas-{code}"
+                },
+                "capture_record": "customer_id"
+              }
+            ],
+            "checklist": false
+          }
+        },
+        {
+          "stage": "customer",
+          "phase": "customer_confirm",
+          "prompt": "确认 {customer_change}",
+          "native_check": {
+            "kind": "settle",
+            "commands": [
+              "confirm_change"
+            ],
+            "ids": [
+              "{customer_change}"
+            ],
+            "status": "committed"
+          }
+        },
+        {
+          "stage": "progress",
+          "phase": "progress_preview",
+          "prompt": "给刚才创建的 Atlas-{code} 新增事项“联调-{code}”，销售负责人林青，工程负责人陈星，产品负责人周宁，状态待开始，预计结束日期 2000-01-01。这是一条需要补录的历史逾期事项，日期按这个值录入。请先预览，等我确认。",
+          "native_check": {
+            "kind": "preview",
+            "commands": [
+              "prepare_change"
+            ],
+            "expected": [
+              {
+                "entity": "progress",
+                "action": "create",
+                "capture": "progress_change",
+                "fields": {
+                  "customer_uuid": "{customer_id}",
+                  "owner_eid": "0007",
+                  "item": "联调-{code}",
+                  "eng_owner_eid": "00018",
+                  "product_owner_eid": "00042",
+                  "status": "pending",
+                  "expected_end": "2000-01-01"
+                },
+                "capture_record": "item_id"
+              }
+            ],
+            "checklist": false
+          }
+        },
+        {
+          "stage": "progress",
+          "phase": "progress_confirm",
+          "prompt": "确认 {progress_change}",
+          "native_check": {
+            "kind": "settle",
+            "commands": [
+              "confirm_change"
+            ],
+            "ids": [
+              "{progress_change}"
+            ],
+            "status": "committed"
+          }
+        },
+        {
+          "stage": "update",
+          "phase": "update_preview",
+          "prompt": "请把刚才那条“联调-{code}”的备注完整替换成“备注-{code}”，清空产品负责人，其他字段保持不变。先预览。",
+          "native_check": {
+            "kind": "preview",
+            "commands": [
+              "prepare_change"
+            ],
+            "expected": [
+              {
+                "entity": "progress",
+                "action": "update",
+                "capture": "update_change",
+                "fields": {
+                  "item_id": "{item_id}",
+                  "notes": "备注-{code}",
+                  "product_owner_eid": null
+                }
+              }
+            ],
+            "checklist": false
+          }
+        },
+        {
+          "stage": "update",
+          "phase": "update_confirm",
+          "prompt": "确认 {update_change}",
+          "native_check": {
+            "kind": "settle",
+            "commands": [
+              "confirm_change"
+            ],
+            "ids": [
+              "{update_change}"
+            ],
+            "status": "committed"
+          }
+        },
+        {
+          "stage": "cancel",
+          "phase": "cancel_preview",
+          "prompt": "准备新增另一个客户“取消-{code}”，先预览，暂不提交。",
+          "native_check": {
+            "kind": "preview",
+            "commands": [
+              "prepare_change"
+            ],
+            "expected": [
+              {
+                "entity": "customer",
+                "action": "create",
+                "capture": "cancel_change",
+                "fields": {
+                  "name": "取消-{code}"
+                }
+              }
+            ],
+            "checklist": false
+          }
+        },
+        {
+          "stage": "cancel",
+          "phase": "cancel_reject",
+          "prompt": "我不新增这个客户了，请取消变更 {cancel_change}。",
+          "native_check": {
+            "kind": "settle",
+            "commands": [
+              "cancel_change"
+            ],
+            "ids": [
+              "{cancel_change}"
+            ],
+            "status": "canceled"
+          }
+        },
+        {
+          "stage": "select",
+          "phase": "select_preview",
+          "prompt": "准备新增两个客户：“选择甲-{code}”和“选择乙-{code}”。先给两条独立预览，等我选择确认。",
+          "native_check": {
+            "kind": "preview",
+            "commands": [
+              "prepare_change"
+            ],
+            "expected": [
+              {
+                "entity": "customer",
+                "action": "create",
+                "capture": "first_change",
+                "fields": {
+                  "name": "选择甲-{code}"
+                }
+              },
+              {
+                "entity": "customer",
+                "action": "create",
+                "capture": "second_change",
+                "fields": {
+                  "name": "选择乙-{code}"
+                }
+              }
+            ],
+            "checklist": true
+          }
+        },
+        {
+          "stage": "select",
+          "phase": "select_confirm",
+          "prompt": "- [x] 确认 {first_change}\n- [ ] 确认 {second_change}",
+          "native_check": {
+            "kind": "settle",
+            "commands": [
+              "confirm_changes"
+            ],
+            "ids": [
+              "{first_change}"
+            ],
+            "reply_ids": [
+              "{first_change}",
+              "{second_change}"
+            ],
+            "status": "committed"
+          }
+        },
+        {
+          "stage": "block",
+          "phase": "block_preview",
+          "prompt": "回到 Atlas-{code} 的“联调-{code}”，把它改为阻塞，原因是“环境-{code}”。请先预览。",
+          "native_check": {
+            "kind": "preview",
+            "commands": [
+              "prepare_change"
+            ],
+            "expected": [
+              {
+                "entity": "progress",
+                "action": "update",
+                "capture": "block_change",
+                "fields": {
+                  "item_id": "{item_id}",
+                  "status": "blocked",
+                  "resume_status": "pending",
+                  "status_reason": "环境-{code}"
+                }
+              }
+            ],
+            "checklist": false
+          }
+        },
+        {
+          "stage": "block",
+          "phase": "block_confirm",
+          "prompt": "确认 {block_change}",
+          "native_check": {
+            "kind": "settle",
+            "commands": [
+              "confirm_change"
+            ],
+            "ids": [
+              "{block_change}"
+            ],
+            "status": "committed"
+          }
+        },
+        {
+          "stage": "resume",
+          "phase": "reject_transition",
+          "prompt": "把这条联调事项直接改为完成，不要先恢复。如果当前状态不允许这样转换，请说明原因并保留现状。",
+          "native_check": {
+            "kind": "refusal",
+            "commands": []
+          }
+        },
+        {
+          "stage": "resume",
+          "phase": "resume_preview",
+          "prompt": "那就恢复到阻塞前的阶段。本次恢复原因是“环境恢复-{code}”。先预览。",
+          "native_check": {
+            "kind": "preview",
+            "commands": [
+              "prepare_change"
+            ],
+            "expected": [
+              {
+                "entity": "progress",
+                "action": "update",
+                "capture": "resume_change",
+                "fields": {
+                  "item_id": "{item_id}",
+                  "status": "pending",
+                  "resume_status": null,
+                  "status_reason": "环境恢复-{code}"
+                }
+              }
+            ],
+            "checklist": false
+          }
+        },
+        {
+          "stage": "resume",
+          "phase": "resume_confirm",
+          "prompt": "确认 {resume_change}",
+          "native_check": {
+            "kind": "settle",
+            "commands": [
+              "confirm_change"
+            ],
+            "ids": [
+              "{resume_change}"
+            ],
+            "status": "committed"
+          }
+        },
+        {
+          "stage": "report",
+          "phase": "overdue_report",
+          "prompt": "统计当前所有未结束且已逾期的事项，按销售负责人汇总数量。生成可下载 CSV，文件名为 {code}.csv，列为 owner_eid,owner_name,item_count，保留员工编号的前导零。不修改业务数据。",
+          "native_check": {
+            "kind": "query",
+            "commands": [
+              "query_progress"
+            ],
+            "rows": [
+              {
+                "owner_eid": "0007",
+                "owner_name": "林青",
+                "item_count": "1"
+              }
+            ],
+            "artifact": "{code}.csv"
+          }
+        },
+        {
+          "stage": "refresh",
+          "phase": "employee_first",
+          "prompt": "再查一下刚才的“联调-{code}”，告诉我事项名称、销售负责人姓名及完整员工编号。",
+          "native_check": {
+            "kind": "query",
+            "commands": [
+              "query_progress"
+            ],
+            "rows": [
+              {
+                "item_id": "{item_id}",
+                "owner_eid": "0007",
+                "owner_name": "林青"
+              }
+            ],
+            "reply_contains": [
+              "0007",
+              "林青"
+            ],
+            "refresh_employee": true
+          }
+        },
+        {
+          "stage": "refresh",
+          "phase": "employee_refresh",
+          "prompt": "员工目录刚刚更新了，请再查一次同一事项，给出此刻的销售负责人姓名和完整员工编号。",
+          "native_check": {
+            "kind": "query",
+            "commands": [
+              "query_progress"
+            ],
+            "rows": [
+              {
+                "item_id": "{item_id}",
+                "owner_eid": "0007",
+                "owner_name": "林青新版"
+              }
+            ],
+            "reply_contains": [
+              "0007",
+              "林青新版"
             ]
           }
         }
