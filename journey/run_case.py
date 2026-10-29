@@ -129,12 +129,17 @@ class Execution:
         self.checkpoint()
 
     def send(self, cid, phase, prompt, attachments=(), *, cancel_after_admission=False, live_resume=False,
-             knowledge_ids=None):
+             knowledge_ids=None, a2ui_action=None):
         if cancel_after_admission and live_resume:
             raise Failure('invalid_live_resume_case')
         selector = self.conversation_selector(cid)
         message_id = str(uuid.uuid4())
         parts = [{"kind": "text", "text": prompt}]
+        if a2ui_action is not None:
+            if (not isinstance(a2ui_action, dict) or a2ui_action.get('version') != 'v0.9' or
+                    not isinstance(a2ui_action.get('action'), dict)):
+                raise Failure('invalid_a2ui_action')
+            parts.append({'kind': 'data', 'data': a2ui_action})
         for upload in attachments:
             parts.append({"kind": "file", "file": {"uri": "moi://files/" + upload["file_id"],
                 "name": upload["original_name"], "mimeType": mimetypes.guess_type(upload["original_name"])[0]
@@ -154,6 +159,8 @@ class Execution:
             "attachments": list(attachments)}
         if knowledge_ids is not None:
             dialogue['knowledge_ids'] = knowledge_ids
+        if a2ui_action is not None:
+            dialogue['a2ui_action'] = a2ui_action
         self.evidence.append("dialogue.jsonl", dialogue)
         self.pending_conversation = cid
         self.checkpoint()

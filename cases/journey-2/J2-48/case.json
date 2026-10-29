@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "J2-48",
+  "workspace": "journey-2",
+  "title": "同一对话切换知识库并分别引用",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {
+      "path": "fern.txt",
+      "sha256": "ff9910cebaffc659da675da07a4c035316a669c67999bdf8a6163e4ed2b9c414"
+    },
+    {
+      "path": "birch.txt",
+      "sha256": "ba93c40352bcae3dd35d91f7537bfd9aa629bc1e7f2f008cde7680465779a6c3"
+    }
+  ],
+  "knowledge_fixtures": {
+    "fern": {
+      "kind": "document",
+      "path": "fern.txt",
+      "marker": "FERN-WALNUT"
+    },
+    "birch": {
+      "kind": "document",
+      "path": "birch.txt",
+      "marker": "BIRCH-LEMON"
+    }
+  },
+  "sessions": [
+    {
+      "id": "query",
+      "delivery_kind": "answer",
+      "expected_checks": 8,
+      "turns": [
+        {
+          "phase": "fern",
+          "prompt": "请根据我选择的知识库，回答 Project Fern 的 项目编号，并引用来源。",
+          "knowledge_selection": [
+            "fern"
+          ],
+          "knowledge_evidence": [
+            "fern"
+          ],
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "FERN-WALNUT",
+              "rule": "Fern 的 项目编号 正确"
+            }
+          ]
+        },
+        {
+          "phase": "birch",
+          "prompt": "请根据我选择的知识库，回答 Project Birch 的 项目编号，并引用来源。",
+          "knowledge_selection": [
+            "birch"
+          ],
+          "knowledge_evidence": [
+            "birch"
+          ],
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "BIRCH-LEMON",
+              "rule": "Birch 的 项目编号 正确"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

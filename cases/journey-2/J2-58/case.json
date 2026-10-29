@@ -1,0 +1,45 @@
+{
+  "title": "同轮交付多个文件并分别核验",
+  "random_tokens": [
+    "first",
+    "second",
+    "content_a",
+    "content_b"
+  ],
+  "sessions": [
+    {
+      "id": "files",
+      "delivery_kind": "file",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "generate",
+          "prompt": "请创建并交付两个独立的文本文件：{first}.txt 只包含 {content_a}；{second}.txt 只包含 {content_b}。不要合并文件。",
+          "action": {
+            "type": "deliver_text_artifacts",
+            "files": [
+              {
+                "filename": "{first}.txt",
+                "content": "{content_a}"
+              },
+              {
+                "filename": "{second}.txt",
+                "content": "{content_b}"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "schema_version": 1,
+  "id": "J2-58",
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": []
+}

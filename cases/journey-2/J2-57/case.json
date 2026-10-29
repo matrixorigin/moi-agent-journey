@@ -1,0 +1,36 @@
+{
+  "title": "生成 PDF 并下载核验内容",
+  "random_tokens": [
+    "filename",
+    "content"
+  ],
+  "sessions": [
+    {
+      "id": "pdf",
+      "delivery_kind": "file",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "generate",
+          "prompt": "请使用 PDF 技能（moi.agent.momo.skill.pdf）生成一页 PDF 文件 {filename}.pdf，正文包含项目编号 {content}，并交付该文件。",
+          "action": {
+            "type": "deliver_pdf_with_skill",
+            "skill_id": "moi.agent.momo.skill.pdf",
+            "filename": "{filename}.pdf",
+            "content": "{content}"
+          }
+        }
+      ]
+    }
+  ],
+  "schema_version": 1,
+  "id": "J2-57",
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": []
+}

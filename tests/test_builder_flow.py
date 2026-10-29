@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock
 
-from journey.builder_flow import AgentBuilderFlow, ProductCaseFailure, same_published_config
+from journey.builder_flow import AgentBuilderFlow, ProductCaseFailure, same_configuration, same_published_config
 from journey.client import Failure
 from journey.evidence import Evidence
 from journey.run_case import Execution
@@ -62,7 +62,7 @@ class FakeClient:
             return dict(self.agent)
         if method == 'PATCH':
             self.agent['status'] = body['status']
-            return {'status': body['status']}
+            return dict(self.agent)
         if method == 'POST' and path.endswith('/cancel'):
             version = path.split('/candidate-versions/')[1].split('/')[0]
             return {'agent_id': 'test-agent', 'candidate_version': version, 'status': 'superseded'}
@@ -100,6 +100,19 @@ class BuilderFlowTests(unittest.TestCase):
         self.assertEqual(error['details']['category'], 'dns')
         client.rpc.assert_called_once()
 
+    def test_manual_candidate_local_scope_is_not_confused_with_system_or_foreign_skill(self):
+        flow, _, _ = self.flow()
+        output = task('original', 'v1', skills=['XLSX'])['status']['message']['parts'][0]['data']['output']['output']
+        output['resolved_refs']['skills'][0].pop('workspace_id')
+        flow.remember_candidate(output, 'original')
+        local = flow.require_resource('skills', 'skill.xlsx', workspace_id='ws')
+        self.assertEqual(local['workspace_id'], 'ws')
+        with self.assertRaises(ProductCaseFailure):
+            flow.require_resource('skills', 'skill.xlsx')
+        output['resolved_refs']['skills'][0]['workspace_id'] = 'foreign'
+        with self.assertRaises(ProductCaseFailure):
+            flow.require_resource('skills', 'skill.xlsx', workspace_id='ws')
+
     def test_revision_rejects_old_candidate_and_publishes_the_new_identity(self):
         flow, client, checks = self.flow()
         flow.remember(task('original', 'v1'), 'original')
@@ -112,6 +125,23 @@ class BuilderFlowTests(unittest.TestCase):
         flow.cleanup()
         self.assertEqual(client.agent['status'], 'archived')
         self.assertEqual(flow.execution.report['harness_errors'], [])
+
+    def test_manual_binding_rejection_is_not_retried_without_the_binding(self):
+        flow, client, checks = self.flow()
+        flow.remember(task('original', 'v1'), 'original')
+        product = client.product
+        def request(method, path, body=None):
+            if path.endswith('/commit'):
+                raise Failure('http_error', 400)
+            return product(method, path, body)
+        client.product = Mock(side_effect=request)
+        binding = {'skill_refs': [{'id': 'skill', 'workspace_id': 'ws', 'kind': 'skill'}]}
+        with self.assertRaises(ProductCaseFailure):
+            flow.commit(binding=binding)
+        commits = [call for call in client.product.call_args_list if call.args[1].endswith('/commit')]
+        self.assertEqual(len(commits), 1)
+        self.assertEqual(commits[0].args[2], {'source_digest': 'sha256:v1', 'binding': binding})
+        self.assertFalse(checks[-1]['passed'])
 
     def test_accepted_old_candidate_fails_and_only_our_agent_is_archived(self):
         flow, client, checks = self.flow(accept_old=True)
@@ -383,6 +413,62 @@ class BuilderFlowTests(unittest.TestCase):
         bad['resource_refs']['skills'] = copy.deepcopy(old['resource_refs']['skills'])
         bad['skill_names'] = copy.deepcopy(old['skill_names'])
         self.assertFalse(same_published_config(old, bad, changes, keep_description=True))
+
+    def test_knowledge_revision_requires_exact_owned_workspace_and_no_other_changes(self):
+        _, client, _ = self.flow()
+        old = client.current_versions['1.0.0']
+        old['knowledge_base_names'] = ['Fern']
+        old['resource_refs']['knowledge_bases'] = [{'id': '42', 'name': 'Fern', 'workspace_id': 'ws'}]
+        new = copy.deepcopy(old)
+        new['knowledge_base_names'] = ['Birch']
+        new['resource_refs']['knowledge_bases'] = [{'id': '84', 'name': 'Birch', 'workspace_id': 'ws'}]
+        changes = {'knowledge_bases': {'remove': ['42'], 'add': ['84']}}
+        self.assertTrue(same_published_config(old, new, changes, keep_description=True, workspace_id='ws'))
+        self.assertFalse(same_published_config(old, new, changes, keep_description=True, workspace_id='other'))
+        for mutation in ('wrong_workspace', 'retained_old', 'unrequested_tool'):
+            bad = copy.deepcopy(new)
+            if mutation == 'wrong_workspace':
+                bad['resource_refs']['knowledge_bases'][0]['workspace_id'] = 'other'
+            elif mutation == 'retained_old':
+                bad['resource_refs']['knowledge_bases'] += old['resource_refs']['knowledge_bases']
+                bad['knowledge_base_names'].append('Fern')
+            else:
+                bad['tool_names'].append('unexpected')
+            self.assertFalse(same_published_config(old, bad, changes, keep_description=True, workspace_id='ws'))
+        first = {'display': {'model': 'model', 'skills': [], 'tools': [], 'channel_bindings': [],
+                             'knowledge_bases': old['knowledge_base_names']},
+                 'resolved_refs': old['resource_refs'] | {'channel_bindings': []}}
+        second = copy.deepcopy(first)
+        second['display']['knowledge_bases'] = new['knowledge_base_names']
+        second['resolved_refs']['knowledge_bases'] = new['resource_refs']['knowledge_bases']
+        self.assertTrue(same_configuration(first, second, changes, workspace_id='ws'))
+        self.assertFalse(same_configuration(first, second, changes, workspace_id='other'))
+
+    def test_lifecycle_checks_owned_agent_and_restores_it(self):
+        flow, client, checks = self.flow()
+        flow.remember(task('revised', 'v2'), 'revised')
+        flow.commit()
+        original = client.product
+        def product(method, path, body=None):
+            if method == 'GET' and '/agents?' in path:
+                return {'items': [dict(client.agent)]}
+            if method == 'POST' and path.endswith('/agents'):
+                raise Failure('http_error', 409)
+            return original(method, path, body)
+        client.product = product
+        flow.check_lifecycle()
+        self.assertEqual(client.agent['status'], 'active')
+        self.assertTrue(all(item['passed'] for item in checks))
+        self.assertTrue(any(item['rule'] == '重复智能体 ID 被拒绝且原对象未改变' for item in checks))
+        flow.cleanup()
+        self.assertEqual(client.agent['status'], 'archived')
+
+    def test_lifecycle_refuses_to_mutate_an_unowned_agent(self):
+        flow, client, _ = self.flow()
+        flow.created = {'agent_id': 'unowned', 'workspace_id': 'ws', 'verified': True}
+        with self.assertRaises(ProductCaseFailure):
+            flow.check_lifecycle()
+        self.assertEqual(client.calls, [])
 
 
 if __name__ == '__main__':

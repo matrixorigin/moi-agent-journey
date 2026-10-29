@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from journey.sandbox_checks import evaluate_python_hash, evaluate_python_recovery
+from journey.sandbox_checks import evaluate_file_state, evaluate_python_hash, evaluate_python_recovery
 
 
 class SandboxChecksTests(unittest.TestCase):
@@ -52,6 +52,27 @@ class SandboxChecksTests(unittest.TestCase):
         checks, blocked = self.evaluate([call, self.result('error', code=1)])
         self.assertFalse(checks[1]['passed'])
         self.assertIsNone(blocked)
+
+    def test_file_read_cannot_pass_with_recreation_echo_or_another_call_result(self):
+        filename, content = '/tmp/journey-test.txt', 'fresh-input'
+        digest = hashlib.sha256(content.encode()).hexdigest()
+        read = self.call("python3 -c 'from pathlib import Path; import hashlib; print(hashlib.sha256("
+                         "Path(\"" + filename + "\").read_bytes()).hexdigest())'")
+        write = self.call("python3 -c 'Path(\"" + filename + "\").write_text(\"fresh-input\")'")
+        write['payload']['call_id'] = 'write'
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'events.jsonl'
+            def check(events):
+                path.write_text(''.join(json.dumps(event) + '\n' for event in events))
+                return evaluate_file_state(path, 'task', 'session', filename, content, 'read')
+            self.assertTrue(all(x['passed'] for x in check([read, self.result(digest)])[0]))
+            for events in ([write, read, self.result(digest)],
+                           [self.call('echo ' + read['payload']['arguments']['command']), self.result(digest)],
+                           [read, self.result('wrong')], [read, self.result(digest, code=1)],
+                           [self.result(digest), read],
+                           [read, {**self.result(digest), 'task_id': 'other'}]):
+                self.assertFalse(all(x['passed'] for x in check(events)[0]))
+            self.assertEqual(check([read])[1], 'sandbox_file_output_unverifiable')
 
     def test_recovery_requires_an_observed_error_then_a_separate_successful_python_call(self):
         def event(kind, call_id, *, command='', code=0, stdout='', stderr='', success=True):

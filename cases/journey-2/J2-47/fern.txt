@@ -1,1 +1,1 @@
-Project Fern launch handbook. The Project Fern launch token is FERN-WALNUT. The token is FERN-WALNUT. This is synthetic QA data.
+Project Fern handbook. The project tracking code is FERN-WALNUT. This is a public, synthetic project identifier, not a credential.

@@ -10,12 +10,13 @@ from journey.run_case import Execution
 
 
 class BuilderClient:
-    def __init__(self, *, accept_bad_digest=False):
+    def __init__(self, *, accept_bad_digest=False, accept_canceled=False):
         self.requests = 0
         self.deadline = time.monotonic() + 60
         self.status = 'valid'
         self.accept_bad_digest = accept_bad_digest
         self.mutations = []
+        self.accept_canceled, self.agent = accept_canceled, None
 
     def task(self):
         output = {'render_type': 'agent_candidate', 'workspace_id': 'ws', 'agent_id': 'our-agent',
@@ -33,7 +34,19 @@ class BuilderClient:
     def product(self, method, path, body=None):
         self.requests += 1
         if method == 'GET':
+            if self.agent:
+                return dict(self.agent)
             raise Failure('http_error', 404)
+        if method == 'PATCH' and self.agent:
+            self.agent['status'] = body['status']
+            return dict(self.agent)
+        if method == 'POST' and path.endswith('/commit') and self.status == 'superseded':
+            if self.accept_canceled:
+                self.status = 'loaded'
+                self.agent = {'id': 'our-agent', 'name': 'our-agent', 'workspace_id': 'ws', 'status': 'active'}
+                return {'agent_id': 'our-agent', 'workspace_id': 'ws', 'source_digest': body['source_digest'],
+                        'load_version': '1.0.0'}
+            raise Failure('http_error', 409)
         if method != 'POST' or not path.endswith('/cancel'):
             raise AssertionError('unexpected mutation')
         self.mutations.append(body['source_digest'])
@@ -44,15 +57,16 @@ class BuilderClient:
 
 
 class BuilderFunctionalTests(unittest.TestCase):
-    def run_case(self, accept_bad_digest=False):
+    def run_case(self, accept_bad_digest=False, check_commit=False, accept_canceled=False):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        client = BuilderClient(accept_bad_digest=accept_bad_digest)
+        client = BuilderClient(accept_bad_digest=accept_bad_digest, accept_canceled=accept_canceled)
         case = {'id': 'J2-04', 'title': 'candidate', 'workspace': 'journey-2', 'timeout_seconds': 30}
         execution = Execution(client, case, Evidence(Path(tmp.name)), tmp.name, 'model')
         execution.root, execution.selector = '/workspaces/ws', {'agent_id': 'momo', 'agent_workspace_id': 'system'}
         checks = []
-        verified = check_candidate_cancel(execution, client.task(), 'task', 'our-agent', checks, 'candidate')
+        verified = check_candidate_cancel(execution, client.task(), 'task', 'our-agent', checks, 'candidate',
+                                          check_commit=check_commit)
         return execution, client, checks, verified
 
     def test_bad_digest_rejected_then_candidate_canceled_and_read_back(self):
@@ -92,6 +106,19 @@ class BuilderFunctionalTests(unittest.TestCase):
         self.assertEqual(execution.report['agent_cleanup'], 'incomplete')
         self.assertTrue(any('cleanup_agent_ownership_unverified' in item.get('reason', '')
                             for item in execution.report['harness_errors']))
+
+    def test_canceled_candidate_cannot_be_committed(self):
+        execution, _, checks, verified = self.run_case(check_commit=True)
+        self.assertTrue(verified)
+        self.assertEqual(len(checks), 10)
+        self.assertTrue(all(item['passed'] for item in checks))
+        self.assertEqual(execution.report['agent_cleanup'], 'candidate_canceled')
+
+    def test_unexpected_publication_fails_but_owned_agent_is_cleaned(self):
+        execution, client, checks, _ = self.run_case(check_commit=True, accept_canceled=True)
+        self.assertFalse(next(item for item in checks if item['rule'] == '已取消候选不能发布')['passed'])
+        self.assertEqual(client.agent['status'], 'archived')
+        self.assertEqual(execution.report['harness_errors'], [])
 
 
 if __name__ == '__main__':

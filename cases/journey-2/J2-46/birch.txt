@@ -1,1 +1,1 @@
-Project Birch launch handbook. The Project Birch launch token is BIRCH-LEMON. The token is BIRCH-LEMON. This is synthetic QA data.
+Project Birch handbook. The project tracking code is BIRCH-LEMON. This is a public, synthetic project identifier, not a credential.

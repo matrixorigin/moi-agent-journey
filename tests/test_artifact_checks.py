@@ -5,7 +5,8 @@ import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 
-from journey.artifact_checks import check_ooxml_artifact, check_text_artifact, office_paragraphs, xlsx_first_cell
+from journey.artifact_checks import (check_ooxml_artifact, check_text_artifact, office_paragraphs, xlsx_first_cell,
+                                     check_pdf_artifact, check_text_artifacts)
 from journey.catalog import load_case
 from journey.client import Failure
 from journey.outcomes import assess
@@ -67,6 +68,42 @@ class ArtifactChecksTests(unittest.TestCase):
             self.run_check([], filename='../result.txt')
         with self.assertRaisesRegex(Failure, 'unsafe_artifact_path'):
             self.run_check([self.item(path='../outside')])
+
+    def test_multiple_deliveries_cannot_reuse_the_wrong_file_or_task(self):
+        self.run_check([self.item(), self.item(name='second.txt', path='download/second.txt')],
+                       {'download/result.txt': b'unique-content', 'download/second.txt': b'second-content'})
+        files = [{'filename': 'result.txt', 'content': 'unique-content'},
+                 {'filename': 'second.txt', 'content': 'second-content'}]
+        checks = []
+        self.assertTrue(check_text_artifacts(self.execution, 'conversation', 'task', files, checks, 'artifact'))
+        self.assertTrue(all(check['passed'] for check in checks))
+        files[1]['content'] = 'wrong'
+        checks = []
+        check_text_artifacts(self.execution, 'conversation', 'task', files, checks, 'artifact')
+        self.assertFalse(checks[-1]['passed'])
+
+    def test_pdf_requires_parseable_download_and_actual_text(self):
+        from pypdf import PdfWriter
+        from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject
+        path = self.root / 'download/result.pdf'
+        path.parent.mkdir()
+        writer = PdfWriter()
+        page = writer.add_blank_page(width=200, height=200)
+        font = DictionaryObject({NameObject('/Type'): NameObject('/Font'), NameObject('/Subtype'): NameObject('/Type1'),
+                                 NameObject('/BaseFont'): NameObject('/Helvetica')})
+        page[NameObject('/Resources')] = DictionaryObject({NameObject('/Font'): DictionaryObject({NameObject('/F1'): font})})
+        content = DecodedStreamObject(); content.set_data(b'BT /F1 12 Tf 10 100 Td (unique-content) Tj ET')
+        page[NameObject('/Contents')] = writer._add_object(content)
+        writer.write(path)
+        self.inventory.write_text(json.dumps([self.item(name='result.pdf', path='download/result.pdf')]))
+        for expected, passed in [('unique-content', True), ('missing-text', False)]:
+            checks = []
+            self.assertTrue(check_pdf_artifact(self.execution, 'conversation', 'task', 'result.pdf', expected, checks, 'pdf'))
+            self.assertEqual(checks[-1]['passed'], passed)
+        path.write_bytes(b'not a PDF')
+        checks = []
+        check_pdf_artifact(self.execution, 'conversation', 'task', 'result.pdf', 'unique-content', checks, 'pdf')
+        self.assertFalse(checks[-1]['passed'])
 
     def workbook(self, cell, shared=None, target='worksheets/sheet1.xml'):
         path = self.root / 'test.xlsx'

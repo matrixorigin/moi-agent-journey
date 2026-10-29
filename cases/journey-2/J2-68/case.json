@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "id": "J2-68",
+  "title": "沙箱跨轮文件写入与读取",
+  "random_tokens": [
+    "filename",
+    "content"
+  ],
+  "sessions": [
+    {
+      "id": "files",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "write",
+          "prompt": "请在沙箱用 Python pathlib 将文本 {content} 写入 /tmp/journey-{filename}.txt，不加换行，然后读取实际文件内容计算 SHA-256 并打印。",
+          "sandbox_file": {
+            "mode": "write",
+            "path": "/tmp/journey-{filename}.txt",
+            "content": "content"
+          }
+        },
+        {
+          "phase": "read",
+          "prompt": "现在另起一次 Python 工具调用，用 pathlib 读取上一轮的 /tmp/journey-{filename}.txt 文件并打印其 SHA-256。这一轮不要重新创建或写入文件。",
+          "sandbox_file": {
+            "mode": "read",
+            "path": "/tmp/journey-{filename}.txt",
+            "content": "content"
+          }
+        }
+      ]
+    }
+  ]
+}

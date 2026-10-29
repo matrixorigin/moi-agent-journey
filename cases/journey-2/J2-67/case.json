@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "id": "J2-67",
+  "title": "中性反馈、按答复统计与重放不重复计数",
+  "sessions": [
+    {
+      "id": "feedback",
+      "delivery_kind": "answer",
+      "expected_checks": 14,
+      "turns": [
+        {
+          "phase": "answer",
+          "prompt": "请计算 13 加 16，直接回答结果。",
+          "assertions": [
+            {
+              "type": "single_number",
+              "value": "29",
+              "rule": "目标答复正确"
+            }
+          ],
+          "action": {
+            "type": "feedback",
+            "rating": "neutral",
+            "comment": "Synthetic neutral feedback",
+            "labels": [
+              "journey-2"
+            ],
+            "check_filter": true,
+            "check_stats": true
+          }
+        }
+      ]
+    }
+  ]
+}

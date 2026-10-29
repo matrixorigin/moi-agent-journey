@@ -18,16 +18,22 @@ def candidate_outputs(task):
     return outputs
 
 
+def candidate_matches(output, name, workspace, mode='create'):
+    if not isinstance(output, dict):
+        return False
+    display = output.get('display', {})
+    return (isinstance(display, dict) and display.get('agent_name') == name and
+            output.get('workspace_id') == workspace and output.get('mode') == mode and
+            output.get('agent_id') == display.get('agent_id') and
+            all(isinstance(output.get(key), str) and output[key]
+                for key in ('agent_id', 'candidate_version', 'source_digest', 'status')))
+
+
 def candidate_output_from_task(task, name, workspace, *, mode='create'):
     """Read only a candidate tied to this task, name and workspace."""
     matches = []
     for output in candidate_outputs(task):
-        display = output.get('display', {})
-        if (isinstance(display, dict) and display.get('agent_name') == name and
-                output.get('workspace_id') == workspace and output.get('mode') == mode and
-                output.get('agent_id') == display.get('agent_id') and
-                all(isinstance(output.get(key), str) and output[key]
-                    for key in ('agent_id', 'candidate_version', 'source_digest', 'status'))):
+        if candidate_matches(output, name, workspace, mode):
             matches.append(output)
     if len(matches) > 1:
         raise Failure('candidate_identity_not_unique')
@@ -88,7 +94,7 @@ def cleanup_candidate(execution, *, allow_archive=False):
 
 
 
-def check_candidate_cancel(execution, task, task_id, name, checks, session_id):
+def check_candidate_cancel(execution, task, task_id, name, checks, session_id, *, check_commit=False):
     """Prove a wrong digest is rejected and a candidate can be canceled."""
     client = execution.client
     workspace = execution.root.rsplit('/', 1)[-1]
@@ -140,6 +146,7 @@ def check_candidate_cancel(execution, task, task_id, name, checks, session_id):
         execution.candidate = current_candidate
         return current_candidate
 
+    owned_published = False
     try:
         absent = no_agent()
         record('确认前无已发布智能体', absent, '' if absent else 'agent_already_published')
@@ -177,6 +184,22 @@ def check_candidate_cancel(execution, task, task_id, name, checks, session_id):
                '' if final['status'] == 'superseded' else 'status:' + final['status'])
         absent = no_agent()
         record('取消后无已发布智能体', absent, '' if absent else 'agent_present_after_cancel')
+        if check_commit and absent and final['status'] == 'superseded':
+            try:
+                committed = client.product('POST', cancel_path.removesuffix('/cancel') + '/commit',
+                                           {'source_digest': candidate['source_digest']})
+                commit_status = 200
+                owned_published = (committed.get('agent_id') == candidate['agent_id'] and
+                    committed.get('workspace_id') == workspace and
+                    committed.get('source_digest') == candidate['source_digest'] and
+                    isinstance(committed.get('load_version'), str) and bool(committed['load_version']))
+            except Failure as error:
+                if error.code != 'http_error' or error.http_status is None:
+                    raise
+                commit_status = error.http_status
+            record('已取消候选不能发布', commit_status == 409, 'http_status:' + str(commit_status))
+            absent = no_agent()
+            record('拒绝已取消候选后仍未发布', absent, '' if absent else 'canceled_candidate_was_published')
         return True
     finally:
         # Cleanup is independent of the case verdict and only uses the observed identity.
@@ -191,6 +214,6 @@ def check_candidate_cancel(execution, task, task_id, name, checks, session_id):
                 failure['reason'] = 'candidate_readback:' + failure['reason']
                 execution.report['harness_errors'].append(failure)
             else:
-                cleanup_candidate(execution)
+                cleanup_candidate(execution, allow_archive=owned_published)
         finally:
             client.deadline = prior_deadline

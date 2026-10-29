@@ -228,7 +228,7 @@ class Client:
         """Use the same private-Catalog upload contract as the product UI."""
         return self.upload_multipart(root + '/catalog-files/uploads', path)
 
-    def upload_multipart(self, endpoint, path):
+    def upload_multipart(self, endpoint, path, *, expected_code='OK'):
         """Upload one local file to a specified product endpoint."""
         import mimetypes
         boundary = "journey-" + uuid.uuid4().hex
@@ -241,7 +241,7 @@ class Client:
         raw += path.read_bytes() + f"\r\n--{boundary}--\r\n".encode()
         result = self.request("POST", endpoint, raw=raw,
                               content_type="multipart/form-data; boundary=" + boundary)
-        if result.get("code") != "OK" or not isinstance(result.get("data"), dict):
+        if result.get("code") != expected_code or not isinstance(result.get("data"), dict):
             code = result.get('code')
             if not isinstance(code, (str, int)) or isinstance(code, bool) or len(str(code)) > 80:
                 code = None
