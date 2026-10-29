@@ -112,6 +112,28 @@ class SkillJourneyTests(unittest.TestCase):
             self.assertEqual(result['harness_errors'], [])
             instance.cleanup.assert_called_once_with(dependencies_confirmed=True)
 
+    def test_invalid_packages_reject_inspection_and_import_without_retries(self):
+        journey, execution = self.journey()
+        execution.client.product.return_value = {'total': 0, 'items': []}
+        execution.client.upload_multipart.side_effect = [Failure('http_error', 400) for _ in range(4)]
+        journey.check_invalid_packages()
+        self.assertEqual(len(journey.checks), 6)
+        self.assertTrue(all(check['passed'] for check in journey.checks))
+        self.assertEqual(execution.client.upload_multipart.call_count, 4)
+        self.assertFalse(journey.skill_pending)
+        self.assertFalse(journey.state['import_pending'])
+
+    def test_unexpected_invalid_package_import_keeps_identity_for_cleanup(self):
+        journey, execution = self.journey()
+        execution.client.product.return_value = {'total': 0, 'items': []}
+        execution.client.upload_multipart.side_effect = [Failure('http_error', 400), {'skill': {'id': 'unexpected-created'}}]
+        with self.assertRaises(ProductCaseFailure):
+            journey.check_invalid_packages()
+        self.assertEqual(execution.client.upload_multipart.call_count, 2)
+        self.assertTrue(journey.skill_pending)
+        self.assertEqual(journey.skill_id, 'unexpected-created')
+        self.assertFalse(journey.checks[-1]['passed'])
+
 
 if __name__ == '__main__':
     unittest.main()

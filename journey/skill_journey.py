@@ -3,7 +3,8 @@ import time
 import zipfile
 from urllib.parse import urlencode
 
-from .builder_flow import AgentBuilderFlow, ProductCaseFailure
+from .builder_flow import ProductCaseFailure
+from .resource_journey import ResourceJourney
 from .client import Failure, error_record, segment
 from .evidence import sha256
 
@@ -15,10 +16,12 @@ def same_skill_content(left, right):
         k: v for k, v in right.items() if k not in {'created_at', 'updated_at'}}
 
 
-class SkillJourney:
+class SkillJourney(ResourceJourney):
+    kind = 'skill'
+
     def __init__(self, execution, definition, variables, checks):
         if (not isinstance(definition, dict) or set(definition) != {'mode', 'marker', 'initial_marker'} or
-                definition['mode'] not in {'versions', 'disabled', 'package', 'bindings', 'manual'}):
+                definition['mode'] not in {'versions', 'disabled', 'package', 'bindings', 'manual', 'invalid_package'}):
             raise Failure('invalid_skill_journey')
         self.execution, self.checks = execution, checks
         self.session_id = execution.case['sessions'][0]['id']
@@ -38,58 +41,9 @@ class SkillJourney:
         self.previous_observer = execution.client.observer
         execution.client.observer = self.observe
 
-    def observe(self, exchange):
-        if self.previous_observer:
-            self.previous_observer(exchange)
-        path = exchange.get('path', '')
-        if path.startswith(tuple(self.execution.root + suffix for suffix in
-                                 ('/skills', '/agents/' + self.agent_id, '/agent-builder/'))):
-            self.execution.evidence.append('skill-http.jsonl', exchange)
-
-    def record(self, rule, passed, reason, *, required=False):
-        self.checks.append({'session': self.session_id, 'rule': rule, 'passed': bool(passed),
-                            'detail': '' if passed else reason})
-        self.execution.report['validation'] = {'checks': self.checks}
-        self.execution.checkpoint()
-        if required and not passed:
-            raise ProductCaseFailure(reason)
-
-    def request(self, method, path, body=None):
-        try:
-            result = self.execution.client.product(method, self.execution.root + path, body)
-            self.execution.evidence.append('skill-operations.jsonl', {'method': method, 'path': path, 'request': body, 'response': result})
-            return result
-        except Failure as error:
-            if error.code != 'product_error' and (error.code != 'http_error' or error.http_status in {None, 401, 403}):
-                raise
-            self.record('Skill 操作被产品接受', False, error.code + ':' + str(error.http_status))
-            raise ProductCaseFailure('skill_operation_failed') from None
-
-    def absent(self, path):
-        try:
-            self.execution.client.product('GET', self.execution.root + path)
-        except Failure as error:
-            if error.code == 'http_error' and error.http_status == 404:
-                return True
-            raise
-        return False
-
-    def rejected(self, method, path, body, expected):
-        try:
-            self.execution.client.product(method, self.execution.root + path, body)
-        except Failure as error:
-            if error.code == 'http_error' and error.http_status not in {None, 401, 403}:
-                return error.http_status == expected
-            raise
-        return False
-
     @property
     def skill_path(self):
         return '/skills/' + segment(self.skill_id)
-
-    @property
-    def agent_path(self):
-        return '/agents/' + segment(self.agent_id)
 
     def identity(self, item):
         return (isinstance(item, dict) and item.get('id') == self.skill_id and
@@ -99,7 +53,9 @@ class SkillJourney:
         return 'The public project tracking code is ' + marker + '. Answer a request for the project tracking code with this exact code.'
 
     def prepare(self):
-        if self.mode == 'package':
+        if self.mode in {'package', 'invalid_package'}:
+            if self.mode == 'invalid_package':
+                self.check_invalid_packages()
             self.import_package()
         else:
             if not self.absent(self.skill_path):
@@ -117,46 +73,18 @@ class SkillJourney:
                         'skill_create_mismatch', required=True)
             if self.mode == 'versions':
                 self.check_versions(created)
-        if not self.absent(self.agent_path):
-            raise Failure('skill_agent_id_exists')
-        self.builder = AgentBuilderFlow(self.execution, self.session_id, self.checks, [self.agent_id])
-        resources = self.request('GET', '/agent-builder/resources')
-        self.state['candidate_proposal_pending'] = True
-        self.execution.checkpoint()
-        candidate = self.request('POST', '/agent-builder/candidates', {
-            'mode': 'create', 'conversation_id': 'manual-' + self.execution.report['run_id'],
-            'raw_advice': 'Create a synthetic Skill verification Agent.', 'resources': resources,
-            'candidate': {'agent_id': self.agent_id, 'name': self.agent_id,
-                'description': 'Synthetic Skill verification', 'model_name': self.execution.model,
-                'tool_names': [], 'skill_names': [self.name], 'knowledge_base_names': [], 'channel_bindings': [],
-                'agent_md': 'Use the requested Skill to find the public project tracking code. '
-                            'If the Skill is unavailable, reply SKILL_UNAVAILABLE. Never invent the code.',
-                'change_reason': 'Synthetic Skill verification.'}})
-        self.builder.remember_candidate(candidate, self.agent_id)
-        self.state['candidate_proposal_pending'] = False
-        self.state['candidate'] = {key: candidate[key] for key in ('agent_id', 'candidate_version', 'source_digest')}
-        if candidate['agent_id'] != self.agent_id:
-            raise ProductCaseFailure('manual_agent_id_mismatch')
-        resource = self.builder.require_resource('skills', self.skill_id, workspace_id=self.workspace)
-        self.agent_pending = True
-        self.state['agent_id'] = self.agent_id
-        self.execution.checkpoint()
-        # Candidate publication carries resources in the compiled package. The
-        # manual form also sends a root binding overlay; test that path separately.
+        # The manual form sends a root binding overlay; test that path separately.
         binding = {'skill_refs': [{'id': self.skill_id, 'kind': 'skill', 'workspace_id': self.workspace}]} \
             if self.mode == 'manual' else None
-        self.builder.commit([resource], binding=binding)
+        self.publish_agent(names=[self.name], ids=[self.skill_id], binding=binding,
+            instruction='Use the requested Skill to find the public project tracking code. '
+                        'If the Skill is unavailable, reply SKILL_UNAVAILABLE. Never invent the code.')
         self.check_binding()
         if self.mode == 'disabled':
             self.set_status('disabled')
         if self.mode == 'bindings':
             self.check_binding_guards()
         return {'skill_id': self.skill_id, 'skill_name': self.name}
-
-    def selector(self):
-        if not self.agent_pending:
-            raise Failure('skill_agent_not_created')
-        return {'agent_id': self.agent_id, 'agent_workspace_id': self.workspace}
 
     def check_binding(self):
         detail = self.request('GET', self.agent_path + '/bindings')
@@ -245,6 +173,47 @@ class SkillJourney:
         self.record('删除拒绝后 Skill 和绑定保留', self.request('GET', self.skill_path) == saved and
                     self.request('GET', self.agent_path + '/bindings') == before, 'bound_skill_delete_mutated_state')
 
+    def check_invalid_packages(self):
+        listing = self.request('GET', '/skills?' + urlencode({'query': self.name, 'catalog': 'workspace'}))
+        if listing.get('total') != 0 or listing.get('items') != []:
+            raise Failure('skill_package_name_exists')
+        self.execution.work.mkdir(parents=True, exist_ok=True)
+        for defect in ('not-zip', 'missing-manifest'):
+            archive = self.execution.work / (defect + '.zip')
+            if defect == 'not-zip':
+                archive.write_bytes(b'This is a synthetic invalid ZIP archive.')
+            else:
+                with zipfile.ZipFile(archive, 'w') as output:
+                    output.writestr('README.md', 'Synthetic package ' + self.name + ' without SKILL.md')
+            self.execution.evidence.write('invalid-skill-' + defect + '.json',
+                                          {'defect': defect, 'sha256': sha256(archive)})
+            for operation in ('inspect', 'import'):
+                path = '/skills/import/inspect' if operation == 'inspect' else '/skills/import'
+                if operation == 'import':
+                    self.skill_pending = True
+                    self.state['import_pending'] = True
+                    self.execution.checkpoint()
+                try:
+                    imported = self.execution.client.upload_multipart(self.execution.root + path, archive, expected_code=0)
+                    status = 'accepted'
+                    skill = imported.get('skill')
+                    if operation == 'import' and isinstance(skill, dict) and isinstance(skill.get('id'), str) and skill['id']:
+                        self.skill_id = skill['id']
+                        self.state['skill_id'] = self.skill_id
+                        self.state['import_pending'] = False
+                except Failure as error:
+                    if error.code != 'http_error' or error.http_status in {None, 401, 403}:
+                        raise
+                    status = error.http_status
+                    if status == 400 and operation == 'import':
+                        self.skill_pending = False
+                        self.state['import_pending'] = False
+                self.record('损坏 Skill 包被拒绝 ' + defect + ':' + operation, status == 400,
+                            'invalid_skill_package_status:' + str(status), required=True)
+            listing = self.request('GET', '/skills?' + urlencode({'query': self.name, 'catalog': 'workspace'}))
+            self.record('拒绝后未创建 Skill ' + defect, listing.get('total') == 0 and listing.get('items') == [],
+                        'invalid_skill_package_created_resource', required=True)
+
     def import_package(self):
         listing = self.request('GET', '/skills?' + urlencode({'query': self.name, 'catalog': 'workspace'}))
         if listing.get('total') != 0 or listing.get('items') != []:
@@ -290,22 +259,7 @@ class SkillJourney:
         try:
             if not dependencies_confirmed:
                 raise Failure('dependent_task_unconfirmed')
-            if self.builder:
-                self.builder.cleanup()
-            if self.agent_pending and not self.absent(self.agent_path):
-                agent = client.product('GET', self.execution.root + self.agent_path)
-                if (agent.get('id') != self.agent_id or agent.get('workspace_id') != self.workspace or
-                        agent.get('name') != self.agent_id):
-                    raise Failure('cleanup_skill_agent_identity_mismatch')
-                if agent.get('status') != 'archived':
-                    client.product('PATCH', self.execution.root + self.agent_path, {'status': 'archived'})
-                client.product('PATCH', self.execution.root + self.agent_path + '/bindings', {'binding': {'skill_refs': []}})
-                bound = client.product('GET', self.execution.root + self.agent_path + '/bindings')
-                # AgentBindingDetail.skills is omitted when empty (omitempty).
-                skills = bound.get('skills', [])
-                if not isinstance(skills, list) or any(item.get('id') == self.skill_id and
-                        item.get('workspace_id') == self.workspace for item in skills):
-                    raise Failure('cleanup_skill_unbind_unconfirmed')
+            self.detach_agent_resources({self.skill_id})
             if self.state.get('import_pending'):
                 listing = client.product('GET', self.execution.root + '/skills?' + urlencode({'query': self.name, 'catalog': 'workspace'}))
                 items = listing.get('items')

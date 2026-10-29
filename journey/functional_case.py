@@ -18,7 +18,8 @@ from .artifact_lifecycle import check_artifact_delete
 from .builder_flow import AgentBuilderFlow, ProductCaseFailure
 from .catalog import fixture_path, load_case
 from .client import Client, Failure
-from .conversation_checks import check_history_and_invalid_update, check_lifecycle
+from .conversation_checks import (check_history_and_invalid_update, check_lifecycle,
+                                  check_agent_scope, check_archived_delivery)
 from .database_fixture import DatabaseFixture, DatabaseFixtureUnavailable
 from .evidence import Evidence, configured_secrets
 from .feedback_checks import check_feedback
@@ -34,6 +35,7 @@ from .sandbox_checks import evaluate_file_state, evaluate_python_hash, evaluate_
 from .search_checks import evaluate_search
 from .skill_checks import check_skill_call
 from .skill_journey import SkillJourney
+from .tool_journey import ToolJourney, evaluate_http_tool
 from .sql_checks import evaluate_sql, evaluate_sql_failure
 from .version import finish_version, start_version
 from .web_open_checks import evaluate_open
@@ -180,6 +182,7 @@ class FunctionalExecution(Execution):
         knowledge = {}
         database = None
         skill_journey = None
+        tool_journey = None
         checks = []
         try:
             self.root, self.selector = discover(self.client, self.case['workspace'])
@@ -189,6 +192,10 @@ class FunctionalExecution(Execution):
                 self.report['stage'] = 'skill_journey'
                 skill_journey = SkillJourney(self, self.case['skill_journey'], variables, checks)
                 variables.update(skill_journey.prepare())
+            if self.case.get('tool_journey') is not None:
+                self.report['stage'] = 'tool_journey'
+                tool_journey = ToolJourney(self, self.case['tool_journey'], checks)
+                variables.update(tool_journey.prepare())
             prepare_knowledge_fixtures(self, knowledge, variables)
             if self.case.get('database_fixture') is not None:
                 self.report['stage'] = 'database_fixture'
@@ -208,6 +215,10 @@ class FunctionalExecution(Execution):
                 self.report['stage'] = 'session:' + session['id']
                 agent_from = session.get('agent_from')
                 selector = None
+                if session.get('agent_from_tool') is True:
+                    if not tool_journey or agent_from is not None or session.get('agent_from_skill'):
+                        raise Failure('invalid_tool_agent_session')
+                    selector = tool_journey.selector()
                 if session.get('agent_from_skill') is True:
                     if not skill_journey or agent_from is not None:
                         raise Failure('invalid_skill_agent_session')
@@ -296,7 +307,8 @@ class FunctionalExecution(Execution):
                             raise Failure('invalid_a2ui_submit_case')
                         prior_surface_task = final_entry['task_id']
                         action_data = question_action(self.evidence.root / 'events.jsonl', prior_surface_task,
-                                                      config['labels'], config['answer'])
+                                                      config['labels'], config['answer'],
+                                                      question_type=config.get('type', 'single'))
                         checks.append({'session': session['id'], 'rule': '从实际问题中读取可提交的选项和组件身份',
                             'passed': action_data is not None, 'detail': '' if action_data else 'a2ui_question_not_submittable'})
                         self.report['validation'] = {'checks': checks}
@@ -402,6 +414,10 @@ class FunctionalExecution(Execution):
                         if blocked:
                             self.report['blocked'] = True
                             self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
+                    if turn.get('http_tool_evidence'):
+                        config = turn['http_tool_evidence']
+                        checks.extend(evaluate_http_tool(self.evidence.root / 'events.jsonl', final_entry['task_id'],
+                            session['id'], config['tool_id'].format_map(variables), config['status'], config.get('body_id')))
                     if turn.get('sandbox_file'):
                         config = turn['sandbox_file']
                         file_checks, blocked = evaluate_file_state(self.evidence.root / 'events.jsonl',
@@ -478,6 +494,11 @@ class FunctionalExecution(Execution):
                                 check_stats=action.get('check_stats', False))
                         elif action.get('type') == 'conversation_lifecycle':
                             check_lifecycle(self, cid, session['id'], checks, action['title'].format_map(variables))
+                        elif action.get('type') == 'conversation_agent_scope':
+                            others = [item for item in self.report['sessions'] if item['id'] == action['other_session']]
+                            if len(others) != 1:
+                                raise Failure('invalid_conversation_scope_case')
+                            check_agent_scope(self, cid, others[0]['conversation_id'], session['id'], checks)
                         elif action.get('type') == 'conversation_history':
                             check_history_and_invalid_update(self, cid, session['id'], checks,
                                 action['title'].format_map(variables),
@@ -497,7 +518,7 @@ class FunctionalExecution(Execution):
                                      for item in action['files']]
                             artifact_delivered = check_text_artifacts(self, cid, final_entry['task_id'],
                                                                       files, checks, session['id'])
-                        elif action.get('type') == 'delete_text_artifact':
+                        elif action.get('type') in {'delete_text_artifact', 'archive_text_artifact'}:
                             filename = action['filename'].format_map(variables)
                             content = action['content'].format_map(variables)
                             artifact_delivered = check_text_artifact(self, cid, final_entry['task_id'],
@@ -506,7 +527,10 @@ class FunctionalExecution(Execution):
                             self.checkpoint()
                             if not artifact_delivered or not checks[-1]['passed']:
                                 raise ProductCaseFailure('artifact_delivery_not_verified')
-                            check_artifact_delete(self, cid, final_entry['task_id'], filename, checks, session['id'])
+                            if action['type'] == 'archive_text_artifact':
+                                check_archived_delivery(self, cid, final_entry['task_id'], session['id'], checks, filename, content)
+                            else:
+                                check_artifact_delete(self, cid, final_entry['task_id'], filename, checks, session['id'])
                         elif action.get('type') == 'check_resubscribe':
                             check_resubscribe(self, final_entry, checks, session['id'])
                         elif action.get('type') in builder_types:
@@ -641,6 +665,8 @@ class FunctionalExecution(Execution):
                 database.cleanup(dependencies_confirmed=tasks_confirmed)
             if skill_journey:
                 skill_journey.cleanup(dependencies_confirmed=tasks_confirmed)
+            if tool_journey:
+                tool_journey.cleanup(dependencies_confirmed=tasks_confirmed)
             self.report['cleanup_seconds'] += round(time.monotonic() - cleanup_started, 3)
             self.checkpoint()
         return self.report
