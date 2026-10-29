@@ -13,9 +13,48 @@ class KnowledgeFixtureUnavailable(Exception):
     """The knowledge fixture could not be made ready in QA."""
 
 
+def valid_fixture_alias(alias):
+    return isinstance(alias, str) and bool(re.fullmatch(r'[a-z][a-z0-9_]{0,15}', alias))
+
+
+def prepare_knowledge_fixtures(execution, fixtures, variables):
+    single = execution.case.get('knowledge_fixture')
+    multiple = execution.case.get('knowledge_fixtures')
+    if single is not None and multiple is not None:
+        raise Failure('ambiguous_knowledge_fixtures')
+    if multiple is not None and (not isinstance(multiple, dict) or not multiple or
+            any(not valid_fixture_alias(alias) for alias in multiple)):
+        raise Failure('invalid_knowledge_fixtures')
+    definitions = {'default': single} if single is not None else (multiple or {})
+    for alias, definition in definitions.items():
+        execution.report['stage'] = 'knowledge_fixture'
+        fixture = (KnowledgeFixture(execution, definition) if single is not None else
+                   KnowledgeFixture(execution, definition, alias=alias))
+        fixtures[alias] = fixture
+        values = fixture.setup()
+        variables.update(values if single is not None else {alias + '_' + key: value for key, value in values.items()})
+
+
+def knowledge_selection_ids(fixtures, selection):
+    if (not isinstance(selection, list) or not selection or
+            any(not isinstance(alias, str) or alias not in fixtures for alias in selection) or
+            len(set(selection)) != len(selection) or any(
+                fixtures[alias].state.get('status') != 'ready' or
+                type(fixtures[alias].state.get('model_id')) is not int or
+                fixtures[alias].state['model_id'] <= 0 for alias in selection)):
+        raise Failure('invalid_knowledge_selection')
+    result = [str(fixtures[alias].state['model_id']) for alias in selection]
+    if len(set(result)) != len(result):
+        raise Failure('invalid_knowledge_selection')
+    return result
+
+
 class KnowledgeFixture:
-    def __init__(self, execution, definition):
+    def __init__(self, execution, definition, *, alias=None):
         self.execution = execution
+        if alias is not None and not valid_fixture_alias(alias):
+            raise Failure('invalid_knowledge_fixture_alias')
+        self.alias = alias
         if not isinstance(definition, dict) or definition.get('kind') not in {'document', 'table'}:
             raise Failure('invalid_knowledge_fixture')
         self.kind = definition['kind']
@@ -48,15 +87,23 @@ class KnowledgeFixture:
                     not re.fullmatch(r'[A-Za-z0-9_-]+', verification['filter_value']) or
                     type(verification['expected_rows']) is not int or type(verification['expected_sum']) is not int):
                 raise Failure('invalid_knowledge_table_fixture')
-        self.state = {'name': 'journey2_kb_' + execution.report['run_id'].replace('-', '')[:20],
+        name = 'journey2_kb_' + execution.report['run_id'].replace('-', '')[:20]
+        self.state = {'name': name + ('_' + alias if alias else ''),
                       'fixture': definition['path'], 'kind': self.kind, 'status': 'initial', 'cleanup': 'pending'}
         self.create_started = False
         self.upload_started = False
-        execution.report['knowledge_fixture'] = self.state
+        if alias is None:
+            execution.report['knowledge_fixture'] = self.state
+        else:
+            execution.report.setdefault('knowledge_fixtures', {})[alias] = self.state
         self.save()
 
+    def write(self, name, value):
+        path = 'knowledge-fixtures/' + self.alias + '/' + name if self.alias else name
+        self.execution.evidence.write(path, value)
+
     def save(self):
-        self.execution.evidence.write('knowledge-fixture.json', self.state)
+        self.write('knowledge-fixture.json', self.state)
         self.execution.checkpoint()
 
     def product(self, method, path, body=None):
@@ -99,7 +146,7 @@ class KnowledgeFixture:
         created = self.product('POST', '/semantic-models/create-with-sources', {
             'name': self.state['name'], 'description': 'Synthetic Journey-2 knowledge fixture',
             'image_index_enabled': False, 'sources': [source_input]})
-        self.execution.evidence.write('knowledge-create.json', created)
+        self.write('knowledge-create.json', created)
         model = created.get('model')
         model_id = model.get('id') if isinstance(model, dict) else None
         domain = created.get('data_domain')
@@ -121,8 +168,8 @@ class KnowledgeFixture:
         while time.monotonic() < deadline:
             sources = self.product('GET', '/semantic-models/' + str(model_id) + '/sources?page=1&page_size=100')
             jobs = self.product('GET', '/semantic-models/' + str(model_id) + '/source-jobs')
-            self.execution.evidence.write('knowledge-sources.json', sources)
-            self.execution.evidence.write('knowledge-jobs.json', jobs)
+            self.write('knowledge-sources.json', sources)
+            self.write('knowledge-jobs.json', jobs)
             items = sources.get('items')
             if (not isinstance(items, list) or sources.get('total') != 1 or len(items) != 1 or
                     not isinstance(items[0], dict) or items[0].get('model_id') != model_id or
@@ -139,7 +186,7 @@ class KnowledgeFixture:
                 if self.kind == 'document':
                     document = self.product('GET', '/semantic-models/' + str(model_id) + '/sources/' +
                                             segment(source['row_id']) + '/document?page_size=100')
-                    self.execution.evidence.write('knowledge-document.json', document)
+                    self.write('knowledge-document.json', document)
                     segments = document.get('segments')
                     if (not isinstance(segments, list) or not any(isinstance(item, dict) and
                             isinstance(item.get('content'), str) and self.marker in item['content'] for item in segments)):
@@ -174,7 +221,7 @@ class KnowledgeFixture:
         for column, sql, expected in queries:
             result = self.product('POST', '/catalog/nl2sql/run_sql',
                                   {'database_id': self.state['database_id'], 'sql': sql})
-            self.execution.evidence.write('knowledge-table-' + column + '.json', result)
+            self.write('knowledge-table-' + column + '.json', result)
             rows = result.get('rows')
             if (result.get('columns') != [column] or not isinstance(rows, list) or len(rows) != 1 or
                     not isinstance(rows[0], list) or len(rows[0]) != 1 or type(rows[0][0]) not in {int, str} or

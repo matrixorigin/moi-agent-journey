@@ -9,7 +9,7 @@ from unittest.mock import patch
 from journey.catalog import load_case
 from journey.client import Failure
 from journey.evidence import Evidence
-from journey.knowledge_fixture import KnowledgeFixture, KnowledgeFixtureUnavailable
+from journey.knowledge_fixture import KnowledgeFixture, KnowledgeFixtureUnavailable, knowledge_selection_ids
 from journey.report import finish_case
 
 
@@ -104,6 +104,36 @@ class KnowledgeFixtureTests(unittest.TestCase):
         self.assertTrue(client.deleted)
         self.assertEqual(fixture.state['cleanup'], 'deleted')
         self.assertEqual(runner.report['harness_errors'], [])
+
+    def test_named_fixtures_have_distinct_identities_and_evidence(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        case = load_case('J2-46')
+        runner = SimpleNamespace(client=FixtureClient(), case=case, evidence=Evidence(Path(temp.name)),
+            report={'run_id': '27e32312-3809-4bb5-9c48-f24a4b75a671', 'harness_errors': []},
+            checkpoint=lambda: None)
+        first = KnowledgeFixture(runner, case['knowledge_fixtures']['fern'], alias='fern')
+        second = KnowledgeFixture(runner, case['knowledge_fixtures']['birch'], alias='birch')
+        self.assertNotEqual(first.state['name'], second.state['name'])
+        self.assertEqual(set(runner.report['knowledge_fixtures']), {'fern', 'birch'})
+        for alias in ('fern', 'birch'):
+            self.assertTrue((Path(temp.name) / 'knowledge-fixtures' / alias / 'knowledge-fixture.json').is_file())
+        with self.assertRaisesRegex(Failure, 'invalid_knowledge_fixture_alias'):
+            KnowledgeFixture(runner, case['knowledge_fixtures']['fern'], alias='../other')
+
+    def test_selection_requires_distinct_ready_owned_knowledge_bases(self):
+        fixtures = {'fern': SimpleNamespace(state={'status': 'ready', 'model_id': 42}),
+                    'birch': SimpleNamespace(state={'status': 'ready', 'model_id': 84})}
+        self.assertEqual(knowledge_selection_ids(fixtures, ['fern', 'birch']), ['42', '84'])
+        for selection in ([], ['missing'], ['fern', 'fern'], 'fern'):
+            with self.subTest(selection=selection), self.assertRaisesRegex(Failure, 'invalid_knowledge_selection'):
+                knowledge_selection_ids(fixtures, selection)
+        fixtures['birch'].state['model_id'] = 42
+        with self.assertRaisesRegex(Failure, 'invalid_knowledge_selection'):
+            knowledge_selection_ids(fixtures, ['fern', 'birch'])
+        fixtures['birch'].state['status'] = 'processing'
+        with self.assertRaisesRegex(Failure, 'invalid_knowledge_selection'):
+            knowledge_selection_ids(fixtures, ['birch'])
 
     def test_structured_fixture_checks_actual_rows_and_sum_before_use(self):
         fixture, client, runner = self.fixture('J2-41')

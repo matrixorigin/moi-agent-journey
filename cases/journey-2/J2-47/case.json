@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "id": "J2-47",
+  "workspace": "journey-2",
+  "title": "页面选择多个知识库并展示引用",
+  "executor": "browser",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {
+      "path": "fern.txt",
+      "sha256": "40f52c452fa71078910b67b89c49f8816f357fd3c51ff7c331c825b29fa7c357"
+    },
+    {
+      "path": "birch.txt",
+      "sha256": "8b03bb5c0f2b9061fda4b76d83888b2052fb219bbec70a272e08d460f430a4aa"
+    }
+  ],
+  "knowledge_fixtures": {
+    "fern": {
+      "kind": "document",
+      "path": "fern.txt",
+      "marker": "FERN-WALNUT"
+    },
+    "birch": {
+      "kind": "document",
+      "path": "birch.txt",
+      "marker": "BIRCH-LEMON"
+    }
+  },
+  "sessions": [
+    {
+      "id": "browser",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "query",
+          "prompt": "请根据我选择的知识库，回答 Project Fern 的 launch token，并引用来源。",
+          "knowledge_selection": [
+            "fern",
+            "birch"
+          ],
+          "knowledge_evidence": [
+            "fern"
+          ]
+        }
+      ]
+    }
+  ],
+  "scenario": "knowledge"
+}

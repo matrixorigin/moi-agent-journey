@@ -22,7 +22,7 @@ from .evidence import Evidence, configured_secrets
 from .feedback_checks import check_feedback
 from .hello import TERMINAL, discover
 from .knowledge_checks import evaluate_knowledge, evaluate_knowledge_table
-from .knowledge_fixture import KnowledgeFixture, KnowledgeFixtureUnavailable
+from .knowledge_fixture import KnowledgeFixtureUnavailable, knowledge_selection_ids, prepare_knowledge_fixtures
 from .live_resume import check_live_resume
 from .message_controls import check_completed_cancellation, check_empty_message
 from .run_case import Execution
@@ -163,16 +163,13 @@ class FunctionalExecution(Execution):
         current_search_tool = None
         current_open = None
         builders = {}
-        knowledge = None
+        knowledge = {}
         database = None
         try:
             self.root, self.selector = discover(self.client, self.case['workspace'])
             start_version(self)
             variables = case_variables(self.case)
-            if self.case.get('knowledge_fixture') is not None:
-                self.report['stage'] = 'knowledge_fixture'
-                knowledge = KnowledgeFixture(self, self.case['knowledge_fixture'])
-                variables.update(knowledge.setup())
+            prepare_knowledge_fixtures(self, knowledge, variables)
             if self.case.get('database_fixture') is not None:
                 self.report['stage'] = 'database_fixture'
                 database = DatabaseFixture(self, self.case['database_fixture'])
@@ -268,6 +265,8 @@ class FunctionalExecution(Execution):
                         self.report['validation'] = {'checks': checks}
                         self.checkpoint()
                     prompt = turn['prompt'].format_map(variables)
+                    selection = turn.get('knowledge_selection')
+                    knowledge_ids = knowledge_selection_ids(knowledge, selection) if selection is not None else None
                     cancel = turn.get('cancel_after_admission') is True
                     live_resume = turn.get('live_resume', False)
                     if type(live_resume) is not bool or (cancel and live_resume):
@@ -278,13 +277,14 @@ class FunctionalExecution(Execution):
                     if type(regeneration) is not bool:
                         raise Failure('invalid_regeneration_case')
                     if regeneration:
-                        if final_entry is None or attachments or cancel or live_resume or prompt:
+                        if final_entry is None or attachments or cancel or live_resume or prompt or knowledge_ids is not None:
                             raise Failure('invalid_regeneration_case')
                         final_entry, task = regenerate(self, cid, session['id'],
                                                       session['id'] + ':' + turn['phase'], final_entry, checks)
                     else:
                         final_entry, task = self.send(cid, session['id'] + ':' + turn['phase'], prompt, attachments,
-                                                      cancel_after_admission=cancel, live_resume=live_resume)
+                                                      cancel_after_admission=cancel, live_resume=live_resume,
+                                                      knowledge_ids=knowledge_ids)
                     if cancel:
                         accepted = final_entry.get('cancel_request') == 'accepted'
                         canceled = task['status']['state'] == 'canceled'
@@ -365,20 +365,33 @@ class FunctionalExecution(Execution):
                         if blocked:
                             self.report['blocked'] = True
                             self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
-                    if turn.get('knowledge_evidence') is True:
-                        if not knowledge or knowledge.kind != 'document' or knowledge.state.get('status') != 'ready':
-                            raise Failure('knowledge_fixture_not_ready')
-                        knowledge_checks, blocked = evaluate_knowledge(self.evidence.root / 'events.jsonl',
-                            final_entry['task_id'], session['id'], knowledge.state, knowledge.marker)
-                        checks.extend(knowledge_checks)
-                        if blocked:
-                            self.report['blocked'] = True
-                            self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
+                    evidence_names = turn.get('knowledge_evidence', False)
+                    if evidence_names is True:
+                        evidence_names = ['default']
+                    if evidence_names is not False:
+                        if (not isinstance(evidence_names, list) or not evidence_names or
+                                any(not isinstance(alias, str) or alias not in knowledge for alias in evidence_names) or
+                                len(set(evidence_names)) != len(evidence_names)):
+                            raise Failure('invalid_knowledge_evidence')
+                        for alias in evidence_names:
+                            fixture = knowledge[alias]
+                            if fixture.kind != 'document' or fixture.state.get('status') != 'ready':
+                                raise Failure('knowledge_fixture_not_ready')
+                            knowledge_checks, blocked = evaluate_knowledge(self.evidence.root / 'events.jsonl',
+                                final_entry['task_id'], session['id'], fixture.state, fixture.marker)
+                            if len(evidence_names) > 1:
+                                for check in knowledge_checks:
+                                    check['rule'] += ' (' + alias + ')'
+                            checks.extend(knowledge_checks)
+                            if blocked:
+                                self.report['blocked'] = True
+                                self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'], 'reason': blocked})
                     if turn.get('knowledge_table_evidence') is True:
-                        if not knowledge or knowledge.kind != 'table' or knowledge.state.get('status') != 'ready':
+                        fixture = knowledge.get('default')
+                        if not fixture or fixture.kind != 'table' or fixture.state.get('status') != 'ready':
                             raise Failure('knowledge_fixture_not_ready')
                         table_checks, blocked = evaluate_knowledge_table(self.evidence.root / 'events.jsonl',
-                            final_entry['task_id'], session['id'], knowledge.state, knowledge.verification)
+                            final_entry['task_id'], session['id'], fixture.state, fixture.verification)
                         checks.extend(table_checks)
                         if blocked:
                             self.report['blocked'] = True
@@ -540,7 +553,8 @@ class FunctionalExecution(Execution):
             if knowledge:
                 dependencies_confirmed = (tasks_confirmed and not any(
                     item.get('stage') == 'cleanup_agent' for item in self.report['harness_errors']))
-                knowledge.cleanup(dependencies_confirmed=dependencies_confirmed)
+                for fixture in knowledge.values():
+                    fixture.cleanup(dependencies_confirmed=dependencies_confirmed)
             if database:
                 database.cleanup(dependencies_confirmed=tasks_confirmed)
             self.report['cleanup_seconds'] += round(time.monotonic() - cleanup_started, 3)

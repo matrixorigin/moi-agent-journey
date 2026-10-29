@@ -15,6 +15,8 @@ from .agent_builder import candidate_from_task, cleanup_candidate
 from .client import Client, Failure, error_record, segment
 from .evidence import Evidence, configured_secrets, utc_now
 from .hello import TERMINAL, discover, task_state
+from .knowledge_checks import evaluate_knowledge
+from .knowledge_fixture import KnowledgeFixtureUnavailable, knowledge_selection_ids, prepare_knowledge_fixtures
 from .run_case import Execution
 from .version import finish_version, start_version
 
@@ -46,10 +48,11 @@ def fetch_tasks(execution, observations, deadline):
     client = execution.client
     records = [item for item in observations if item.get('kind') == 'task_request']
     prepared, phases = [], set()
+    allowed_phases = {turn['phase'] for session in execution.case['sessions'] for turn in session['turns']}
     for record in records:
         phase, cid = record.get('phase'), record.get('conversation_id')
         selector = {key: record.get(key) for key in ('agent_id', 'agent_workspace_id')}
-        if (phase not in {'create', 'verify'} or phase in phases or
+        if (phase not in allowed_phases or phase in phases or
                 not isinstance(cid, str) or not cid or
                 any(not isinstance(value, str) or not value for value in selector.values())):
             execution.report['harness_errors'].append({'stage': 'browser_task',
@@ -168,6 +171,18 @@ def cleanup(execution):
     cleanup_candidate(execution, allow_archive=browser_created_agent_owned(execution))
 
 
+def knowledge_cleanup_confirmed(execution, process, results, observations):
+    requested = [item for item in observations if item.get('kind') == 'task_request']
+    identities = {('browser:' + str(item.get('phase')), item.get('conversation_id')) for item in requested}
+    captured = {(task.get('phase'), task.get('conversation_id')) for task in execution.tasks}
+    return ((process is None or (len(results) == 1 and len(requested) == len(execution.tasks) and
+                                 len(identities) == len(requested) and identities == captured)) and
+            all(task.get('state') in TERMINAL for task in execution.tasks) and
+            all(item.get('cleanup') == 'archived' for item in execution.conversations) and
+            not any(item.get('stage') in {'browser_task', 'cleanup_agent', 'cleanup_conversation'}
+                    for item in execution.report['harness_errors']))
+
+
 def run(case, evidence, work):
     client = Client(os.environ['MOI_BASE_URL'], os.environ['MOI_PAT'], timeout=case['timeout_seconds'],
                     observer=evidence.observe_transport)
@@ -177,6 +192,9 @@ def run(case, evidence, work):
     execution.commit = None
     execution.published = None
     process = None
+    knowledge = {}
+    observations = []
+    results = []
     deadline = time.monotonic() + case['timeout_seconds']
     started = time.monotonic()
     try:
@@ -184,13 +202,31 @@ def run(case, evidence, work):
         start_version(execution)
         execution.workspace_id = execution.root.rsplit('/', 1)[-1]
         turns = case['sessions'][0]['turns']
-        if [turn['phase'] for turn in turns] != ['create', 'verify']:
+        scenario = case.get('scenario')
+        config = {'scenario': scenario, 'workspaceId': execution.workspace_id, 'model': case['model']}
+        if scenario == 'candidate' and [turn['phase'] for turn in turns] == ['create', 'verify']:
+            marker = 'JOURNEY_' + uuid.uuid4().hex
+            config.update({'agentName': execution.agent_name, 'marker': marker,
+                           'createPrompt': turns[0]['prompt'].format(agent_name=execution.agent_name),
+                           'verifyPrompt': turns[1]['prompt'].format(marker=marker)})
+        elif scenario == 'knowledge' and [turn['phase'] for turn in turns] == ['query']:
+            variables = {}
+            prepare_knowledge_fixtures(execution, knowledge, variables)
+            selection = turns[0].get('knowledge_selection')
+            knowledge_selection_ids(knowledge, selection)
+            source_selection = turns[0].get('knowledge_evidence')
+            knowledge_selection_ids(knowledge, source_selection)
+            if not set(source_selection).issubset(selection):
+                raise Failure('invalid_knowledge_evidence')
+            config.update({'prompt': turns[0]['prompt'].format_map(variables),
+                           'knowledge': [{'id': str(knowledge[alias].state['model_id']),
+                                          'name': knowledge[alias].state['name'],
+                                          'file': knowledge[alias].path.name,
+                                          'marker': knowledge[alias].marker,
+                                          'expected': alias in source_selection} for alias in selection]})
+        else:
             raise Failure('invalid_browser_case')
-        marker = 'JOURNEY_' + uuid.uuid4().hex
-        config = {'workspaceId': execution.workspace_id, 'agentName': execution.agent_name, 'marker': marker,
-                  'model': case['model'], 'createPrompt': turns[0]['prompt'].format(agent_name=execution.agent_name),
-                  'verifyPrompt': turns[1]['prompt'].format(marker=marker),
-                  'timeoutMs': max(1, int((deadline - time.monotonic()) * 1000))}
+        config['timeoutMs'] = max(1, int((deadline - time.monotonic()) * 1000))
         observation_path = Path(work) / ('browser-' + execution.report['run_id'] + '.jsonl')
         observation_path.parent.mkdir(parents=True, exist_ok=True)
         env = {key: value for key, value in os.environ.items() if not key.startswith('MOI_')}
@@ -212,7 +248,6 @@ def run(case, evidence, work):
         except Failure as error:
             stop_process(process)
             returncode, interrupted = None, error.code
-        observations = []
         if observation_path.exists():
             for line in observation_path.read_text().splitlines():
                 try:
@@ -253,6 +288,25 @@ def run(case, evidence, work):
         # Preserve already observed IDs even when the browser or product failed.
         client.deadline = max(client.deadline, time.monotonic() + 90)
         fetch_tasks(execution, observations, max(deadline, time.monotonic() + 20))
+        if scenario == 'knowledge' and execution.tasks:
+            query_task = next((task for task in execution.tasks if task['phase'] == 'browser:query'), None)
+            if query_task:
+                checks = execution.report.setdefault('validation', {}).setdefault('checks', [])
+                for alias in turns[0]['knowledge_evidence']:
+                    fixture = knowledge[alias]
+                    source_checks, blocked = evaluate_knowledge(execution.evidence.root / 'events.jsonl',
+                        query_task['task_id'], 'browser', fixture.state, fixture.marker)
+                    for check in source_checks:
+                        check['rule'] += ' (' + alias + ')'
+                    checks.extend(source_checks)
+                    if blocked:
+                        execution.report['blocked'] = True
+                        execution.report['failures'].append({'stage': 'browser:query', 'reason': blocked})
+                execution.report['sessions'].append({'id': 'browser', 'conversation_id': query_task['conversation_id'],
+                                                     'answer_delivered': results[0].get('answer_delivered') is True if results else False})
+                if any(not check['passed'] for check in checks) and execution.report['status'] == 'passed':
+                    execution.report['status'] = 'failed'
+                    execution.report['failures'].append({'stage': 'validation', 'reason': 'acceptance_checks_failed'})
         created = results[0].get('created_agent') if results else None
         if created:
             query = urlencode({'agent_workspace_id': execution.workspace_id})
@@ -268,6 +322,10 @@ def run(case, evidence, work):
         if execution.report['failures'] and execution.report['status'] == 'passed':
             execution.report['status'] = 'failed'
         execution.report['stage'] = 'complete'
+    except KnowledgeFixtureUnavailable as error:
+        execution.report['status'] = 'failed'
+        execution.report['blocked'] = True
+        execution.report['failures'].append({'stage': 'knowledge_fixture', 'reason': str(error)})
     except Exception as error:
         execution.report['status'] = 'error'
         execution.report['harness_errors'].append(error_record(execution.report['stage'], error))
@@ -279,6 +337,10 @@ def run(case, evidence, work):
         cleanup_started = time.monotonic()
         if execution.root:
             cleanup(execution)
+        if knowledge:
+            confirmed = knowledge_cleanup_confirmed(execution, process, results, observations)
+            for fixture in knowledge.values():
+                fixture.cleanup(dependencies_confirmed=confirmed)
         execution.report['cleanup_seconds'] = round(time.monotonic() - cleanup_started, 3)
         execution.report['capture_complete'] = bool(execution.tasks) and all(
             task['capture_complete'] for task in execution.tasks)

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "J2-45",
+  "workspace": "journey-2",
+  "title": "对话选择单个知识库并引用",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {
+      "path": "cedar.txt",
+      "sha256": "3fafc7b2a3e8cb7bcb49ed4593ff0bf66d877a69de6b3fdb553006ff9930b740"
+    }
+  ],
+  "knowledge_fixture": {
+    "kind": "document",
+    "path": "cedar.txt",
+    "marker": "Lantern"
+  },
+  "sessions": [
+    {
+      "id": "query",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "query",
+          "prompt": "请根据我选择的知识库回答：Project Cedar 的联系团队是什么？请引用来源。",
+          "knowledge_selection": [
+            "default"
+          ],
+          "knowledge_evidence": true,
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "Lantern",
+              "rule": "回答包含所选知识库中的联系团队"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
