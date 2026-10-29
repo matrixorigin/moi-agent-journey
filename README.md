@@ -249,4 +249,4 @@ python3 -m journey.report case J2-02
 python3 -m journey.publish
 ```
 
-J2-111～J2-120 增加真实自定义业务 Skill 包的上传、候选创建/确认、绑定后自然业务对话和清理，当前共 120 条。详见[业务 Skill 场景与验收](docs/journey-2-native-skills.md)。
+J2-111～J2-120 增加真实自定义业务 Skill 包的上传、候选创建/确认、绑定后自然业务对话和清理，当前共 120 条。详见[业务 Skill 场景与验收](docs/journey-2-native-skills.md)和[真实 QA 结果](docs/journey-2-native-skills-qa-2026-10-29.md)。

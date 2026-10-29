@@ -36,6 +36,7 @@ class NativeSkillTests(unittest.TestCase):
     def test_sql_datetime_transport_preserves_microseconds_and_date_types(self):
         self.assertEqual(canonical({'updated_at':'2026-01-01 00:00:00.123456 +0000 UTC','expected_end':'2100-01-01 00:00:00 +0000 UTC'}),
                          canonical({'updated_at':'2026-01-01 00:00:00.123456','expected_end':'2100-01-01'}))
+        self.assertEqual(canonical({'updated_at':'2026-01-01 00:00:00.12345 +0000 UTC'}), canonical({'updated_at':'2026-01-01 00:00:00.123450'}))
         self.assertNotEqual(canonical({'updated_at':'2026-01-01 00:00:00.123456'}),canonical({'updated_at':'2026-01-01 00:00:00.123457'}))
 
     def test_source_pin_and_name_change_do_not_replace_scripts(self):

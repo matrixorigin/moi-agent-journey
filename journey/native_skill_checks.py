@@ -69,7 +69,8 @@ def canonical(row):
             return None
         if isinstance(value, str) and re.match(r'^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}', value):
             try:
-                parsed = datetime.fromisoformat(value.removesuffix(' +0000 UTC'))
+                text = value.removesuffix(' +0000 UTC').replace('T', ' ')
+                parsed = datetime.strptime(text, '%Y-%m-%d %H:%M:%S' + ('.%f' if '.' in text else ''))
                 if key in {'expected_end', 'hiring_date'} and parsed.time().isoformat() == '00:00:00':
                     return parsed.date().isoformat()
                 return parsed.isoformat()
