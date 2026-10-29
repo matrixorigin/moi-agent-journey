@@ -48,3 +48,11 @@ class A2UICheckTests(unittest.TestCase):
             checks, delivered = self.check(events)
             self.assertFalse(delivered)
             self.assertFalse(all(item['passed'] for item in checks))
+
+    def test_cycles_fail_and_unrequested_optional_fields_do_not_change_data_verdict(self):
+        events = self.events()
+        components = events[-1]['payload']['updateComponents']['components']
+        components[1]['title'] = 'Optional title'
+        self.assertTrue(all(item['passed'] for item in self.check(events)[0]))
+        components[0]['children'].append('root')
+        self.assertFalse(all(item['passed'] for item in self.check(events)[0]))
