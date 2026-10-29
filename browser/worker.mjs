@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import { chromium } from 'playwright';
 import { createAgentCandidate } from './agent-candidate.mjs';
+import { selectKnowledgeInChat } from './chat-knowledge.mjs';
 
 const config = JSON.parse(process.env.JOURNEY_WORKER_CONFIG);
 const output = fs.openSync(process.env.JOURNEY_OBSERVATIONS, 'a', 0o600);
@@ -39,7 +40,9 @@ try {
   ]);
   observe({ kind: 'login', status: 'completed' });
   stage = 'scenario';
-  const result = await createAgentCandidate(page, config, observe);
+  const result = config.scenario === 'knowledge' ? await selectKnowledgeInChat(page, config, observe) :
+    config.scenario === 'candidate' ? await createAgentCandidate(page, config, observe) :
+    (() => { throw new Error('invalid_browser_scenario'); })();
   observe({ kind: 'result', ...result });
 } catch (error) {
   // Never print page content, URLs, credentials, or exception messages.

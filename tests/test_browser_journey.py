@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from journey.agent_builder import candidate_from_task
-from journey.browser_case import cleanup, fetch_tasks, run
+from journey.browser_case import cleanup, fetch_tasks, knowledge_cleanup_confirmed, run
 from journey.catalog import load_case, load_suite
 from journey.client import Failure
 from journey.diagnostics import analyze_events
@@ -112,6 +112,26 @@ class BrowserJourneyTests(unittest.TestCase):
         self.assertEqual([task['selector']['agent_id'] for task in execution.tasks], ['momo', 'created'])
         lines = (self.root / 'evidence' / 'events.jsonl').read_text().splitlines()
         self.assertEqual(len(lines), 2)
+
+    def test_knowledge_browser_task_is_captured_and_cleanup_requires_its_terminal_identity(self):
+        client = FakeClient()
+        case = load_case('J2-47')
+        execution = Execution(client, case, Evidence(self.root / 'knowledge'), self.root, case['model'])
+        execution.root = '/workspaces/ws'
+        execution.selector = {'agent_id': 'momo', 'agent_workspace_id': 'system'}
+        execution.agent_name, execution.workspace_id = 'test', 'ws'
+        observations = [{'kind': 'task_request', 'phase': 'query', 'conversation_id': 'c1',
+                         'agent_id': 'momo', 'agent_workspace_id': 'system'}]
+        fetch_tasks(execution, observations, 10**12)
+        self.assertEqual(execution.tasks[0]['trace_id'], 'trace1')
+        self.assertFalse(knowledge_cleanup_confirmed(execution, object(), [{}], observations))
+        execution.conversations[0]['cleanup'] = 'archived'
+        self.assertTrue(knowledge_cleanup_confirmed(execution, object(), [{}], observations))
+        execution.tasks[0]['state'] = 'working'
+        self.assertFalse(knowledge_cleanup_confirmed(execution, object(), [{}], observations))
+        execution.tasks[0]['state'] = 'completed'
+        observations[0]['conversation_id'] = 'another-context'
+        self.assertFalse(knowledge_cleanup_confirmed(execution, object(), [{}], observations))
 
     def test_candidate_cleanup_identity_must_match_the_exact_synthetic_name(self):
         data = {'agent_id': 'id', 'candidate_version': 'v1', 'source_digest': 'digest',

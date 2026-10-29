@@ -4,6 +4,7 @@
   "workspace": "journey-2",
   "title": "通过候选卡片创建智能体并对话",
   "executor": "browser",
+  "scenario": "candidate",
   "source": {"benchmark": "MOI product journey"},
   "assets": [],
   "oracles": [],

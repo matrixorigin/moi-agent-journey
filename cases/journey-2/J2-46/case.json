@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "J2-46",
+  "workspace": "journey-2",
+  "title": "对话选择多个知识库并分别引用",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "fixtures": [
+    {
+      "path": "fern.txt",
+      "sha256": "40f52c452fa71078910b67b89c49f8816f357fd3c51ff7c331c825b29fa7c357"
+    },
+    {
+      "path": "birch.txt",
+      "sha256": "8b03bb5c0f2b9061fda4b76d83888b2052fb219bbec70a272e08d460f430a4aa"
+    }
+  ],
+  "knowledge_fixtures": {
+    "fern": {
+      "kind": "document",
+      "path": "fern.txt",
+      "marker": "FERN-WALNUT"
+    },
+    "birch": {
+      "kind": "document",
+      "path": "birch.txt",
+      "marker": "BIRCH-LEMON"
+    }
+  },
+  "sessions": [
+    {
+      "id": "query",
+      "delivery_kind": "answer",
+      "expected_checks": 8,
+      "turns": [
+        {
+          "phase": "fern",
+          "prompt": "请根据我选择的知识库，回答 Project Fern 的 launch token，并引用来源。",
+          "knowledge_selection": [
+            "fern",
+            "birch"
+          ],
+          "knowledge_evidence": [
+            "fern"
+          ],
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "FERN-WALNUT",
+              "rule": "Fern 的 token 正确"
+            }
+          ]
+        },
+        {
+          "phase": "birch",
+          "prompt": "请根据我选择的知识库，回答 Project Birch 的 launch token，并引用来源。",
+          "knowledge_selection": [
+            "fern",
+            "birch"
+          ],
+          "knowledge_evidence": [
+            "birch"
+          ],
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "BIRCH-LEMON",
+              "rule": "Birch 的 token 正确"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

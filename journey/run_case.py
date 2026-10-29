@@ -128,7 +128,8 @@ class Execution:
             entry["capture_complete"] = True
         self.checkpoint()
 
-    def send(self, cid, phase, prompt, attachments=(), *, cancel_after_admission=False, live_resume=False):
+    def send(self, cid, phase, prompt, attachments=(), *, cancel_after_admission=False, live_resume=False,
+             knowledge_ids=None):
         if cancel_after_admission and live_resume:
             raise Failure('invalid_live_resume_case')
         selector = self.conversation_selector(cid)
@@ -138,12 +139,22 @@ class Execution:
             parts.append({"kind": "file", "file": {"uri": "moi://files/" + upload["file_id"],
                 "name": upload["original_name"], "mimeType": mimetypes.guess_type(upload["original_name"])[0]
                 or "application/octet-stream"}, "metadata": {"file_id": upload["file_id"]}})
+        metadata = {"files": list(attachments)}
+        if knowledge_ids is not None:
+            if (not isinstance(knowledge_ids, list) or not knowledge_ids or
+                    any(not isinstance(value, str) or not value.isdigit() or int(value) <= 0 for value in knowledge_ids) or
+                    len(set(knowledge_ids)) != len(knowledge_ids)):
+                raise Failure('invalid_knowledge_selection')
+            metadata['semantic_model_ids'] = knowledge_ids
         params = {"message": {"kind": "message", "role": "user", "messageId": message_id,
-                  "contextId": cid, "parts": parts, "metadata": {"files": list(attachments)}},
+                  "contextId": cid, "parts": parts, "metadata": metadata},
                   "model": self.model, "idempotencyKey": message_id}
-        self.evidence.append("dialogue.jsonl", {"at": utc_now(), "phase": phase,
+        dialogue = {"at": utc_now(), "phase": phase,
             "conversation_id": cid, "message_id": message_id, "prompt": prompt,
-            "attachments": list(attachments)})
+            "attachments": list(attachments)}
+        if knowledge_ids is not None:
+            dialogue['knowledge_ids'] = knowledge_ids
+        self.evidence.append("dialogue.jsonl", dialogue)
         self.pending_conversation = cid
         self.checkpoint()
         started = time.monotonic()

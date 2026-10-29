@@ -46,6 +46,48 @@ class FunctionalJourneyTests(unittest.TestCase):
             self.assertEqual((task['state'], agent['state'], delivery['state'], quality['state']),
                              ('completed', 'completed', 'delivered', 'checked'))
 
+    def test_each_turn_sends_its_selected_knowledge_scope(self):
+        with qa_fixture('success') as (base, state):
+            case = self.make_case()
+            case['knowledge_fixtures'] = {'fern': {}, 'birch': {}}
+            case['sessions'][0]['turns'][0]['knowledge_selection'] = ['fern']
+            case['sessions'][0]['turns'][1]['knowledge_selection'] = ['fern', 'birch']
+            cleaned = []
+            class Fixture:
+                def __init__(self, _runner, _definition, *, alias):
+                    self.alias = alias
+                    self.state = {'status': 'ready', 'model_id': {'fern': 42, 'birch': 84}[alias]}
+                def setup(self): return {'knowledge_id': str(self.state['model_id']), 'knowledge_name': self.alias}
+                def cleanup(self, *, dependencies_confirmed): cleaned.append((self.alias, dependencies_confirmed))
+            execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+            with patch('journey.knowledge_fixture.KnowledgeFixture', Fixture):
+                result = execution.run()
+            sends = [body for _, path, body in state['methods'] if path == '/agents/a2a' and
+                     body.get('method') == 'message/stream']
+            self.assertEqual(result['status'], 'passed')
+            self.assertEqual([send['params']['message']['metadata']['semantic_model_ids'] for send in sends],
+                             [['42'], ['42', '84']])
+            self.assertEqual(cleaned, [('fern', True), ('birch', True)])
+
+    def test_failed_second_knowledge_setup_still_cleans_both_owned_fixtures(self):
+        from journey.knowledge_fixture import KnowledgeFixtureUnavailable
+        with qa_fixture('success') as (base, state):
+            case = self.make_case()
+            case['knowledge_fixtures'] = {'fern': {}, 'birch': {}}
+            cleaned = []
+            class Fixture:
+                def __init__(self, _runner, _definition, *, alias): self.alias = alias
+                def setup(self):
+                    if self.alias == 'birch': raise KnowledgeFixtureUnavailable('source_not_ready')
+                    return {'knowledge_id': '42', 'knowledge_name': 'fern'}
+                def cleanup(self, *, dependencies_confirmed): cleaned.append((self.alias, dependencies_confirmed))
+            execution = FunctionalExecution(base.client, case, base.evidence, base.work, 'model')
+            with patch('journey.knowledge_fixture.KnowledgeFixture', Fixture):
+                result = execution.run()
+            self.assertTrue(result['blocked'])
+            self.assertEqual(cleaned, [('fern', True), ('birch', True)])
+            self.assertFalse(any(path == '/agents/a2a' for _, path, _ in state['methods']))
+
     def test_agent_failure_preserves_partial_trace_and_is_not_an_executor_error(self):
         with qa_fixture('agent_failure') as (base, state):
             execution = FunctionalExecution(base.client, self.make_case(), base.evidence, base.work, 'model')
@@ -406,7 +448,7 @@ class FunctionalJourneyTests(unittest.TestCase):
                 def remember(self, *_args): raise ProductCaseFailure('candidate_commit_failed')
                 def cleanup(self): self.runner.report['harness_errors'].append({'stage': 'cleanup_agent', 'reason': 'http_error'})
             fixture = Fixture()
-            with patch('journey.functional_case.KnowledgeFixture', return_value=fixture), \
+            with patch('journey.knowledge_fixture.KnowledgeFixture', return_value=fixture), \
                     patch('journey.functional_case.AgentBuilderFlow', Builder):
                 execution.run()
             self.assertFalse(fixture.confirmed)
@@ -430,7 +472,8 @@ class FunctionalJourneyTests(unittest.TestCase):
                             execution.pending_conversation = 'unknown-send'
                         else:
                             execution.tasks[0]['state'] = 'working'
-                    with patch('journey.functional_case.' + fixture_type, return_value=fixture), \
+                    target = ('journey.knowledge_fixture.' if resource == 'knowledge' else 'journey.functional_case.') + fixture_type
+                    with patch(target, return_value=fixture), \
                             patch.object(execution, 'finalize', side_effect=unresolved_finalize):
                         execution.run()
                     self.assertFalse(fixture.confirmed)
