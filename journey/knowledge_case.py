@@ -229,7 +229,8 @@ class KnowledgeExecution(Execution):
         history = self.report.setdefault('evaluation_replays', [])
         history.append({'started_at': utc_now(), 'original_task_ids': [task['task_id'] for task in self.tasks
             if not task['phase'].startswith('judge:')], 'previous_harness_errors': self.report.get('harness_errors', [])})
-        self.report['harness_errors'] = [error for error in self.report.get('harness_errors', []) if error.get('stage') != 'semantic_judge']
+        self.report['harness_errors'] = [error for error in self.report.get('harness_errors', [])
+                                        if error.get('stage') not in {'semantic_judge', 'trajectory_capture'}]
         self.report['failures'] = [error for error in self.report.get('failures', []) if error.get('reason') != 'acceptance_checks_failed']
         self.report['validation'] = {'checks': [self.delivery_check(answer) for answer in self.report['rag']['answers']]}
         self.report['status'] = 'running'
@@ -251,6 +252,7 @@ class KnowledgeExecution(Execution):
             self.record_failure(error)
         finally:
             self.finalize()
+            self.capture_trajectories()
             history[-1]['finished_at'] = utc_now()
             self.checkpoint()
         return self.report
@@ -294,20 +296,20 @@ class KnowledgeExecution(Execution):
                     answer.update(evaluation_state='unavailable', evaluation_reason='task_sequence_not_completed')
             finish_version(self)
             self.finalize()
-            events = self.evidence.root / 'events.jsonl'
-            if events.exists():
-                trajectories = []
-                try:
-                    for task in self.tasks:
-                        if not task['phase'].startswith('judge:'):
-                            trajectories.append({'task_id': task['task_id'], 'phase': task['phase'],
-                                'state': task['state'], 'seconds': task.get('seconds'),
-                                **task_trajectory(events, self.tasks, task['task_id'])})
-                    self.report['rag']['trajectories'] = trajectories
-                except (OSError, ValueError, KeyError, TypeError) as error:
-                    self.report['harness_errors'].append(error_record('trajectory_capture', error))
-                self.checkpoint()
+            self.capture_trajectories()
         return self.report
+
+    def capture_trajectories(self):
+        events = self.evidence.root / 'events.jsonl'
+        if events.exists():
+            try:
+                self.report['rag']['trajectories'] = [
+                    {'task_id': task['task_id'], 'phase': task['phase'], 'state': task['state'],
+                     'seconds': task.get('seconds'), **task_trajectory(events, self.tasks, task['task_id'])}
+                    for task in self.tasks if not task['phase'].startswith('judge:')]
+            except (OSError, ValueError, KeyError, TypeError) as error:
+                self.report['harness_errors'].append(error_record('trajectory_capture', error))
+            self.checkpoint()
 
 
 def main():

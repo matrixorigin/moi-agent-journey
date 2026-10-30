@@ -134,6 +134,24 @@ class RagEvidenceTests(unittest.TestCase):
             self.assertFalse(restricted['citations'][0]['retrieval_link'])
             self.assertEqual(restricted['out_of_scope_chunks'], 1)
 
+    def test_zero_result_nil_chunks_are_empty_evidence_and_not_an_execution_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'events.jsonl'; tasks = self.events(path)
+            rows = [json.loads(line) for line in path.read_text().splitlines()]
+            rows[2]['payload']['artifact']['data'] = {'chunks': None, 'row_count': 0}
+            path.write_text('\n'.join(json.dumps(row) for row in rows) + '\n')
+            observed = observe_rag(path, 'qa', {1})
+            self.assertEqual(len(observed['retrieved_chunks']), 2)
+            self.assertEqual(observed['retrieval_successes'], 3)
+            self.assertFalse(observed['citations'][0]['retrieval_link'])
+            timeline = task_trajectory(path, tasks, 'qa')['timeline']
+            self.assertEqual([call['new_retrieved_chunks'] for call in timeline], [0, 1, 0])
+            rows[2]['payload']['artifact']['data']['row_count'] = 1
+            path.write_text('\n'.join(json.dumps(row) for row in rows) + '\n')
+            for operation in (lambda: observe_rag(path, 'qa', {1}), lambda: task_trajectory(path, tasks, 'qa')):
+                with self.assertRaisesRegex(ValueError, 'invalid_rag_chunk_collection'):
+                    operation()
+
     def verdict_fixture(self):
         observed = {'retrieved_chunks': [{'evidence_id': 'R1', 'content': 'Files remain 45 days.'}],
                     'citation_chunks': [{'evidence_id': 'C1', 'content': 'Files remain 45 days.'}],
@@ -320,7 +338,8 @@ class KnowledgeDatasetTests(unittest.TestCase):
                 original_sent = list(sent)
                 original_tasks = copy.deepcopy([task for task in result['tasks'] if not task['phase'].startswith('judge:')])
                 prior = copy.deepcopy(result)
-                prior['harness_errors'] = [{'stage': 'semantic_judge', 'reason': 'invalid_json'}]
+                prior['harness_errors'] = [{'stage': 'semantic_judge', 'reason': 'invalid_json'},
+                                          {'stage': 'trajectory_capture', 'reason': 'old_decode_failure'}]
                 sent.clear()
                 replay = KnowledgeExecution(client, case, evidence, directory, 'model').reevaluate(prior)
                 self.assertEqual(len(sent), 1)
@@ -328,6 +347,8 @@ class KnowledgeDatasetTests(unittest.TestCase):
                 self.assertEqual([task for task in replay['tasks'] if not task['phase'].startswith('judge:')], original_tasks)
                 self.assertEqual(replay['task_seconds'], result['task_seconds'])
                 self.assertEqual(replay['harness_errors'], [])
+                self.assertEqual([item['task_id'] for item in replay['rag']['trajectories']],
+                                 [task['task_id'] for task in original_tasks])
                 self.assertEqual(replay['evaluation_replays'][0]['previous_harness_errors'], prior['harness_errors'])
                 self.assertEqual(prior['harness_errors'][0]['reason'], 'invalid_json')
                 sent.clear()

@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .diagnostics import analyze_events
+from .rag_artifacts import retrieved_chunks
 
 
 def task_trajectory(path, tasks, task_id):
@@ -25,9 +26,10 @@ def task_trajectory(path, tasks, task_id):
         seconds = (max(timestamps) - min(timestamps)).total_seconds() if len(timestamps) > 1 else None
         artifacts = [event.get('payload', {}).get('artifact', {}) for event in events
                      if event.get('task_id') == task_id and event.get('kind') == 'artifact' and
+                     event.get('payload', {}).get('tool_id') == 'search_rag_chunks' and
                      event.get('payload', {}).get('call_id') == call['call_id']]
         keys = {(str(chunk.get('semantic_model_id')), chunk.get('source_row_id'), chunk.get('chunk_id'))
-                for artifact in artifacts for chunk in artifact.get('data', {}).get('chunks', [])
+                for artifact in artifacts for chunk in retrieved_chunks(artifact)
                 if isinstance(chunk, dict)}
         novel = len(keys - seen_chunks)
         if call['tool'] == 'search_rag_chunks':

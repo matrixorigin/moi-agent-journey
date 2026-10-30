@@ -3,6 +3,8 @@ import json
 import re
 from pathlib import Path
 
+from .rag_artifacts import retrieved_chunks
+
 
 def observe_rag(path, task_id, model_ids, context_task_ids=()):
     calls, results, artifacts, answers = set(), {}, [], []
@@ -30,7 +32,7 @@ def observe_rag(path, task_id, model_ids, context_task_ids=()):
     for call_id, artifact in artifacts:
         if call_id not in calls or results.get(call_id) is not True:
             continue
-        for chunk in artifact.get('data', {}).get('chunks', []):
+        for chunk in retrieved_chunks(artifact):
             if isinstance(chunk, dict) and isinstance(chunk.get('content'), str):
                 chunks.append({'artifact_id': artifact.get('artifact_id'), 'source_task_id': call_id[0], **chunk})
     refs = answers[-1].get('metadata', {}).get('source_refs', []) if answers else []
