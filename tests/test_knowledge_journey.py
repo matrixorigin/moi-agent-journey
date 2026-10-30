@@ -11,7 +11,7 @@ from journey.knowledge_sources import content_sha256, list_sources, read_documen
 from journey.knowledge_case import KnowledgeExecution
 from journey.evidence import Evidence
 from journey.report import aggregate, finish_case
-from journey.rag_quality import observe_rag, parse_verdict, summarize_verdict
+from journey.rag_quality import evidence_text, judge_chunks, observe_rag, parse_verdict, summarize_verdict
 from journey.rag_report import summarize_rag
 from journey.rag_report import valid_rag_result
 from journey.trajectory import task_trajectory
@@ -32,6 +32,7 @@ class KnowledgeSourceTests(unittest.TestCase):
             execution = KnowledgeExecution(Mock(), {'id': 'case', 'title': 'test', 'workspace': 'journey-3',
                 'timeout_seconds': 60}, Evidence(directory), directory, 'model')
             execution.corpus = {'model_id': 1, 'source_etags': {'source': 'fixed'}}
+            execution.bound_corpora = [execution.corpus]
             reference = {'verify_whole_corpus': True, 'evidence': []}
             for enabled, etag, expected in [(True, 'fixed', 'matched'), (True, 'changed', 'changed'),
                                             (False, 'fixed', 'changed')]:
@@ -103,7 +104,7 @@ class RagEvidenceTests(unittest.TestCase):
     def test_citations_and_retrieval_are_task_local_and_repetition_is_evidence_not_verdict(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'events.jsonl'; tasks = self.events(path)
-            observed = observe_rag(path, 'qa', 1)
+            observed = observe_rag(path, 'qa', {1})
             self.assertEqual(len(observed['citations']), 1)
             self.assertEqual(observed['citations'][0]['retrieval_link'], True)
             self.assertEqual(observed['citations'][0]['reference']['source_row_id'], 'source')
@@ -113,6 +114,25 @@ class RagEvidenceTests(unittest.TestCase):
             self.assertEqual(trajectory['max_consecutive_retrievals_without_new_chunks'], 2)
             self.assertEqual(trajectory['timeline'][0]['seconds'], 1)
             self.assertNotIn('assessment', trajectory)
+
+    def test_multiple_bound_bases_allow_related_citations_without_allowing_other_bases(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'events.jsonl'; self.events(path)
+            records = [json.loads(line) for line in path.read_text().splitlines()]
+            artifact = copy.deepcopy(next(event for event in records if event['seq'] == 3))
+            artifact['seq'] = 15
+            artifact['payload']['artifact']['data']['chunks'][0].update(semantic_model_id=2, source_row_id='second')
+            answer = copy.deepcopy(next(event for event in records if event['seq'] == 13))
+            answer['seq'] = 16
+            answer['payload']['artifact']['metadata']['source_refs'][0].update(semantic_model_id=2, source_row_id='second')
+            records += [artifact, answer]
+            path.write_text('\n'.join(json.dumps(record) for record in records)+'\n')
+            allowed = observe_rag(path, 'qa', {1, 2})
+            restricted = observe_rag(path, 'qa', {1})
+            self.assertTrue(allowed['citations'][0]['retrieval_link'])
+            self.assertEqual(allowed['out_of_scope_chunks'], 0)
+            self.assertFalse(restricted['citations'][0]['retrieval_link'])
+            self.assertEqual(restricted['out_of_scope_chunks'], 1)
 
     def verdict_fixture(self):
         observed = {'retrieved_chunks': [{'evidence_id': 'R1', 'content': 'Files remain 45 days.'}],
@@ -158,8 +178,80 @@ class RagEvidenceTests(unittest.TestCase):
             'evaluation_state': 'unavailable',
             'metrics': {'correctness': {'passed': 1, 'total': 0, 'rate': 1}}}]}))
 
+    def test_json_envelope_does_not_repair_or_extract_a_verdict_from_other_text(self):
+        observed, efficiency, reference, verdict = self.verdict_fixture()
+        raw = json.dumps(verdict)
+        for text in (raw, '  ```json\n' + raw + '\n```\n', '```\n' + raw + '\n```'):
+            self.assertEqual(parse_verdict(text, '45 days', reference, observed, efficiency), verdict)
+        for text in ('Result: ' + raw, '```json\n' + raw + '\n```\nextra',
+                     '```python\n' + raw + '\n```', '```json\n' + raw + '\n```\n```json\n{}\n```'):
+            with self.assertRaises(ValueError):
+                parse_verdict(text, '45 days', reference, observed, efficiency)
+
+    def test_canonical_quote_requires_actual_same_source_retrieval_not_just_source_availability(self):
+        observed, efficiency, reference, verdict = self.verdict_fixture()
+        identity = {'semantic_model_id': 1, 'source_row_id': 'source', 'file_id': 'file'}
+        for evidence in observed['retrieved_chunks'] + observed['citation_chunks']:
+            evidence.update(identity)
+        verdict['claims'][0]['source_quotes'][0]['evidence_id'] = 'C1'
+        self.assertEqual(parse_verdict(json.dumps(verdict), '45 days', reference, observed, efficiency), verdict)
+        for field in identity:
+            changed = copy.deepcopy(observed)
+            changed['retrieved_chunks'][0][field] = 'other'
+            with self.assertRaisesRegex(ValueError, 'claim_quote_not_in_retrieval'):
+                parse_verdict(json.dumps(verdict), '45 days', reference, changed, efficiency)
+        observed['retrieved_chunks'][0]['content'] = 'different retrieved text'
+        with self.assertRaisesRegex(ValueError, 'claim_quote_not_in_retrieval'):
+            parse_verdict(json.dumps(verdict), '45 days', reference, observed, efficiency)
+
+    def test_verified_bindings_support_context_claims_but_cannot_support_citations(self):
+        observed, efficiency, reference, verdict = self.verdict_fixture()
+        observed['context_evidence'] = [{'evidence_id': 'B1', 'content': '45 days'}]
+        verdict['claims'][0]['source_quotes'][0]['evidence_id'] = 'B1'
+        self.assertEqual(parse_verdict(json.dumps(verdict), '45 days', reference, observed, efficiency), verdict)
+        verdict['citations'][0]['source_quotes'][0]['evidence_id'] = 'B1'
+        with self.assertRaisesRegex(ValueError, 'quote_not_in_cited_source'):
+            parse_verdict(json.dumps(verdict), '45 days', reference, observed, efficiency)
+
+    def test_judge_view_deduplicates_only_identical_evidence_and_keeps_full_text(self):
+        original = {'evidence_id': 'R1', 'semantic_model_id': 1, 'source_row_id': 's',
+                    'file_id': 'f', 'chunk_id': 'c', 'content': 'complete evidence', 'score': .8}
+        chunks = [original, {**original, 'evidence_id': 'R2', 'score': .9},
+                  {**original, 'evidence_id': 'R3', 'content': 'changed evidence'},
+                  {**original, 'evidence_id': 'R4', 'semantic_model_id': 2}]
+        self.assertEqual(judge_chunks(chunks), [{'evidence_id': c['evidence_id'], 'content': evidence_text(c)}
+                                               for c in (chunks[0], chunks[2], chunks[3])])
+        self.assertIn('semantic_model_id', judge_chunks(chunks)[0]['content'])
+        self.assertEqual(len(chunks), 4)
+        self.assertIn('score', original)
+
 
 class KnowledgeDatasetTests(unittest.TestCase):
+    def test_explicit_target_verifies_every_bound_corpus_and_preserves_question_reference(self):
+        case = load_case('J3-35')
+        catalog = json.loads((ROOT / 'datasets/journey-3/corpora.json').read_text())
+        case['knowledge_target'] = {'agent_id': 'all-knowledge', 'corpora': list(catalog)}
+        client = Mock(); client.requests = 0
+        client.product.return_value = {'id': 'all-knowledge', 'workspace_id': 'workspace', 'status': 'active',
+            'binding': {'knowledge_base_refs': [{'id': str(value['model_id']), 'workspace_id': 'workspace',
+                'status': 'active'} for value in catalog.values()]}}
+        def sources(_client, mid):
+            corpus = next(value for value in catalog.values() if value['model_id'] == mid)
+            return [{'model_id': mid, 'row_id': sid} for sid in corpus['source_ids']]
+        with tempfile.TemporaryDirectory() as directory:
+            execution = KnowledgeExecution(client, case, Evidence(directory), directory, 'model')
+            execution.report['rag'] = {}
+            with patch('journey.knowledge_case.discover', return_value=('/workspaces/workspace',
+                      {'agent_id': 'momo', 'agent_workspace_id': 'system'})), \
+                    patch('journey.knowledge_case.list_sources', side_effect=sources), \
+                    patch('journey.knowledge_case.start_version'):
+                execution.setup()
+            self.assertEqual(execution.allowed_model_ids, {10001, 10002, 10003, 20001})
+            self.assertEqual(len(execution.sources), 307)
+            self.assertTrue(execution.report['rag']['corpus_inventory_matches'])
+            self.assertEqual(execution.corpus['model_id'], catalog['cedar']['model_id'])
+            self.assertEqual(execution.selector['agent_id'], 'all-knowledge')
+
     def test_dataset_keeps_57_questions_context_and_fixed_bound_agents(self):
         config = json.loads((ROOT / 'suites.json').read_text())
         suite = next(s for s in config['journeys'] if s['workspace'] == 'journey-3')
@@ -219,11 +311,28 @@ class KnowledgeDatasetTests(unittest.TestCase):
             execution = KnowledgeExecution(client, case, evidence, directory, 'model')
             with patch('journey.knowledge_case.discover', return_value=('/workspaces/workspace',
                         {'agent_id': 'momo', 'agent_workspace_id': 'system'})), \
-                    patch('journey.knowledge_case.list_sources', return_value=[{'row_id': sid} for sid in corpus['source_ids']]), \
+                    patch('journey.knowledge_case.list_sources', return_value=[{'row_id': sid, 'model_id': corpus['model_id']}
+                                                                              for sid in corpus['source_ids']]), \
                     patch('journey.knowledge_case.start_version'), patch('journey.knowledge_case.finish_version'), \
                     patch('journey.knowledge_case.signal.alarm'), \
                     patch.object(KnowledgeExecution, 'send', send), patch.object(KnowledgeExecution, 'cleanup'):
                 result = execution.run()
+                original_sent = list(sent)
+                original_tasks = copy.deepcopy([task for task in result['tasks'] if not task['phase'].startswith('judge:')])
+                prior = copy.deepcopy(result)
+                prior['harness_errors'] = [{'stage': 'semantic_judge', 'reason': 'invalid_json'}]
+                sent.clear()
+                replay = KnowledgeExecution(client, case, evidence, directory, 'model').reevaluate(prior)
+                self.assertEqual(len(sent), 1)
+                self.assertTrue(sent[0][0].startswith('judge:'))
+                self.assertEqual([task for task in replay['tasks'] if not task['phase'].startswith('judge:')], original_tasks)
+                self.assertEqual(replay['task_seconds'], result['task_seconds'])
+                self.assertEqual(replay['harness_errors'], [])
+                self.assertEqual(replay['evaluation_replays'][0]['previous_harness_errors'], prior['harness_errors'])
+                self.assertEqual(prior['harness_errors'][0]['reason'], 'invalid_json')
+                sent.clear()
+                sent.extend(original_sent)
+                evidence.write('result.json', result)
             self.assertEqual(result['status'], 'failed')
             self.assertEqual(result['harness_errors'], [])
             self.assertEqual(sent[0][1]['agent_id'], corpus['agent_id'])
@@ -251,6 +360,20 @@ class KnowledgeDatasetTests(unittest.TestCase):
             markdown = (root / 'bundle/summary.md').read_text()
             self.assertIn('### 效率', markdown)
             self.assertIn('### 正确性', markdown)
+
+    def test_explicit_subset_keeps_missing_selected_answers_in_the_denominator(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = aggregate(root / 'source', root / 'bundle', 'journey-3', ['J3-01', 'J3-35'])
+            self.assertEqual(report['total'], 2)
+            self.assertEqual(report['rag']['answers_expected'], 2)
+            self.assertEqual(report['rag']['answers_missing'], 2)
+            self.assertEqual(report['test_errors'], 2)
+            self.assertEqual(report['case_selection'], ['J3-01', 'J3-35'])
+            self.assertIn('仅统计显式选择的题目', (root / 'bundle/summary.md').read_text())
+            for selection in ([], ['J3-01', 'J3-01'], ['J2-01'], ['J3-999']):
+                with self.assertRaisesRegex(ValueError, 'invalid_case_selection'):
+                    aggregate(root / 'source', root / 'invalid', 'journey-3', selection)
 
 
 if __name__ == '__main__':

@@ -39,6 +39,20 @@ Journey-1 每个 case 的 **QA 总预算为 3600 秒**，Journey-2 为 **300 秒
 
 Journey-3 被测任务沿用 **1 小时**超时；独立评估另外最多 180 秒，多会话对照最多 300 秒，评估与清理不计入被测任务耗时。GitHub 绿色仍表示测试框架完成；知识库效率和正确性问题记录在单 case、汇总 Markdown/JSON 和 CSV 中，不作为 Journey-2 的功能发布门禁。
 
+本地可将同一题显式指向另一个已绑定知识库的智能体，用于多库对照；未传参数时继续使用题集原来的单库智能体。指定智能体的实际绑定必须与参数完全一致，引用只允许落在这些库中，缺失信息题会校验全部绑定库的资料快照。有效执行配置保存在 case 的 `execution-config.json` 中：
+
+```bash
+python3 -m journey.knowledge_case J3-01 --agent-id '<agent-id>' --bound-corpora sap cedar moi matrixone
+```
+
+评分器输入将完全相同的检索证据去重，并去掉传输元数据，保留原文、来源身份、文件名和页码；完整检索返回仍保存在事件和观察记录中。评分 JSON 可使用一个完整的 JSON 代码块，其他说明文字或无效结构仍报告评分错误。
+
+修正评分器后，可以在**新的空目录**中添加 `--evaluate-existing /absolute/path/to/results/J3-01` 重新评估已有回答（目标参数必须与原执行一致）。它只调用独立评分会话，不重发被测任务；原结果保存在 `evaluation-history/`，报告保留重评记录与原任务耗时。
+
+只运行部分题目时，用 `python3 -m journey.report aggregate --workspace journey-3 --cases J3-01 J3-35 --root published-results --out bundle` 明确汇总范围。所选题目的结果缺失仍计为错误，未选题目不计入分母。
+
+SSE 与普通 JSON 接口均采用 32 MB 接收上限；按 UTF-8 字节限制单条事件，支持大表产生的多 MB 检索产物，不截断内容。
+
 ## 如何阅读结果
 
 每个 case 分别报告测试框架、智能体请求、交付和质量：

@@ -569,11 +569,17 @@ def _valid_case_result(result):
                for key in ('tasks', 'conversations', 'failures', 'harness_errors'))
 
 
-def aggregate(source, destination, workspace='all'):
+def aggregate(source, destination, workspace='all', case_ids=None):
     config = json.loads((ROOT / 'suites.json').read_text())
     suites_to_run = select_suites(config, workspace)
     if workspace != 'all':
         workspace = suites_to_run[0]['workspace']
+    if case_ids is not None:
+        available = {case_id for suite in suites_to_run for case_id in suite['cases']}
+        if not case_ids or len(set(case_ids)) != len(case_ids) or set(case_ids) - available:
+            raise ValueError('invalid_case_selection')
+        suites_to_run = [{**suite, 'cases': [cid for cid in suite['cases'] if cid in case_ids]}
+                         for suite in suites_to_run if set(suite['cases']) & set(case_ids)]
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
     rows, suites = [], []
@@ -617,7 +623,8 @@ def aggregate(source, destination, workspace='all'):
                     tool_errors[(scope, str(call.get('tool') or 'unknown'), str(item.get('code') or item.get('kind')),
                                  item.get('expected') is True)].add(
                         (row['case_id'], call['task_id'], call['call_id']))
-    report = {'generated_at': utc_now(), 'workspace_selection': workspace, 'github_run_id': os.environ.get('GITHUB_RUN_ID'),
+    report = {'generated_at': utc_now(), 'workspace_selection': workspace, 'case_selection': case_ids,
+              'github_run_id': os.environ.get('GITHUB_RUN_ID'),
               'github_run_attempt': os.environ.get('GITHUB_RUN_ATTEMPT'), 'commit': os.environ.get('GITHUB_SHA'),
               **totals, 'journeys': suites, 'cases': rows,
               'task_errors': [{'stage': stage, 'reason': reason, 'cases': sorted(cases)}
@@ -688,6 +695,8 @@ def aggregate(source, destination, workspace='all'):
         '工具成功率依据公开事件中的执行状态；跳过及结果不明确的调用不计入分母。用例主动触发的错误仍计入成功率，并在错误统计中标记；该比例不代表业务正确率。', '',
         '| 工作区 | Case | 框架 | 功能验收 | 任务 | 智能体请求 | 交付 | 质量检查 | 耗时（秒） | 工具成功/已判定 |',
         '|---|---|---|---|---|---|---|---|---:|---|']
+    if case_ids is not None:
+        lines[4:4] = ['本次仅统计显式选择的题目：' + cell(', '.join(case_ids), 10000) + '。', '']
     for row in rows:
         q, m = row['quality'], row['tools'].get('metrics') or {}
         quality_text = ((('部分检查 ' if q['state'] == 'partial' else
@@ -762,6 +771,7 @@ def main():
     finish=sub.add_parser('case');finish.add_argument('case_id');finish.add_argument('--root',default='results')
     security=sub.add_parser('scan');security.add_argument('directory')
     summary=sub.add_parser('aggregate');summary.add_argument('--root',default='downloaded-results');summary.add_argument('--out',default='bundle');summary.add_argument('--workspace',default='all')
+    summary.add_argument('--cases', nargs='+', help='Explicit subset; selected missing results still count as errors')
     args=parser.parse_args()
     if args.command=='case':
         result=finish_case(args.case_id,args.root)
@@ -774,7 +784,7 @@ def main():
     if args.command=='scan':
         scan(args.directory, configured_secrets())
         return 0
-    report=aggregate(args.root,args.out,args.workspace)
+    report=aggregate(args.root,args.out,args.workspace,args.cases)
     print(json.dumps({k: report[k] for k in ['total', 'test_errors', 'task', 'agent', 'delivery', 'quality', 'tools']}))
     return 1 if report['test_errors'] else 0
 

@@ -10,6 +10,8 @@ import urllib.parse
 import urllib.request
 import uuid
 
+JSON_RESPONSE_LIMIT = 32_000_000
+
 
 class Failure(Exception):
     def __init__(self, code, http_status=None, details=None, *, trace_headers=None):
@@ -83,7 +85,7 @@ class Client:
         self.observer = observer
 
     def request(self, method, path, body=None, *, raw=None, content_type=None,
-                binary=False, max_bytes=32_000_000):
+                binary=False, max_bytes=JSON_RESPONSE_LIMIT):
         remaining = self.deadline - time.monotonic()
         if remaining <= 0:
             raise Failure("deadline_exceeded")
@@ -182,16 +184,16 @@ class Client:
                         self.observer({"method":"POST","path":"/agents/a2a","status":response.status,
                             "response":{"error_body":response.read(65536).decode('utf-8',errors='replace')}})
                     raise Failure("invalid_stream_content_type")
-                data, sequence = [], None
+                data, sequence, data_bytes = [], None, 0
                 while True:
                     if time.monotonic() >= self.deadline:
                         raise Failure("deadline_exceeded")
-                    line = response.readline(2_000_001)
+                    line = response.readline(JSON_RESPONSE_LIMIT + 1)
                     if not line:
                         if data:
                             raise Failure("incomplete_stream_frame")
                         return
-                    if len(line) > 2_000_000:
+                    if len(line) > JSON_RESPONSE_LIMIT:
                         raise Failure("stream_frame_too_large")
                     text = line.decode("utf-8").rstrip("\r\n")
                     if not text:
@@ -208,11 +210,13 @@ class Client:
                         if not isinstance(frame.get("result"), dict):
                             raise Failure("invalid_rpc_response")
                         yield {"sequence": sequence, "result": frame["result"]}
-                        data, sequence = [], None
+                        data, sequence, data_bytes = [], None, 0
                     elif text.startswith("data:"):
-                        data.append(text[5:].lstrip(" "))
-                        if sum(len(part) for part in data) > 2_000_000:
+                        part = text[5:].lstrip(" ")
+                        data_bytes += len(part.encode('utf-8')) + bool(data)
+                        if data_bytes > JSON_RESPONSE_LIMIT:
                             raise Failure("stream_frame_too_large")
+                        data.append(part)
                     elif text.startswith("id:"):
                         sequence = text[3:].strip()
         except urllib.error.HTTPError as error:

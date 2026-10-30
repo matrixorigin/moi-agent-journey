@@ -82,6 +82,8 @@ def case_lines(result, cell):
     lines = ['', '## 知识库问答', '', f"知识库组：{cell(rag['corpus'])}。",
              '参考要点按语义判定，允许同义表达；标识符、数值、单位和适用范围须准确。',
              '主张支持率仅检查已观测检索片段；未观测到检索上下文时显示无法评价。']
+    if rag.get('target'):
+        lines.append(f"被测智能体：{cell(rag['target']['agent_id'])}；绑定知识库组：{cell(rag['target']['corpora'])}。")
     for key in ('qa_version_start', 'qa_version_end'):
         version = result.get(key, {})
         lines.append(f"- {'开始' if key.endswith('start') else '结束'}版本：{cell(version.get('version'))} / {cell(version.get('git_commit'))}。")
