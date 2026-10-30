@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "J3-13",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · zva01_all_types",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "zva01_all_types",
+    "original_reference_status": "manual_review_required"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "zva01_all_types",
+    "original_number": 13
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nZVA01で入力できる受注タイプをすべて教えてください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "该版手册画面列出5种：ZBB4、ZBC4、ZBD1、ZBB6、ZBB7"
+              },
+              {
+                "id": "C02",
+                "text": "ZBB1参照登记不支持，需使用VA01"
+              },
+              {
+                "id": "C03",
+                "text": "不将其他主受注类型全部当作ZVA01可输入类型"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-cefd28ab561146f81f73aa17",
+                "file_id": "20a90510-5c56-4d07-bf46-0fe847eefb19",
+                "file_name": "ZVA01_操作方法マニュアル_正式リリース版_V0.3.xlsx",
+                "segment_id": "kbsegrow-f03e2b6682f01223b98eacf8",
+                "quote": "受注タイプ (1)\n\n> 制約\n\n| 略 | テキスト |\n|---|---|\n| ZBB4 | 標準・サービス受注(見積参照無) |\n| ZBC4 | 供覧書本引渡 |\n| ZBD1 | 無償見本 |\n| ZBB6 | EDI受注 |\n| ZBB7 | EC受注 |\n\n5 検出エントリ",
+                "etag": "6649b91bd1472d3439c8c23ab82a2d2fabc8adf67cd52d1a7443db46ca14dd75",
+                "document_sha256": "c9c366f9ec15e9ef42e50eddbe2e25b2f899fab974fb6fa3150e8221c13fa62c"
+              },
+              {
+                "source_id": "kb-source-cefd28ab561146f81f73aa17",
+                "file_id": "20a90510-5c56-4d07-bf46-0fe847eefb19",
+                "file_name": "ZVA01_操作方法マニュアル_正式リリース版_V0.3.xlsx",
+                "segment_id": "kbsegrow-b4d0d5079cc568dcc3047abc",
+                "quote": "ハンバイデンピョウトウロクスデトウロクデンピョウシュウセイデキ</td><td>修正機能の対応予定はございません。VA02を使用して下さい。シュウセイキノウタイオウヨテイシヨウクダ</td></tr><tr><td>2</td><td>参照登録機能はないのでしょうか。（ZBB1に対応）サンショウトウロクキノウタイオウ</td><td>対応予定はございません。参照登録を行う場合、VA01を使用して下さい。タイオウヨテイサンショウトウロクオコナバアイシヨウクダ</td></tr><tr><td>3</td><td>入力について、必要な箇所のみにTabキーで移動するようにしてほしいです。ニュウリョクヒツヨウカショイドウ</td><td>画面上の制約があるため、基本的には対応不可となります。ガメンウエセイヤクキホンテキタイオウフカ</td></tr><tr><td>4</td><td>その他の受注タイプも入力出来るようになりますか？ホカジュチュウニュウリョクデキ</td><td>今後、必要性に応じて検討を行います。追加要望については、理由も含めご連絡下さい。コンゴヒツヨウセイオウケントウオコナツイカヨウボウリユウフクレンラククダ</td></tr><tr><td>5</td><td>在庫数を明細行に表示してもらえないでしょうか。ザイコスウメイサイギョウヒョウジ</td><td>どの保管場所を表示するかなど、1行での表現が難しいのですが、今後は自店プラントの保管場所1000にある在庫数のみ表示を行う予定です。ホカンバショヒョウジギョウヒョウゲンムズカコンゴジテンホカンバショザイコスウヒョウジオコナヨテイ</td></tr><tr><td>6</td><td>入力箇所で表示される予測検索について、任意の場所のみOFFとする事はできますか？ニュウリョクカショヒョウジヨソクケンサクニンイバショコト</td><td>不可となります。すべてのTr共通の設定で、予測検索のON/OFFを選択する事は可能です。フカキョウツウセッテイヨソクケンサクセンタクコトカノウ</td></tr><tr><td>7</td><td>明細ごとの数量入力部について、自動で&quot;1&quot;を入力してほしいメイサイスウリョウニュウリョクブジドウニュウリョク</td><td>対応は可能ですが、入力ミスに繋がるという声が多かったため、自動入力は行わない事と致しました。タイオウカノウニュウリョクツナコエオオジドウニュウリョクオコナコトイタ</td></tr><tr><td>8</td><td>VA01では、BPの検索ヘルプ箇所にお気に入り機能がありますが、ZVA01にはないのでしょ",
+                "etag": "6649b91bd1472d3439c8c23ab82a2d2fabc8adf67cd52d1a7443db46ca14dd75",
+                "document_sha256": "c9c366f9ec15e9ef42e50eddbe2e25b2f899fab974fb6fa3150e8221c13fa62c"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-cefd28ab561146f81f73aa17"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

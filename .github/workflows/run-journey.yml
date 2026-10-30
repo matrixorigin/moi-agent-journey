@@ -72,6 +72,14 @@ jobs:
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ secrets.MOI_PAT }}
         run: python3 -m journey.run_case "$CASE_ID"
+      - name: Run bound-agent knowledge Q&A and evaluate answers and trajectory
+        if: matrix.executor == 'knowledge'
+        timeout-minutes: ${{ matrix.step_timeout_minutes }}
+        env:
+          CASE_ID: ${{ matrix.case }}
+          MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
+          MOI_PAT: ${{ secrets.MOI_PAT }}
+        run: python3 -m journey.knowledge_case "$CASE_ID"
       - name: Install functional validators
         if: matrix.executor == 'api'
         run: python3 -m pip install -r requirements-functional.txt

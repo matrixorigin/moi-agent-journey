@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "id": "J3-57",
+  "workspace": "journey-3",
+  "title": "MatrixOne 产品文档 · mo_git4data",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "mo_git4data",
+    "original_reference_status": "criteria_only"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "matrixone",
+    "key": "mo_git4data",
+    "original_number": 3
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n如何用mo的git4data能力",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "Data Branch 的快照、创建分支、Diff、Merge 工作流"
+              },
+              {
+                "id": "C02",
+                "text": "前提版本至少 MatrixOne v4.1.0"
+              },
+              {
+                "id": "C03",
+                "text": "示例语法必须来自适用文档"
+              },
+              {
+                "id": "C04",
+                "text": "说明冲突处理，不执行用户没有要求的数据修改"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-1a1d5f4a6c3be2fa1fd41b89",
+                "file_id": "25f08fb5-6f63-4485-b8bf-b446cbac4dcd",
+                "file_name": "mo-docs-Tutorial_git4data-demo-1.md",
+                "segment_id": "doc_c9413f277af5a09cacf6a2db6b365b71",
+                "quote": "版本要求：Data Branch 功能适用于 MatrixOne v4.1.0 及以上版本。",
+                "etag": "989f36ec9b5ec5eaef45f1e15088329b9d3a2593f1a3a4cb49d25138972b492e",
+                "document_sha256": "559e49dbfb53aa72e597c7d31557ca545b4271ede39755c7a1a1eb684f90bfc0"
+              },
+              {
+                "source_id": "kb-source-1a1d5f4a6c3be2fa1fd41b89",
+                "file_id": "25f08fb5-6f63-4485-b8bf-b446cbac4dcd",
+                "file_name": "mo-docs-Tutorial_git4data-demo-1.md",
+                "segment_id": "doc_2e8a53a01f13f8cab25b3d5ebabeeb9d",
+                "quote": "主表 → 打快照 → 创建分支 → 独立修改 → Diff 审阅 → Merge 回主表\n",
+                "etag": "989f36ec9b5ec5eaef45f1e15088329b9d3a2593f1a3a4cb49d25138972b492e",
+                "document_sha256": "559e49dbfb53aa72e597c7d31557ca545b4271ede39755c7a1a1eb684f90bfc0"
+              },
+              {
+                "source_id": "kb-source-1a1d5f4a6c3be2fa1fd41b89",
+                "file_id": "25f08fb5-6f63-4485-b8bf-b446cbac4dcd",
+                "file_name": "mo-docs-Tutorial_git4data-demo-1.md",
+                "segment_id": "doc_72a833b634321b02bbd916677bc36c36",
+                "quote": "<table><tr><th>动作</th><th>SQL 语法</th><th>类比 Git</th><th>作用</th></tr><tr><td>快照</td><td>CREATE SNAPSHOT</td><td>git tag</td><td>给数据打一个时间点标记，作为安全锚点</td></tr><tr><td>创建分支</td><td>DATA BRANCH CREATE</td><td>git branch + git checkout</td><td>从主表/快照拉出一张独立的试验表</td></tr><tr><td>查看差异</td><td>DATA BRANCH DIFF</td><td>git diff</td><td>逐行比较两个分支之间的数据差异</td></tr><tr><td>合并</td><td>DATA BRANCH MERGE</td><td>git merge</td><td>把分支上的变更合并回目标表</td></tr><tr><td>删除分支</td><td>DATA BRANCH DELETE</td><td>git branch -d</td><td>清理不再需要的分支，保留审计元数据</td></tr></table>",
+                "etag": "989f36ec9b5ec5eaef45f1e15088329b9d3a2593f1a3a4cb49d25138972b492e",
+                "document_sha256": "559e49dbfb53aa72e597c7d31557ca545b4271ede39755c7a1a1eb684f90bfc0"
+              },
+              {
+                "source_id": "kb-source-1a1d5f4a6c3be2fa1fd41b89",
+                "file_id": "25f08fb5-6f63-4485-b8bf-b446cbac4dcd",
+                "file_name": "mo-docs-Tutorial_git4data-demo-1.md",
+                "segment_id": "doc_8ee52d855db3a288f89e62de18a7d8ea",
+                "quote": "MatrixOne 的 \\*\\*Data Branch（数据分支）\\*\\*功能，把数据变更管理变成了一套类似 Git 的工程化流程。你可以用 SQL 完成：创建分支、查看差异、合并变更、处理冲突——就像管理代码一样管理数据。",
+                "etag": "989f36ec9b5ec5eaef45f1e15088329b9d3a2593f1a3a4cb49d25138972b492e",
+                "document_sha256": "559e49dbfb53aa72e597c7d31557ca545b4271ede39755c7a1a1eb684f90bfc0"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-1a1d5f4a6c3be2fa1fd41b89"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

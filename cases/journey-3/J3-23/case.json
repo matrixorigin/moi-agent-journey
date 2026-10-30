@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "J3-23",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · cross_language_retransfer",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "cross_language_retransfer",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "cross_language_retransfer",
+    "original_number": 23
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n请用中文解释：跨法人库存融通后，如果还想转给第三个网点，能直接再转吗？系统是否会阻止？",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "不能直接再融通"
+              },
+              {
+                "id": "C02",
+                "text": "先退回原处再向新地点融通"
+              },
+              {
+                "id": "C03",
+                "text": "系统没有强制约束检查"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-206ef2c731efb5ed9bf7ce1a",
+                "file_id": "b0051c26-ae8e-4912-b6c1-98c64cdea72d",
+                "file_name": "DPSPJ_現地仕入品店販社間の融通運用方針_v2.0.pptx",
+                "segment_id": "kbsegrow-8fc96b80e8f1990533fbc19a",
+                "quote": "を行う。</td></tr><tr><td colspan=\"2\">融通戻し</td><td>運用方法</td><td>【確定】受発注で処理した「本体取引」:赤伝票処理で戻す。業績で処理した「現地仕入手数料調整」:取り消し処理で戻す。会計で処理した「手数料請求」:経理 WF で戻しの経費請求を行う。</td></tr><tr><td colspan=\"2\">再融通</td><td>運用ルール</td><td>【確定】再融通は禁止。必ず融通元へ戻してから、新たな拠点へ融通する。また、チェックするためのアドオンコスト見合いでシステム的には制御はかけない。融通アイテムを適切に社外へ販売したかどうかを本社へ報告させるなどの運用ではん制する。</td></tr></table>",
+                "etag": "c4b568a4edbc4ba6d3e1ac1a2d9f3a5cb162a831d674a931f2e5e133ce1488ae",
+                "document_sha256": "9f485cc6cd95c80dfbfc3ceee443fabe6068d46f4b887ac96d80bba70f5fe52d"
+              },
+              {
+                "source_id": "kb-source-206ef2c731efb5ed9bf7ce1a",
+                "file_id": "b0051c26-ae8e-4912-b6c1-98c64cdea72d",
+                "file_name": "DPSPJ_現地仕入品店販社間の融通運用方針_v2.0.pptx",
+                "segment_id": "kbsegrow-8fc96b80e8f1990533fbc19a",
+                "quote": "理で戻す。業績で処理した「現地仕入手数料調整」:取り消し処理で戻す。会計で処理した「手数料請求」:経理 WF で戻しの経費請求を行う。</td></tr><tr><td colspan=\"2\">再融通</td><td>運用ルール</td><td>【確定】再融通は禁止。必ず融通元へ戻してから、新たな拠点へ融通する。また、チェックするためのアドオンコスト見合いでシステム的には制御はかけない。融通アイテムを適切に社外へ販売したかどうかを本社へ報告させるなどの運用ではん制する。</td></tr></table>",
+                "etag": "c4b568a4edbc4ba6d3e1ac1a2d9f3a5cb162a831d674a931f2e5e133ce1488ae",
+                "document_sha256": "9f485cc6cd95c80dfbfc3ceee443fabe6068d46f4b887ac96d80bba70f5fe52d"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-206ef2c731efb5ed9bf7ce1a"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "id": "J3-25",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · recovery_safe_plan",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "recovery_safe_plan",
+    "original_reference_status": "manual_review_required"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "recovery_safe_plan",
+    "original_number": 25
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n受注紐付発注の途中で入庫後の請求書照合が抜けている疑いがあります。知識庫の資料を根拠に確認項目と復旧の判断順序を示してください。ここでは操作せず、条件による分岐と未確認情報を区別してください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "只给调查与决策顺序，不执行操作"
+              },
+              {
+                "id": "C02",
+                "text": "先确认业务分支、相关受注/发注/入库/会计传票及当前状态，分清未记账、失败和已执行但未确认，避免重复照合"
+              },
+              {
+                "id": "C03",
+                "text": "资料中的MIRO对应請求書照合，ZMM0009是入库，MIGO用于入库取消的场景不能当补做照合"
+              },
+              {
+                "id": "C04",
+                "text": "需取消/重处理时按对应资料和负责人确认前提，信息不全时列出待确认项，不保证恢复必定成功"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-5a81f295c398d24c4e90eb31",
+                "file_id": "f434a192-7d23-4dda-8581-88630edd5876",
+                "file_name": "【第一～三回】伝票登録レクチャー会資料.xlsx",
+                "segment_id": "doc_cfb04484457f268374415414d2652cb9",
+                "quote": "機能<br>&quot;個別購買発注（＝仕入会社から外部仕入先への発注）&quot;の伝票登録<br>（手動or自動）キノウコウバイシイレカイシャガイブシイレサキハッチュウデンピョウトウロク</td></tr><tr><td>⑤</td><td>入庫処理</td><td>ZMM0009</td><td></td></tr><tr><td>⑥</td><td>請求書照合セイキュウショショウゴウ</td><td>MIRO</td><td></td></tr><tr><td colspan=\"4\">作業担当：仕入部・会社 （to 店販社）シイレブカイシャテンハンシャ</td></tr><tr><td>⑦</td><td>出荷伝票登録</td><td>VL10B</td><td>(自動登録)<br>（出荷指示データ連携）</td></tr><tr><td>⑧</td><td>（ピッキング指図）</td><td>VL02N</td><td rowspan=\"2\">出庫保管場所がI/F対象の場合、出荷実績データ連携受信によって実行<br>出庫保管場所がI/F対象外の場合、基本自動（保管場所による）<br>手動も可</td></tr><tr><td>⑨</td><td>出庫確認シュッコカクニン</td><td>VL02N, VL06G</td></tr><tr><td colspan=\"4\">作業担当：店販社　タントウテンハンシャ</td></tr><tr><td>⑩</td><td>入庫処理</td><td>ZMM0009</td><td>直送の場合は自動チョクソウバアイジドウ</td></tr><tr><td>⑪</td><td>出荷伝票登録</td><td>VL10C</td><td>直送の場合は自動チョクソウバアイジドウ</td></tr><tr><td>⑫</td><td>（ピッキング指図）</td><td>(VL02N)</td><td>基本自動（出荷ポイントによる）キホンシュッカ</td></tr><tr><td>⑬</td><td>出庫確認</td><td>VL02N, VL06G</td><td>基本自動（出荷ポイントによる）キホンシュッカ</td></tr><tr><td>⑭</td><td>請求伝票登録</td><td>VF01, VF04</td><td>基本自動キホン</td></tr><tr><td>⑮</td><td>（仕訳）</td><td>-</td><td>基本的に請求伝票と同時に登録されるキホンテキセデドウジトウロク</td></tr></table>",
+                "etag": "a40e485051dd3766a7e583d6272b7c9c50d2b0f43473f3eefedb67528e6ba612",
+                "document_sha256": "c4a5b1701a8a9b67b025d1f1cb25bdffd06bae792423b1291c5eb802179f3c78"
+              },
+              {
+                "source_id": "kb-source-5a81f295c398d24c4e90eb31",
+                "file_id": "f434a192-7d23-4dda-8581-88630edd5876",
+                "file_name": "【第一～三回】伝票登録レクチャー会資料.xlsx",
+                "segment_id": "doc_81006a65f025baaa09f8094047ee2603",
+                "quote": "<td>個別発注コベツハッチュウ</td><td>ZSD0019</td><td></td><td>ME22Nで削除フラグサクジョ</td><td colspan=\"7\">仕入部門・仕入会社シイレブモンシイレガイシャ</td><td></td></tr><tr><td>入荷処理ニュウカショリ</td><td>ZMM0009</td><td></td><td>MIGOで入庫伝票を取消ニュウコデンピョウトリケ</td><td colspan=\"7\">仕入部門・仕入会社シイレブモンシイレガイシャ</td><td></td></tr><tr><td>(請求書照合)セイキュウショショウゴウ</td><td>MIRO</td><td>基本的に自動処理(設定による)キホンテキジドウショリセッテイ</td><td>MR8M</td><td colspan=\"7\">仕入部門・仕入会社シイレブモンシイレガイシャ</td><td>※請求書伝票については処理の流れと直接の関係はないため、このタイミングでの取消でなくともよいセイキュウショデンピョウショリナガチョクセツカンケイトリケシ</td></tr><tr><td>出荷伝票シデ</td><td>VL10B</td><td></td><td>VL02Nで削除ボタンサクジョ</td><td colspan=\"7\">仕入部門・仕入会社シイレブモンシイレガイシャ</td><td></td></tr><tr><td>出庫確認シュッコカクニン</td><td>VL02N</td><td>基本的に自動処理キホンテキジドウショリ</td><td>VL09</td><td colspan=\"7\">仕入部門・仕入会社シイレブモンシイレガイシャ</td><td></td></tr><tr><td>請求伝票セデ</td><td>VF01</td><td>基本的に自動処理キホンテキジドウショリ</td><td>VF11</td><td colspan=\"7\">仕入部門・仕入会社シイレブモンシイレガイシャ</td><td></td></tr><tr><td>(請求書照合)セイキュウショショウゴウ</td><td>MIRO</td><td>基本的に自動処理(設定による)キホンテキジドウショリセッテイ</td><td>MR8M</td><td colspan=\"7\">店販社テンハンシャ</td><td>※請求書伝票については処理の流れと直接の関係はないため、このタイミングでの取消でなくともよいセイキュウショデンピョウショリナガチョクセツカンケイトリケシ</td></tr><tr><td>入荷処理ニュウカショリ</td><td>ZMM0009</td",
+                "etag": "a40e485051dd3766a7e583d6272b7c9c50d2b0f43473f3eefedb67528e6ba612",
+                "document_sha256": "c4a5b1701a8a9b67b025d1f1cb25bdffd06bae792423b1291c5eb802179f3c78"
+              },
+              {
+                "source_id": "kb-source-9505e0039f75fcfba7c87411",
+                "file_id": "30d72733-03c0-4df5-8c68-af0d6a47aca4",
+                "file_name": "受発注の流れ②.xlsx",
+                "segment_id": "kbsegrow-06fe957f809e61d27613d210",
+                "quote": "ウコウバイシイレカイシャガイブシイレサキハッチュウデンピョウトウロク</td></tr><tr><td>⑤</td><td>入庫処理</td><td>ZMM0009</td><td>④で登録した個別購買発注の入庫トウロクコベツコウバイハッチュウニュウコ</td></tr><tr><td>⑥</td><td>請求書照合セイキュウショショウゴウ</td><td>MIRO</td><td>④で登録した個別購買発注の請求書照合(仕入⇒外部メーカ)トウロクコベツコウバイハッチュウセイキュウショショウゴウシイレガイブ</td></tr><tr><td colspan=\"4\">作業担当：仕入部・会社 （to 店販社）シイレブカイシャテンハンシャ</td></tr><tr><td>⑦</td><td>納期回答更新ノウキカイトウコウシン</td><td>ZMM5060</td><td>③で登録した発注伝票の納期回答更新(自動)トウロクハッチュウデンピョウノウキカイトウコウシンジドウ</td></tr><tr><td>⑧</td><td>出荷伝票登録</td><td>VL10D</td><td>(自動登録) (出荷指示データ連携)</td></tr><tr><td>⑨</td><td>（ピッキング指図）</td><td>VL02N</td><td rowspan=\"2\">出庫保管場所がI/F対象の場合、出荷実績データ連携受信によって実行<br>出庫保管場所がI/F対象外の場合、基本自動（保管場所による）</td></tr><tr><td>⑩</td><td>出庫確認シュッコカクニン</td><td>VL02N, VL06G</td></tr><tr><td>⑪</td><td>会社間請求登録カイシャカンセイキュウトウロク</td><td>VF01</td><td>③で登録した発注伝票の出荷伝票に紐づく請求登録トウロクハッチュウデンピョウシュッカデンピョウヒモセイキュウトウロク</td></tr><tr><td colspan=\"4\">作業担当：店販社　タントウテンハンシャ</td></tr><tr><td>⑫</td><td>入庫処理</td><td>ZMM0009</td><td>直送の場合は自動チョクソウバアイジドウ</td></tr><tr><td>⑬</td><td>出荷伝票登録</td><td>VL10C</td><td>直送の場合は自動チョクソウバアイジドウ</td></tr><tr><td>⑭</td><td>（ピッキング指図）</td><td>(VL02N)</td><td>基本自動（出荷ポイントによる）キホンシュッカ</td></",
+                "etag": "7774e8349055d24fe23cc5a4a01df72cd23e89f10df97bc24574b64eb8c15d07",
+                "document_sha256": "4fe3f81379900feb9b23ff67ec37f3018e3eb25964577eb1dd3ec382f68da887"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-5a81f295c398d24c4e90eb31",
+              "kb-source-9505e0039f75fcfba7c87411"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

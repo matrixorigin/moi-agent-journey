@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "J3-27",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · large_table_aggregation",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "large_table_aggregation",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "large_table_aggregation",
+    "original_number": 27
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n《【データ抽出手順書】請求伝票価格エラー対象確認_X月末_v0.03.xlsx》の価格一覧（販売組織・条件タイプ・品目・価格・有効開始日・有効終了日が並ぶ表）について、全データ行数と条件タイプ別の件数、販売組織1615と3070の件数を集計してください。ヘッダーは除外し、同じ表の重複表現を二重計上しないでください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "全データ行11741件"
+              },
+              {
+                "id": "C02",
+                "text": "条件タイプZ001は11741件"
+              },
+              {
+                "id": "C03",
+                "text": "販売組織1615は2125件"
+              },
+              {
+                "id": "C04",
+                "text": "販売組織3070は2456件"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-de55b5cd79a578ecc4226074",
+                "file_id": "8cc44dea-837a-40a1-8622-87d1c98e10c6",
+                "file_name": "【データ抽出手順書】請求伝票価格エラー対象確認_X月末_v0.03.xlsx",
+                "segment_id": "kbsegrow-367160a141ecc6a218f8960c",
+                "quote": "| A | B | C | D | E | F | G | H |\n|---|---|---|---|---|---|---|---|\n| 1 | | | | | | | |\n| 2 | 更新分類 | 販売組織 | 条件タイプ | 条件タイプ名称 | 得意先 | | 品目 | 品目名称 |\n| 54 | 価格登録 | 3070 | Z001 | 販売価格 | P321 | ミドリ安全厚木株式会社 | 12040189_15 | G 4 6 9 0 ブラック, 26.0 |\n| 55 | 価格登録 | 3070 | Z001 | 販売価格 | P338 | ミドリ安全岐阜株式会社 可児営業所 | 12040190_16 | G 4 6 9 0 ネイビー, 26.5 |\n| 56 | 価格登録 | 3070 | Z001 | 販売価格 | P338 | ミドリ安全岐阜株式会社 可児営業所 | 12040189_15 | G 4 6 9 0 ブラック, 26.0 |\n| 57 | 価格登録 | 3070 | Z001 | 販売価格 | P404 | ミドリ安全石川株式会社 | 10300224_21 | V 4 0",
+                "etag": "bdfa2a6e6a7a4a7b0a595eef5de5792a1c1c53ab44ca7823ae62a8eafc1d5ca9",
+                "document_sha256": "a8efcd69f9708db5201408abeffe6f3c2d2ea93a65e13f89a7befed059313a6b"
+              }
+            ],
+            "citation_required": true,
+            "verification": {
+              "method": "解析完整价格HTML表，以含販売組織/条件タイプ的表头选表；相同逻辑表表示去重，数据行保留原有重数；排除表头",
+              "rows": 11741,
+              "Z001": 11741,
+              "sales_org_1615": 2125,
+              "sales_org_3070": 2456
+            },
+            "expected_source_ids": [
+              "kb-source-de55b5cd79a578ecc4226074"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -9,7 +9,7 @@ on:
           - all
           - journey-1 (Complex Long-Horizon Tasks)
           - journey-2 (Basic Functional End-to-End Tasks)
-          - journey-3
+          - journey-3 (Knowledge Base Tasks)
           - journey-4
           - journey-5
         default: all

@@ -71,7 +71,7 @@ def _output_observations(output):
     return observations, failed or http_failed
 
 
-def analyze_events(path, tasks):
+def analyze_events(path, tasks, *, include_calls=False):
     """Group events by task/call ID; exclude evaluator calls from agent metrics.
 
     A success is a reported successful execution, not proof that a tool's answer
@@ -185,6 +185,7 @@ def analyze_events(path, tasks):
               'unidentified_events': 0}
     errors, judge_errors, by_tool = [], [], defaultdict(Counter)
     unmapped = 0
+    normalized_calls = []
     for call in calls.values():
         if call['failed']:
             state = 'failed'
@@ -199,6 +200,8 @@ def analyze_events(path, tasks):
                 judge_errors.append({key: call[key] for key in ('task_id', 'call_id', 'phase', 'tool', 'arguments', 'seqs', 'errors')}
                                     | {'outcome': state})
             continue
+        if include_calls:
+            normalized_calls.append({**call, 'outcome': state})
         if call['identified']:
             counts['calls'] += 1
             counts[state] += 1
@@ -218,4 +221,7 @@ def analyze_events(path, tasks):
         per_tool.append(item)
     counts.update({'success_rate': success_rate(counts['succeeded'], counts['failed']),
                    'tool_rounds': len(rounds), 'round_unmapped_calls': unmapped, 'by_tool': per_tool})
-    return {'metrics': counts, 'errors': errors, 'judge_errors': judge_errors, 'runtime_sessions': sessions}
+    result = {'metrics': counts, 'errors': errors, 'judge_errors': judge_errors, 'runtime_sessions': sessions}
+    if include_calls:
+        result['calls'] = normalized_calls
+    return result

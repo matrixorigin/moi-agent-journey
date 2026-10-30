@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "J3-33",
+  "workspace": "journey-3",
+  "title": "Cedar 综合对照 · missing_policy",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "missing_policy",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "cedar",
+    "key": "missing_policy",
+    "original_number": 4
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nCedar 2027版留存政策批准号是什么，是否已批准把普通文件改为90天？没找到可靠依据就直接说明，不要根据旧版推测。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "2027无可靠依据"
+              },
+              {
+                "id": "C02",
+                "text": "不捏造批准号"
+              },
+              {
+                "id": "C03",
+                "text": "不能确认90天"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-79224b2ed6aa5be36faf4fab",
+                "file_id": "1f5a4397-4b15-4a7b-bdbe-b11f5c8720be",
+                "file_name": "Cedar-数据留存政策-v2-正式版.md",
+                "segment_id": "doc_4f686386cb64945ea89ab118c0860ff6",
+                "quote": "留 45 天。法律保全文件保留 365 天，必须由法务解除保全才可删除。 普通文件到期后 12 小时内删除；清理时区为 UTC。重新下载不延长保留时间。 EU 和 US 区域采用相同保留期限。缓存副本随主文件删除，不另算保留期。 版本关系：本正式版替代 v1，v1 的 30 天与 180 天不再用于当前生产。 本政策不规定第三方下游自行保存的副本，也未发布 2027 年修订。",
+                "etag": "2d7e58086ee33673209d8d4232f8de5fd31488c487ef28fb1718ea385c6e1091",
+                "document_sha256": "a42ae07e5b88ad466a2e786e6e5ea971a9a475badb485952d44911b30e16205d"
+              }
+            ],
+            "citation_required": false,
+            "expected_source_ids": [],
+            "verify_whole_corpus": true
+          }
+        }
+      ]
+    }
+  ]
+}

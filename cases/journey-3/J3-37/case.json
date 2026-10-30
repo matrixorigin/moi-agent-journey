@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "id": "J3-37",
+  "workspace": "journey-3",
+  "title": "Cedar 综合对照 · multilingual_ownership",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "multilingual_ownership",
+    "original_reference_status": "criteria_only"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "cedar",
+    "key": "multilingual_ownership",
+    "original_number": 8
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n请根据日语当番交接资料，区分普通导出故障和法律保全问题各找谁；再解释为什么 INC-20261012 不能向客户直接说是DB故障。用中文回答并给来源。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "森田"
+              },
+              {
+                "id": "C02",
+                "text": "Chen"
+              },
+              {
+                "id": "C03",
+                "text": "Vega"
+              },
+              {
+                "id": "C04",
+                "text": "调查中未确定原因"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-59ae1dc009848b0fa0915f81",
+                "file_id": "465ebf69-ff57-428b-8162-5f20148711fe",
+                "file_name": "Cedar-当番引継ぎ-202610.md",
+                "segment_id": "doc_fad3c865c2ec9f0ac63259d478f28781",
+                "quote": "通常のエクスポート障害は運用当番が一次切り分けを行う。 一次担当：森田。エスカレーション先：Export Runtime チームの Chen。 ファイル保存期間・法的保全の相談先：Compliance チームの Vega。 顧客の作成要求がタイムアウトした場合、まず元の Idempotency-Key でタスク状態を照会する。 同じタスクが存在するなら再作成せず監視を継続する。503 の待機間隔は API Integration Guide に従う。 INC-20261012 は調査中で、原因確定前に「DB障害」と顧客へ断定してはならない。",
+                "etag": "312058cac0c9062f2a2fa53bd15a85f5540c2caea1dceffeec59d8da8eb66e26",
+                "document_sha256": "7db5dd6ff5cde6cbd827d2a1016c4bd602a606d750e7c5ab09f3982b4e2914cc"
+              },
+              {
+                "source_id": "kb-source-59ae1dc009848b0fa0915f81",
+                "file_id": "465ebf69-ff57-428b-8162-5f20148711fe",
+                "file_name": "Cedar-当番引継ぎ-202610.md",
+                "segment_id": "doc_fad3c865c2ec9f0ac63259d478f28781",
+                "quote": "イル保存期間・法的保全の相談先：Compliance チームの Vega。 顧客の作成要求がタイムアウトした場合、まず元の Idempotency-Key でタスク状態を照会する。 同じタスクが存在するなら再作成せず監視を継続する。503 の待機間隔は API Integration Guide に従う。 INC-20261012 は調査中で、原因確定前に「DB障害」と顧客へ断定してはならない。",
+                "etag": "312058cac0c9062f2a2fa53bd15a85f5540c2caea1dceffeec59d8da8eb66e26",
+                "document_sha256": "7db5dd6ff5cde6cbd827d2a1016c4bd602a606d750e7c5ab09f3982b4e2914cc"
+              },
+              {
+                "source_id": "kb-source-6d311082d765d9ee1008d257",
+                "file_id": "b730f6d8-ffe2-494f-ad94-eec8c0532e18",
+                "file_name": "Cedar-INC-20261012-调查记录.md",
+                "segment_id": "doc_d67f863ffb21a80400a8104303d7b3e1",
+                "quote": "状态：调查中，根因未确定。所有时间为 UTC，日期为 2026-10-12。 09:07 第一条导出创建超时告警；09:11 值班同学开始检查任务状态。 09:16 找到 3 个已经创建但客户端未收到回执的任务；09:21 暂停客户端重复创建。 09:28 等待队列恢复；09:34 告警恢复；09:40 进入根因调查。 观察：客户端创建接口有超时，队列延迟同时升高。没有证据确认磁盘、CPU 或数据库任一项是根因。 已确认影响：3 个客户的回执延迟，没有确认数据丢失。 后续：将客户端改为通过原始幂等键查询状态；根因报告待发布。",
+                "etag": "98248c6e21782501a01ee8c939b13098dbee7a27e4a1c497427b0b484230191f",
+                "document_sha256": "66de8da677e2395ceb2a001787acae012c8d12b114d68bc6a4acd6799c81c5e6"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-59ae1dc009848b0fa0915f81",
+              "kb-source-6d311082d765d9ee1008d257"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "J3-39",
+  "workspace": "journey-3",
+  "title": "Cedar 综合对照 · missing_monthly_telemetry",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "missing_monthly_telemetry",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "cedar",
+    "key": "missing_monthly_telemetry",
+    "original_number": 10
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nCedar 在2026年9月生产环境实际测得的每日导出成功率和下载P99时延分别是多少？请给出具体数值、单位和测量窗口。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "Corpus has no September2026production success-rate/P99monitoring report"
+              },
+              {
+                "id": "C02",
+                "text": "Do not treat incident timestamps, API size limits or connector capacities as measured telemetry"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-6d311082d765d9ee1008d257",
+                "file_id": "b730f6d8-ffe2-494f-ad94-eec8c0532e18",
+                "file_name": "Cedar-INC-20261012-调查记录.md",
+                "segment_id": "doc_d67f863ffb21a80400a8104303d7b3e1",
+                "quote": "状态：调查中，根因未确定。所有时间为 UTC，日期为 2026-10-12。 09:07 第一条导出创建超时告警；09:11 值班同学开始检查任务状态。 09:16 找到 3 个已经创建但客户端未收到回执的任务；09:21 暂停客户端重复创建。 09:28 等待队列恢复；09:34 告警恢复；09:40 进入根因调查。 观察：客户端创建接口有超时，队列延迟同时升高。没有证据确认磁盘、CPU 或数据库任一项是根因。 已确认影响：3 个客户的回执延迟，没有确认数据丢失。 后续：将客户端改为通过原始幂等键查询状态；根因报告待发布。",
+                "etag": "98248c6e21782501a01ee8c939b13098dbee7a27e4a1c497427b0b484230191f",
+                "document_sha256": "66de8da677e2395ceb2a001787acae012c8d12b114d68bc6a4acd6799c81c5e6"
+              }
+            ],
+            "citation_required": false,
+            "expected_source_ids": [],
+            "verify_whole_corpus": true
+          }
+        }
+      ]
+    }
+  ]
+}

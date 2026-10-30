@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "J3-56",
+  "workspace": "journey-3",
+  "title": "MatrixOne 产品文档 · mo_isolation",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "mo_isolation",
+    "original_reference_status": "criteria_only"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "matrixone",
+    "key": "mo_isolation",
+    "original_number": 2
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nMatrixOne 的 transaction_isolation 显示 REPEATABLE-READ，是否就代表真实事务使用快照隔离？请结合 RC、SI 和乐观/悲观事务说明，并给文档出处。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "支持 RC 和 SI"
+              },
+              {
+                "id": "C02",
+                "text": "悲观事务默认 RC，乐观事务默认 SI"
+              },
+              {
+                "id": "C03",
+                "text": "兼容变量 transaction_isolation/tx_isolation 的默认 REPEATABLE-READ 不会改变真实隔离级别"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-3c481cdd0fc73563884b80fb",
+                "file_id": "f0e9075c-a5ee-49fb-aed5-24ce63610e33",
+                "file_name": "mo-docs-Develop_Transactions-1.md",
+                "segment_id": "doc_0adc9a6ddf919dee8ab46cea9506306e",
+                "quote": "MatrixOne 支持两种事务隔离级别：读已提交（Read Committed，RC）和快照隔离（Snapshot Isolation，SI）。默认情况下，悲观事务使用 RC，乐观事务使用 SI。MySQL 兼容的 transaction_isolation 和 tx_isolation 变量默认值为 REPEATABLE-READ，但该值不会将实际事务隔离级别设置为快照隔离或改变实际事务隔离级别。隔离实现原理如下：",
+                "etag": "da7137bd9417221069c2ff55ac891891d0bad5123673d00753760d665df1cfb2",
+                "document_sha256": "7de71fc98512f102208d1108f5fffa8718330a176cbd09b559a5618191cd5594"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-3c481cdd0fc73563884b80fb"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

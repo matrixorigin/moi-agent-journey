@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "J3-15",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · ers_definition",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "ers_definition",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "ers_definition",
+    "original_number": 15
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nERSとは何ですか。何の情報を基に、どのような会計処理を自動化する仕組みですか。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "ERS=入庫請求自動決済"
+              },
+              {
+                "id": "C02",
+                "text": "購買発注・入庫情報に基づく"
+              },
+              {
+                "id": "C03",
+                "text": "仕入先の請求書を受領せず自動で買掛金計上"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-ec801be0d3320973ffb7e38b",
+                "file_id": "5204632d-fea6-44f4-94db-6004480831f3",
+                "file_name": "DPC概要_2026受入.xlsx",
+                "segment_id": "kbsegrow-21e7ec086c8c1eab836766e5",
+                "quote": "td>－</td><td>セット品組み立て、または出荷前の荷合わせ作業を指す。物流業者・店販社拠点でもアソート作業を実施しており、納品書別・個人別(サイズ単位)でのアソート作業が存在する。アソート品についてはセット品項目を参照。</td></tr><tr><td>ERS</td><td>イーアールエス</td><td>－</td><td>－</td><td>ERSとは　Evaluated Receipt Settlment　の略。<br>日本語でいうと入庫請求自動決済。仕入先からの請求書を受領することはなく、購買発注・入庫情報を基に自動で買掛金を計上する仕組み。<br>※SAP導入顧客では国内仕入ではよく使われる。</td></tr><tr><td>ETO（品）</td><td>イーティーオー（ヒン）</td><td>－</td><td>－</td><td>Engineering To Orderの略。生産形態区分の一つで個別受注生産(品)を指す。対象品種はSH(用品)以外の全品種で存在し、特注品や加工品において、新規図面を設計し生産・納入を行うケースを指す。</td></tr><tr><td>移管価格/本社価格</td><td>イカンカカク/ホンシャカカク</td><td>－</td><td>－</td><td>本社が仕入会社・本社仕入部門から仕入価格を本社価格、店販社が本社からの仕入価格を移管価格と呼ぶ。</td></tr><tr><td>移動タイプ</td><td>イドウタイプ</td><td>－</td><td>－</td><td>（入庫、出庫、転送の）在庫移動の種類。<br>※英数字3桁のコードで表記される<br>《例》<br>101：購買発注入庫<br>161:仕入返品</td></tr><tr><td>ヴェルデトレイディング株式会社</td><td>ヴェルデトレイディングカブシキガイシャ</td><td>ヴェルデ(トレイディング)</td><td></td><td>ミドリ安全のグループ会社であり、ミドリグループ会社への調達代行輸出入を担当。</td></tr><tr><td>営業所</td><td>エイギョウショ</td><td>－</td><td>－</td><td>販売組織-流通チャネル-製品部門(＝販売エリア)の下部組織。<br><br>《例》<br>■販社は支店・営業所ごとに１つ設定する。<br>■ミドリ安全本社の店所は支店・営業所ごとに１つ設定する。<br>■ミドリ安全本社の仕入部門は部門ごとに１つ設定する。<br>■ミドリ安全本社の仕入部門以外の店販社の営業統括及び営業機能を有する部門については部門ごとに",
+                "etag": "24113a0dcf6766cc48aa2d994705e11feb9c64dffc1a4d530ef0d96fa39bdd1d",
+                "document_sha256": "d42cb01d6d03438f7eca0977dc0e9da05f6bd153daea6f61b2b20a29a5961721"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-ec801be0d3320973ffb7e38b"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

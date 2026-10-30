@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "J3-04",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · job_deadline_conflict",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "job_deadline_conflict",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "job_deadline_conflict",
+    "original_number": 4
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n《DPSPJ_JOB変更依頼フロー_v0.01.xlsx》に、依頼期限として16:00頃と18:00の記載があるようです。各記載の対象環境・依頼番号と、共通の営業日前ルールを整理し、一律の締切と断定できるか説明してください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "納期5営業日前"
+              },
+              {
+                "id": "C02",
+                "text": "16:00頃はH0284/PRDの記載"
+              },
+              {
+                "id": "C03",
+                "text": "18:00はH0281/DEV・QASの記載"
+              },
+              {
+                "id": "C04",
+                "text": "一律の唯一の締切と断定しない"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-4b2cb60998a1679afce52981",
+                "file_id": "951c7e29-75af-4c9f-ae81-9f04e6138ca9",
+                "file_name": "DPSPJ_JOB変更依頼フロー_v0.01.xlsx",
+                "segment_id": "kbsegrow-7415ef1988ed703620a6aa62",
+                "quote": "Hinemos変更管理台帳.xlsx\nV4922\n3,296\nSC 江江 TY\n13_Hinemosジョブ管理・更新今日日、更新者: SEIMIYA CHIAKI\n開く\nA\nB\nC\nD\nE\nF\nG\nH\n基本依頼方法 = 内容確定後、納期5営業日前の16:00頃までにメール依頼をお願いします。\n各環境毎の設定日/テスト日は、作業量から同一日不可の場合があります。\n希望納期(←本番機と開発検証機の依頼は分けて起票ください)\n1\n記載担当\n→\n依頼者\n依頼者\n依頼者\n依頼者\n依頼者\n依頼者\n依頼者\n2\n依頼内容\nHinemos開\nHinemos本番\n3\n依頼N\n依頼内容\n関連Redmin\n依頼起票日\n依頼者\n希望設定日(DEV\n希望テスト日(DE\n希望設定日(PRD\nンシデントNo\nAS)\nOAS)\nH0284\nRedmine#127338の対応で、Hinemos本番環境(PRD)へを設定をお願いいたします。\n【新規】\n・JB-PRD-HS4-MM-2212-0002-0004-0002\n※詳細：依頼内容シート\n【参照資料】\nhttps://app.box.com/folder/393302166425\n【本番機】",
+                "etag": "f09eae188493a5919279bfffec39ead2f52d74ac86fe1f9a714dc3c508bdc1e1",
+                "document_sha256": "8f3475082455b89fb2f600889b193e3905efc3c31c3feef175b2c2668d7dcc25"
+              },
+              {
+                "source_id": "kb-source-4b2cb60998a1679afce52981",
+                "file_id": "951c7e29-75af-4c9f-ae81-9f04e6138ca9",
+                "file_name": "DPSPJ_JOB変更依頼フロー_v0.01.xlsx",
+                "segment_id": "kbsegrow-8461e19ba1f632f97681f6ee",
+                "quote": "< Hineimos変更管理台帳.xlsx V4922 3,295 SC 江江 TY\n13_Hineimosジョブ管理・更新日今日、更新者: SEIMIYA CHIAKI\n\nA B C D E F G H I\n基本依頼方法 = 内容確定後、納期5営業日前の18:00までにメール依頼をお願いします。\n各環境毎の設定日/テスト日は、作業量から同一日不可の場合があります。\n希望納期 (=本番機と開発検証機の依頼は分けて記載ください)\n\n1 記載担当\n依頼者 依頼者 依頼者 依頼者 依頼者 依頼者 依頼者 ジョブT\n2 依頼内容 Hineimos開 Hineimos本番\n3 依頼 依頼内容 関連Redmi 依頼起票日 依頼者 希望設定日(DE 希望テスト日(D 希望設定日(PRD 受付日\nシエントNo QAS) QAS)\n283 【新規 美行契機】\n・QUE-JN-QA56-2502-IFS-RENKETSU 2502-IFS-RENKETSU-連続決算ファイル\nH0281 Redmine#1273380対応で、Hineimos開発環境(DEV)、検証環境(QAS,QA56)への設定をお願いいたします。\n【新規】\n・",
+                "etag": "f09eae188493a5919279bfffec39ead2f52d74ac86fe1f9a714dc3c508bdc1e1",
+                "document_sha256": "8f3475082455b89fb2f600889b193e3905efc3c31c3feef175b2c2668d7dcc25"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-4b2cb60998a1679afce52981"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

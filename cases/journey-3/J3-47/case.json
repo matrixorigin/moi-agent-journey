@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "J3-47",
+  "workspace": "journey-3",
+  "title": "Cedar 综合对照 · idempotency_repeat",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "idempotency_repeat",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "cedar",
+    "key": "idempotency_repeat",
+    "original_number": 18,
+    "comparison_group": "cedar-idempotency"
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n同一 Idempotency-Key 换了请求内容会怎样？64 MiB限制的是整个导出还是单个下载分片？请确认精确字节数，避免把单片限制当总大小限制。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "409 idempotency_payload_conflict"
+              },
+              {
+                "id": "C02",
+                "text": "67108864"
+              },
+              {
+                "id": "C03",
+                "text": "单片非整个导出"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-4a7ad5a100122402870efe82",
+                "file_id": "140e699a-2674-4e0c-ad47-53b3aa867232",
+                "file_name": "Cedar-Export-API-Integration.md",
+                "segment_id": "doc_56f89e96fc91b679f9c7b289976175e7",
+                "quote": "ply an Idempotency-Key for each logical export. Reusing a key with exactly the same request returns the same task, not a new task. Reusing it with a different request returns HTTP 409 and reason idempotency_payload_conflict. For HTTP 429 obey Retry-After. For HTTP 503 retry after 2, 4, then 8 seconds; after those attempts inspect task status before another create. A client timeout does not prove the task was not created. Query GE",
+                "etag": "986f80473a16577a025993011a8f3f581553fe37df3d1159015483c6064f5d0b",
+                "document_sha256": "c14f71377f8b8739681b66a7273983854dc029b1411bee9c46ab2e0e191ff506"
+              },
+              {
+                "source_id": "kb-source-4a7ad5a100122402870efe82",
+                "file_id": "140e699a-2674-4e0c-ad47-53b3aa867232",
+                "file_name": "Cedar-Export-API-Integration.md",
+                "segment_id": "doc_7016721bc0eb5e7a78b0e780a652c677",
+                "quote": "hange the key merely because the create response was lost. Failed task exports use a new logical request only after the original status is known. Single downloadable part maximum: 67108864 bytes (64 MiB). Larger exports are split into parts. This limit is not a cap on the total export size. Download URLs expire after 15 minutes; renew the URL for the same task. URL renewal does not reg",
+                "etag": "986f80473a16577a025993011a8f3f581553fe37df3d1159015483c6064f5d0b",
+                "document_sha256": "c14f71377f8b8739681b66a7273983854dc029b1411bee9c46ab2e0e191ff506"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-4a7ad5a100122402870efe82"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

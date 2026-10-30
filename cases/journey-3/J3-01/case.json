@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "J3-01",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · exact_entry",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "exact_entry",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "exact_entry",
+    "original_number": 1
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 3,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n簡易受注入力画面のT-codeは何ですか。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "ZVA01"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-cefd28ab561146f81f73aa17",
+                "file_id": "20a90510-5c56-4d07-bf46-0fe847eefb19",
+                "file_name": "ZVA01_操作方法マニュアル_正式リリース版_V0.3.xlsx",
+                "segment_id": "kbsegrow-997f770ed86e68d0ade17ed4",
+                "quote": "<table><tr><td>トランザクションコード：ZVA01（新・受注入力）シンジュチュウニュウリョク</td></tr></table>",
+                "etag": "6649b91bd1472d3439c8c23ab82a2d2fabc8adf67cd52d1a7443db46ca14dd75",
+                "document_sha256": "c9c366f9ec15e9ef42e50eddbe2e25b2f899fab974fb6fa3150e8221c13fa62c"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-cefd28ab561146f81f73aa17"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

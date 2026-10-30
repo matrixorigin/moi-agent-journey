@@ -63,7 +63,9 @@ class Evidence:
         temporary.replace(target)
 
     def append(self, name, value):
-        with (self.root / name).open("a") as output:
+        target = self.root / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("a") as output:
             output.write(json.dumps(self.clean(value), ensure_ascii=False) + "\n")
             output.flush()
 

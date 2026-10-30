@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "J3-14",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · zva01_size_steps",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "zva01_size_steps",
+    "original_reference_status": "manual_review_required"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "zva01_size_steps",
+    "original_number": 14
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nZVA01で包括品目を入力し、サイズ別の受注明細を追加する手順を説明してください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "输入受注类型和销售组织，Enter，再输入得意先"
+              },
+              {
+                "id": "C02",
+                "text": "输入包括品目代码"
+              },
+              {
+                "id": "C03",
+                "text": "出现尺寸数量弹窗，填写各尺寸数量后Enter，形成尺寸明细"
+              },
+              {
+                "id": "C04",
+                "text": "单一品或已指定variant不出现该尺寸弹窗，全选会给各尺寸填1"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-cefd28ab561146f81f73aa17",
+                "file_id": "20a90510-5c56-4d07-bf46-0fe847eefb19",
+                "file_name": "ZVA01_操作方法マニュアル_正式リリース版_V0.3.xlsx",
+                "segment_id": "kbsegrow-a088925d602d3de7aab11c94",
+                "quote": "品目コードが分かっている場合、従来通り直接コードを入力して下さい。（通常通り、標準の検索ヘルプも使用可能です）",
+                "etag": "6649b91bd1472d3439c8c23ab82a2d2fabc8adf67cd52d1a7443db46ca14dd75",
+                "document_sha256": "c9c366f9ec15e9ef42e50eddbe2e25b2f899fab974fb6fa3150e8221c13fa62c"
+              },
+              {
+                "source_id": "kb-source-cefd28ab561146f81f73aa17",
+                "file_id": "20a90510-5c56-4d07-bf46-0fe847eefb19",
+                "file_name": "ZVA01_操作方法マニュアル_正式リリース版_V0.3.xlsx",
+                "segment_id": "kbsegrow-a4c909f2f31d64d663dc5c51",
+                "quote": "包括品を入力した場合のみサイズ入力のポップアップが表示されますので、数量を入力し、エンターキーを押下します。（単一品、又はバリアント品を入力した場合は表示されません）※\"全選択\"を押下すると、全サイズに1が入力されますので、必要に応じてご活用下さい。",
+                "etag": "6649b91bd1472d3439c8c23ab82a2d2fabc8adf67cd52d1a7443db46ca14dd75",
+                "document_sha256": "c9c366f9ec15e9ef42e50eddbe2e25b2f899fab974fb6fa3150e8221c13fa62c"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-cefd28ab561146f81f73aa17"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

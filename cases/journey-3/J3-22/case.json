@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "J3-22",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · zme59n_me21n",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "zme59n_me21n",
+    "original_reference_status": "manual_review_required"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "zme59n_me21n",
+    "original_number": 22
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nZME59NとME21Nの関係は？",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "ZME59N用于受注起点的购需发注转换"
+              },
+              {
+                "id": "C02",
+                "text": "ME21N用于直接注册购买发注，资料包含社外ZNB的例子"
+              },
+              {
+                "id": "C03",
+                "text": "区别受注紐付流程与直接发注的场景，不要求把两个代码固定连跑，也不声称ZME59N只能无人值守执行"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-9505e0039f75fcfba7c87411",
+                "file_id": "30d72733-03c0-4df5-8c68-af0d6a47aca4",
+                "file_name": "受発注の流れ②.xlsx",
+                "segment_id": "kbsegrow-06fe957f809e61d27613d210",
+                "quote": "付発注(ZB1F)シャナイトリヒキバアイシャナイテンソウソト</td></tr><tr><td>②</td><td>（購買依頼伝票登録）</td><td>(ME51N)</td><td>受注伝票登録と同時に登録されるジデトウロクドウジトウロク</td></tr><tr><td>③</td><td>発注伝票登録（＝発注変換）ハッチュウヘンカン</td><td>ZME59N</td><td>社内取引の場合　⇒発注伝票タイプ：転送オーダ_受注紐付(ZUB1)<br>社外取引の場合　⇒明細カテゴリ：購買発注_受注紐付(ZNB1)シャナイトリヒキバアイハッチュウデンピョウテンソウソトコウバイハッチュウ</td></tr><tr><td colspan=\"4\">作業担当：仕入部・会社 （to 外部メーカー）シイレブカイシャガイブ</td></tr><tr><td>④</td><td>個別購買発注登録コベツコウバイハッチュウトウロク</td><td>ZMM5060</td><td>「新在庫引当制御処理」機能<br>&quot;個別購買発注（＝仕入会社から外部仕入先への発注）&quot;の伝票登録<br>（手動or自動）シンザイコヒキアテセイギョショリキノウコウバイシイレカイシャガイブシイレサキハッチュウデンピョウトウロク</td></tr><tr><td>⑤</td><td>入庫処理</td><td>ZMM0009</td><td>④で登録した個別購買発注の入庫トウロクコベツコウバイハッチュウニュウコ</td></tr><tr><td>⑥</td><td>請求書照合セイキュウショショウゴウ</td><td>MIRO</td><td>④で登録した個別購買発注の請求書照合(仕入⇒外部メーカ)トウロクコベツコウバイハッチュウセイキュウショショウゴウシイレガイブ</td></tr><tr><td colspan=\"4\">作業担当：仕入部・会社 （to 店販社）シイレブカイシャテンハンシャ</td></tr><tr><td>⑦</td><td>納期回答更新ノウキカイトウコウシン</td><td>ZMM5060</td><td>③で登録した発注伝票の納期回答更新(自動)トウロクハッチュウデンピョウノウキカイトウコウシンジドウ</td></tr><tr><td>⑧</td><td>出荷伝票登録</td><td>VL10D</td><td>(自動登録) (出荷指示データ連携)</td></tr><tr><td>⑨</td><td>（ピッキング指図）</td><td>VL02N</td><td rowspan=\"2\">出庫保管場所がI/F対象の場合、出荷実績データ",
+                "etag": "7774e8349055d24fe23cc5a4a01df72cd23e89f10df97bc24574b64eb8c15d07",
+                "document_sha256": "4fe3f81379900feb9b23ff67ec37f3018e3eb25964577eb1dd3ec382f68da887"
+              },
+              {
+                "source_id": "kb-source-1ad7a91f1e927ae9b3b41734",
+                "file_id": "d9c0fa44-64db-4a1c-b640-e88be4c84ccb",
+                "file_name": "第４回受発注の流れ.xlsx",
+                "segment_id": "kbsegrow-74728ed499aef620b124a300",
+                "quote": "ン</td><td colspan=\"3\">補足ホソク</td></tr><tr><td>作業担当：店販社サギョウタントウテンハンシャ</td><td></td><td colspan=\"2\"></td><td colspan=\"3\"></td></tr><tr><td>1</td><td>発注登録ハッチュウトウロク</td><td colspan=\"2\">ME21N</td><td colspan=\"3\"></td></tr><tr><td>作業担当：仕入側サギョウタントウシイレガワ</td><td></td><td colspan=\"5\"></td></tr><tr><td>2</td><td>在庫引当ザイコヒキアテ</td><td colspan=\"2\">ZSD0019</td><td colspan=\"3\">個別発注する場合もあるコベツハッチュウバアイ</td></tr><tr><td>3</td><td>（ピッキング指図）</td><td colspan=\"2\">VL10B</td><td colspan=\"3\">基本自動（出荷ポイントによる）キホンシュッカ</td></tr><tr><td>4</td><td>出庫確認</td><td colspan=\"2\">VL02N</td><td colspan=\"3\">基本自動（出荷ポイントによる）キホンシュッカ</td></tr><tr><td>作業担当：店販社サギョウタントウテンハンシャ</td><td></td><td colspan=\"5\"></td></tr><tr><td>5</td><td>入庫処理ニュウコショリ</td><td colspan=\"2\">ZMM0009</td><td colspan=\"3\"></td></tr><tr><td>6</td><td>請求書照合セイキュウショショウゴウ</td><td colspan=\"2\">MIRO</td><td colspan=\"3\"></td></tr><tr><td>7</td><td></td><td colspan=\"2\">-</td><td colspan=\"3\"></td></tr></table>",
+                "etag": "68f6c8a3370982cfc86619f2d220d1f545f0ab90152f1253ee419e70ac7186cc",
+                "document_sha256": "993cdb60ca1a1b9d0143d4ac92f2eaf0eb884150d74b0c8977ad6e82efb7adaf"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-9505e0039f75fcfba7c87411",
+              "kb-source-1ad7a91f1e927ae9b3b41734"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

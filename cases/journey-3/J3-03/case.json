@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "id": "J3-03",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · retransfer",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "retransfer",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "retransfer",
+    "original_number": 3
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n融通した在庫をさらに別の拠点へ融通できますか。運用ルール、必要な戻し処理、システムのチェック有無を区別して説明してください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "再融通は運用禁止"
+              },
+              {
+                "id": "C02",
+                "text": "先に融通戻し（取消）をしてから新拠点へ融通"
+              },
+              {
+                "id": "C03",
+                "text": "システムで制約チェックはかけない"
+              },
+              {
+                "id": "C04",
+                "text": "財務上の売上両膨らみを避ける"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-206ef2c731efb5ed9bf7ce1a",
+                "file_id": "b0051c26-ae8e-4912-b6c1-98c64cdea72d",
+                "file_name": "DPSPJ_現地仕入品店販社間の融通運用方針_v2.0.pptx",
+                "segment_id": "kbsegrow-8fc96b80e8f1990533fbc19a",
+                "quote": "を行う。</td></tr><tr><td colspan=\"2\">融通戻し</td><td>運用方法</td><td>【確定】受発注で処理した「本体取引」:赤伝票処理で戻す。業績で処理した「現地仕入手数料調整」:取り消し処理で戻す。会計で処理した「手数料請求」:経理 WF で戻しの経費請求を行う。</td></tr><tr><td colspan=\"2\">再融通</td><td>運用ルール</td><td>【確定】再融通は禁止。必ず融通元へ戻してから、新たな拠点へ融通する。また、チェックするためのアドオンコスト見合いでシステム的には制御はかけない。融通アイテムを適切に社外へ販売したかどうかを本社へ報告させるなどの運用ではん制する。</td></tr></table>",
+                "etag": "c4b568a4edbc4ba6d3e1ac1a2d9f3a5cb162a831d674a931f2e5e133ce1488ae",
+                "document_sha256": "9f485cc6cd95c80dfbfc3ceee443fabe6068d46f4b887ac96d80bba70f5fe52d"
+              },
+              {
+                "source_id": "kb-source-206ef2c731efb5ed9bf7ce1a",
+                "file_id": "b0051c26-ae8e-4912-b6c1-98c64cdea72d",
+                "file_name": "DPSPJ_現地仕入品店販社間の融通運用方針_v2.0.pptx",
+                "segment_id": "kbsegrow-8fc96b80e8f1990533fbc19a",
+                "quote": "理で戻す。業績で処理した「現地仕入手数料調整」:取り消し処理で戻す。会計で処理した「手数料請求」:経理 WF で戻しの経費請求を行う。</td></tr><tr><td colspan=\"2\">再融通</td><td>運用ルール</td><td>【確定】再融通は禁止。必ず融通元へ戻してから、新たな拠点へ融通する。また、チェックするためのアドオンコスト見合いでシステム的には制御はかけない。融通アイテムを適切に社外へ販売したかどうかを本社へ報告させるなどの運用ではん制する。</td></tr></table>",
+                "etag": "c4b568a4edbc4ba6d3e1ac1a2d9f3a5cb162a831d674a931f2e5e133ce1488ae",
+                "document_sha256": "9f485cc6cd95c80dfbfc3ceee443fabe6068d46f4b887ac96d80bba70f5fe52d"
+              },
+              {
+                "source_id": "kb-source-206ef2c731efb5ed9bf7ce1a",
+                "file_id": "b0051c26-ae8e-4912-b6c1-98c64cdea72d",
+                "file_name": "DPSPJ_現地仕入品店販社間の融通運用方針_v2.0.pptx",
+                "segment_id": "kbsegrow-8fc96b80e8f1990533fbc19a",
+                "quote": "付替え。業績上は、融通元の一括売り上げを立てないため、現地仕入手数料分のみ、COPA 伝票で減算処理する。</td></tr><tr><td>その他実費手数料</td><td>融通先への手数料請求(事務処理代など)</td><td>【確定】必要に応じて融通元から会計上(経理 WF)で経費請求を行う。</td></tr><tr><td colspan=\"2\">融通戻し</td><td>運用方法</td><td>【確定】受発注で処理した「本体取引」:赤伝票処理で戻す。業績で処理した「現地仕入手数料調整」:取り消し処理で戻す。会計で処理した「手数料請求」:経理 WF で戻しの経費請求を行う。</td></tr><tr><td colspan=\"2\">再融通</td><td>運用ルール</td><td>【確定】再融通は禁止。必ず融通元へ戻してから、新たな拠点へ融通する。また、チェックするためのアドオンコスト見合いでシステム的には制御はかけない。融通アイテムを適切に社外へ販売したかどうかを本社へ報告させるなどの運用ではん制する。</td></tr></table>",
+                "etag": "c4b568a4edbc4ba6d3e1ac1a2d9f3a5cb162a831d674a931f2e5e133ce1488ae",
+                "document_sha256": "9f485cc6cd95c80dfbfc3ceee443fabe6068d46f4b887ac96d80bba70f5fe52d"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-206ef2c731efb5ed9bf7ce1a"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
