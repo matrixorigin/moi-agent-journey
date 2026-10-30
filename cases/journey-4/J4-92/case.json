@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "J4-92",
+  "title": "重复文件报告",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T092",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T092/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T092/task.md",
+      "sha256": "54522e6de48693c8f30feeee35845bccc17a110edf5f17db271f0efe5e3c8049"
+    },
+    {
+      "path": "samples/T092_duplicates/a.txt",
+      "local_path": "cases/journey-4/_materials/samples/T092_duplicates/a.txt",
+      "sha256": "abb7f0ae43ba52cc56233a5ecb4dfa11765f26b1282a18346d811b6a85af19c1"
+    },
+    {
+      "path": "samples/T092_duplicates/b.txt",
+      "local_path": "cases/journey-4/_materials/samples/T092_duplicates/b.txt",
+      "sha256": "abb7f0ae43ba52cc56233a5ecb4dfa11765f26b1282a18346d811b6a85af19c1"
+    },
+    {
+      "path": "samples/T092_duplicates/c.txt",
+      "local_path": "cases/journey-4/_materials/samples/T092_duplicates/c.txt",
+      "sha256": "1170c8939638387ed45a0d39fa66b9cf4302208f2192e7d2ffefb1b9e2a620af"
+    },
+    {
+      "path": "samples/shared/local_rules.md",
+      "local_path": "cases/journey-4/_materials/samples/shared/local_rules.md",
+      "sha256": "86047fbe1720008f7d1f8a4d787954c6a0a47338a9d8f6583aedbcc90884dfca"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：对samples/T092_duplicates按文件内容找重复，用哈希作证，不删除任何文件。",
+    "按内容hash确认a/b相同11字节、c不同10字节",
+    "交付重复清单和hash，禁止删除或改源文件",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-92（原始编号 T092）：重复文件报告\n\n对samples/T092_duplicates按文件内容找重复，用哈希作证，不删除任何文件。\n\n读取 inputs/samples/T092/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T092 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：对samples/T092_duplicates按文件内容找重复，用哈希作证，不删除任何文件。",
+        "按内容hash确认a/b相同11字节、c不同10字节",
+        "交付重复清单和hash，禁止删除或改源文件",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "J4-94",
+  "title": "图片压缩缩放",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T094",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T094/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T094/task.md",
+      "sha256": "8a2ad462168a61e993449bc2bf46960c88f178ea0c2abd84159bfe57d88ffe3e"
+    },
+    {
+      "path": "samples/T094_images/image1.jpg",
+      "local_path": "cases/journey-4/_materials/samples/T094_images/image1.jpg",
+      "sha256": "110b0072c7d4cfa1e556ee9224a31ddc862d2e341eca4fe98593ec630ed238dc"
+    },
+    {
+      "path": "samples/T094_images/image2.jpg",
+      "local_path": "cases/journey-4/_materials/samples/T094_images/image2.jpg",
+      "sha256": "16c68253ad97a7c35e77a15fe39a31857b730f5f077851ae337cd834dfb58afb"
+    },
+    {
+      "path": "samples/T094_images/image3.jpg",
+      "local_path": "cases/journey-4/_materials/samples/T094_images/image3.jpg",
+      "sha256": "5c28896280f9021647bb14b5215d45af29f53c58e60d4e5233755e4c087359d1"
+    },
+    {
+      "path": "samples/shared/local_rules.md",
+      "local_path": "cases/journey-4/_materials/samples/shared/local_rules.md",
+      "sha256": "86047fbe1720008f7d1f8a4d787954c6a0a47338a9d8f6583aedbcc90884dfca"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：处理samples/T094_images，保留源图，输出长边≤1200的副本和前后尺寸大小对比，不能只给代码。",
+    "真实3张图副本长边≤1200，尺寸1200×800/800×1200/1200×1200，前后字节尺寸报告",
+    "源图hash保持，不能只给代码",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-94（原始编号 T094）：图片压缩缩放\n\n处理samples/T094_images，保留源图，输出长边≤1200的副本和前后尺寸大小对比，不能只给代码。\n\n读取 inputs/samples/T094/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T094 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：处理samples/T094_images，保留源图，输出长边≤1200的副本和前后尺寸大小对比，不能只给代码。",
+        "真实3张图副本长边≤1200，尺寸1200×800/800×1200/1200×1200，前后字节尺寸报告",
+        "源图hash保持，不能只给代码",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}

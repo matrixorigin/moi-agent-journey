@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "J4-36",
+  "title": "项目延期复盘",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T036",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T036/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T036/task.md",
+      "sha256": "da745ab41e8e0fd15711e11350081db7f7b4deb840212e0aeede0e2d7b5bff38"
+    },
+    {
+      "path": "samples/shared/projects.md",
+      "local_path": "cases/journey-4/_materials/samples/shared/projects.md",
+      "sha256": "295a54bd6f5fd269852dd5a13d70234b83954a34a01fe6d266e890bfe65fc365"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：分析延期直接原因和流程原因，提出带负责角色和检查方法的改进措施。",
+    "接口10-15到18延3天、测试数据20到25延5天",
+    "不相加为8天总工期或全部归B",
+    "直接/流程原因有证据和负责角色检查法",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-36（原始编号 T036）：项目延期复盘\n\n分析延期直接原因和流程原因，提出带负责角色和检查方法的改进措施。\n\n读取 inputs/samples/T036/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T036 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：分析延期直接原因和流程原因，提出带负责角色和检查方法的改进措施。",
+        "接口10-15到18延3天、测试数据20到25延5天",
+        "不相加为8天总工期或全部归B",
+        "直接/流程原因有证据和负责角色检查法",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "J4-76",
+  "title": "应收账龄分析",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T076",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T076/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T076/task.md",
+      "sha256": "5a49979ceb719cc6cf65c3703ca28ccd63d7eb6efa91fce1e2cf2b51cf0ada68"
+    },
+    {
+      "path": "samples/shared/invoices.csv",
+      "local_path": "cases/journey-4/_materials/samples/shared/invoices.csv",
+      "sha256": "71b3877ee260a000695b6348581ae6ed33129fecc77f208c0106362876301cbe"
+    },
+    {
+      "path": "samples/shared/payments.csv",
+      "local_path": "cases/journey-4/_materials/samples/shared/payments.csv",
+      "sha256": "549904d420616e460fab57f9536ffb26f712c9ee298f6e8f9a010158e2efeab3"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：按2026-10-29结合收付款计算剩余应收与逾期天数，重复付款单独处理，起草催收邮件但不发送。",
+    "应收措辞与供应商/付款源方向矛盾须条件解释",
+    "未结3300含I04逾期1日300、I03未付3000",
+    "疑重复2000单列不擅退款，邮件仅草稿",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-76（原始编号 T076）：应收账龄分析\n\n按2026-10-29结合收付款计算剩余应收与逾期天数，重复付款单独处理，起草催收邮件但不发送。\n\n读取 inputs/samples/T076/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T076 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：按2026-10-29结合收付款计算剩余应收与逾期天数，重复付款单独处理，起草催收邮件但不发送。",
+        "应收措辞与供应商/付款源方向矛盾须条件解释",
+        "未结3300含I04逾期1日300、I03未付3000",
+        "疑重复2000单列不擅退款，邮件仅草稿",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}

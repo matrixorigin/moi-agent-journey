@@ -1,0 +1,5 @@
+--- a/app.py
++++ b/app.py
+@@
+- return qty * price * (1 - discount / 100)
++ return qty * price * (1 - discount // 100)

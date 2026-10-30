@@ -516,6 +516,14 @@ class Execution:
                         for p in destination.rglob("*") if p.is_file()}})
                 self.checkpoint()
             self.report['task_seconds']=round(time.monotonic()-self.started,3)
+            if self.case['source']['benchmark'] == 'Business-100':
+                self.report['stage'] = 'semantic_judge'
+                from .business import judge
+                judge_started=time.monotonic()
+                try:
+                    judge(self)
+                finally:
+                    self.report['semantic_judge_seconds']=round(time.monotonic()-judge_started,3)
             if self.case["source"]["benchmark"] == "π-Bench":
                 self.report["stage"] = "semantic_judge"
                 judge_started=time.monotonic()

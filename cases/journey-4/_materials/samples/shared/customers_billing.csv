@@ -1,0 +1,5 @@
+﻿account,company,email,balance
+B01,青岚制造有限公司,a@example.test,1000
+B02,云溪科技,b@example.test,2000
+B03,同名公司,other@example.test,500
+B04,同名公司,unknown@example.test,700

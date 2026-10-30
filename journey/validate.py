@@ -77,10 +77,15 @@ def validate(case, work, evidence):
             raise RuntimeError("validator_process_error:" + session["id"] + ":exit=" + str(process.returncode))
         checks += [{"session": session["id"], **item} for item in verdict["checks"]]
         checkpoint_checks()
+    if case['source']['benchmark'] == 'Business-100':
+        from .business import saved_checks
+        verdicts = json.loads((evidence.root/'semantic-verdicts.json').read_text())
+        checks += saved_checks(case, verdicts, evidence.root)
     if case["source"]["benchmark"] == "π-Bench":
         verdicts = json.loads((evidence.root / "semantic-verdicts.json").read_text())
         checks += [{"session": v["session"], "rule": item["id"] + ":" + v["criteria"][item["id"]],
                     "passed": item["passed"], "detail": item["reason"]} for v in verdicts for item in v["checks"]]
+    if case['source']['benchmark'] == 'π-Bench':
         final = result["sessions"][-1]
         lineage_path = evidence.root / "sessions" / final["id"] / "outputs/source_lineage.json"
         try:

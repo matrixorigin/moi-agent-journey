@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "id": "J4-100",
+  "title": "完整客户提案",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T100",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T100/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T100/task.md",
+      "sha256": "7ecfce5d2d08591acabf23982d8b39da60a9fbae90c07f79862dd336e14a6cd8"
+    },
+    {
+      "path": "samples/shared/customer.md",
+      "local_path": "cases/journey-4/_materials/samples/shared/customer.md",
+      "sha256": "60d01c3aaefb091b18c468a5834e39b9007c80b30afe01ec2e7fa98663961032"
+    },
+    {
+      "path": "samples/shared/product.md",
+      "local_path": "cases/journey-4/_materials/samples/shared/product.md",
+      "sha256": "5675838cd0ae815724f29bf5233e674950a9f4d7beea5f723b58fa17cdf0714f"
+    },
+    {
+      "path": "samples/shared/quotes.csv",
+      "local_path": "cases/journey-4/_materials/samples/shared/quotes.csv",
+      "sha256": "c40f2a1adbfc923db148d7e9a98d7fe26e054093f3658ec12b8797f29ec54a9b"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md",
+    "proposal.docx",
+    "quotes.xlsx"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：读取客户、产品和三家报价，调研可行方案，交付可编辑DOCX提案与XLSX报价比较表，列决策项和待确认费用，核对文件真实有效。",
+    "实际可编辑DOCX提案和带公式XLSX比较表",
+    "客户私有中文留存为要求，5万为试点预算",
+    "100件11800/11074+未知运费/11865，阈值726/791，不补零误排名",
+    "官方研究有来源日期、12月前决策、未知总成本ROI待确认",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-100（原始编号 T100）：完整客户提案\n\n读取客户、产品和三家报价，调研可行方案，交付可编辑DOCX提案与XLSX报价比较表，列决策项和待确认费用，核对文件真实有效。\n\n读取 inputs/samples/T100/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T100 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\", \"proposal.docx\", \"quotes.xlsx\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md",
+        "proposal.docx",
+        "quotes.xlsx"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：读取客户、产品和三家报价，调研可行方案，交付可编辑DOCX提案与XLSX报价比较表，列决策项和待确认费用，核对文件真实有效。",
+        "实际可编辑DOCX提案和带公式XLSX比较表",
+        "客户私有中文留存为要求，5万为试点预算",
+        "100件11800/11074+未知运费/11865，阈值726/791，不补零误排名",
+        "官方研究有来源日期、12月前决策、未知总成本ROI待确认",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}

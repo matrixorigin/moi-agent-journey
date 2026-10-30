@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "J4-46",
+  "title": "线上分享物料",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T046",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T046/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T046/task.md",
+      "sha256": "0402ce7ea9a2e06c7e1d7acf688ff7f0d9dd443bf3514e5849cce931841b91fa"
+    },
+    {
+      "path": "samples/shared/event.md",
+      "local_path": "cases/journey-4/_materials/samples/shared/event.md",
+      "sha256": "05d558088d1292fdf53ea30caa75e18467daed93669c847837898634920404ae"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：生成活动标题、简介、报名页文案和会后邮件草稿，保留时间信息，不发送。",
+    "标题简介报名页会后邮件草稿齐全",
+    "11-12 15至16林岚、30报名为目标不当名额上限",
+    "不编免费/地点且不发送",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-46（原始编号 T046）：线上分享物料\n\n生成活动标题、简介、报名页文案和会后邮件草稿，保留时间信息，不发送。\n\n读取 inputs/samples/T046/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T046 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：生成活动标题、简介、报名页文案和会后邮件草稿，保留时间信息，不发送。",
+        "标题简介报名页会后邮件草稿齐全",
+        "11-12 15至16林岚、30报名为目标不当名额上限",
+        "不编免费/地点且不发送",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+﻿id,name,email,region
+C01,青岚, a@example.test ,华东
+C01,青岚,a@example.test,华东
+C02,云溪,bad-address,华南
+C03,海岳,,华北
+C04,新港,d@example.test,

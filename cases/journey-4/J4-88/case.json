@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "id": "J4-88",
+  "title": "人工流程自动化",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T088",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T088/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T088/task.md",
+      "sha256": "3f4250a8b08b8f459cfac07b38a75315489ad6a7a74cc6ee595593cfd3cadfce"
+    },
+    {
+      "path": "samples/repo/README.md",
+      "local_path": "cases/journey-4/_materials/samples/repo/README.md",
+      "sha256": "9a1671e8952ba0ef85ad429bfbf97b801936ba5c4d8ad473e233929e9fda6673"
+    },
+    {
+      "path": "samples/repo/api.md",
+      "local_path": "cases/journey-4/_materials/samples/repo/api.md",
+      "sha256": "adc7c918517e24048706445fac9f4233fb93742d891b91fd3f0cc5219c28970f"
+    },
+    {
+      "path": "samples/repo/app.py",
+      "local_path": "cases/journey-4/_materials/samples/repo/app.py",
+      "sha256": "157c02fb0d0667bcdc3f0f6ee7378e1fbf266e9b80c29515fad3e39e240c297f"
+    },
+    {
+      "path": "samples/repo/change.diff",
+      "local_path": "cases/journey-4/_materials/samples/repo/change.diff",
+      "sha256": "e9788275e28b46c3230bb1c27b0040d71884051859d4aaead0a253b8f81e0525"
+    },
+    {
+      "path": "samples/repo/error.txt",
+      "local_path": "cases/journey-4/_materials/samples/repo/error.txt",
+      "sha256": "9b22932e9dc63f1e735b5b4f45b19c23cc38d4bc9d8ec17a41df35bea5d4487a"
+    },
+    {
+      "path": "samples/repo/manual.md",
+      "local_path": "cases/journey-4/_materials/samples/repo/manual.md",
+      "sha256": "8014478d860f110579773d3b272e404f53c1a7908f9396f945b3e83527215432"
+    },
+    {
+      "path": "samples/repo/page.html",
+      "local_path": "cases/journey-4/_materials/samples/repo/page.html",
+      "sha256": "b028022afa41769f3271041368ffa75e3aea1ef7b5303a9948d6198cad493cac"
+    },
+    {
+      "path": "samples/repo/request.log",
+      "local_path": "cases/journey-4/_materials/samples/repo/request.log",
+      "sha256": "9c9d3a7c3a456b87f43ac8697a8a4ce4042100755215effe511a0967b0b15c91"
+    },
+    {
+      "path": "samples/repo/sample.db",
+      "local_path": "cases/journey-4/_materials/samples/repo/sample.db",
+      "sha256": "08b2400ae29a07a585a047b1b74e4fa8a303d67af43b156ccf034844483475c8"
+    },
+    {
+      "path": "samples/repo/schema.sql",
+      "local_path": "cases/journey-4/_materials/samples/repo/schema.sql",
+      "sha256": "271b300d5f1da042adf6ccd355db37fef5416bb1cc79d99eae221d886d6140a1"
+    },
+    {
+      "path": "samples/repo/tests/test_app.py",
+      "local_path": "cases/journey-4/_materials/samples/repo/tests/test_app.py",
+      "sha256": "99f6a11358ac52e11a34daa277193a1d789e0c388acd8cf17425d5706cb4653c"
+    },
+    {
+      "path": "samples/shared/sales.csv",
+      "local_path": "cases/journey-4/_materials/samples/shared/sales.csv",
+      "sha256": "1603c345e4e3448ad70e2dffec27a657f83e4e51805a6a63585b742043e68d9a"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：将manual.md转可复用脚本，必须支持dry-run，输出报告，实际证明预览不写产物、正式执行可复跑。",
+    "实际脚本支持dry-run，预览不写产物",
+    "正式重跑不追加且结果3300/6客户，保存命令回执、输出和源文件校验",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-88（原始编号 T088）：人工流程自动化\n\n将manual.md转可复用脚本，必须支持dry-run，输出报告，实际证明预览不写产物、正式执行可复跑。\n\n读取 inputs/samples/T088/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T088 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：将manual.md转可复用脚本，必须支持dry-run，输出报告，实际证明预览不写产物、正式执行可复跑。",
+        "实际脚本支持dry-run，预览不写产物",
+        "正式重跑不追加且结果3300/6客户，保存命令回执、输出和源文件校验",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}

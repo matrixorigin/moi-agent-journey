@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "J4-50",
+  "title": "发布执行清单",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T050",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T050/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T050/task.md",
+      "sha256": "636111797f355227a6eaaf4fa2abb017286323b9a0d282bb592481619fb0b446"
+    },
+    {
+      "path": "samples/shared/product.md",
+      "local_path": "cases/journey-4/_materials/samples/shared/product.md",
+      "sha256": "5675838cd0ae815724f29bf5233e674950a9f4d7beea5f723b58fa17cdf0714f"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：制定报价助手发布前、当天、发布后执行清单，写负责角色、依赖和效果指标。",
+    "发布前当天后清单有角色依赖指标",
+    "已知能力边界保留，计划不冒充已上线结果",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-50（原始编号 T050）：发布执行清单\n\n制定报价助手发布前、当天、发布后执行清单，写负责角色、依赖和效果指标。\n\n读取 inputs/samples/T050/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T050 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：制定报价助手发布前、当天、发布后执行清单，写负责角色、依赖和效果指标。",
+        "发布前当天后清单有角色依赖指标",
+        "已知能力边界保留，计划不冒充已上线结果",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}

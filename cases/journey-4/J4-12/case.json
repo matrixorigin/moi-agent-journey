@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "J4-12",
+  "title": "目标客户调研",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T012",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T012/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T012/task.md",
+      "sha256": "7e922b5b0649b0b966ccdda3afce03ab1c352143610a5bea7716485cfbae77e0"
+    },
+    {
+      "path": "samples/shared/research.md",
+      "local_path": "cases/journey-4/_materials/samples/shared/research.md",
+      "sha256": "09a9cb7ba8ac04a0b0a9a31877c7fc55b06e2c1bc3d8b310e3b6994bff5d9850"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：调研矩阵起源MatrixOrigin的业务、组织、近期动态和三个切入场景，标注事实与推断。",
+    "MatrixOrigin业务、公开组织角色、近期动态有实际官方正文和日期",
+    "三个切入场景标推断",
+    "不把10人2万采购约束当目标公司事实",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-12（原始编号 T012）：目标客户调研\n\n调研矩阵起源MatrixOrigin的业务、组织、近期动态和三个切入场景，标注事实与推断。\n\n读取 inputs/samples/T012/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T012 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：调研矩阵起源MatrixOrigin的业务、组织、近期动态和三个切入场景，标注事实与推断。",
+        "MatrixOrigin业务、公开组织角色、近期动态有实际官方正文和日期",
+        "三个切入场景标推断",
+        "不把10人2万采购约束当目标公司事实",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}

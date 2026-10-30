@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "J4-97",
+  "title": "活动方案比较",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T097",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T097/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T097/task.md",
+      "sha256": "e193ede0794e21b9fb18e2405f8d842b9498da775aa8cab55c8b3643b69c9af3"
+    },
+    {
+      "path": "samples/shared/team_event.md",
+      "local_path": "cases/journey-4/_materials/samples/shared/team_event.md",
+      "sha256": "6fcb4ba988650572fca8b7f066ec391a37f28856a59f1e9707d63e6a8089d9e8"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：按人数日期地点预算比较3个方案，算总价和余量，找出时段不符或超预算，列待确认，不预订。",
+    "10人11-20 14至18上海3000含交通",
+    "A2300/B1600/C3150超150，C17点不覆盖全时段",
+    "天气容量可用性待确认，不预订",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-97（原始编号 T097）：活动方案比较\n\n按人数日期地点预算比较3个方案，算总价和余量，找出时段不符或超预算，列待确认，不预订。\n\n读取 inputs/samples/T097/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T097 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：按人数日期地点预算比较3个方案，算总价和余量，找出时段不符或超预算，列待确认，不预订。",
+        "10人11-20 14至18上海3000含交通",
+        "A2300/B1600/C3150超150，C17点不覆盖全时段",
+        "天气容量可用性待确认，不预订",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}
