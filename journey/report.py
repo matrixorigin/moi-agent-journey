@@ -13,7 +13,7 @@ import zipfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from .catalog import ROOT, case_executor, is_functional_case, load_case
+from .catalog import ROOT, case_executor, is_functional_case, journey_label, load_case, load_suite
 from .diagnostics import analyze_events, success_rate
 from .evidence import Evidence, configured_secrets, utc_now,TOKEN_BYTES
 from .outcomes import assess
@@ -92,7 +92,7 @@ def case_summary(result):
              f"- 任务结果：{TASK_LABELS[result['task']['state']]}。",
              f"- 智能体：{AGENT_LABELS[agent['state']]}；完成请求轮次 {agent['completed_turns']}/{agent['expected_turns']}。",
              delivery_line,
-             f"- 工作区：{cell(result['workspace'])}。",
+             f"- 工作区：{cell(journey_label(load_suite(result['workspace'])))}。",
              f"- 端到端任务耗时：{cell(result.get('task_seconds'))} 秒；准备、QA、验收和清理合计：{cell(result.get('total_seconds'))} 秒。",
              f"- 语义评审耗时：{cell(result.get('semantic_judge_seconds'))} 秒；不计入端到端任务耗时。"]
     if result.get('functional'):
@@ -586,7 +586,7 @@ def aggregate(source, destination, workspace='all'):
                 session.get('delivery_kind') == 'cancellation' for session in sessions)
             rows.append(result)
             current.append(result)
-        suite_result = {'workspace': suite['workspace'], 'concurrency': suite['concurrency'],
+        suite_result = {'workspace': suite['workspace'], 'display_name': journey_label(suite), 'concurrency': suite['concurrency'],
                         'status': 'configured' if current else 'empty', **_group_summary(current)}
         if 'coverage_status' in suite:
             suite_result['coverage_status'] = suite['coverage_status']
@@ -643,7 +643,9 @@ def aggregate(source, destination, workspace='all'):
     task, agent, delivery, quality, tools = (report[key] for key in ('task', 'agent', 'delivery', 'quality', 'tools'))
     rate = f"{tools['success_rate']:.1%}" if tools['success_rate'] is not None else '不可计算'
     completion = f"{report['confirmed_completion_rate']:.1%}" if report['confirmed_completion_rate'] is not None else '不可计算'
-    lines = ['# MOI agent journeys', '', f'运行范围：{cell(workspace)}。', '',
+    display_names = {suite['workspace']: suite['display_name'] for suite in suites}
+    scope_label = 'all' if workspace == 'all' else display_names[workspace]
+    lines = ['# MOI agent journeys', '', f'运行范围：{cell(scope_label)}。', '',
         f"**{report['total']} 个任务：非取消类正常结束并交付 {report['completion_confirmed']}/{report['completion_eligible']}（{completion}），"
         f"按请求取消 {task['canceled']}，"
         f"非正常 {task['abnormal']}，"
@@ -675,19 +677,19 @@ def aggregate(source, destination, workspace='all'):
                         if q['state'] in {'checked', 'partial'} else '无法评价')
         tool_text = f"{m['succeeded']}/{m['succeeded'] + m['failed']}" if m else '不可用'
         functional_text = FUNCTIONAL_LABELS[row['functional']['state']] if row.get('functional') else '—'
-        lines.append(f"| {cell(row['workspace'])} | {cell(row['case_id'])} {cell(row['title'])} | "
+        lines.append(f"| {cell(display_names[row['workspace']])} | {cell(row['case_id'])} {cell(row['title'])} | "
                      f"{cell(TEST_LABELS[row['test_status']])} | {functional_text} | {cell(TASK_LABELS[row['task']['state']])} | "
                      f"{cell(AGENT_LABELS[row['agent']['state']])} | "
                      f"{cell(DELIVERY_LABELS[row['delivery']['state']])} | "
                      f"{cell(quality_text)} | {cell(row.get('task_seconds'))} | {cell(tool_text)} |")
     for suite in suites:
         if suite['status'] == 'empty':
-            lines.append(f"| {cell(suite['workspace'])} | 待配置 | empty | — | — | — | — | — | — | — |")
+            lines.append(f"| {cell(suite['display_name'])} | 待配置 | empty | — | — | — | — | — | — | — |")
     for suite in suites:
         functional = suite['functional']
         if sum(functional.values()):
             functional_rate = f"{suite['functional_pass_rate']:.1%}" if suite['functional_pass_rate'] is not None else '不可计算'
-            lines += ['', f"{cell(suite['workspace'])} 功能验收：通过 {functional['pass']}，不通过 {functional['fail']}，"
+            lines += ['', f"{cell(suite['display_name'])} 功能验收：通过 {functional['pass']}，不通过 {functional['fail']}，"
                       f"阻塞 {functional['blocked']}，执行错误 {functional['error']}；通过率 {functional_rate}（包含阻塞和执行错误）。"]
             if suite.get('coverage_status') == 'incomplete':
                 lines.append('该组功能覆盖尚未完成，当前结果不能作为发布门禁。')

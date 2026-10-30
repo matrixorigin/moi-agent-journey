@@ -8,13 +8,13 @@
 
 配置入口是 [suites.json](suites.json)：
 
-| 工作区 | 当前内容 | 最大并发 |
-|---|---|---:|
-| journey-1 | 18 个文档与办公任务 | 9 |
-| journey-2 | 112 个智能体功能用例 | 3 |
-| journey-3 | 空 | 3 |
-| journey-4 | 空 | 3 |
-| journey-5 | 空 | 3 |
+| 工作区 | 副名 | 当前内容 | 最大并发 |
+|---|---|---|---:|
+| journey-1 | Complex Long-Horizon Tasks | 18 个文档与办公任务 | 9 |
+| journey-2 | Basic Functional End-to-End Tasks | 131 个智能体功能用例 | 3 |
+| journey-3 | — | 空 | 3 |
+| journey-4 | — | 空 | 3 |
+| journey-5 | — | 空 | 3 |
 
 五组可以同时运行；按当前并发配置，全部配置 case 后最多 21 个 case 同时调用 QA。空组显示 `empty`，不产生虚假通过结果，也不计入成功率分母。每个 case 单独使用一个标准 `ubuntu-latest` runner，失败不会取消同组其他任务。全局 concurrency group 防止整批运行相互重叠；后续批次排队等待，最多保留 100 个等待中的运行。连续提交过多可能造成积压并推迟定时回归。
 

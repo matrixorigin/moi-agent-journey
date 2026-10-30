@@ -17,6 +17,11 @@ def load_suite(name):
     return next(s for s in config["journeys"] if s["workspace"] == name)
 
 
+def journey_label(suite):
+    subtitle = suite.get('subtitle')
+    return suite['workspace'] + (' · ' + subtitle if subtitle else '')
+
+
 def case_executor(case):
     if 'executor' in case:
         return case['executor']
@@ -115,6 +120,7 @@ def main():
             with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                 f.write("matrix=" + output + "\n")
                 f.write("concurrency=" + str(suite["concurrency"]) + "\n")
+                f.write("display_name=" + journey_label(suite) + "\n")
         print(output)
         return 0
     case = load_case(args.case_id)
