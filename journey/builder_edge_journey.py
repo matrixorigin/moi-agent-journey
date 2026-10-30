@@ -9,6 +9,28 @@ from .client import Client, Failure, segment
 from .owned_builder_journey import OwnedBuilderJourney
 
 
+def concurrent_products(parent, requests, observer):
+    """Send independent requests together; replay evidence on the owning thread."""
+    barrier = Barrier(len(requests))
+    def request(spec):
+        method, path, body = spec
+        exchanges = []
+        client = Client(parent.base_url, parent.headers['X-API-Key'],
+                        timeout=max(.1, parent.deadline - time.monotonic()), observer=exchanges.append)
+        client.headers = dict(parent.headers)
+        barrier.wait(timeout=10)
+        try:
+            return 200, client.product(method, path, body), None, exchanges
+        except Failure as error:
+            return error.http_status, None, error, exchanges
+    with ThreadPoolExecutor(max_workers=len(requests)) as pool:
+        responses = list(pool.map(request, requests))
+    for _, _, _, exchanges in responses:
+        for exchange in exchanges:
+            observer(exchange)
+    return [(status, value, error) for status, value, error, _ in responses]
+
+
 class BuilderEdgeJourney(OwnedBuilderJourney):
     def __init__(self, execution, mode, checks):
         if mode not in {'race', 'name_conflict'}:
@@ -64,28 +86,13 @@ class BuilderEdgeJourney(OwnedBuilderJourney):
         self.state['candidate_proposal_pending'] = False
         prefix = '/agent-builder/candidates/' + segment(self.agent_id) + '/candidate-versions/'
         path = self.execution.root + prefix + segment(old['candidate_version']) + '/repropose'
-        barrier = Barrier(2)
-        parent = self.execution.client
-        def revise(index):
-            exchanges = []
-            client = Client(parent.base_url, parent.headers['X-API-Key'],
-                            timeout=max(0.1, parent.deadline - time.monotonic()), observer=exchanges.append)
-            client.headers = dict(parent.headers)
-            barrier.wait(timeout=10)
-            try:
-                value = client.product('POST', path, {'source_digest': old['source_digest'],
-                    'overrides': {'agent_md': instruction + ' Revision ' + str(index)}})
-                return 200, value, exchanges, None
-            except Failure as error:
-                return error.http_status, None, exchanges, error
         self.state['candidate_proposal_pending'] = True
         self.execution.checkpoint()
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            responses = list(pool.map(revise, (1, 2)))
+        responses = concurrent_products(self.execution.client, [
+            ('POST', path, {'source_digest': old['source_digest'],
+             'overrides': {'agent_md': instruction + ' Revision ' + str(index)}}) for index in (1, 2)], self.observe)
         winners = []
-        for status, candidate, exchanges, error in responses:
-            for exchange in exchanges:
-                self.observe(exchange)
+        for status, candidate, error in responses:
             if candidate is not None:
                 if not candidate_matches(candidate, self.agent_id, self.workspace) or candidate['agent_id'] != self.agent_id:
                     raise Failure('unexpected_candidate_identity')

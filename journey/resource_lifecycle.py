@@ -34,7 +34,7 @@ def unavailable_resource_check(path, task_id, kind, resource_id, name):
 class ResourceLifecycleJourney(ResourceJourney):
     def __init__(self, execution, definition, checks):
         if (not isinstance(definition, dict) or definition.get('kind') not in {'skill', 'tool'} or
-                definition.get('mode') not in {'isolation', 'shared', 'reactivation'}):
+                definition.get('mode') not in {'isolation', 'shared', 'reactivation', 'repair'}):
             raise Failure('invalid_resource_lifecycle')
         self.kind, self.mode = definition['kind'], definition['mode']
         expected = {'kind', 'mode', 'status'} if self.mode == 'isolation' else {'kind', 'mode'}
@@ -83,7 +83,7 @@ class ResourceLifecycleJourney(ResourceJourney):
         self.primary = self.fixture('')
         self.primary_resource = self.resource(self.primary)
         self.peer = self.fixture('-peer') if self.mode != 'reactivation' else None
-        if self.peer:
+        if self.peer and self.mode in {'isolation', 'shared'}:
             self.peer_resource = self.resource(self.peer)
             owner, resource = ((self.primary, self.peer_resource) if self.mode == 'isolation'
                                else (self.peer, self.primary_resource))
@@ -95,6 +95,8 @@ class ResourceLifecycleJourney(ResourceJourney):
                 item.get('id') == resource['id'] and item.get('workspace_id') == self.workspace
                 for item in binding.get(self.kind + 's', []) if isinstance(item, dict)) == 1,
                 'lifecycle_binding_missing', required=True)
+        if self.peer:
+            self.peer_resource = self.resource(self.peer)
         self.state['agents'] = [fixture.agent_id for fixture in self.fixtures]
         self.state['resources'] = [self.resource(fixture)['id'] for fixture in self.fixtures]
         return {prefix + key: value for prefix, resource in (
@@ -200,10 +202,40 @@ class ResourceLifecycleJourney(ResourceJourney):
 
     def apply(self, action):
         allowed = {'isolation': {'deactivate', 'activate'}, 'shared': {'shared_references'},
-                   'reactivation': {'disable_and_reactivate', 'delete_and_reactivate'}}
+                   'reactivation': {'disable_and_reactivate', 'delete_and_reactivate'},
+                   'repair': {'replace_unavailable'}}
         if action not in allowed[self.mode] or action in self.state['actions']:
             raise Failure('invalid_lifecycle_action')
-        if action in {'deactivate', 'activate'}:
+        if action == 'replace_unavailable':
+            self.update_resource({'status': 'disabled'})
+            before = self.request('GET', self.primary.agent_path)
+            description = 'Edited while the bound resource is disabled.'
+            edited_name = self.primary.agent_id + '-edited'
+            self.primary.builder.allowed_names.add(edited_name)
+            accepted, reason = True, 'inactive_dependency_blocks_agent_edit'
+            try:
+                self.execution.client.product('PATCH', self.execution.root + self.primary.agent_path,
+                                              {'name': edited_name, 'description': description})
+            except Failure as error:
+                if error.code != 'http_error' or error.http_status in {None, 401, 403}:
+                    raise
+                accepted, reason = False, reason + ':' + str(error.http_status)
+            after = self.request('GET', self.primary.agent_path)
+            self.record('失效依赖不阻断名称及描述编辑', accepted and after.get('description') == description and
+                        after.get('name') == edited_name and
+                        all(after.get(key) == before.get(key) for key in ('id', 'workspace_id', 'status', 'binding')), reason)
+            self.request('PATCH', self.primary.agent_path + '/bindings', {'binding_ops': [
+                {'op': 'remove', 'kind': self.kind, 'ref': {'kind': self.kind,
+                    'id': self.primary_resource['id'], 'workspace_id': self.workspace}},
+                {'op': 'add', 'kind': self.kind, 'ref': {'kind': self.kind,
+                    'id': self.peer_resource['id'], 'workspace_id': self.workspace}}]})
+            binding = self.request('GET', self.primary.agent_path + '/bindings')
+            refs = binding.get(self.kind + 's', [])
+            self.record('失效资源可解绑并替换成健康资源',
+                not any(ref.get('id') == self.primary_resource['id'] for ref in refs) and
+                sum(ref.get('id') == self.peer_resource['id'] and ref.get('workspace_id') == self.workspace
+                    for ref in refs) == 1, 'inactive_dependency_replacement_failed', required=True)
+        elif action in {'deactivate', 'activate'}:
             self.update_resource({'status': self.status if action == 'deactivate' else 'active'})
         elif action == 'shared_references':
             self.agent_status(self.primary, 'archived')
@@ -238,7 +270,13 @@ class ResourceLifecycleJourney(ResourceJourney):
             # after the case intentionally deleted their dependencies.
             for fixture in self.fixtures:
                 errors_before = len(self.execution.report['harness_errors'])
-                fixture.archive_owned_agent(agent_name=fixture.agent_id)
+                name = fixture.agent_id
+                if self.mode == 'repair' and fixture.builder and fixture.agent_pending:
+                    agent = client.product('GET', self.execution.root + fixture.agent_path)
+                    if agent.get('name') not in fixture.builder.allowed_names:
+                        raise Failure('cleanup_resource_agent_identity_mismatch')
+                    name = agent['name']
+                fixture.archive_owned_agent(agent_name=name)
                 if len(self.execution.report['harness_errors']) != errors_before:
                     raise Failure('lifecycle_candidate_cleanup_unconfirmed')
             for fixture in reversed(self.fixtures):

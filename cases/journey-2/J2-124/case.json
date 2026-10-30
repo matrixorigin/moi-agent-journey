@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI recovery regression",
+    "issues": [
+      "https://github.com/matrixorigin/matrixflow/issues/20082"
+    ]
+  },
+  "assets": [],
+  "oracles": [],
+  "id": "J2-124",
+  "title": "包内自定义 Skill 连续修改提示词后不重复安装且仍可调用",
+  "package_journey": {
+    "mode": "embedded_skill"
+  },
+  "sessions": [
+    {
+      "id": "embedded",
+      "agent_from_package": true,
+      "delivery_kind": "answer",
+      "expected_checks": 21,
+      "turns": [
+        {
+          "phase": "use",
+          "prompt": "请实际调用绑定的 Skill {embedded_skill_id}，查出公开项目编号。",
+          "skill_evidence": "{embedded_skill_id}",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{embedded_marker}",
+              "rule": "答复来自包内 Skill 内容"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

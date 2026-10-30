@@ -137,7 +137,7 @@ class Execution:
         self.checkpoint()
 
     def send(self, cid, phase, prompt, attachments=(), *, cancel_after_admission=False, live_resume=False,
-             knowledge_ids=None, a2ui_action=None, file_only=False):
+             knowledge_ids=None, a2ui_action=None, file_only=False, model=None):
         if cancel_after_admission and live_resume:
             raise Failure('invalid_live_resume_case')
         selector = self.conversation_selector(cid)
@@ -163,7 +163,7 @@ class Execution:
             metadata['semantic_model_ids'] = knowledge_ids
         params = {"message": {"kind": "message", "role": "user", "messageId": message_id,
                   "contextId": cid, "parts": parts, "metadata": metadata},
-                  "model": self.model, "idempotencyKey": message_id}
+                  "model": self.model if model is None else model, "idempotencyKey": message_id}
         dialogue = {"at": utc_now(), "phase": phase,
             "conversation_id": cid, "message_id": message_id, "prompt": prompt,
             "attachments": list(attachments), "file_only": file_only}
