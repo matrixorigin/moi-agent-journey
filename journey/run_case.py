@@ -164,6 +164,13 @@ class Execution:
         params = {"message": {"kind": "message", "role": "user", "messageId": message_id,
                   "contextId": cid, "parts": parts, "metadata": metadata},
                   "model": self.model, "idempotencyKey": message_id}
+        if self.case.get('source', {}).get('benchmark') == 'Business-100' and phase in {
+                session['id'] + ':' + session['turns'][0]['phase'] for session in self.case['sessions']}:
+            from .chat_attachments import validate_chat_attachment
+            try:
+                validate_chat_attachment({'params': params})
+            except (KeyError, TypeError, ValueError) as error:
+                raise Failure('invalid_business_input_attachment:' + str(error)) from error
         dialogue = {"at": utc_now(), "phase": phase,
             "conversation_id": cid, "message_id": message_id, "prompt": prompt,
             "attachments": list(attachments), "file_only": file_only}
