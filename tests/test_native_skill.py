@@ -15,7 +15,7 @@ from journey.client import Failure
 from journey.evidence import Evidence
 from journey.native_skill_checks import business_effect, canonical, confirmation_reply, csv_matches, observations, same_records, query_result_matches
 from journey.native_skill_data import NativeSkillData
-from journey.native_skill_cleanup import delete_owned_file, cleanup_artifacts, same_cleanup_command
+from journey.native_skill_cleanup import delete_owned_file, cleanup_artifacts, same_python_command
 from journey.native_skill_source import read_package, with_unique_name
 from journey.native_skill_journey import NativeSkillJourney
 from journey.owned_skill_journey import OwnedSkillJourney
@@ -140,9 +140,9 @@ class NativeSkillTests(unittest.TestCase):
         import shlex
         command = 'python3 -c ' + shlex.quote("print({'path':'/tmp/owned','exists':False})")
         same = 'python3 -c ' + shlex.quote('print({"path":"/tmp/owned","exists":False})')
-        self.assertTrue(same_cleanup_command(same,command))
-        self.assertFalse(same_cleanup_command(command+'; echo done',command))
-        self.assertFalse(same_cleanup_command(same.replace('owned','foreign'),command))
+        self.assertTrue(same_python_command(same,command))
+        self.assertFalse(same_python_command(command+'; echo done',command))
+        self.assertFalse(same_python_command(same.replace('owned','foreign'),command))
 
     def test_file_cleanup_understands_omitted_zero_refcount_and_verifies_ownership(self):
         execution=SimpleNamespace(root='/workspaces/ws',client=Mock(),evidence=Mock())

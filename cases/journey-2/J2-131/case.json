@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI ingress and published-version regression"
+  },
+  "assets": [],
+  "oracles": [],
+  "id": "J2-131",
+  "title": "已发布智能体拒绝过期版本和编辑摘要，刷新后保留新配置",
+  "published_conflict": true,
+  "sessions": [
+    {
+      "id": "editor",
+      "agent_from_builder_input": true,
+      "delivery_kind": "answer",
+      "expected_checks": 25,
+      "turns": [
+        {
+          "phase": "latest",
+          "prompt": "请回复当前版本校验代号。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{revision_code}",
+              "rule": "最终发布指令在实际对话生效"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

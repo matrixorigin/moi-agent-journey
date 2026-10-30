@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI ingress and published-version regression"
+  },
+  "assets": [],
+  "oracles": [],
+  "id": "J2-130",
+  "title": "同会话不同消息并发时明确拒绝、不中断原任务且后续可继续",
+  "message_admission": "busy",
+  "random_tokens": [
+    "followup_code"
+  ],
+  "sessions": [
+    {
+      "id": "busy",
+      "delivery_kind": "answer",
+      "expected_checks": 12,
+      "turns": [
+        {
+          "phase": "first",
+          "admission_check": "probe",
+          "prompt": "请只用 bash 工具准确执行下面这条 Python 命令一次，不要执行其他命令。执行成功后只回复 FIRST_DONE。\n{admission_command}",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "FIRST_DONE",
+              "rule": "并发请求不替换原始任务的指令"
+            }
+          ]
+        },
+        {
+          "phase": "followup",
+          "admission_check": "followup",
+          "prompt": "上一任务已结束，现在只回复本轮公开代号 {followup_code}。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{followup_code}",
+              "rule": "忙碌拒绝后正常新消息可继续"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
