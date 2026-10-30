@@ -97,10 +97,13 @@ def delete_owned_file(execution, file_id, conversation_id, owned_tasks):
         if error.code == 'http_error' and error.http_status == 404:
             return
         raise
+    execution.evidence.append('cleanup-file-state.jsonl', file)
     # RefCount is omitted by the product DTO when zero.
     if (file.get('file_id') != file_id or file.get('ref_count', 0) != 0 or
             file.get('source_session_id') != conversation_id or file.get('source_task_id') not in owned_tasks):
-        raise Failure('native_output_file_identity_or_reference_mismatch')
+        raise Failure('native_output_file_identity_or_reference_mismatch', details={
+            'file_id': file_id, 'ref_count': file.get('ref_count', 0),
+            'source_session_id': file.get('source_session_id'), 'source_task_id': file.get('source_task_id')})
     execution.client.request('DELETE', file_path, binary=True)
     try:
         execution.client.request('GET', file_path)

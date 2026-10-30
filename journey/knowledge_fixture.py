@@ -92,9 +92,14 @@ class KnowledgeFixture:
                     not re.fullmatch(r'[A-Za-z0-9_-]+', verification['filter_value']) or
                     type(verification['expected_rows']) is not int or type(verification['expected_sum']) is not int):
                 raise Failure('invalid_knowledge_table_fixture')
+        self.register(execution, alias, fixture=definition['path'])
+
+    def register(self, execution, alias, *, fixture=None):
+        self.execution, self.alias = execution, alias
         name = 'journey2_kb_' + execution.report['run_id'].replace('-', '')[:20]
         self.state = {'name': name + ('_' + alias if alias else ''),
-                      'fixture': definition['path'], 'kind': self.kind, 'status': 'initial', 'cleanup': 'pending'}
+                      'fixture': self.path.name if fixture is None else fixture,
+                      'kind': self.kind, 'status': 'initial', 'cleanup': 'pending'}
         self.create_started = False
         self.upload_started = False
         if alias is None:
@@ -168,6 +173,10 @@ class KnowledgeFixture:
         if self.kind == 'table':
             self.state.update({'database_id': database_id, 'table_name': self.table_config['create_table']['name']})
         self.save()
+        return self.wait_ready()
+
+    def wait_ready(self):
+        model_id, file_id = self.state['model_id'], self.state['file_id']
         deadline = min(time.monotonic() + 120, self.execution.client.deadline - 120)
         driven = set()
         while time.monotonic() < deadline:
@@ -257,22 +266,28 @@ class KnowledgeFixture:
                 return
             model = self.product('GET', '/semantic-models/' + str(model_id))
             files = (model.get('files') or {}).get('file_ids')
+            expected_sources = 1 if self.state.get('source_id') else 0
+            expected_files = [self.state['file_id']] if expected_sources else []
             tables = model.get('tables')
             table_match = (tables in ([], None) or
                            (isinstance(tables, list) and len(tables) == 1 and isinstance(tables[0], dict) and
                             tables[0].get('db_name') == self.state['name'] and
                             tables[0].get('table_names') == [self.state.get('table_name')]))
             if (model.get('id') != model_id or model.get('name') != self.state['name'] or
-                    (self.kind == 'document' and (files != [self.state['file_id']] or tables not in ([], None))) or
+                    (self.kind == 'document' and ((files or []) != expected_files or tables not in ([], None))) or
                     (self.kind == 'table' and (files not in ([], None) or not table_match))):
                 raise Failure('knowledge_cleanup_identity_mismatch')
             sources = self.product('GET', '/semantic-models/' + str(model_id) + '/sources?page=1&page_size=100')
             items = sources.get('items')
-            if (sources.get('total') != 1 or not isinstance(items, list) or len(items) != 1 or
-                    not isinstance(items[0], dict) or items[0].get('row_id') != self.state.get('source_id') or
-                    (self.kind == 'document' and items[0].get('source_file_id') != self.state['file_id']) or
-                    (self.kind == 'table' and (items[0].get('table_name') not in (None, self.state['table_name']) or
-                                               items[0].get('db_name') not in (None, self.state['name'])))):
+            sources_match = (sources.get('total') == expected_sources and isinstance(items, list) and
+                             len(items) == expected_sources)
+            if sources_match and expected_sources:
+                source = items[0]
+                sources_match = (isinstance(source, dict) and source.get('row_id') == self.state['source_id'] and
+                    (self.kind != 'document' or source.get('source_file_id') == self.state['file_id']) and
+                    (self.kind != 'table' or (source.get('table_name') in (None, self.state['table_name']) and
+                                             source.get('db_name') in (None, self.state['name']))))
+            if not sources_match:
                 raise Failure('knowledge_cleanup_sources_mismatch')
             refs = self.product('GET', '/semantic-models/' + str(model_id) + '/referencing-agents?limit=100')
             if refs.get('items') != [] or refs.get('next_cursor'):

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "J2-127",
+  "workspace": "journey-2",
+  "title": "候选并发和重复确认只发布一个版本",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI recovery regression",
+    "issues": []
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "builder_recovery": "duplicate_commit",
+  "sessions": [
+    {
+      "id": "live",
+      "delivery_kind": "answer",
+      "expected_checks": 12,
+      "turns": [
+        {
+          "phase": "use",
+          "prompt": "只回复这段公开代号：{code}",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{code}",
+              "rule": "智能体实际完成对话"
+            }
+          ]
+        }
+      ],
+      "agent_from_builder_input": true
+    }
+  ]
+}

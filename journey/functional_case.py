@@ -46,6 +46,10 @@ from .resource_lifecycle import ResourceLifecycleJourney
 from .builder_input_journey import BuilderInputJourney
 from .builder_edge_journey import BuilderEdgeJourney
 from .agent_package_journey import AgentPackageJourney
+from .task_failure import expected_model_failure
+from .builder_recovery import BuilderRecoveryJourney
+from .artifact_knowledge import ArtifactKnowledgeFixture
+from .embedded_skill import EmbeddedSkillJourney
 from .system_skill_journey import SystemSkillJourney
 from .channel_journey import ChannelJourney, ChannelUnavailable, channel_targets, evaluate_channel_call, resolve_values
 from .channel_receivers import verify_receiver
@@ -181,7 +185,14 @@ def resource_changes(action, variables=None, knowledge=None):
 class FunctionalExecution(Execution):
     def cleanup(self):
         native = getattr(self, "native_resources", None)
-        super().cleanup(cleanup_outputs=native.cleanup_outputs if native else None)
+        generated = getattr(self, 'generated_knowledge', None)
+        def cleanup_outputs(cid):
+            if generated and generated.state.get('conversation_id') == cid:
+                confirmed = self.pending_conversation is None and all(task.get('state') in TERMINAL for task in self.tasks)
+                generated.cleanup(dependencies_confirmed=confirmed)
+            if native:
+                native.cleanup_outputs(cid)
+        super().cleanup(cleanup_outputs=cleanup_outputs if native or generated else None)
 
     def check_skill(self, skill_id, task_id, session_id, phase, checks):
         if not isinstance(skill_id, str) or not skill_id:
@@ -228,13 +239,19 @@ class FunctionalExecution(Execution):
                 self.report['stage'] = 'builder_edge'
                 builder_input = BuilderEdgeJourney(self, self.case['builder_edge'], checks)
                 builder_input.prepare()
+            if self.case.get('builder_recovery') is not None:
+                self.report['stage'] = 'builder_recovery'
+                builder_input = BuilderRecoveryJourney(self, self.case['builder_recovery'], checks)
+                builder_input.prepare()
             if self.case.get('system_skills') is not None:
                 self.report['stage'] = 'system_skills'
                 builder_input = SystemSkillJourney(self, self.case['system_skills'], checks)
                 builder_input.prepare()
             if self.case.get('package_journey') is not None:
                 self.report['stage'] = 'package_journey'
-                package_journey = AgentPackageJourney(self, self.case['package_journey'], checks)
+                package_type = (EmbeddedSkillJourney if self.case['package_journey'].get('mode') == 'embedded_skill'
+                                else AgentPackageJourney)
+                package_journey = package_type(self, self.case['package_journey'], checks)
                 variables.update(package_journey.prepare())
             if self.case.get('builder_input_journey') is True:
                 self.report['stage'] = 'builder_input_journey'
@@ -432,6 +449,14 @@ class FunctionalExecution(Execution):
                             raise Failure('invalid_regeneration_case')
                         final_entry, task = regenerate(self, cid, session['id'],
                                                       session['id'] + ':' + turn['phase'], final_entry, checks)
+                    elif turn.get('expected_model_failure') is True:
+                        if (turn.get('expected_state') != 'failed' or attachments or cancel or live_resume or
+                                action_data is not None or turn.get('assertions') or turn.get('action') or
+                                self.native_skill or knowledge_ids is not None):
+                            raise Failure('invalid_expected_model_failure')
+                        expected_model_failure(self, cid, session['id'] + ':' + turn['phase'], prompt,
+                                               session['id'], checks)
+                        continue
                     else:
                         sender = self.native_skill.send if self.native_skill else self.send
                         final_entry, task = sender(cid, session['id'] + ':' + turn['phase'], prompt, attachments,
@@ -476,6 +501,24 @@ class FunctionalExecution(Execution):
                     self.evidence.write('sessions/' + session['id'] + '/replies/' + turn['phase'] + '.json',
                                         {'task_id': final_entry['task_id'], 'text': reply})
                     checks.extend(check_reply(session['id'], turn, reply, variables))
+                    if turn.get('artifact_to_knowledge') is not None:
+                        spec = turn['artifact_to_knowledge']
+                        if (not isinstance(spec, dict) or set(spec) != {'filename', 'marker'} or
+                                'generated' in knowledge):
+                            raise Failure('invalid_artifact_knowledge')
+                        fixture = ArtifactKnowledgeFixture(self, cid, final_entry['task_id'],
+                            spec['filename'].format_map(variables), spec['marker'].format_map(variables), checks, session['id'])
+                        knowledge['generated'] = fixture
+                        self.generated_knowledge = fixture
+                        try:
+                            values = fixture.setup()
+                        except KnowledgeFixtureUnavailable:
+                            checks.append({'session': session['id'], 'rule': '生成成果通过解析和卷文件选择进入知识库并解析完成',
+                                           'passed': False, 'detail': 'artifact_knowledge_conversion_failed'})
+                            raise ProductCaseFailure('artifact_knowledge_conversion_failed') from None
+                        variables.update({'generated_' + key: value for key, value in values.items()})
+                        checks.append({'session': session['id'], 'rule': '生成成果通过解析和卷文件选择进入知识库并解析完成',
+                                       'passed': fixture.state.get('status') == 'ready', 'detail': ''})
                     if turn.get('lifecycle_check') is not None:
                         if not resource_lifecycle:
                             raise Failure('invalid_lifecycle_check')

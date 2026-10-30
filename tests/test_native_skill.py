@@ -145,7 +145,7 @@ class NativeSkillTests(unittest.TestCase):
         self.assertFalse(same_cleanup_command(same.replace('owned','foreign'),command))
 
     def test_file_cleanup_understands_omitted_zero_refcount_and_verifies_ownership(self):
-        execution=SimpleNamespace(root='/workspaces/ws',client=Mock())
+        execution=SimpleNamespace(root='/workspaces/ws',client=Mock(),evidence=Mock())
         own={'file_id':'file','source_session_id':'cid','source_task_id':'task'}
         execution.client.product.return_value=own
         execution.client.request.side_effect=[b'',Failure('http_error',404)]
