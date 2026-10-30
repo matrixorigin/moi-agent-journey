@@ -1,0 +1,6 @@
+09:00:00 trace=t001 gateway POST /upload 202
+09:00:01 trace=t001 parser start file=f01
+09:00:03 trace=t001 parser ERROR UnicodeDecodeError codec=utf-8 byte=ff
+09:00:03 trace=t001 worker failed reason=parse_error
+09:00:04 trace=t001 gateway GET /status 200 state=failed
+09:00:05 trace=t002 worker completed

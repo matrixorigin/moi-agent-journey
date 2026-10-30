@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "J4-80",
+  "title": "报价漏项审计",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T080",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T080/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T080/task.md",
+      "sha256": "0faf8f6ccc984cb4078252f1ca0aac3449f39aeb9d1f869b87f25792511ee819"
+    },
+    {
+      "path": "samples/shared/cost.md",
+      "local_path": "cases/journey-4/_materials/samples/shared/cost.md",
+      "sha256": "adab53f53ecaa7c7c3b6166168bade09fbc48ce41f7580d8e879829b4f7bdafa"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：核对报价成本，算已知成本与已知毛利，未列费用标待确认，不给完整净利润假结论。",
+    "已知成本154000、报价200000、毛利46000/23%",
+    "未知税旅运费等待确认，不叫完整净利润",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-80（原始编号 T080）：报价漏项审计\n\n核对报价成本，算已知成本与已知毛利，未列费用标待确认，不给完整净利润假结论。\n\n读取 inputs/samples/T080/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T080 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：核对报价成本，算已知成本与已知毛利，未列费用标待确认，不给完整净利润假结论。",
+        "已知成本154000、报价200000、毛利46000/23%",
+        "未知税旅运费等待确认，不叫完整净利润",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}

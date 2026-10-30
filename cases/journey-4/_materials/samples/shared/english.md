@@ -1,0 +1,1 @@
+Pilot report. Twenty procurement orders were reviewed. Average comparison time fell from 120 minutes to 60 minutes. This was an uncontrolled pilot and does not establish a causal effect. Table 1 lists missing shipping fees in 4 of 20 orders. Keep identifiers order_id and API_KEY unchanged. Reference [1] Internal pilot log, 2026-10-20.

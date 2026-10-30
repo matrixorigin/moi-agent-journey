@@ -1,0 +1,4723 @@
+{
+  "schema_version": 1,
+  "id": "codex-desktop-2026-10-29",
+  "date": "2026-10-29",
+  "model": "gpt-6.1-sol",
+  "environment": "Codex Desktop local macOS; 100 independent sessions; original synthetic input copies; local document/browser/ASR tools",
+  "method": "Independent answers; parent evaluator reviewed delivered files and recalculated source data. Not third-party blind grading. Execution.md is author-recorded evidence, not a complete externally collected tool stream.",
+  "comparison_limits": [
+    "历史记录是最终成果验收；历史 MOI 存在重试和会话复用，不能当作首轮成功率。",
+    "新 QA 使用云端环境、逐任务输入包、统一交付文件名及隔离文件操作约定，与历史 Desktop 的提示和工具环境不同。",
+    "新自动语义评审尚未校准到历史人工量表；通过、部分通过、未通过口径不同，不计算产品胜率或显著性。",
+    "Codex 的起止观察包含轮询延迟和并发，与 QA task_seconds 不同口径；保留观察时间，不计算速度倍数。"
+  ],
+  "counts": {
+    "passed": 99,
+    "partial": 1
+  },
+  "source_sha256": {
+    "summary.json": "ce42d6eb1f2e9d07b499f81e444c9d9853aa3a9699a33929f31054daa1fd2209",
+    "protocol.json": "a71b6bea1e378c8275ae987e553d197d58f217057c5b365280e41b87c8461cdc",
+    "codex_reviews.json": "1d1ddbf0d8168926f92012b2f2d0e7b0527cf596dbc835393666897ec05ed05e",
+    "dispatch.json": "55411d7a78b16de29c94bb067e5182adfa49a95745a1ae8e2498428835924078",
+    "sample_manifest.json": "cdf9b5a05fc138684c27beac58116f11eb7a4472ca31a97eb51bc6528b7c9760",
+    "对比任务表.csv": "f4700e18ab385e3c8781ee3c45a36cd3b00e50ad610d9a219395c3e343fb4ff0"
+  },
+  "cases": [
+    {
+      "case_id": "J4-01",
+      "original_id": "T001",
+      "title": "访谈需求提炼",
+      "verdict": "passed",
+      "review": "四类提炼均附原话；准确保留每周整理报价2小时而非每单2小时、超过5万严格边界、预算未批与无ERP接口，解法和待澄清明确。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "四类提炼与原话引用齐全，保留预算未批、无ERP、不代下单约束；已下载并核对9615字节产物。个别现状推断可进一步收敛。",
+      "observed_start_at": "2026-10-29T10:51:02.464221+00:00",
+      "observed_finished_at": "2026-10-29T10:51:14.346010+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T001/result.md",
+          "source_sha256": "3c1147dcfd6120c7ec064c275bc11ad5d2d72550356358fea1630e05f9bd89f9",
+          "public_sha256": "3c1147dcfd6120c7ec064c275bc11ad5d2d72550356358fea1630e05f9bd89f9"
+        },
+        {
+          "path": "codex/T001/execution.md",
+          "source_sha256": "b9545d8d24043d94d7e74145968e58375a96f83075b3a766d4f44616f932e15b",
+          "public_sha256": "3711d8956fc6ec095966ad63721908710fd32a02720689bc798c49a9e2f8f85e"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1816,
+          "sha256": "b9545d8d24043d94d7e74145968e58375a96f83075b3a766d4f44616f932e15b"
+        },
+        {
+          "path": "result.md",
+          "bytes": 4381,
+          "sha256": "3c1147dcfd6120c7ec064c275bc11ad5d2d72550356358fea1630e05f9bd89f9"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-02",
+      "original_id": "T002",
+      "title": "编写PRD",
+      "verdict": "passed",
+      "review": "场景/范围/流程/边界/验收完整；新增数据公式与角色均标方案待确认，缺费用不补零，超过5万严格大于、经理与二级关系待确认，预算不编。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "复核仍为部分通过：把单机/无OCR等未确认范围写为确定定义；含税总价对货款/运费/保险/关税统一乘税率，未处理不同含税/税率口径。三份报价来自输入，不作为扣分理由。",
+      "observed_start_at": "2026-10-29T10:51:02.464221+00:00",
+      "observed_finished_at": "2026-10-29T10:52:52.606814+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T002/result.md",
+          "source_sha256": "f3a8f0f8a0b76abab370ade13bd6342e06163f020d93f19361bc692506649e5e",
+          "public_sha256": "f3a8f0f8a0b76abab370ade13bd6342e06163f020d93f19361bc692506649e5e"
+        },
+        {
+          "path": "codex/T002/execution.md",
+          "source_sha256": "f8085cbf92d43b13affd5b960ca4608b977372947fa8c4d60e227a09e2ad27cd",
+          "public_sha256": "f912a9ea1b7994e929d05363eaecb03f045eea47ba08b456f1055c8d847adffe"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2219,
+          "sha256": "f8085cbf92d43b13affd5b960ca4608b977372947fa8c4d60e227a09e2ad27cd"
+        },
+        {
+          "path": "result.md",
+          "bytes": 10880,
+          "sha256": "f3a8f0f8a0b76abab370ade13bd6342e06163f020d93f19361bc692506649e5e"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-03",
+      "original_id": "T003",
+      "title": "审查PRD",
+      "verdict": "passed",
+      "review": "13项覆盖自动接入/人工CSV、所有格式、自动下单/经理确认、全员/项目可见四类矛盾及总价/重复/恢复/验收缺口；建议与待决规则分开，未编造源文字数或现行实现。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "识别核心范围、下单审批、权限冲突及缺失运费；把473字节写成473字符，且将“自动化与界面友好”当作矛盾，部分建议超出已给范围。",
+      "observed_start_at": "2026-10-29T10:51:02.464221+00:00",
+      "observed_finished_at": "2026-10-29T10:52:52.606814+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T003/result.md",
+          "source_sha256": "6840af0ef70c616d020d94145fed9cd45f8302887bd86883de1dbed671a0bf3a",
+          "public_sha256": "6840af0ef70c616d020d94145fed9cd45f8302887bd86883de1dbed671a0bf3a"
+        },
+        {
+          "path": "codex/T003/execution.md",
+          "source_sha256": "d65c2639e37795b482a50fdfdb9e6afaf6f5b7a26a0bafe1e8caca6597e2fd81",
+          "public_sha256": "7c07156c9f1fea7d34b03a017d15a4d17cb65fb6c34b2a2f8a64340b24ad48e5"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2932,
+          "sha256": "d65c2639e37795b482a50fdfdb9e6afaf6f5b7a26a0bafe1e8caca6597e2fd81"
+        },
+        {
+          "path": "result.md",
+          "bytes": 9821,
+          "sha256": "6840af0ef70c616d020d94145fed9cd45f8302887bd86883de1dbed671a0bf3a"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-04",
+      "original_id": "T004",
+      "title": "反馈分类",
+      "verdict": "passed",
+      "review": "30条分为缺陷12/新需求12/体验6，5主题各6，高中低各10，所有F来源和逐条分类正确，频次并列规则明确。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "独立核对30条、缺陷12/新需求12/体验6、五主题各6及来源ID一致；7716字节报告已实际下载。",
+      "observed_start_at": "2026-10-29T10:51:14.432958+00:00",
+      "observed_finished_at": "2026-10-29T10:52:52.606814+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T004/result.md",
+          "source_sha256": "615f8a37e995a1c54e42bb3fd905a60d41ecf56824b7f37ec8331ff4fdd1c36d",
+          "public_sha256": "615f8a37e995a1c54e42bb3fd905a60d41ecf56824b7f37ec8331ff4fdd1c36d"
+        },
+        {
+          "path": "codex/T004/execution.md",
+          "source_sha256": "2559941cdd26b86b7b5cb592f9b941614f06abb363242a8c5a0683cf688ad083",
+          "public_sha256": "6adbbe902db32f7ea5bc56896d05c86c0be9ff63fe4ba2abe011cdff51851f34"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2704,
+          "sha256": "2559941cdd26b86b7b5cb592f9b941614f06abb363242a8c5a0683cf688ad083"
+        },
+        {
+          "path": "result.md",
+          "bytes": 3344,
+          "sha256": "615f8a37e995a1c54e42bb3fd905a60d41ecf56824b7f37ec8331ff4fdd1c36d"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-05",
+      "original_id": "T005",
+      "title": "迭代计划",
+      "verdict": "passed",
+      "review": "个人容量BE16/FE8/QA5、承诺10/7/4正确；上传11-05验收后报价11-06开工，个人无同日超配；并行拆分/成员日历/无末尾缓冲均显式假设与风险，延期范围清楚。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "角色与个人总人日未超配，明确延期项；上传依赖被自行按组件拆分，且正文把11/05列成前端缓冲但当天仍安排上传联调，排期描述不一致。",
+      "observed_start_at": "2026-10-29T10:52:52.675716+00:00",
+      "observed_finished_at": "2026-10-29T10:54:48.607155+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T005/result.md",
+          "source_sha256": "84788881ab7ca9877eaa3e05f8eab9bb445668be0a9f93c298cd9449aa38bcdf",
+          "public_sha256": "84788881ab7ca9877eaa3e05f8eab9bb445668be0a9f93c298cd9449aa38bcdf"
+        },
+        {
+          "path": "codex/T005/execution.md",
+          "source_sha256": "b8bd119c154b3fe169d32fd7cc82c3077bd594256eafd787070bca6d6812f63d",
+          "public_sha256": "75fa2a6106103436f5d37334203a84e6c865199d763ef2303ddc80c352dc3f41"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2203,
+          "sha256": "b8bd119c154b3fe169d32fd7cc82c3077bd594256eafd787070bca6d6812f63d"
+        },
+        {
+          "path": "result.md",
+          "bytes": 4687,
+          "sha256": "84788881ab7ca9877eaa3e05f8eab9bb445668be0a9f93c298cd9449aa38bcdf"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-06",
+      "original_id": "T006",
+      "title": "用户旅程",
+      "verdict": "passed",
+      "review": "首次/成功/失败恢复/退出四类旅程与角色边界齐全，新增版本/草稿规则标设计建议，原文未定义事项待确认，未读矛盾PRD或声称产品实测。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "覆盖首次、成功、失败恢复、退出；补充大量未给定权限和状态规则，读取非指定的矛盾PRD作扩展，部分应标为待确认而非确定基线。",
+      "observed_start_at": "2026-10-29T10:52:52.675716+00:00",
+      "observed_finished_at": "2026-10-29T10:54:48.607155+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T006/result.md",
+          "source_sha256": "1ff7429cbec943ff04eb78bbc67a5b9de5a3d8d0b9d2f5929542834353932320",
+          "public_sha256": "1ff7429cbec943ff04eb78bbc67a5b9de5a3d8d0b9d2f5929542834353932320"
+        },
+        {
+          "path": "codex/T006/execution.md",
+          "source_sha256": "f2e971f27f0c86a9f94317fbee3a0de705930a2d95e429ee0ff74453a674e0dd",
+          "public_sha256": "53f8f5246f29d13df082979b80f0285924804a29e919e4f34236dd65d9d6bcaa"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2272,
+          "sha256": "f2e971f27f0c86a9f94317fbee3a0de705930a2d95e429ee0ff74453a674e0dd"
+        },
+        {
+          "path": "result.md",
+          "bytes": 9005,
+          "sha256": "1ff7429cbec943ff04eb78bbc67a5b9de5a3d8d0b9d2f5929542834353932320"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-07",
+      "original_id": "T007",
+      "title": "版本迁移分析",
+      "verdict": "passed",
+      "review": "工作区/归档/税运三项变化及迁移/验收/通知完整；保留旧金额和未知运费，旧税明细/权限/恢复待确认，不虚构删除恢复或上线日期。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "覆盖行为变化、迁移和用户通知，保持缺失运费不补零；将“旧报价不含运费”确定解释为旧系统没有字段、旧金额不含税等，超出原文。",
+      "observed_start_at": "2026-10-29T10:52:52.675716+00:00",
+      "observed_finished_at": "2026-10-29T10:54:01.925495+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T007/result.md",
+          "source_sha256": "1c1bc857f28ac3685a6a4cfdce968b85f4ca540f3f71a41f1114b9caa2f8adaa",
+          "public_sha256": "1c1bc857f28ac3685a6a4cfdce968b85f4ca540f3f71a41f1114b9caa2f8adaa"
+        },
+        {
+          "path": "codex/T007/execution.md",
+          "source_sha256": "eadde640c410bfd489f380c4a84e7f9ea5b8fd2152c91d4876e36314bc16b1bf",
+          "public_sha256": "8672b959a049716cc90ffd2e477060acfa825fbb3c049c17eb3465299c68cf7e"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1993,
+          "sha256": "eadde640c410bfd489f380c4a84e7f9ea5b8fd2152c91d4876e36314bc16b1bf"
+        },
+        {
+          "path": "result.md",
+          "bytes": 3935,
+          "sha256": "1c1bc857f28ac3685a6a4cfdce968b85f4ca540f3f71a41f1114b9caa2f8adaa"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-08",
+      "original_id": "T008",
+      "title": "业务验收故事",
+      "verdict": "passed",
+      "review": "20个端到端故事每项有输入/过程/可判断结果，覆盖识别/缺失/确认导出/角色/异常；夹具1180/1243及修改金额正确，新增口径标建议而非已实现，未冒充系统实测。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "完成20个故事，逐个有输入、过程、可判定结果，明确需求约束与待确认假定，未冒充产品已测试；初轮额外生成大量样例并反复修复脚本，耗时偏高。",
+      "observed_start_at": "2026-10-29T10:54:48.703338+00:00",
+      "observed_finished_at": "2026-10-29T10:57:36.997234+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T008/result.md",
+          "source_sha256": "dbf5acc050d6afd1e4fd7f5518447c3225eaa65b255f40aae1600bbd295f2a47",
+          "public_sha256": "dbf5acc050d6afd1e4fd7f5518447c3225eaa65b255f40aae1600bbd295f2a47"
+        },
+        {
+          "path": "codex/T008/execution.md",
+          "source_sha256": "1f78980d4bb3cb7dfb227101e6a89f00a1858b50ed62e006bda0f9fd55c42db3",
+          "public_sha256": "ffc054c382646f8f6a9e2dd43c8f54044f60aa7e927d17b61bdeffc480a5f5bf"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 3083,
+          "sha256": "1f78980d4bb3cb7dfb227101e6a89f00a1858b50ed62e006bda0f9fd55c42db3"
+        },
+        {
+          "path": "result.md",
+          "bytes": 13021,
+          "sha256": "dbf5acc050d6afd1e4fd7f5518447c3225eaa65b255f40aae1600bbd295f2a47"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-09",
+      "original_id": "T009",
+      "title": "漏斗流失分析",
+      "verdict": "passed",
+      "review": "四段流失60/70/25/83.33%、整体1.5%和985人正确；区分率最高/人数最多/激活瓶颈，优先级随目标而定，三假设可验证且不冒充原因。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "相邻流失率60%、70%、25%、83.33%及总转化1.5%正确；错误声称上传环节+5pp杠杆最高为+2.5人，但自身表中分享环节+5pp为+4.5人，优先级论证自相矛盾。",
+      "observed_start_at": "2026-10-29T10:54:48.703338+00:00",
+      "observed_finished_at": "2026-10-29T10:56:22.825488+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T009/result.md",
+          "source_sha256": "5ee72598599a14d3eee6b73d00978043e7b5ba5b03052962511171df669958eb",
+          "public_sha256": "5ee72598599a14d3eee6b73d00978043e7b5ba5b03052962511171df669958eb"
+        },
+        {
+          "path": "codex/T009/execution.md",
+          "source_sha256": "4cb832386aab034043417c6baa163f1c8a4f3b8af9ca9ec89929ffecd710baeb",
+          "public_sha256": "45bd3fa2822a5122898dbd9802f3d53bcf54fb17d204a3029557e0105f30f335"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2473,
+          "sha256": "4cb832386aab034043417c6baa163f1c8a4f3b8af9ca9ec89929ffecd710baeb"
+        },
+        {
+          "path": "result.md",
+          "bytes": 4406,
+          "sha256": "5ee72598599a14d3eee6b73d00978043e7b5ba5b03052962511171df669958eb"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-10",
+      "original_id": "T010",
+      "title": "发布说明",
+      "verdict": "passed",
+      "review": "10-28发布说明准确列上传超时重复文件修复、运费栏和会话归档，自动下单明确未发布，无虚构版本号或上线承诺。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "准确保留2026-10-28及已发布三项变化，内部重构未冒充用户能力，明确自动下单未发布，未虚构版本号。",
+      "observed_start_at": "2026-10-29T10:57:37.077715+00:00",
+      "observed_finished_at": "2026-10-29T10:58:37.163326+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T010/result.md",
+          "source_sha256": "6ce440eb33997a9077a7ff139a7ac6b49bc733da82b3c40b1e0e59d3396b7037",
+          "public_sha256": "6ce440eb33997a9077a7ff139a7ac6b49bc733da82b3c40b1e0e59d3396b7037"
+        },
+        {
+          "path": "codex/T010/execution.md",
+          "source_sha256": "dc0c31c2587795771f68a63853df3a86d16674436a5c3d7cc83dd86d1900fe4d",
+          "public_sha256": "94d319aaa8285f5a9ba138e10f181d22b01a138f258eb73def9fc5e12508b801"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2019,
+          "sha256": "dc0c31c2587795771f68a63853df3a86d16674436a5c3d7cc83dd86d1900fe4d"
+        },
+        {
+          "path": "result.md",
+          "bytes": 404,
+          "sha256": "6ce440eb33997a9077a7ff139a7ac6b49bc733da82b3c40b1e0e59d3396b7037"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-11",
+      "original_id": "T011",
+      "title": "竞品调研",
+      "verdict": "passed",
+      "review": "五款覆盖客户、能力、价格、中文及私有部署，官方链接与快照/查询回执齐备；父评估者复核Dify/MaxKB/FastGPT关键价格一致。云与私有版、使用者与维护者、许可和总成本分开；不将未知报价或中文效果当已满足。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "提供五产品比较并明确价格未核实；官方正文抓取失败后仍对能力强弱和采购排序下确定结论，预算基于未核实单价，不能作为已完成的官方证据调研。",
+      "observed_start_at": "2026-10-29T10:58:37.255756+00:00",
+      "observed_finished_at": "2026-10-29T11:03:09.018551+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T011/result.md",
+          "source_sha256": "a0aa546fda6b959bbd27a8e46754d6dc863a9d06151e78505ef8823ea5884ace",
+          "public_sha256": "a0aa546fda6b959bbd27a8e46754d6dc863a9d06151e78505ef8823ea5884ace"
+        },
+        {
+          "path": "codex/T011/execution.md",
+          "source_sha256": "b732f496c87a3c8a0de2df1ecd3002bfc717b65368235bdb5e7e44e85c7bc5ca",
+          "public_sha256": "dfa577c8749362b8e21e4fa9c28abbe4dc6f8a725e469e2e511b4b10cf479653"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "anything_readme.txt",
+          "bytes": 27176,
+          "sha256": "54fa19d813e8bb7bbed9346771e17ad29a9d5753effa19427bea4c38de6c7a2c"
+        },
+        {
+          "path": "dify_license.txt",
+          "bytes": 1801,
+          "sha256": "232cf91474932d5110ed304e53b6b742a58463857c571fae803fdf2ac36d7bb3"
+        },
+        {
+          "path": "dify_readme.txt",
+          "bytes": 12132,
+          "sha256": "3c7fe487f1e89e6faec52f5421c71e749c1cecc3486725be3e03fb3fbb62e484"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 5480,
+          "sha256": "b732f496c87a3c8a0de2df1ecd3002bfc717b65368235bdb5e7e44e85c7bc5ca"
+        },
+        {
+          "path": "fastgpt_license.txt",
+          "bytes": 1901,
+          "sha256": "84569a7a2a79f9f97093019ae12d914b975db773ed17443fb726a0b6f585bc24"
+        },
+        {
+          "path": "fastgpt_readme.txt",
+          "bytes": 9204,
+          "sha256": "c67933b9dfeaa6e2c8b5689e429331c65db425be00170f7e451bf4586c1cc900"
+        },
+        {
+          "path": "manifest.json",
+          "bytes": 1418,
+          "sha256": "3de6b01226f6251ce3e00540c1ce4c786b3c1ae3f37a57146c1b1685ce43c52a"
+        },
+        {
+          "path": "maxkb_readme.txt",
+          "bytes": 6443,
+          "sha256": "0a3dc64c38d5b8f05782cd9e9268180429949be5e9ae9e192634da5b4a29662a"
+        },
+        {
+          "path": "ragflow_readme.txt",
+          "bytes": 17012,
+          "sha256": "d73effa454f6ff6ec37799f4fb3adee055e583fb951f20d6aa65b5771d730ae1"
+        },
+        {
+          "path": "result.md",
+          "bytes": 11108,
+          "sha256": "a0aa546fda6b959bbd27a8e46754d6dc863a9d06151e78505ef8823ea5884ace"
+        },
+        {
+          "path": "source_receipts.json",
+          "bytes": 2989,
+          "sha256": "b11c713868c94157ff51ee61675ff6a5b0236705644088b62f1398c5a4e4c8d8"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-12",
+      "original_id": "T012",
+      "title": "目标客户调研",
+      "verdict": "passed",
+      "review": "实际官方公司调研，业务、公开角色及近三月动态有来源；区分签约交付与上线、融资与预算，三个场景及阈值标为建议，不把共享输入10人/2万当目标公司事实。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "覆盖业务、组织、动态和三场景并标注推断；仅检索摘要未读正文，且把研究文件中供应商筛选的2万元预算带入公司调研，场景受到不相干采购约束影响。",
+      "observed_start_at": "2026-10-29T11:02:39.876070+00:00",
+      "observed_finished_at": "2026-10-29T11:05:47.971621+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T012/result.md",
+          "source_sha256": "da3bebf6288fe5b73ff347060b2c1eaf810594d08e94636f7c764afaae495234",
+          "public_sha256": "da3bebf6288fe5b73ff347060b2c1eaf810594d08e94636f7c764afaae495234"
+        },
+        {
+          "path": "codex/T012/execution.md",
+          "source_sha256": "864956b46f0a2818571e59f79a626ff52d94f30be2ab2ae6a838dd9b145ecc28",
+          "public_sha256": "78067a952df54b975a1de160bf4646a57ffff677b1551dc7ced8c778935ad229"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 4198,
+          "sha256": "864956b46f0a2818571e59f79a626ff52d94f30be2ab2ae6a838dd9b145ecc28"
+        },
+        {
+          "path": "result.md",
+          "bytes": 8184,
+          "sha256": "da3bebf6288fe5b73ff347060b2c1eaf810594d08e94636f7c764afaae495234"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-13",
+      "original_id": "T013",
+      "title": "技术进展调研",
+      "verdict": "passed",
+      "review": "最近一年RAG调研有官方日期与版本，区分正式发布、预览、RC、研究和路线图；机制与实验结果不外推中文业务效果，未声称部署复现。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "给出近一年技术时间线并区分发布、公测与研究；多项关键日期和状态来自转载，官方正文全部未打开，证据不足以支撑完整技术进展结论。",
+      "observed_start_at": "2026-10-29T11:02:39.876070+00:00",
+      "observed_finished_at": "2026-10-29T11:06:11.090250+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T013/result.md",
+          "source_sha256": "3f50a433e5aec145388c101841e1af388dee68f5928736d9202c043811695d54",
+          "public_sha256": "3f50a433e5aec145388c101841e1af388dee68f5928736d9202c043811695d54"
+        },
+        {
+          "path": "codex/T013/execution.md",
+          "source_sha256": "cb809c84a377ae3fa5e0e97fb1dc7fee301a55ec789eda91cbe18d9a5746158f",
+          "public_sha256": "450ff38f391829e11be4b2723a36095e924b8d8582b8149dc223629ff7eb9b4e"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 6908,
+          "sha256": "cb809c84a377ae3fa5e0e97fb1dc7fee301a55ec789eda91cbe18d9a5746158f"
+        },
+        {
+          "path": "result.md",
+          "bytes": 8667,
+          "sha256": "3f50a433e5aec145388c101841e1af388dee68f5928736d9202c043811695d54"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-14",
+      "original_id": "T014",
+      "title": "多材料综合",
+      "verdict": "passed",
+      "review": "五份材料A-E逐项保留样本及指标，82/78差4个百分点，C提升8个百分点不拼接，18/8工单可重叠，拒绝错误加权及因果外推。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "A至E来源齐全，避免准确率加权混算，识别样本与题集缺口；未掌握题目分母与方差就断言4个百分点完全在抽样波动范围内，证据强度表述过度。",
+      "observed_start_at": "2026-10-29T11:03:08.949508+00:00",
+      "observed_finished_at": "2026-10-29T11:05:47.971621+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T014/result.md",
+          "source_sha256": "7ff61d146020d2d59ac8bd387027f247a3d0855eb03bf4871fb81c95511b1396",
+          "public_sha256": "7ff61d146020d2d59ac8bd387027f247a3d0855eb03bf4871fb81c95511b1396"
+        },
+        {
+          "path": "codex/T014/execution.md",
+          "source_sha256": "75e7ea1da9124dacf0e8cba7c68d341e44df47d595c85bf7a0af3a4e6dc9d9aa",
+          "public_sha256": "1d7c3e55382bfadc584954eab11f87a87c72dbca48d3baf94517271dac4b58c1"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1902,
+          "sha256": "75e7ea1da9124dacf0e8cba7c68d341e44df47d595c85bf7a0af3a4e6dc9d9aa"
+        },
+        {
+          "path": "result.md",
+          "bytes": 4388,
+          "sha256": "7ff61d146020d2d59ac8bd387027f247a3d0855eb03bf4871fb81c95511b1396"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-15",
+      "original_id": "T015",
+      "title": "文章事实核查",
+      "verdict": "passed",
+      "review": "三项公开陈述逐条核查并有官方日期链接，开源许可、非零执行耗时及收费/许可反例足以支持判断；不混淆云端配额与私有部署，也未声称性能实测。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "三条判断方向合理且披露网页打开失败；官方证据中混入文档镜像、InfoQ第三方文章与搜索摘要，未满足逐条官方正文核查。",
+      "observed_start_at": "2026-10-29T11:05:47.885121+00:00",
+      "observed_finished_at": "2026-10-29T11:07:28.594819+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T015/result.md",
+          "source_sha256": "7940d09cada3519bb7225f5d625713ff18e5afcd4eb7209e17dc8d77cc2a5c08",
+          "public_sha256": "7940d09cada3519bb7225f5d625713ff18e5afcd4eb7209e17dc8d77cc2a5c08"
+        },
+        {
+          "path": "codex/T015/execution.md",
+          "source_sha256": "c297c6253d9bbd7b54921d1a3ff386cb7a9136e88b2561b5e375f4491f2a12fe",
+          "public_sha256": "640158a2769e4cc3d6140a60a592cf23596680aaf134994d81287654bcc994f8"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 3880,
+          "sha256": "c297c6253d9bbd7b54921d1a3ff386cb7a9136e88b2561b5e375f4491f2a12fe"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2467,
+          "sha256": "7940d09cada3519bb7225f5d625713ff18e5afcd4eb7209e17dc8d77cc2a5c08"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-16",
+      "original_id": "T016",
+      "title": "注释阅读清单",
+      "verdict": "passed",
+      "review": "8篇不同官方页面逐篇说明价值、适读阶段、练习及边界，形成入门到部署/评估/安全路径；DEV文档版本及自动评分限制明确，未把阅读建议写成已实测。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "有8条带阶段和用途的阅读清单，多数为官方入口；所有正文未读，至少一条链接由第三方引用反推且未验证可达，未完成链接和内容核验。",
+      "observed_start_at": "2026-10-29T11:05:47.885121+00:00",
+      "observed_finished_at": "2026-10-29T11:08:22.261448+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T016/result.md",
+          "source_sha256": "378b6c28df52ff066da062456de64dd79ab9115c3649d68908effdecd02453f2",
+          "public_sha256": "378b6c28df52ff066da062456de64dd79ab9115c3649d68908effdecd02453f2"
+        },
+        {
+          "path": "codex/T016/execution.md",
+          "source_sha256": "bd9d958eb3118095f0a8b65aaf143b21443e086806b568c54feacfbee24168a3",
+          "public_sha256": "5a8401bcc793b36733d9b24e44005528c16932e6d92c98ca3d3fff9784718bbf"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 4510,
+          "sha256": "bd9d958eb3118095f0a8b65aaf143b21443e086806b568c54feacfbee24168a3"
+        },
+        {
+          "path": "result.md",
+          "bytes": 8622,
+          "sha256": "378b6c28df52ff066da062456de64dd79ab9115c3649d68908effdecd02453f2"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-17",
+      "original_id": "T017",
+      "title": "用户评论分析",
+      "verdict": "passed",
+      "review": "实际读取100行并保留ID，认可60/上传20/表格20、均分3.8准确，代表引文正确；重复文案不冒充独立用户，优先级为影响假设而非频次差异。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "100条、60/20/20、平均3.8及代表ID正确；把负面评论占比20%用作上传成功率和问答准确率指标基线，分母混用。",
+      "observed_start_at": "2026-10-29T11:06:11.002945+00:00",
+      "observed_finished_at": "2026-10-29T11:07:28.594819+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T017/result.md",
+          "source_sha256": "3c3ccf3ca2895ebd4bac678b6cecf85f85dd4e255abdb7b7381640fb685daa60",
+          "public_sha256": "3c3ccf3ca2895ebd4bac678b6cecf85f85dd4e255abdb7b7381640fb685daa60"
+        },
+        {
+          "path": "codex/T017/execution.md",
+          "source_sha256": "445b8252bfcb861db81f0b4e3b59de5d6898cb63b1b0c1610249acb8454daaec",
+          "public_sha256": "cbafa4f20e2c120040dfa899ddb77ea620057c8e39a86b670a501856649257d2"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "counts.json",
+          "bytes": 1819,
+          "sha256": "7b603499ad22371a6ffb95add9506310b2444e9e9a6f414711c3e49148855f24"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 2418,
+          "sha256": "445b8252bfcb861db81f0b4e3b59de5d6898cb63b1b0c1610249acb8454daaec"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2781,
+          "sha256": "3c3ccf3ca2895ebd4bac678b6cecf85f85dd4e255abdb7b7381640fb685daa60"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-18",
+      "original_id": "T018",
+      "title": "招聘推断分析",
+      "verdict": "passed",
+      "review": "招聘人数3/2/1合计6及50/33.3/16.7%准确；观察、方向假设、替代解释与已批准战略/真实投入分开，不从单份快照编造趋势。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "正确核对3+2+1=6及比例，区分观察与推断，明确不能由招聘快照推导已批准预算、战略和趋势。",
+      "observed_start_at": "2026-10-29T11:07:28.523967+00:00",
+      "observed_finished_at": "2026-10-29T11:08:45.546387+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T018/result.md",
+          "source_sha256": "5797ab26649abb7e859316a37d80f298b8e08fa0a51f522b472232f4561f6aef",
+          "public_sha256": "5797ab26649abb7e859316a37d80f298b8e08fa0a51f522b472232f4561f6aef"
+        },
+        {
+          "path": "codex/T018/execution.md",
+          "source_sha256": "a9540d24fc6b09ee8920f219123807b5fe385cfe66fc53d6aa8ba0acb16af01c",
+          "public_sha256": "c9c6d64a7577919081d3a64ceabc3a6d681f3edd3b1c96a71648c5da6674a67d"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2528,
+          "sha256": "a9540d24fc6b09ee8920f219123807b5fe385cfe66fc53d6aa8ba0acb16af01c"
+        },
+        {
+          "path": "result.md",
+          "bytes": 3086,
+          "sha256": "5797ab26649abb7e859316a37d80f298b8e08fa0a51f522b472232f4561f6aef"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-19",
+      "original_id": "T019",
+      "title": "供应商筛选",
+      "verdict": "passed",
+      "review": "三个条件候选有官方中文/部署/账号依据，云与自托管分开；免费路径不当总成本达标，MaxKB首年48k超预算与权限边界正确。FastGPT/RAGFlow降级理由为已标明的取舍，未凭未知报价强判超支。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "形成3家入围与2家淘汰，但价格均未核实却用预算淘汰候选；自行增加中国商务主体、无运维人员等硬条件，第三方镜像称官方证据，结论超出可得证据。",
+      "observed_start_at": "2026-10-29T11:07:28.523967+00:00",
+      "observed_finished_at": "2026-10-29T11:10:41.498285+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T019/result.md",
+          "source_sha256": "802f187bf2af4782c0c610cc88eef7e071d1214a8c5030871a198f524b4df3fc",
+          "public_sha256": "802f187bf2af4782c0c610cc88eef7e071d1214a8c5030871a198f524b4df3fc"
+        },
+        {
+          "path": "codex/T019/execution.md",
+          "source_sha256": "2b31c4d4ef00b33bc576cf1b3e6c793671e2fcc0a126eb2b676bb159918985e4",
+          "public_sha256": "b44cf8234393a9f6403ba60e3b2811fa26a4d5a5e5ad6d211c045cf299ef775a"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 6159,
+          "sha256": "2b31c4d4ef00b33bc576cf1b3e6c793671e2fcc0a126eb2b676bb159918985e4"
+        },
+        {
+          "path": "result.md",
+          "bytes": 7154,
+          "sha256": "802f187bf2af4782c0c610cc88eef7e071d1214a8c5030871a198f524b4df3fc"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-20",
+      "original_id": "T020",
+      "title": "决策正反论证",
+      "verdict": "passed",
+      "review": "支持反对证据完整，100单理论33.3小时/12%改选正确；18%分母及交集未知不硬相加，2人两周不当已完成接口。试点/生产/扩展条件明确标为建议，未知撤单与ERP均列放行条件。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "正确保留运费、ERP、撤单风险并建议受限试点；但88%未改选被等同标准单，147分钟阈值又写成约1工时，预算用途与两周接口不可能等无依据断言。",
+      "observed_start_at": "2026-10-29T11:08:22.190729+00:00",
+      "observed_finished_at": "2026-10-29T11:10:02.029703+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T020/result.md",
+          "source_sha256": "c3d3834bdddc19f904c125334a35de654ce6063618d58f67663d43bfb4cd1192",
+          "public_sha256": "c3d3834bdddc19f904c125334a35de654ce6063618d58f67663d43bfb4cd1192"
+        },
+        {
+          "path": "codex/T020/execution.md",
+          "source_sha256": "ba67a74c3260938da3b34e8f4f87edb3af5db40afe491a2064dacbf224ec2625",
+          "public_sha256": "7e7fb07d176626b2dbb51ec216ae5e0daeb0fc2d0211c3e666b8f7a82c4ba946"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2714,
+          "sha256": "ba67a74c3260938da3b34e8f4f87edb3af5db40afe491a2064dacbf224ec2625"
+        },
+        {
+          "path": "result.md",
+          "bytes": 5275,
+          "sha256": "c3d3834bdddc19f904c125334a35de654ce6063618d58f67663d43bfb4cd1192"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-21",
+      "original_id": "T021",
+      "title": "销售增长分析",
+      "verdict": "passed",
+      "review": "900至2400、6至9单、6客户持平及产品增量900/600正确，实际脚本计算；0/450/1050顺序分解注明交互归属及非因果，区分单价未变与每单件数提高，排除OX。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "900→2400、6→9单及顺序分解450/1050正确；但称分解次序不改变排名（反序为800/700），B频次1.5情景应增600而非1200，影响增长建议。",
+      "observed_start_at": "2026-10-29T11:08:45.471179+00:00",
+      "observed_finished_at": "2026-10-29T11:11:01.031581+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T021/result.md",
+          "source_sha256": "37a59e89477e4f9972896e503401d0adb4903492c7009407874487cd01e12951",
+          "public_sha256": "37a59e89477e4f9972896e503401d0adb4903492c7009407874487cd01e12951"
+        },
+        {
+          "path": "codex/T021/execution.md",
+          "source_sha256": "b26e4c036c7e10fd7bf3f9cfad84468afe099e331469ad20d52fd4ec797e08a8",
+          "public_sha256": "0aa17f4ba0e49f3891327c0998cefb879cc44341c7532196e225db2359425729"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "analyze.js",
+          "bytes": 2591,
+          "sha256": "f748a16db61df3935998b573fc33bd67f7a1a9ef3a36c710c87fb47b65efebd0"
+        },
+        {
+          "path": "calculation.json",
+          "bytes": 2053,
+          "sha256": "e7991ba6631a9e63277354ec3c4683bae4c51bb044ac4e2295feeccc99346338"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 3767,
+          "sha256": "b26e4c036c7e10fd7bf3f9cfad84468afe099e331469ad20d52fd4ec797e08a8"
+        },
+        {
+          "path": "result.md",
+          "bytes": 3867,
+          "sha256": "37a59e89477e4f9972896e503401d0adb4903492c7009407874487cd01e12951"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-22",
+      "original_id": "T022",
+      "title": "渠道指标分析",
+      "verdict": "passed",
+      "review": "官网6单1200客单200、代理3单1200客单400，月内复购100%/0%正确；补充跨月口径两者100%，无访问分母明确不能计算转化率，未用订单替代访客。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "官网1200/6单=200，代理1200/3单=400；月内重复购买100%/0%，区分跨月复购，缺访客分母时不编转化率。",
+      "observed_start_at": "2026-10-29T11:10:01.966448+00:00",
+      "observed_finished_at": "2026-10-29T11:11:01.031581+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T022/result.md",
+          "source_sha256": "fd649082db5eac5bef3b07de9c6da5771ad6eee32e461dced7682eaf5afd9027",
+          "public_sha256": "fd649082db5eac5bef3b07de9c6da5771ad6eee32e461dced7682eaf5afd9027"
+        },
+        {
+          "path": "codex/T022/execution.md",
+          "source_sha256": "7e6e53f71245fc4c8926c50c5d2eb13be536fad1b188c0b90a98c26d9f61d31e",
+          "public_sha256": "02709f431feb683c0ee1f7e2fb0461e0515aba5ecbfdb1fa5c0e9c08848a4025"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "calculation.json",
+          "bytes": 397,
+          "sha256": "84ff025c1bd3df939d9e76e7ef0764c69e85083986ddfedda24757d642d7ca9c"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 2355,
+          "sha256": "7e6e53f71245fc4c8926c50c5d2eb13be536fad1b188c0b90a98c26d9f61d31e"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1716,
+          "sha256": "fd649082db5eac5bef3b07de9c6da5771ad6eee32e461dced7682eaf5afd9027"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-23",
+      "original_id": "T023",
+      "title": "客户数据清洗",
+      "verdict": "passed",
+      "review": "真实CSV去重为4条，邮箱规范，C02非法/C03缺邮箱/C04缺地区及重复来源均可追溯；未猜测修复值，原始样例未改。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "真实清洗CSV为4条，规范邮箱、去1条重复，C02/C03/C04异常及重复审计均保留，源文件未改。",
+      "observed_start_at": "2026-10-29T11:10:41.427086+00:00",
+      "observed_finished_at": "2026-10-29T11:12:19.421360+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T023/result.md",
+          "source_sha256": "199af3ed04544caacd847e5f02576833fadb8199c6a3034831cd028eb071e3f6",
+          "public_sha256": "199af3ed04544caacd847e5f02576833fadb8199c6a3034831cd028eb071e3f6"
+        },
+        {
+          "path": "codex/T023/execution.md",
+          "source_sha256": "6a926169f10c60a0738dae902b71b58e55f7d47006923456e1d33f99c586a3c1",
+          "public_sha256": "71bb6f0b6984335ce03fd6b99b656798870b10dc25801bca44022f15157d4e87"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "clean_customers.py",
+          "bytes": 3651,
+          "sha256": "5bde45d3614e2d26d50915eda42031cb199d1b6851f0e755e9ac7a91a58b2156"
+        },
+        {
+          "path": "cleaned.csv",
+          "bytes": 272,
+          "sha256": "0f97dc145a628e3006ee7b4482e84ff21ecc8a2f5a3c83ddf1c98ad5d1713007"
+        },
+        {
+          "path": "exceptions.csv",
+          "bytes": 406,
+          "sha256": "55148cccd4ae24c45a66169ac6a7400845cdf8739137e851b65a0c5c503c03df"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 2349,
+          "sha256": "6a926169f10c60a0738dae902b71b58e55f7d47006923456e1d33f99c586a3c1"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1476,
+          "sha256": "199af3ed04544caacd847e5f02576833fadb8199c6a3034831cd028eb071e3f6"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 475,
+          "sha256": "b7a563cecb30b206a89cf6a1ba5c36db3e7cce99cff28243a2846592dfb4c943"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-24",
+      "original_id": "T024",
+      "title": "跨表客户匹配",
+      "verdict": "passed",
+      "review": "两组唯一邮箱精确匹配，余额3000；B03/B04与C05同名异邮箱保留1200待核，未强并，CRM及billing行数总额守恒。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "实际交付可编辑Excel四表，C01/B01及C02/B02精确匹配3000，C05与B03/B04歧义保留1200待核，不按重名强并。",
+      "observed_start_at": "2026-10-29T11:11:00.955884+00:00",
+      "observed_finished_at": "2026-10-29T11:12:06.448439+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T024/result.md",
+          "source_sha256": "f0f235d314171d4a0ffad4a7eb85a39897265c04d09edd8132dedd5d6e6d74de",
+          "public_sha256": "f0f235d314171d4a0ffad4a7eb85a39897265c04d09edd8132dedd5d6e6d74de"
+        },
+        {
+          "path": "codex/T024/execution.md",
+          "source_sha256": "50d39bffa3e3fb2e54e84e49c046b7efc4033ff2b52275627e20b5608846a1b7",
+          "public_sha256": "11f7db502d6568c6eb9dcc34a37c7bd0f8b2537bc607c4aa4ec401f66af7e34c"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2206,
+          "sha256": "50d39bffa3e3fb2e54e84e49c046b7efc4033ff2b52275627e20b5608846a1b7"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2116,
+          "sha256": "f0f235d314171d4a0ffad4a7eb85a39897265c04d09edd8132dedd5d6e6d74de"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 362,
+          "sha256": "d117ae2e916342a4d8ffab60e46ae7a0c325f6f96edfd357fb974d816c4ba230"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-25",
+      "original_id": "T025",
+      "title": "流失风险识别",
+      "verdict": "passed",
+      "review": "C01高活跃、C02降93.75%且错误比80%、C03零使用均核对准确；0/0不可计算，错误计数比不硬当失败率，风险不当已流失或确证根因。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "6行使用指标、C02降幅及80%错误率正确，C03的0/0标不可用；区分使用流失与商业流失，并披露自定阈值。",
+      "observed_start_at": "2026-10-29T11:11:00.955884+00:00",
+      "observed_finished_at": "2026-10-29T11:12:19.421360+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T025/result.md",
+          "source_sha256": "15041ab22911351e20441136270171efae5108427bb756d0cc67efe8cdc77f43",
+          "public_sha256": "15041ab22911351e20441136270171efae5108427bb756d0cc67efe8cdc77f43"
+        },
+        {
+          "path": "codex/T025/execution.md",
+          "source_sha256": "8af148dd5f9f7ee13b003100603bf2fd939a74603fc1a854330365264a4a4e34",
+          "public_sha256": "d218012aeb54c691895412ab67681ff6179a99f1f91483328f419fba2d1b435c"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2417,
+          "sha256": "8af148dd5f9f7ee13b003100603bf2fd939a74603fc1a854330365264a4a4e34"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2959,
+          "sha256": "15041ab22911351e20441136270171efae5108427bb756d0cc67efe8cdc77f43"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-26",
+      "original_id": "T026",
+      "title": "Cohort分析",
+      "verdict": "passed",
+      "review": "用户去重分母两组各2，M0均100%、M1均50%正确；8月M2暂计0附10月完整性限制，9月M2未观察不补0，明确只能测付费留存。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "付费用户去重口径正确，8/9月队列M0=100%、M1=50%，9月M2留为未观测，未把缺失补零。",
+      "observed_start_at": "2026-10-29T11:12:06.377533+00:00",
+      "observed_finished_at": "2026-10-29T11:13:41.227005+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T026/result.md",
+          "source_sha256": "9d55d9710dbf0185de01a9d66c2f933f0c7f8257d61b53d1bdd3a19aad0de40a",
+          "public_sha256": "9d55d9710dbf0185de01a9d66c2f933f0c7f8257d61b53d1bdd3a19aad0de40a"
+        },
+        {
+          "path": "codex/T026/execution.md",
+          "source_sha256": "451ff3f8e9e33498640916a33f6f504fdaa23c6c9247a59b8297aae54289c149",
+          "public_sha256": "a3115e43499c55d9d6e6e96ee840d72f0ffd9e13f42f7e69305a2324a5f40d1c"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "analyze.py",
+          "bytes": 2450,
+          "sha256": "aa44418f28cb9986c7e6291b328dc0f214ca2ba3b2b1fa1350505c231ee405de"
+        },
+        {
+          "path": "audit.json",
+          "bytes": 1409,
+          "sha256": "658a3cc06bbaca8713af0d673eb9589ecdb0e934ad516abec3dcee200a5c75bf"
+        },
+        {
+          "path": "cohort_retention.csv",
+          "bytes": 331,
+          "sha256": "2853cd8384a2a13652391257bbb9f1f1aef1cdb0ea3015020ef3e2bdafecbd9a"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 2746,
+          "sha256": "451ff3f8e9e33498640916a33f6f504fdaa23c6c9247a59b8297aae54289c149"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2090,
+          "sha256": "9d55d9710dbf0185de01a9d66c2f933f0c7f8257d61b53d1bdd3a19aad0de40a"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-27",
+      "original_id": "T027",
+      "title": "经营异常定位",
+      "verdict": "passed",
+      "review": "10-22合计1100、较前100增1000；A/华东/C01从100至1000，贡献90%增量/90.91%当日准确。B无历史不计算增长率，不虚构业务根因。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "定位10-22 A/华东/C01的100→1000，日合计1100，占比90.91%；新维度无基线不强判，未编造异常原因，CSV有来源行。",
+      "observed_start_at": "2026-10-29T11:12:19.355173+00:00",
+      "observed_finished_at": "2026-10-29T11:13:41.227005+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T027/result.md",
+          "source_sha256": "a8e9edf6876d6b7a3260b3c607d5f26061fbd6cb9c149bd776ac2cd9dac03b45",
+          "public_sha256": "a8e9edf6876d6b7a3260b3c607d5f26061fbd6cb9c149bd776ac2cd9dac03b45"
+        },
+        {
+          "path": "codex/T027/execution.md",
+          "source_sha256": "055c8c3d2f16a2ec418e466408e4c4efee0a779f2b467e5df84fdd7a442eb4e4",
+          "public_sha256": "e3ad3753f2088922f06a0a7c51cb8c6103a7819434be337a19d22ad524b7a6c0"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "calculations.json",
+          "bytes": 1445,
+          "sha256": "324ef9fc9d986ac362fdc5536c546353d33f441dc0856bbe50604a2fb6d2b576"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 2583,
+          "sha256": "055c8c3d2f16a2ec418e466408e4c4efee0a779f2b467e5df84fdd7a442eb4e4"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2412,
+          "sha256": "a8e9edf6876d6b7a3260b3c607d5f26061fbd6cb9c149bd776ac2cd9dac03b45"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-28",
+      "original_id": "T028",
+      "title": "宽表转明细",
+      "verdict": "passed",
+      "review": "实际三列CSV六行，产品370/580、月份300/320/330总950，字段解释与原值正确，回读及源文件哈希核对完整。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "真实长表CSV六行，A370/B580，总950，月300/320/330，转换与合计一致。",
+      "observed_start_at": "2026-10-29T11:12:19.355173+00:00",
+      "observed_finished_at": "2026-10-29T11:13:41.227005+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T028/result.md",
+          "source_sha256": "e9eb6a2a8212dd15ca6bd0589afe0656ae25196fec10821c78481d76bec1cfae",
+          "public_sha256": "e9eb6a2a8212dd15ca6bd0589afe0656ae25196fec10821c78481d76bec1cfae"
+        },
+        {
+          "path": "codex/T028/execution.md",
+          "source_sha256": "3d2303dd2592254c76742e80b8359d38a99116d1ace72bd07682baf7c954cfbe",
+          "public_sha256": "257fef32f014416a7737cfc5972fd729248df8d5c94ea8aac27f607eb58f2848"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 4852,
+          "sha256": "3d2303dd2592254c76742e80b8359d38a99116d1ace72bd07682baf7c954cfbe"
+        },
+        {
+          "path": "product_month_amount.csv",
+          "bytes": 112,
+          "sha256": "820b23c3b31240cc0447a6acd73e5d190c41ff087fc6fd27724ec09c81dbbca6"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1100,
+          "sha256": "e9eb6a2a8212dd15ca6bd0589afe0656ae25196fec10821c78481d76bec1cfae"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 600,
+          "sha256": "940df67a9aa93857b982ac4b6faf528c4d1695de293975646743acdfae611d14"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-29",
+      "original_id": "T029",
+      "title": "需求预测",
+      "verdict": "passed",
+      "review": "实际拟合和回测，220/230/240合690正确；零残差不当未来确定，5/15增量情景明确人为非概率，区间与表内/合计一致，10月整月假设可核对。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "220/230/240点预测与退化零残差识别正确；未经源数据支持引入按10取整的误差分布，并标80%/95%统计区间；情景上界227与表内221/219不一致。",
+      "observed_start_at": "2026-10-29T11:13:41.160143+00:00",
+      "observed_finished_at": "2026-10-29T11:15:38.782182+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T029/result.md",
+          "source_sha256": "38403ec1f948c361a1de619894be18f27145400496e38389268c4b3ebccb7870",
+          "public_sha256": "38403ec1f948c361a1de619894be18f27145400496e38389268c4b3ebccb7870"
+        },
+        {
+          "path": "codex/T029/execution.md",
+          "source_sha256": "f778947bcc6f6214a983b781222392325586be94d17b7addfd71e267562162c4",
+          "public_sha256": "03ee584f6fb8a85bc7a471a51d89f64e774feb6876d8d22e607c4c97a050dcd8"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "calculation.json",
+          "bytes": 3020,
+          "sha256": "91f0455a94f4ba1c5f67a1b4cdc3d3fdedb153d1d5172b2beb1a9759ebe015d2"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 5330,
+          "sha256": "f778947bcc6f6214a983b781222392325586be94d17b7addfd71e267562162c4"
+        },
+        {
+          "path": "forecast.mjs",
+          "bytes": 3268,
+          "sha256": "8477703876a9abc325088f7b5d3e5bec0a63e21ef6699f58ad4ad95069c179cb"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2991,
+          "sha256": "38403ec1f948c361a1de619894be18f27145400496e38389268c4b3ebccb7870"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-30",
+      "original_id": "T030",
+      "title": "管理层简报",
+      "verdict": "passed",
+      "review": "三发现/两行动/一待确认结构齐全，900至2400、官网4倍与代理2倍正确；渠道与产品重合不归因效率，数据月份完整性待核，未虚构政策或回落情景。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "基础收入、客户数、取消单剔除正确；但两渠道同幅翻倍与官网实际4倍矛盾，把未知成因写成政策停止即回落900，建议超出数据。",
+      "observed_start_at": "2026-10-29T11:13:41.160143+00:00",
+      "observed_finished_at": "2026-10-29T11:14:56.246997+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T030/result.md",
+          "source_sha256": "43a8938688618edef7cc178d575aa06db62f29fd2c868a4d6c5fe8e4fb0ab571",
+          "public_sha256": "43a8938688618edef7cc178d575aa06db62f29fd2c868a4d6c5fe8e4fb0ab571"
+        },
+        {
+          "path": "codex/T030/execution.md",
+          "source_sha256": "d950e0d14a2f2b5768c8e5c5c919493f7cd8d67541a67038239b427755b38824",
+          "public_sha256": "234bc6f38eb66e822bba84b4b240f9196e9e937ad972d8fdd9a1ab0a516c6425"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2956,
+          "sha256": "d950e0d14a2f2b5768c8e5c5c919493f7cd8d67541a67038239b427755b38824"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2585,
+          "sha256": "43a8938688618edef7cc178d575aa06db62f29fd2c868a4d6c5fe8e4fb0ab571"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-31",
+      "original_id": "T031",
+      "title": "项目组合周报",
+      "verdict": "passed",
+      "review": "三项目状态/负责人/风险与11-06、11-13边界准确；原型不当功能完成，10-24已交付不当10-23按期，权限与维护责任未知保留，3/5天输入延迟不直接相加或强归因B。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "三项目状态、未定日期/维护人及原型与功能口径冲突均保留；日期差与预算缺口正确，实际交付报告及跟进CSV。",
+      "observed_start_at": "2026-10-29T11:13:41.160143+00:00",
+      "observed_finished_at": "2026-10-29T11:15:38.782182+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T031/result.md",
+          "source_sha256": "19f66d0b3fbd779eab89086f023477c18a13df88ff408f77dbd1f032f491c285",
+          "public_sha256": "19f66d0b3fbd779eab89086f023477c18a13df88ff408f77dbd1f032f491c285"
+        },
+        {
+          "path": "codex/T031/execution.md",
+          "source_sha256": "cc4e250674a021e1a690ef84d2ba91da1c9130461689e0741fd5181e02fc25c0",
+          "public_sha256": "496c0e771635ecbe78c523882796397ec3ce8eba14fe076f852d7ce52fe63e5b"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2284,
+          "sha256": "cc4e250674a021e1a690ef84d2ba91da1c9130461689e0741fd5181e02fc25c0"
+        },
+        {
+          "path": "result.md",
+          "bytes": 3956,
+          "sha256": "19f66d0b3fbd779eab89086f023477c18a13df88ff408f77dbd1f032f491c285"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-32",
+      "original_id": "T032",
+      "title": "项目任务拆解",
+      "verdict": "passed",
+      "review": "10项有任务/依赖/产物/验收，10-30样例→11-04核价→11-06集成→11-09至11验收→11-12交付顺序可执行；11-13前/10万元/禁下单保留，B/C依赖与角色未知明示，新增日期为建议。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "12项拆解、10万边界、禁下单和待指派角色清楚；依赖任务T02/T04未完成前T03/T06/T05已开始，冻结日同时称唯一缓冲，计划可执行性不足。",
+      "observed_start_at": "2026-10-29T11:14:56.180040+00:00",
+      "observed_finished_at": "2026-10-29T11:16:55.944993+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T032/result.md",
+          "source_sha256": "801180db5c16009de7a077018760f6926273b24af9f00c59fc5f69797b7a0dbc",
+          "public_sha256": "801180db5c16009de7a077018760f6926273b24af9f00c59fc5f69797b7a0dbc"
+        },
+        {
+          "path": "codex/T032/execution.md",
+          "source_sha256": "ee36d7dd58609d670ec4e0822f75b30f09da74e7d7a53f13d9831f616b41ce45",
+          "public_sha256": "4107669f04d7d9383ce2c18c2d1f1f8ff0f5ce6edc62786cfceb16e8519552ce"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2401,
+          "sha256": "ee36d7dd58609d670ec4e0822f75b30f09da74e7d7a53f13d9831f616b41ce45"
+        },
+        {
+          "path": "result.md",
+          "bytes": 7585,
+          "sha256": "801180db5c16009de7a077018760f6926273b24af9f00c59fc5f69797b7a0dbc"
+        },
+        {
+          "path": "verification.txt",
+          "bytes": 139,
+          "sha256": "1e6f54e3a1f24255a10ae483bad735634e8d4bd1eecf60a9cdef11f1fabd4233"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-33",
+      "original_id": "T033",
+      "title": "迁移执行方案",
+      "verdict": "passed",
+      "review": "四阶段及三位负责人完整，窗口4小时与停机2小时分开；全量/恢复实测为放行前置。按批准去重后唯一ID集合和字段核对，不要求raw行数硬相等；回补迁后变更后再恢复旧业务，未知增量能力不冒充已具备。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "准备、切换、核对、回退角色与停机边界完整，耗时假设有标注；但源可能重复时仍要求源/目标raw count相等且目标无重复，与去重方案矛盾，回退先恢复旧写入再补录也需冲突闸门。",
+      "observed_start_at": "2026-10-29T11:15:38.712818+00:00",
+      "observed_finished_at": "2026-10-29T11:18:09.960583+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T033/result.md",
+          "source_sha256": "c85520c60213f5ca9be33bd2222fda9d8988aa7af13194083839e20898ffbf4a",
+          "public_sha256": "c85520c60213f5ca9be33bd2222fda9d8988aa7af13194083839e20898ffbf4a"
+        },
+        {
+          "path": "codex/T033/execution.md",
+          "source_sha256": "5e3714076eb92a667e1a4662d952f49989fe2734c84af7759da6b594d266922b",
+          "public_sha256": "c73975377c5101f59617caa15e5e9451ae091493c7135eac0b8e61e081302821"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2771,
+          "sha256": "5e3714076eb92a667e1a4662d952f49989fe2734c84af7759da6b594d266922b"
+        },
+        {
+          "path": "result.md",
+          "bytes": 11414,
+          "sha256": "c85520c60213f5ca9be33bd2222fda9d8988aa7af13194083839e20898ffbf4a"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-34",
+      "original_id": "T034",
+      "title": "会议承诺跟踪",
+      "verdict": "passed",
+      "review": "三项会议承诺去重合并，一已完成但按期未知、一逾期未闭环、一样例未到期；期限及原文齐全，实际导出与原型区分，未强指派总目标责任或改写新日期。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "合并纪要与周报、逾期5/1天及责任空缺正确；10-24仅称原型已交付，无法证明10-23按期，却写按期交付；部分全线停摆判断超证据。",
+      "observed_start_at": "2026-10-29T11:15:38.712818+00:00",
+      "observed_finished_at": "2026-10-29T11:16:55.944993+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T034/result.md",
+          "source_sha256": "9136919111e071d4975bf8e812c16e22f01f4a82d51a44598bd32f451c55bf87",
+          "public_sha256": "9136919111e071d4975bf8e812c16e22f01f4a82d51a44598bd32f451c55bf87"
+        },
+        {
+          "path": "codex/T034/execution.md",
+          "source_sha256": "09a13e061793fd043655060944ffd9752083a43f0fa85473bf379151c4758ea6",
+          "public_sha256": "f31cb4d54b9b635e5031e3ee368da7a23b8e51f9c107e2188ff6840309e2befc"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2365,
+          "sha256": "09a13e061793fd043655060944ffd9752083a43f0fa85473bf379151c4758ea6"
+        },
+        {
+          "path": "result.md",
+          "bytes": 3809,
+          "sha256": "9136919111e071d4975bf8e812c16e22f01f4a82d51a44598bd32f451c55bf87"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-35",
+      "original_id": "T035",
+      "title": "客户交接材料",
+      "verdict": "passed",
+      "review": "三项目目录逐项标明已有事实/明确缺失/未提供待核，附件实体与交付事实分开；原型、验收凭证、供应商样例、中文文件名和维护人均如实保留缺口。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "三项目交接目录和缺口完整；明确事实已记录不等于文件实体存在，原型/验收签字/维护人/新日期均保留待确认，未编造材料。",
+      "observed_start_at": "2026-10-29T11:16:55.881462+00:00",
+      "observed_finished_at": "2026-10-29T11:18:31.224177+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T035/result.md",
+          "source_sha256": "5d832e8cf29851086a31f488eecd0617e0289e3e84a470e4ccbdd17937874049",
+          "public_sha256": "5d832e8cf29851086a31f488eecd0617e0289e3e84a470e4ccbdd17937874049"
+        },
+        {
+          "path": "codex/T035/execution.md",
+          "source_sha256": "43208845a1d51fc7ea26c9678146b4419d34ed9cc68d21370ea42812f9729ddf",
+          "public_sha256": "1befd1fc71aaef7ec9791f69f687486ff0307747fc819a8ca37fd5e630e21249"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 3019,
+          "sha256": "43208845a1d51fc7ea26c9678146b4419d34ed9cc68d21370ea42812f9729ddf"
+        },
+        {
+          "path": "result.md",
+          "bytes": 6586,
+          "sha256": "5d832e8cf29851086a31f488eecd0617e0289e3e84a470e4ccbdd17937874049"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-36",
+      "original_id": "T036",
+      "title": "项目延期复盘",
+      "verdict": "passed",
+      "review": "文档晚3天/数据晚5天、B已越上线日1天准确；不相加为8天或强归因B，不把未见审批/跟进记录写成不存在。直接/流程原因与措施角色、期限、核验方法完整。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "延期3/5/至少1天与改进措施完整；把未提供审批/变更记录直接写为无审批、当前覆盖0%、0/2，缺记录不足以证实流程指标。",
+      "observed_start_at": "2026-10-29T11:16:55.881462+00:00",
+      "observed_finished_at": "2026-10-29T11:18:41.251378+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T036/result.md",
+          "source_sha256": "c268eff80183dd613466db6a0547853ebd6b2bd31b944720eea7f707e2e8af7a",
+          "public_sha256": "c268eff80183dd613466db6a0547853ebd6b2bd31b944720eea7f707e2e8af7a"
+        },
+        {
+          "path": "codex/T036/execution.md",
+          "source_sha256": "218a2a39a84c32f7bcede98810fe9b37ab42eab274cc425fe9b6f8861393d7ec",
+          "public_sha256": "15d1cb911ebed4ea41d74572df548260025e16d9df9c48f33db99ea32135a02d"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2701,
+          "sha256": "218a2a39a84c32f7bcede98810fe9b37ab42eab274cc425fe9b6f8861393d7ec"
+        },
+        {
+          "path": "result.md",
+          "bytes": 5959,
+          "sha256": "c268eff80183dd613466db6a0547853ebd6b2bd31b944720eea7f707e2e8af7a"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-37",
+      "original_id": "T037",
+      "title": "口述转SOP",
+      "verdict": "passed",
+      "review": "可执行六步SOP、输入输出/批准/异常齐全，规格先于报价，未知运费不填0，导出批准不当下单授权；新增角色/凭证/变更/异常规则标假设，R1已归档事实正确。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "新人SOP有输入输出、批准、异常与13项假设，纠正先报价后规格；但E8称R1归档缺失，源明确已归档，个别新增强制条件未逐条标假设。",
+      "observed_start_at": "2026-10-29T11:18:09.895533+00:00",
+      "observed_finished_at": "2026-10-29T11:20:08.981869+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T037/result.md",
+          "source_sha256": "60aba41d3e2141952189e97726a108ab06ae02e9cc55562e3798d923ed2583c1",
+          "public_sha256": "60aba41d3e2141952189e97726a108ab06ae02e9cc55562e3798d923ed2583c1"
+        },
+        {
+          "path": "codex/T037/execution.md",
+          "source_sha256": "b373f57f6c20de981925c46f869905a77b03b44d9f1fde42b5e03914ac580474",
+          "public_sha256": "19bbba7cd4c5391c24a8bbf5346eb0113980238ca04fb34f1051bea2a5a325e2"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2870,
+          "sha256": "b373f57f6c20de981925c46f869905a77b03b44d9f1fde42b5e03914ac580474"
+        },
+        {
+          "path": "result.md",
+          "bytes": 8085,
+          "sha256": "60aba41d3e2141952189e97726a108ab06ae02e9cc55562e3798d923ed2583c1"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-38",
+      "original_id": "T038",
+      "title": "SOP偏差审计",
+      "verdict": "passed",
+      "review": "R1规格/三家/含税运费/经理批准缺证，R2运费明确遗漏及税/批准身份待核均正确；归档已完成不误判，导出不等同下单或对外承诺，不虚构损失或强令整单作废。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "R1漏规格/含税运费/批准，三家证据不足；R2缺运费均识别；但把导出等同对外价格承诺并要求整单作废，材料不足以支持该业务后果。",
+      "observed_start_at": "2026-10-29T11:18:31.158080+00:00",
+      "observed_finished_at": "2026-10-29T11:19:47.161396+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T038/result.md",
+          "source_sha256": "ad3f3ca66482ccce7efefab9550adacc43ca06dff5d012067ab3d81bdc357a4a",
+          "public_sha256": "ad3f3ca66482ccce7efefab9550adacc43ca06dff5d012067ab3d81bdc357a4a"
+        },
+        {
+          "path": "codex/T038/execution.md",
+          "source_sha256": "221566e95f4112566127ea18a347598c9a3303dffb3f60d42d87c6f2dc069492",
+          "public_sha256": "413e436c2eb2c8ac634bdd6e7f32d3e5836afecd73ad11e2d7c3906ad8223d91"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2094,
+          "sha256": "221566e95f4112566127ea18a347598c9a3303dffb3f60d42d87c6f2dc069492"
+        },
+        {
+          "path": "result.md",
+          "bytes": 3607,
+          "sha256": "ad3f3ca66482ccce7efefab9550adacc43ca06dff5d012067ab3d81bdc357a4a"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-39",
+      "original_id": "T039",
+      "title": "事故时间线",
+      "verdict": "passed",
+      "review": "七时点及40次/12客户准确，19个百分点/20倍/12分钟正确；回滚与恢复、补偿完成与逐项成功区分，根因待日志不认定数据库故障。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "七个时点、40次/12客户、恢复与补偿区分正确；根因待核，不认定数据库故障，不把重试完成等同全部成功，列歧义待确认。",
+      "observed_start_at": "2026-10-29T11:18:41.164059+00:00",
+      "observed_finished_at": "2026-10-29T11:19:47.161396+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T039/result.md",
+          "source_sha256": "dfe0d9ccabdf096a1c9f4063791a1a37d328a5a1e3b92b48167c5936bddbc612",
+          "public_sha256": "dfe0d9ccabdf096a1c9f4063791a1a37d328a5a1e3b92b48167c5936bddbc612"
+        },
+        {
+          "path": "codex/T039/execution.md",
+          "source_sha256": "f320561f763befec5478786a52668f02caf85030ea9f2f4e357f0600dec0979a",
+          "public_sha256": "7ea9eb41e788c3d49a2b99ab588290b4357375b37a7669a8badf2acc62edaff6"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2196,
+          "sha256": "f320561f763befec5478786a52668f02caf85030ea9f2f4e357f0600dec0979a"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2346,
+          "sha256": "dfe0d9ccabdf096a1c9f4063791a1a37d328a5a1e3b92b48167c5936bddbc612"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-40",
+      "original_id": "T040",
+      "title": "项目风险表",
+      "verdict": "passed",
+      "review": "六风险按25/20/16/15/12/10降序，有依据/缓解/触发/跟进角色；概率明示定性，不把B/C强当A依赖，预算未知不当已超支。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "按P×I排序八项风险，均有依据、缓解和可观测触发条件；定性概率及预算/工时缺口有说明。历史前置延期三次的措辞应为两次输入延迟加一次承诺失守。",
+      "observed_start_at": "2026-10-29T11:19:47.092495+00:00",
+      "observed_finished_at": "2026-10-29T11:21:14.561225+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T040/result.md",
+          "source_sha256": "3e08d238b625a8556d9034784da7af45f7ecb2454380d7db3d27c20b69088416",
+          "public_sha256": "3e08d238b625a8556d9034784da7af45f7ecb2454380d7db3d27c20b69088416"
+        },
+        {
+          "path": "codex/T040/execution.md",
+          "source_sha256": "131797a9ca54efac4e8c3d5ba3d91b156b94b5bfe5251cd045ffb3dd853fd99c",
+          "public_sha256": "7b5e760b5be76e42a63b8011fdb87604b012b51e9d2c353fdd5e7768df1a0ff7"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2176,
+          "sha256": "131797a9ca54efac4e8c3d5ba3d91b156b94b5bfe5251cd045ffb3dd853fd99c"
+        },
+        {
+          "path": "result.md",
+          "bytes": 5170,
+          "sha256": "3e08d238b625a8556d9034784da7af45f7ecb2454380d7db3d27c20b69088416"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-41",
+      "original_id": "T041",
+      "title": "三类首页文案",
+      "verdict": "passed",
+      "review": "三类首页分别聚焦采购判断、财务口径与IT文件流，当前能力准确；20单120至60不外推全体/财务耗时/接入工时，无未支持部署、安全、ERP或免费承诺。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "采购/财务/IT三版差异明确，20单与禁下单/ERP写回边界保留；IT版额外承诺不改现有流程、无需任何集成及权限留痕清晰，来源未证实。",
+      "observed_start_at": "2026-10-29T11:19:47.092495+00:00",
+      "observed_finished_at": "2026-10-29T11:21:29.842668+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T041/result.md",
+          "source_sha256": "4d8e77814bd5fe671d7fd487a60a80507b7dc74ae198334e6c808c1e6cd625fc",
+          "public_sha256": "4d8e77814bd5fe671d7fd487a60a80507b7dc74ae198334e6c808c1e6cd625fc"
+        },
+        {
+          "path": "codex/T041/execution.md",
+          "source_sha256": "004127bfe2df0d2d613840c41d4bc47b6c7b2ed0edcbc103efe2c84d73ee3aed",
+          "public_sha256": "e645478cb1878c4b5be9435bbca76ac96a963e5aeb40ef846c66f9ce234d025a"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2909,
+          "sha256": "004127bfe2df0d2d613840c41d4bc47b6c7b2ed0edcbc103efe2c84d73ee3aed"
+        },
+        {
+          "path": "result.md",
+          "bytes": 4802,
+          "sha256": "4d8e77814bd5fe671d7fd487a60a80507b7dc74ae198334e6c808c1e6cd625fc"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-42",
+      "original_id": "T042",
+      "title": "技术改写案例",
+      "verdict": "passed",
+      "review": "客户案例保留20单与120至60，50%仅样本变化且无对照不能归因；技术字段映射、缺失和来源准确，未扩大自动化或普遍收益。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "保留20单120→60和无对照不可外推；但把先前采购/财务/IT共同接手及具体客户工作流写成发生过的案例事实，来源未提供。",
+      "observed_start_at": "2026-10-29T11:20:08.908498+00:00",
+      "observed_finished_at": "2026-10-29T11:20:59.380352+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T042/result.md",
+          "source_sha256": "ff5f34e71c4c4a8d6205a4e343cb31a8e316789a47b23597803a82fecd92809f",
+          "public_sha256": "ff5f34e71c4c4a8d6205a4e343cb31a8e316789a47b23597803a82fecd92809f"
+        },
+        {
+          "path": "codex/T042/execution.md",
+          "source_sha256": "3dfa8ef5748ca8dc6256b477e8b1c86cfaeadb83103f74066151ace52e983280",
+          "public_sha256": "5215927347508d5bddb4919da9b7260f29c4d4a5badb474c2500f98c97e3a5e7"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2136,
+          "sha256": "3dfa8ef5748ca8dc6256b477e8b1c86cfaeadb83103f74066151ace52e983280"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1315,
+          "sha256": "ff5f34e71c4c4a8d6205a4e343cb31a8e316789a47b23597803a82fecd92809f"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-43",
+      "original_id": "T043",
+      "title": "四周内容计划",
+      "verdict": "passed",
+      "review": "四周12条逐项受众/渠道/核心观点/素材和行动完整；算例10800/10500正确且标合成，截图/原始试点/导出格式等待制作核实，未把内容计划当发布或扩大产品承诺。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "四周八篇均列选题、受众、渠道、观点和素材；截图/工时细分等待补，限制与试点口径保留，未发布。",
+      "observed_start_at": "2026-10-29T11:20:59.313886+00:00",
+      "observed_finished_at": "2026-10-29T11:23:05.547306+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T043/result.md",
+          "source_sha256": "e060281a21231231a25297a6fb5e69f2b5cf2ffb1448d72f5d0c287478df1bb5",
+          "public_sha256": "e060281a21231231a25297a6fb5e69f2b5cf2ffb1448d72f5d0c287478df1bb5"
+        },
+        {
+          "path": "codex/T043/execution.md",
+          "source_sha256": "ebe696a3b8581ea7c59635eb7106d2d75b6b2323ae52cc327be67b1820e3f592",
+          "public_sha256": "38ee635a900b87f5ef4bc8cbf143cbe64c78eac0b48cb32c5a627be11b1dae31"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2332,
+          "sha256": "ebe696a3b8581ea7c59635eb7106d2d75b6b2323ae52cc327be67b1820e3f592"
+        },
+        {
+          "path": "result.md",
+          "bytes": 8406,
+          "sha256": "e060281a21231231a25297a6fb5e69f2b5cf2ffb1448d72f5d0c287478df1bb5"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-44",
+      "original_id": "T044",
+      "title": "历史内容分析",
+      "verdict": "passed",
+      "review": "4内容CPL7.5/10/100/400和转化5/5/.2/.05%正确，90线索占85.71%/800成本占21.05%核对；按线索效率而非浏览排序，下一轮选题/预算为建议，不编造成交ROI。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "CPL7.5/10/100/400和总3800/105正确；2000预算按3:1分P3/P1应250条（净增245）而非267，且人群不对/奖励一停归零属未验证因果。",
+      "observed_start_at": "2026-10-29T11:21:14.491967+00:00",
+      "observed_finished_at": "2026-10-29T11:22:44.033790+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T044/result.md",
+          "source_sha256": "138ac4bc2caeb0f90bf06e921a7d60b121257863cfb5b05ff3a16e93b1d05360",
+          "public_sha256": "138ac4bc2caeb0f90bf06e921a7d60b121257863cfb5b05ff3a16e93b1d05360"
+        },
+        {
+          "path": "codex/T044/execution.md",
+          "source_sha256": "930ac475e7046f6506386990e30400cdff9bf0dbd618dd1d69259061e7b2d89d",
+          "public_sha256": "7d522eb7907a4539270ca781ea2c7a38ab146409040c98f76b4432f99437f14d"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2306,
+          "sha256": "930ac475e7046f6506386990e30400cdff9bf0dbd618dd1d69259061e7b2d89d"
+        },
+        {
+          "path": "metrics.csv",
+          "bytes": 255,
+          "sha256": "b4d97ec79958f09bda0e558744e9c9c9b1027cb8222202bf953bf5acfb76faf4"
+        },
+        {
+          "path": "result.md",
+          "bytes": 4267,
+          "sha256": "138ac4bc2caeb0f90bf06e921a7d60b121257863cfb5b05ff3a16e93b1d05360"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-45",
+      "original_id": "T045",
+      "title": "社媒内容改写",
+      "verdict": "passed",
+      "review": "五条不同角度草稿，采购/财务/IT/经理/试点范围清楚；输入和能力一致，20单试点不外推，未发布或增加ERP/自动下单承诺。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "五条不同角度且已支持能力、试点限制一致；首条使用未标虚构的第一人称客户经历，另加后续公开数据承诺，发布前需删改。",
+      "observed_start_at": "2026-10-29T11:21:29.777074+00:00",
+      "observed_finished_at": "2026-10-29T11:22:35.400975+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T045/result.md",
+          "source_sha256": "72f59c7412bec74813223cb54751b0f92cbec5f0dae0bd84d9f741e45f63b22f",
+          "public_sha256": "72f59c7412bec74813223cb54751b0f92cbec5f0dae0bd84d9f741e45f63b22f"
+        },
+        {
+          "path": "codex/T045/execution.md",
+          "source_sha256": "5cd689ea70cce4836c1455076fc2de5d200ed8a5c77871ac467b83cfcd2d7e6d",
+          "public_sha256": "f25194d7d0ade6d4957db5ce8221bb013c21a0b648888534b0245141747ae6e7"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2011,
+          "sha256": "5cd689ea70cce4836c1455076fc2de5d200ed8a5c77871ac467b83cfcd2d7e6d"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2216,
+          "sha256": "72f59c7412bec74813223cb54751b0f92cbec5f0dae0bd84d9f741e45f63b22f"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-46",
+      "original_id": "T046",
+      "title": "线上分享物料",
+      "verdict": "passed",
+      "review": "标题/简介/报名页/会后邮件草稿齐全，11-12 15至16及林岚准确；30报名为目标不当限额，时区/入口/议程/表单隐私均待确认或建议，无虚构免费、回放或自动下单且未发送。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "四类物料齐全、11-12周四15–16点及讲师正确，未发信；把30报名目标改成限额并新增免费、观看入口及问答安排，未标待确认。",
+      "observed_start_at": "2026-10-29T11:22:43.970253+00:00",
+      "observed_finished_at": "2026-10-29T11:24:26.443836+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T046/result.md",
+          "source_sha256": "22e3a5f59b6f7351af234bae9c75d1410c3e2a1446cea867159fa74516f72937",
+          "public_sha256": "22e3a5f59b6f7351af234bae9c75d1410c3e2a1446cea867159fa74516f72937"
+        },
+        {
+          "path": "codex/T046/execution.md",
+          "source_sha256": "325d71e08c6e397caec925d7077ba615ad0db58fe78338270c5960c203bee50b",
+          "public_sha256": "68c1d5a91f5472aecc334ac697c06bf426d1c3b5ca32a2bfbb74647409d87522"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1923,
+          "sha256": "325d71e08c6e397caec925d7077ba615ad0db58fe78338270c5960c203bee50b"
+        },
+        {
+          "path": "result.md",
+          "bytes": 3668,
+          "sha256": "22e3a5f59b6f7351af234bae9c75d1410c3e2a1446cea867159fa74516f72937"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-47",
+      "original_id": "T047",
+      "title": "品牌语言指南",
+      "verdict": "passed",
+      "review": "语气、统一术语、五类禁用承诺及8组改写齐全；技术机制不当绝对准确/合规，含税总价只用于已确认税口径，无虚构价格额度。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "形成准确/直接/尊重语气、统一术语和四类禁用承诺，8组改写满足至少5组，未知定价不填数字；示例为规范示范而非业务统计。",
+      "observed_start_at": "2026-10-29T11:23:05.462870+00:00",
+      "observed_finished_at": "2026-10-29T11:24:26.443836+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T047/result.md",
+          "source_sha256": "efb6416efbc76a43e4059846128e99704d14d5c303a062930946154c7d2c2f93",
+          "public_sha256": "efb6416efbc76a43e4059846128e99704d14d5c303a062930946154c7d2c2f93"
+        },
+        {
+          "path": "codex/T047/execution.md",
+          "source_sha256": "4b1196ef82312b090fd79627b4ad171e3d38e960f3ed46d13bb3f0046aa890c8",
+          "public_sha256": "c0cc86541649ca86e196cedb30fd174c1e8fc4b0599cd6e600276359dac938e8"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1690,
+          "sha256": "4b1196ef82312b090fd79627b4ad171e3d38e960f3ed46d13bb3f0046aa890c8"
+        },
+        {
+          "path": "result.md",
+          "bytes": 4563,
+          "sha256": "efb6416efbc76a43e4059846128e99704d14d5c303a062930946154c7d2c2f93"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-48",
+      "original_id": "T048",
+      "title": "营销承诺审查",
+      "verdict": "passed",
+      "review": "100%/三分钟/替代团队/永久/无限均审查并改写，技术校验不当准确率证明；样本均值不当每单或普遍收益，自动待确认功能未证实也主动限定为人工表达要求。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "逐条覆盖100%/三分钟/替代全团队/永久/无限量，改用可证实能力和20单受限数据，未知额度待确认；补充论证部分有过度推理，不影响核心审查结论。",
+      "observed_start_at": "2026-10-29T11:24:26.374543+00:00",
+      "observed_finished_at": "2026-10-29T11:25:34.547495+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T048/result.md",
+          "source_sha256": "6a7473543ae962ba68670753f47eade3afa6ce2c1954872aeb7ed36592a5831f",
+          "public_sha256": "6a7473543ae962ba68670753f47eade3afa6ce2c1954872aeb7ed36592a5831f"
+        },
+        {
+          "path": "codex/T048/execution.md",
+          "source_sha256": "072700512397b873a385c603aed135904876997704d2ef2c0bb90568c13d3688",
+          "public_sha256": "1d936b01f0b54afbd3d59d8fc5a61748ae97ae51c52bcba341de12cad017307a"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2050,
+          "sha256": "072700512397b873a385c603aed135904876997704d2ef2c0bb90568c13d3688"
+        },
+        {
+          "path": "result.md",
+          "bytes": 3334,
+          "sha256": "6a7473543ae962ba68670753f47eade3afa6ce2c1954872aeb7ed36592a5831f"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-49",
+      "original_id": "T049",
+      "title": "价值主张提炼",
+      "verdict": "passed",
+      "review": "10条各有逐字原话、场景及假设边界，超过5万保持严格大于，至少一年不当到期删除，公司账号不等同SSO，未批预算与每周复制两小时不当试点获批或每单节省。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "10条价值主张逐条关联原话、场景和解法假设，ERP与预算不强推；但超过5万元的审批边界在适用场景写成达到阈值，需保留严格大于口径。",
+      "observed_start_at": "2026-10-29T11:24:26.374543+00:00",
+      "observed_finished_at": "2026-10-29T11:25:48.829250+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T049/result.md",
+          "source_sha256": "6b1bcc08125b78b15f0d2ea0445a644210b0e0212e1d64d241417c8031921225",
+          "public_sha256": "6b1bcc08125b78b15f0d2ea0445a644210b0e0212e1d64d241417c8031921225"
+        },
+        {
+          "path": "codex/T049/execution.md",
+          "source_sha256": "53199345e7d2fb59af92c7b25b2d372f710e8c3c7db5f76645018e6ec0145fa9",
+          "public_sha256": "5b42cd9bdd3f2170dea5d16feb78bee312dc8b3a6e685e7bade48cc2bf3b8690"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2307,
+          "sha256": "53199345e7d2fb59af92c7b25b2d372f710e8c3c7db5f76645018e6ec0145fa9"
+        },
+        {
+          "path": "result.md",
+          "bytes": 4477,
+          "sha256": "6b1bcc08125b78b15f0d2ea0445a644210b0e0212e1d64d241417c8031921225"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-50",
+      "original_id": "T050",
+      "title": "发布执行清单",
+      "verdict": "passed",
+      "review": "发布前/当天/后清单有负责角色、前置与证据门槛，实际指标含分母窗口及零分母处理，观察窗和审批驳回口径明确；容量/响应时限/阈值为待冻结建议，未称已发布或已达标。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "发布前/当天/后完整，角色、依赖、门禁、回退与指标分母均列明，待定SLA/窗口未冒充已落实；有差异接受与差异清零的局部口径需执行前统一。",
+      "observed_start_at": "2026-10-29T11:25:34.478548+00:00",
+      "observed_finished_at": "2026-10-29T11:28:25.190306+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T050/result.md",
+          "source_sha256": "6ea2a6f0075e9d0e567bc71367c5eafecb57a9db9d7393d5b48a0c88d2668a59",
+          "public_sha256": "6ea2a6f0075e9d0e567bc71367c5eafecb57a9db9d7393d5b48a0c88d2668a59"
+        },
+        {
+          "path": "codex/T050/execution.md",
+          "source_sha256": "2ca684525f337aa3935d4c346cea9126cbd996b622ddca551f52ff3c7c43d34e",
+          "public_sha256": "88a52a1f9b798af89c969b0ad225058f55996af228bd68f5440af462a748269e"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 3287,
+          "sha256": "2ca684525f337aa3935d4c346cea9126cbd996b622ddca551f52ff3c7c43d34e"
+        },
+        {
+          "path": "result.md",
+          "bytes": 11846,
+          "sha256": "6ea2a6f0075e9d0e567bc71367c5eafecb57a9db9d7393d5b48a0c88d2668a59"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-51",
+      "original_id": "T051",
+      "title": "售前演示脚本",
+      "verdict": "passed",
+      "review": "实际合成报价CSV与30分钟分配齐全，11400/10800/10922及122/600差额正确，含税与未税不重复征税；私人部署/中文/一年留存为待验证要求，不冒充现有能力，5万和12月前决策边界保留。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "30分钟时间分配、合成数据、手算对账、角色提问与限制完整；私有部署未证实却要求内网演示并在应答承诺数据在客户环境，客户要求被写成产品能力。",
+      "observed_start_at": "2026-10-29T11:25:48.762184+00:00",
+      "observed_finished_at": "2026-10-29T11:28:25.190306+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T051/result.md",
+          "source_sha256": "47d2fe8e493b303d9c51d41195c4db65deaf7da1233c030a01de4135b675122e",
+          "public_sha256": "47d2fe8e493b303d9c51d41195c4db65deaf7da1233c030a01de4135b675122e"
+        },
+        {
+          "path": "codex/T051/execution.md",
+          "source_sha256": "83fe4c91941c72206848217f5d0960ada4f95c71f368990eb44a9fad3052bd56",
+          "public_sha256": "bf552dc56a44a808e19c7f09f95b191c3e55e0076a015520d03eb467954c2aed"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "demo_quotes.csv",
+          "bytes": 456,
+          "sha256": "0c661ede0ef7addcee046c73f70c1d3b697108ab16a75e166b8e286a61f994fd"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 3016,
+          "sha256": "83fe4c91941c72206848217f5d0960ada4f95c71f368990eb44a9fad3052bd56"
+        },
+        {
+          "path": "result.md",
+          "bytes": 9296,
+          "sha256": "47d2fe8e493b303d9c51d41195c4db65deaf7da1233c030a01de4135b675122e"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-52",
+      "original_id": "T052",
+      "title": "招标要点提取",
+      "verdict": "passed",
+      "review": "资格两项、技术四项、交付四项和11-12 17:00/签约30天完整；源码授权说明不误当交源码，并发/数据量/保证金及时间口径均待澄清，不填造条款。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "截止11-12 17:00、签约30天、执照/近三年2制造案例、四技术项及四交付项完整，缺并发/数据量/保证金未填补，建议澄清分层明确。",
+      "observed_start_at": "2026-10-29T11:28:25.122684+00:00",
+      "observed_finished_at": "2026-10-29T11:29:14.598946+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T052/result.md",
+          "source_sha256": "8d04c68b1762b710d4043984dea9069fee337d58a6ac1ea7f211fbc428f9446a",
+          "public_sha256": "8d04c68b1762b710d4043984dea9069fee337d58a6ac1ea7f211fbc428f9446a"
+        },
+        {
+          "path": "codex/T052/execution.md",
+          "source_sha256": "a63b300e1a9131a8b98943e1305d622c3c3095133a71ad2b48ca6e3696dbb51d",
+          "public_sha256": "92a93f83d3d1b4e1c589754eaccfda9400e3c7ac5463bb96d9130de98a387244"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2086,
+          "sha256": "a63b300e1a9131a8b98943e1305d622c3c3095133a71ad2b48ca6e3696dbb51d"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2316,
+          "sha256": "8d04c68b1762b710d4043984dea9069fee337d58a6ac1ea7f211fbc428f9446a"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-53",
+      "original_id": "T053",
+      "title": "招标逐项响应",
+      "verdict": "passed",
+      "review": "12条逐项映射有证据与待补材料，只有报价比较支持；经理审批不证明权限隔离、20单统计不证明案例资格/验收/30天实施。明确不支持项未硬塞成现招标要求，截止时间和保证金未知正确保留。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "逐项响应并保留SSO/私有部署/周期未知；经理审批不能证明权限隔离，业务报告不能证明项目验收报告，仍判部分支持；建议30天标准上线缺实施依据。",
+      "observed_start_at": "2026-10-29T11:28:25.122684+00:00",
+      "observed_finished_at": "2026-10-29T11:29:55.105018+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T053/result.md",
+          "source_sha256": "99b696227a9ff0d84f3adff02e783e9fb3b582caf2d4efdce5d204c9d923cca6",
+          "public_sha256": "99b696227a9ff0d84f3adff02e783e9fb3b582caf2d4efdce5d204c9d923cca6"
+        },
+        {
+          "path": "codex/T053/execution.md",
+          "source_sha256": "63cceeeeeb4e504761ccf360d19b81a6d866ef9d879ae1ad3d6ca081285d0b6f",
+          "public_sha256": "066fd494100fcb5e707b8d547d03333c189afe962ed15359f7acd7d5bbf836df"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2456,
+          "sha256": "63cceeeeeb4e504761ccf360d19b81a6d866ef9d879ae1ad3d6ca081285d0b6f"
+        },
+        {
+          "path": "result.md",
+          "bytes": 5147,
+          "sha256": "99b696227a9ff0d84f3adff02e783e9fb3b582caf2d4efdce5d204c9d923cca6"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-54",
+      "original_id": "T054",
+      "title": "销售通话记录",
+      "verdict": "passed",
+      "review": "8人试点5万已批与全部门无预算分开，陈航安全/周宁签字/张宁清单和11-02/11-06/12月前准确；未把通话承诺当执行完成，也未给未定义范围定价。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "8人试点5万已批与全部门无预算明确分开，陈航/周宁/张宁角色及11-2/11-6/12月前正确；无预算被推为未立项的附带解释需客户确认。",
+      "observed_start_at": "2026-10-29T11:28:38.211337+00:00",
+      "observed_finished_at": "2026-10-29T11:29:25.940047+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T054/result.md",
+          "source_sha256": "3e075c18ff9405deb70d01e46e9f84ad73a5a22d26478ec8b226cd5c36ebfe3d",
+          "public_sha256": "3e075c18ff9405deb70d01e46e9f84ad73a5a22d26478ec8b226cd5c36ebfe3d"
+        },
+        {
+          "path": "codex/T054/execution.md",
+          "source_sha256": "34e2bf4e7a827dff181108798d96c37a9c035d0e798bb879e98ba839d1d2596c",
+          "public_sha256": "ad1de228f4eb86086139d36875527d6e7f62437c1bde2a09214b1689ee9161cc"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1789,
+          "sha256": "34e2bf4e7a827dff181108798d96c37a9c035d0e798bb879e98ba839d1d2596c"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1624,
+          "sha256": "3e075c18ff9405deb70d01e46e9f84ad73a5a22d26478ec8b226cd5c36ebfe3d"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-55",
+      "original_id": "T055",
+      "title": "销售异议手册",
+      "verdict": "passed",
+      "review": "五类异议有可用应答/追问/验收/未知清单；准确率与耗时分开，ERP/私有部署/中文/安全/留存不冒充已证实，5万非正式报价，60人时基线与20人时样本差额正确，保留12月前。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "五类异议、准确率与耗时区分、未知项清单完整；却先承诺数据在客户环境、擅定5万买20单测试及报告，并将12月前决定改到12月初。",
+      "observed_start_at": "2026-10-29T11:29:14.506814+00:00",
+      "observed_finished_at": "2026-10-29T11:31:17.271172+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T055/result.md",
+          "source_sha256": "ef7c270208fd75e6f54eaccb5d346bf79fb6cbe65fa2c2ab87bc06bffaca283b",
+          "public_sha256": "ef7c270208fd75e6f54eaccb5d346bf79fb6cbe65fa2c2ab87bc06bffaca283b"
+        },
+        {
+          "path": "codex/T055/execution.md",
+          "source_sha256": "79425b34ef7a1c9c196215f52a4fd26eff2c3bc299598bf10d04cd11a68008ff",
+          "public_sha256": "d7bca7ff86c06af936176f9dc4caf071b95e4172edf3ba08771615ca8f57df23"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2221,
+          "sha256": "79425b34ef7a1c9c196215f52a4fd26eff2c3bc299598bf10d04cd11a68008ff"
+        },
+        {
+          "path": "result.md",
+          "bytes": 8536,
+          "sha256": "ef7c270208fd75e6f54eaccb5d346bf79fb6cbe65fa2c2ab87bc06bffaca283b"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-56",
+      "original_id": "T056",
+      "title": "客户跟进草稿",
+      "verdict": "passed",
+      "review": "邮件草稿未发送，8人/5万已批/全部门无预算/人工导出和ERP不承诺准确；11-02清单、11-06演示、12月前决策保留，没有新增现场形式、签字日期或实施承诺。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "草稿保留预算/角色/11-2部署清单/11-6演示且未发送；表格新增现场演示，后文又问线上或到访，地点形式不应先写为已确认。",
+      "observed_start_at": "2026-10-29T11:29:25.869378+00:00",
+      "observed_finished_at": "2026-10-29T11:30:11.944646+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T056/result.md",
+          "source_sha256": "ed458c906dc6e5ba7a1040e6cf27f4a67667b147f504cb79bc6f6af4e0cd899b",
+          "public_sha256": "ed458c906dc6e5ba7a1040e6cf27f4a67667b147f504cb79bc6f6af4e0cd899b"
+        },
+        {
+          "path": "codex/T056/execution.md",
+          "source_sha256": "542bf5f25b99123a3ea91168ad1bf7e306c9c4d0aff7b68edf8191d3ed514f1c",
+          "public_sha256": "f14984cb97a2a73a4b6cf95627931b971f221c4c74cd6c39b9f98d0bfdf39aa4"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1478,
+          "sha256": "542bf5f25b99123a3ea91168ad1bf7e306c9c4d0aff7b68edf8191d3ed514f1c"
+        },
+        {
+          "path": "result.md",
+          "bytes": 934,
+          "sha256": "ed458c906dc6e5ba7a1040e6cf27f4a67667b147f504cb79bc6f6af4e0cd899b"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-57",
+      "original_id": "T057",
+      "title": "客服知识库草稿",
+      "verdict": "passed",
+      "review": "12工单按6/3/3与4open正确，三篇草稿含K01至K12引用及范围；closed不当已验证解决，菜单/参数/根因缺失标待核，建议性排查不冒充现成功能或已修复。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "12工单按6/3/3分类、4 open和K来源正确，交付三篇草稿及适用范围；明确无正文/解决记录，步骤与参数待技术确认，未声称已验证修复。",
+      "observed_start_at": "2026-10-29T11:29:55.035534+00:00",
+      "observed_finished_at": "2026-10-29T11:31:40.546474+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T057/result.md",
+          "source_sha256": "3a434c2f9f747f246a2b7eed1f90a3f61c72c2ea8c4ec14c5537db5aaef8536c",
+          "public_sha256": "3a434c2f9f747f246a2b7eed1f90a3f61c72c2ea8c4ec14c5537db5aaef8536c"
+        },
+        {
+          "path": "codex/T057/execution.md",
+          "source_sha256": "ca5dabb7bb2ece42099f63086f45b10c6c88d73e9f1511197b34f076fd8a0d78",
+          "public_sha256": "57ceb730baeceb39892a7d7854115bc121f1919eae2dfaed729723a18a675022"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "analysis.json",
+          "bytes": 1138,
+          "sha256": "43581b4f3d424bb46762941885a24bf2b98c0e7095671e83926317487b673525"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 2526,
+          "sha256": "ca5dabb7bb2ece42099f63086f45b10c6c88d73e9f1511197b34f076fd8a0d78"
+        },
+        {
+          "path": "result.md",
+          "bytes": 6358,
+          "sha256": "3a434c2f9f747f246a2b7eed1f90a3f61c72c2ea8c4ec14c5537db5aaef8536c"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-58",
+      "original_id": "T058",
+      "title": "客户健康报告",
+      "verdict": "passed",
+      "review": "C02活跃18至2/运行80至5/错误3至4、80%比值及6工单4open准确，工单开立天数明示非SLA违约；不把10-16当月数据截止、不编停用天数，不把相关性当根因，恢复计划及目标为建议。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "C02运行80→5、4/5错误与6工单4open基础正确；把最后一条该客户工单10-16当作月度使用截止日，伪造16天分母和13天停用，并将相关性定为上传失效根因。",
+      "observed_start_at": "2026-10-29T11:30:11.882832+00:00",
+      "observed_finished_at": "2026-10-29T11:32:10.614884+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T058/result.md",
+          "source_sha256": "d23f63c2e0d3b3208f4ef122e0c9164d5086d924c3740b8402cd0eb31c666dbf",
+          "public_sha256": "d23f63c2e0d3b3208f4ef122e0c9164d5086d924c3740b8402cd0eb31c666dbf"
+        },
+        {
+          "path": "codex/T058/execution.md",
+          "source_sha256": "0ac236bf2dee2a1ce7e84830427b801fe1f04671879338df7e321163e459f11e",
+          "public_sha256": "e4b89482485a935c6dcfe59b922fe896f6062c220ddcff69877e3468047210e2"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2512,
+          "sha256": "0ac236bf2dee2a1ce7e84830427b801fe1f04671879338df7e321163e459f11e"
+        },
+        {
+          "path": "metrics.json",
+          "bytes": 533,
+          "sha256": "cf9d9fe21c52c2549e0c447a7735ff524130a4665153ac9750b3a2050f3982ab"
+        },
+        {
+          "path": "result.md",
+          "bytes": 4892,
+          "sha256": "d23f63c2e0d3b3208f4ef122e0c9164d5086d924c3740b8402cd0eb31c666dbf"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-59",
+      "original_id": "T059",
+      "title": "投诉处置方案",
+      "verdict": "passed",
+      "review": "事实/客户主张/日志摘要/责任结论区分，40次12客户该客3次与09:15不当两小时因果证据；未提供SLA不等同无责任。负责人选项及回复有待补占位，不虚构其他索赔或承诺赔付/发送。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "事实/索赔争议/证据/措施/回复齐全，5万请求未承诺赔付；但仅此客户索赔、并非受影响最重均无来源，并由无赔付条款推缺请求权基础，超出证据。",
+      "observed_start_at": "2026-10-29T11:31:40.470963+00:00",
+      "observed_finished_at": "2026-10-29T11:33:22.200172+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T059/result.md",
+          "source_sha256": "d222acba90159b39433aa27eab98cf57d691393015a689ee8db2b5c40baf079e",
+          "public_sha256": "d222acba90159b39433aa27eab98cf57d691393015a689ee8db2b5c40baf079e"
+        },
+        {
+          "path": "codex/T059/execution.md",
+          "source_sha256": "f6e2579b89b195d8cdb4c3b3c7ed74ec4de2704409d0068582910ffbed856519",
+          "public_sha256": "05c4e68501e643be4b6b51dfcda091e67846404370274a8339245bdc288e0348"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1929,
+          "sha256": "f6e2579b89b195d8cdb4c3b3c7ed74ec4de2704409d0068582910ffbed856519"
+        },
+        {
+          "path": "result.md",
+          "bytes": 6298,
+          "sha256": "d222acba90159b39433aa27eab98cf57d691393015a689ee8db2b5c40baf079e"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-60",
+      "original_id": "T060",
+      "title": "续费跟进排序",
+      "verdict": "passed",
+      "review": "7/17/33天及15万/2万/10万准确，C02→C03→C01有证据；zero视零活跃而非持平，未量化停用/流失概率或预设原价/优惠，沟通计划和新增日期均为建议。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "日期差7/17/33天、金额与C02优先正确，自定评分可复核；将zero解释为无增长无下滑而非零活跃，低估C03健康风险，原价及支持条件也未经确认。",
+      "observed_start_at": "2026-10-29T11:32:10.545969+00:00",
+      "observed_finished_at": "2026-10-29T11:33:32.432330+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T060/result.md",
+          "source_sha256": "9dd8fcac6ec7c10b2dd2299bcb1a4e5ba361b91f0f88736e46677dbe70229627",
+          "public_sha256": "9dd8fcac6ec7c10b2dd2299bcb1a4e5ba361b91f0f88736e46677dbe70229627"
+        },
+        {
+          "path": "codex/T060/execution.md",
+          "source_sha256": "c4ed2e82869d98b92de5dbf3f291b8fa04d5afb4276231a219d6a52b2cc39355",
+          "public_sha256": "fced89612ce84dc2e766a1f938896f40fb0da65b60937fab85756541786d5277"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1886,
+          "sha256": "c4ed2e82869d98b92de5dbf3f291b8fa04d5afb4276231a219d6a52b2cc39355"
+        },
+        {
+          "path": "result.md",
+          "bytes": 4713,
+          "sha256": "9dd8fcac6ec7c10b2dd2299bcb1a4e5ba361b91f0f88736e46677dbe70229627"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-61",
+      "original_id": "T061",
+      "title": "会议录音转纪要",
+      "verdict": "passed",
+      "review": "实际faster-whisper-base处理25.3秒WAV，原始ASR/复识JSON及脚本日志真实，8人/不自动下单/5万已批扩容未批/11-2、4、6节点正确；姓名均待核并披露同音校整。成功与MOI下载环境差异分列。",
+      "historical_moi_verdict": "阻塞",
+      "historical_moi_review": "两次真实尝试读取25.302秒WAV，完成音频/VAD核对但无ASR引擎/模型；平台检索无转写工具，模型下载受限，715.83秒后明确未转写或出纪要，未读meeting.txt冒充。",
+      "observed_start_at": "2026-10-29T10:54:02.017454+00:00",
+      "observed_finished_at": "2026-10-29T11:01:53.979799+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T061/result.md",
+          "source_sha256": "49a4e87d166d279de8a83b5276cd459484498164f7656c56dadd73e824182c69",
+          "public_sha256": "49a4e87d166d279de8a83b5276cd459484498164f7656c56dadd73e824182c69"
+        },
+        {
+          "path": "codex/T061/execution.md",
+          "source_sha256": "6f9d0f938a90f8c7bbfed104b5b6a699bb35c0f76a259cf051653615f9832f8e",
+          "public_sha256": "c1f80ebc3518fb0db0c5a8674f9ff603827e9da30bcbdfc6c29f130f18dc5c6c"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "asr-final.log",
+          "bytes": 389,
+          "sha256": "29628ddb63af6426b8362a3678c343db798b48b7110e96b7bef825bfa067a291"
+        },
+        {
+          "path": "asr-retry.log",
+          "bytes": 1338,
+          "sha256": "b15bcb1e01f2423121a27087306fb6d87274421b72cf90279bfea6c5e3476e6c"
+        },
+        {
+          "path": "asr-run.log",
+          "bytes": 426,
+          "sha256": "f7524e30c923ef33fd724e8a21a0df7e2cb37a23a8ea67c91fc8873862e27b34"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 5673,
+          "sha256": "6f9d0f938a90f8c7bbfed104b5b6a699bb35c0f76a259cf051653615f9832f8e"
+        },
+        {
+          "path": "result.md",
+          "bytes": 3142,
+          "sha256": "49a4e87d166d279de8a83b5276cd459484498164f7656c56dadd73e824182c69"
+        },
+        {
+          "path": "transcribe.py",
+          "bytes": 1127,
+          "sha256": "83234cb0aa35fdee96f7b8ede16aab60ef3f0a9098f331035d75060b4969e032"
+        },
+        {
+          "path": "transcript.json",
+          "bytes": 582,
+          "sha256": "41218e00b4119e1f133d2960d50cc6ec0a115223db63a48f35b344a7160d29e5"
+        },
+        {
+          "path": "verification-run.log",
+          "bytes": 5729,
+          "sha256": "8ccb7148890fa82d5e08d4a5cc9e62e1469926f3ae2419c9fec147182ff0f83f"
+        },
+        {
+          "path": "verification-transcript.json",
+          "bytes": 10471,
+          "sha256": "79bd00df33dd2c9e06662157abdb8f6b8de7ae379004833865dc43dfc59846d8"
+        },
+        {
+          "path": "verify_audio.py",
+          "bytes": 1103,
+          "sha256": "c5fd2a248b1e96b11825ee1f9148d66f664779613a87ed5cf7a77fff7ec069f2"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-62",
+      "original_id": "T062",
+      "title": "英文报告翻译",
+      "verdict": "passed",
+      "review": "译文数字20/120/60/4、无对照不能因果、表1和[1]引用日期均保留，order_id/API_KEY原样，未虚构表内明细。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "实际读取并交付译文；20/120/60/4、表号引用、标识符及无对照不能因果均保留，未补造表1。",
+      "observed_start_at": "2026-10-29T11:33:22.128646+00:00",
+      "observed_finished_at": "2026-10-29T11:34:01.158203+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T062/result.md",
+          "source_sha256": "0c8055102fb1d15fba428e57359d89a563f98d2788c0737f621d34ce5f9f1c8d",
+          "public_sha256": "0c8055102fb1d15fba428e57359d89a563f98d2788c0737f621d34ce5f9f1c8d"
+        },
+        {
+          "path": "codex/T062/execution.md",
+          "source_sha256": "1ada198bc356b5337454713cd043ebadd4effdc1689c0416b13f91a0bc8d9479",
+          "public_sha256": "8b93a7842c0b825eba6368d15672374de2d5bd9e0c3d8305142d4a48cb4fea98"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1216,
+          "sha256": "1ada198bc356b5337454713cd043ebadd4effdc1689c0416b13f91a0bc8d9479"
+        },
+        {
+          "path": "result.md",
+          "bytes": 328,
+          "sha256": "0c8055102fb1d15fba428e57359d89a563f98d2788c0737f621d34ce5f9f1c8d"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-63",
+      "original_id": "T063",
+      "title": "长报告压缩",
+      "verdict": "passed",
+      "review": "实际50页全文提取及两页PDF，独立解析/双页渲染无溢出；20/120至60/无对照/合成样例与第37页跨部门权限泄露重大例外完整，原页码明确，不将50章重复累加或金额当损失。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "实际全读50页并交付恰2页PDF，p37跨部门权限泄露未遗漏，20单/120→60/无对照与合成限制、页码均保留；已查看两页渲染，无明显裁切。",
+      "observed_start_at": "2026-10-29T11:26:25.891995+00:00",
+      "observed_finished_at": "2026-10-29T11:28:38.279663+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T063/result.md",
+          "source_sha256": "3096f372e22fa35f99185bacb75eb983fe88bf50b7ced044a66723bae096cac5",
+          "public_sha256": "3096f372e22fa35f99185bacb75eb983fe88bf50b7ced044a66723bae096cac5"
+        },
+        {
+          "path": "codex/T063/execution.md",
+          "source_sha256": "73cbe2613730726a2370f3c6fd8bd75cea339262836d0274fecbeea9647ff8e3",
+          "public_sha256": "2165cedef4390d340f7f94e32fc4f16f95725ab26c33dc38919e142d21ae8777"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "build_summary.py",
+          "bytes": 5921,
+          "sha256": "3f310a8fa333346d6876215662ec3b1536d8b42b62e39e169b7f69c16301b5bf"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 4272,
+          "sha256": "73cbe2613730726a2370f3c6fd8bd75cea339262836d0274fecbeea9647ff8e3"
+        },
+        {
+          "path": "pdfinfo.txt",
+          "bytes": 610,
+          "sha256": "8c203b9ab0a1e67c2c23cadfaefa5bc9cf7b434ab873cda3319b48c3828b24f4"
+        },
+        {
+          "path": "procurement_summary_2pages.pdf",
+          "bytes": 6028,
+          "sha256": "5bec091b092dd57d90fe025fe33e9eb4c3f031e227f7d47ffb0ff5cc58d08a93"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1276,
+          "sha256": "3096f372e22fa35f99185bacb75eb983fe88bf50b7ced044a66723bae096cac5"
+        },
+        {
+          "path": "source_extracted.txt",
+          "bytes": 17289,
+          "sha256": "b089fd08957eec7245e627e751749451a71eb958bb3c34c3dbef702fa83a48ce"
+        },
+        {
+          "path": "source_page_1.png",
+          "bytes": 41313,
+          "sha256": "73e850703a7ce94e582ca85c88ae6c7aad8c696a2f4604bd4b9030d46da2ae49"
+        },
+        {
+          "path": "source_page_37.png",
+          "bytes": 45298,
+          "sha256": "ffb1613e6490fc042d66c85c8e687c5af0e2b4a90770b133338898d343b8b102"
+        },
+        {
+          "path": "source_page_50.png",
+          "bytes": 42029,
+          "sha256": "2ef7d129c31fbb9d4b6fd18465d5063a28dc676bb992d0f78e81b9a1a16315ce"
+        },
+        {
+          "path": "summary-1.png",
+          "bytes": 173659,
+          "sha256": "f733f4260c1fe0a956ea3c5758a4b2951e0abffab7d194b74d0869bf98ea02af"
+        },
+        {
+          "path": "summary-2.png",
+          "bytes": 227395,
+          "sha256": "7edd81f9941a305b43faab7ac3dd00947f5a535815eabc428666c5868311c80f"
+        },
+        {
+          "path": "summary_extracted.txt",
+          "bytes": 2888,
+          "sha256": "cc29d96b19375f57493affcdee199fdb2e093eada4a373d891829e705f1a4df2"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 8147,
+          "sha256": "5c38cfad6bd2e6b2c1d551766a0a9606b82de873de0f6f59ec9cee9b86efbe64"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-64",
+      "original_id": "T064",
+      "title": "合同版本比较",
+      "verdict": "passed",
+      "review": "六类合同变化完整且数字复算准确：总价10至12万、首尾3/7至6/6万、5日、45日、6月、日50至120/上限1至2.4万、数据用途和30至180日；不擅定条款效力或模型训练授权。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "合同六类变化均正确；金额100000→120000，30/70→50/50，5日、45日、6月、违约及数据用途/180日删除均覆盖，计算正确。",
+      "observed_start_at": "2026-10-29T11:33:32.363226+00:00",
+      "observed_finished_at": "2026-10-29T11:35:06.506392+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T064/result.md",
+          "source_sha256": "a08dbe431fff789eb8795041cea91c8942262f0a353a39174c7ffe6222aaf263",
+          "public_sha256": "a08dbe431fff789eb8795041cea91c8942262f0a353a39174c7ffe6222aaf263"
+        },
+        {
+          "path": "codex/T064/execution.md",
+          "source_sha256": "10d6eb415fdd50044281a624e63c815718f0979745db70736b8add7f7b2df6c8",
+          "public_sha256": "168b739792f85c06673f72e8306694fdf79d3969403317a7ba9d2bc083dcf0c3"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2973,
+          "sha256": "10d6eb415fdd50044281a624e63c815718f0979745db70736b8add7f7b2df6c8"
+        },
+        {
+          "path": "result.md",
+          "bytes": 3777,
+          "sha256": "a08dbe431fff789eb8795041cea91c8942262f0a353a39174c7ffe6222aaf263"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-65",
+      "original_id": "T065",
+      "title": "新人培训手册",
+      "verdict": "passed",
+      "review": "真实可编辑3页DOCX原生标题/表格，独立解析与3页渲染无裁切；首日账号/知识库/先规格后税运费/严格超过5万找经理财务/公开群/报错订单号时间/周五复盘完整，未知入口联系方式待核。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "实际DOCX含原生标题/表格/目录域，笔记规则保留，缺联系人/币种等显式待确认；11页PDF已逐页缩略审阅，无明显裁切，个别表格跨页但可读。",
+      "observed_start_at": "2026-10-29T11:31:17.201222+00:00",
+      "observed_finished_at": "2026-10-29T11:34:25.748880+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T065/result.md",
+          "source_sha256": "4d72c9ffaa8e32cd98f4c13654c1352b7b362db3120d60c02cc324dac23f7b4d",
+          "public_sha256": "4d72c9ffaa8e32cd98f4c13654c1352b7b362db3120d60c02cc324dac23f7b4d"
+        },
+        {
+          "path": "codex/T065/execution.md",
+          "source_sha256": "26114ab246380d1c1ad21e867f63bb09754b79c37c4fd90f97f7ab76c830e946",
+          "public_sha256": "b014ac2f4633fda851f12758a115ca32ece2ab8e4857a26a054e998da89aec72"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "build.py",
+          "bytes": 7352,
+          "sha256": "bc0d9b40bd9d27f4c373ccf69e945393f2e6c0f440c9f4eb847c1d8fbb0beed9"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 4243,
+          "sha256": "26114ab246380d1c1ad21e867f63bb09754b79c37c4fd90f97f7ab76c830e946"
+        },
+        {
+          "path": "fontcache/03e7d9705e256d156ef3412bd11bf30d-le64.cache-9",
+          "bytes": 2920,
+          "sha256": "aaf32b6869875089ac49945ed697f5b7e6e7e0cb0f9196c52402de565aab1db6"
+        },
+        {
+          "path": "fontcache/242b9ecadd5ab68ee17b78d217cbe8c5-le64.cache-9",
+          "bytes": 273128,
+          "sha256": "2d5c4b76c3a2c6ac647c5577f35972fa9a897945b94f0eeea6e9113ee1c47018"
+        },
+        {
+          "path": "fontcache/CACHEDIR.TAG",
+          "bytes": 200,
+          "sha256": "05e7633fb31bf1f6f8d89020c16b9f24587fdf7638e951c9745b192f5fc3b682"
+        },
+        {
+          "path": "fontcache/b0a71e6bf6a8a1a908413a823d76e21f-le64.cache-9",
+          "bytes": 3647144,
+          "sha256": "99fc51f186c1a4e34c7b63ce047797de62cb60ea6ade105d7746565820e5702a"
+        },
+        {
+          "path": "fontcache/c6cafe6b1a56ed8b739253d6df90ca6a-le64.cache-9",
+          "bytes": 1148568,
+          "sha256": "36f7b70ceaed973874d938d0e43ab052feccb7e480f11e6ff04b97db5f6fa08a"
+        },
+        {
+          "path": "fonts.conf",
+          "bytes": 297,
+          "sha256": "08e7391bd7576759ca661cd5d7493e438703c752ed1be99ff64d81194084dff7"
+        },
+        {
+          "path": "qa/page-1.png",
+          "bytes": 273954,
+          "sha256": "2e07396bf17b71a4a98bd8d655ccbf41279cab57c718be457fe7b55738f0102c"
+        },
+        {
+          "path": "qa/page-2.png",
+          "bytes": 245225,
+          "sha256": "9e670f353283c6f2cf960800d2d8b11de097bdec07b633cadee8be9739c30e07"
+        },
+        {
+          "path": "qa/page-3.png",
+          "bytes": 221653,
+          "sha256": "4efad42e738cb66380459730086259233eadc929ce551851e4bb8ec137740487"
+        },
+        {
+          "path": "qa/新员工培训手册.pdf",
+          "bytes": 278625,
+          "sha256": "d06dc8cddf3800f711d2ae230f061afe1c62709e7aeb179d133732de70638778"
+        },
+        {
+          "path": "result.md",
+          "bytes": 4500,
+          "sha256": "4d72c9ffaa8e32cd98f4c13654c1352b7b362db3120d60c02cc324dac23f7b4d"
+        },
+        {
+          "path": "verification.txt",
+          "bytes": 294,
+          "sha256": "c71b4a774559eaaa69b25f5b293b634b7a8c6c3fb6ea453afa47c9ae9b2b1532"
+        },
+        {
+          "path": "新员工培训手册.docx",
+          "bytes": 39450,
+          "sha256": "bcfa6f3ea9b44b1af382e14721773e221669578eb755852eb30148da131ef64a"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-66",
+      "original_id": "T066",
+      "title": "十页演示稿",
+      "verdict": "passed",
+      "review": "实际10页PPTX，10页非空演讲备注、原生文字表格图表及嵌入数据表均独立解析确认，10页预览无裁切。20/120至60/4缺运费与50%/20%正确，无对照、引用、Table1缺明细和标识符保留，无虚构因果。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "真实PPTX10页、每页原生文字与备注完整，渲染十页可读、无明显溢出，20/120/60/4及无对照限制保留；但源文未说明同一批订单两次测量，稿件把这一设计与单一时间点写成既定事实。",
+      "observed_start_at": "2026-10-29T11:22:35.335891+00:00",
+      "observed_finished_at": "2026-10-29T11:26:25.959825+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T066/result.md",
+          "source_sha256": "f4074d79b99646ea84cb650feb3dc2c726963fd619aef95568bf50c875535f3f",
+          "public_sha256": "f4074d79b99646ea84cb650feb3dc2c726963fd619aef95568bf50c875535f3f"
+        },
+        {
+          "path": "codex/T066/execution.md",
+          "source_sha256": "b5ef54efc7dea3012db63817288a67a8182292a5abd5e9477d65d3b9a235cbf3",
+          "public_sha256": "e91901662017a4e0db933afc5ec35c948d76fafb27cb9d86fc27c70b26bc045b"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": ".chart-data-N4KrNs/candidate.pptx",
+          "bytes": 52086,
+          "sha256": "afc298340ef823b23ef50a47e5b088bf25671617c53646526d6f9ab761bbc1b7"
+        },
+        {
+          "path": ".chart-data-N4KrNs/chart-data-snapshot.json",
+          "bytes": 1036,
+          "sha256": "2ff976958c66ac6d76d26d99ab6b75b1b0eeccd5a5e4bcacc4fad273a4120743"
+        },
+        {
+          "path": ".chart-data-QnHWY0/candidate.pptx",
+          "bytes": 52092,
+          "sha256": "def0cdb4210020c7bde316b5d6c74da62e6c4b0ffe7a7a47411ce2ab6060e90a"
+        },
+        {
+          "path": ".chart-data-QnHWY0/chart-data-snapshot.json",
+          "bytes": 1036,
+          "sha256": "95592c936e4f23be98a84563ea3eee02d286f0a386bd7462881145c9670ff3a6"
+        },
+        {
+          "path": ".chart-data-ix6vsM/candidate.pptx",
+          "bytes": 52085,
+          "sha256": "144872661bf326ed91a20c2a29d1cf7c7f92d01d9d286d88aae871a3e5e4901e"
+        },
+        {
+          "path": ".chart-data-ix6vsM/chart-data-snapshot.json",
+          "bytes": 1036,
+          "sha256": "92e5eec822e95ec5df4182217e1160b2e397fdc54e1b2ccb9585e76ba6bfaf6a"
+        },
+        {
+          "path": ".chart-data-jEdHN2/candidate.pptx",
+          "bytes": 51460,
+          "sha256": "841a7ef797f6fe1439f79c5596320803df3c49f4ffe9def036d1baaac4c5b4d6"
+        },
+        {
+          "path": ".chart-data-jEdHN2/chart-data-snapshot.json",
+          "bytes": 1036,
+          "sha256": "5bab275126ac1969c69bfbcdf300e7a68e86977aded204f6fcfdfc84c9b52140"
+        },
+        {
+          "path": "build/candidate.pptx",
+          "bytes": 50616,
+          "sha256": "1a0fb581854b08a001258a36976b389550b3552ee578c2b466f8400aa800254a"
+        },
+        {
+          "path": "build/candidate.pptx.inspect.ndjson",
+          "bytes": 23796,
+          "sha256": "02b971bc778e9a5ebc0b2977e1a9fb4dc0bb3e126df2ea78047d725575849b24"
+        },
+        {
+          "path": "build/create.mjs",
+          "bytes": 9141,
+          "sha256": "388f331ebe46f1a795402a80b5da77f5e53c96a1a65ec53f834c48bb776f6718"
+        },
+        {
+          "path": "build/inspect.ndjson",
+          "bytes": 22682,
+          "sha256": "6bccc30947d4c64087658c27455ee2c05b35713a3140e3ca39ba20a4c050de18"
+        },
+        {
+          "path": "build/render-final.mjs",
+          "bytes": 529,
+          "sha256": "4d3e9f4904c43b0cc27a87174fc581a7065c951c489e734f3284c2c3402cdc12"
+        },
+        {
+          "path": "build/validation.json",
+          "bytes": 6622,
+          "sha256": "88b4b74fabbb5d359832bef678d1ac86bb965fc2cf72424094027d4d7e71d417"
+        },
+        {
+          "path": "deliverables/pilot-report.pptx",
+          "bytes": 52086,
+          "sha256": "afc298340ef823b23ef50a47e5b088bf25671617c53646526d6f9ab761bbc1b7"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 4506,
+          "sha256": "b5ef54efc7dea3012db63817288a67a8182292a5abd5e9477d65d3b9a235cbf3"
+        },
+        {
+          "path": "previews/final-01.png",
+          "bytes": 58572,
+          "sha256": "b991e27f725f6d7ba54c0831c40ca69dbf685873b99369d7eb743a07ee7d342b"
+        },
+        {
+          "path": "previews/final-02.png",
+          "bytes": 59382,
+          "sha256": "d6021bcecb16d70d4f4cf7816e53973435ae7f3b3f6829a5ad995724b1009862"
+        },
+        {
+          "path": "previews/final-03.png",
+          "bytes": 61942,
+          "sha256": "f7b54b5d61907977dc13730e3696eca7f95e72e32cb79834092a31395f84b1c3"
+        },
+        {
+          "path": "previews/final-04.png",
+          "bytes": 55107,
+          "sha256": "af5d3a13856adf3f39e6b63225588b8d3b9510c1236118c43516d9193510bea6"
+        },
+        {
+          "path": "previews/final-05.png",
+          "bytes": 69709,
+          "sha256": "718e0a59308944ba34c11145326487ddc16206f475f82e988bfc2fa1605dbb3b"
+        },
+        {
+          "path": "previews/final-06.png",
+          "bytes": 69704,
+          "sha256": "e0b65a8e83dc4fd570dd0206825460120b0edfed8d8177f461e81ce6c763cc18"
+        },
+        {
+          "path": "previews/final-07.png",
+          "bytes": 67104,
+          "sha256": "28edfc45eaaa93625980abf80ab62fd83122a1780aec5fbca1d74222220030df"
+        },
+        {
+          "path": "previews/final-08.png",
+          "bytes": 46703,
+          "sha256": "09dfaa0d1d35373e6fc772cc92067d4592e3e72e654f1c585ff1f5d7accc14d0"
+        },
+        {
+          "path": "previews/final-09.png",
+          "bytes": 74949,
+          "sha256": "e61850bce6f49d4f85aa28d5e09204faf8356c5f6d8c0b48d7c3c698203d1d92"
+        },
+        {
+          "path": "previews/final-10.png",
+          "bytes": 71434,
+          "sha256": "f91b79b1270a5b08f947e1f8473f69f07c40ca6fb25dc4cf2e3ed7a9c77c357b"
+        },
+        {
+          "path": "previews/montage.png",
+          "bytes": 391328,
+          "sha256": "6b071f874a28fc72bd414bb244e48e50586de5cda4238614957c2a6bdb1d26a8"
+        },
+        {
+          "path": "previews/slide-01.png",
+          "bytes": 58572,
+          "sha256": "b991e27f725f6d7ba54c0831c40ca69dbf685873b99369d7eb743a07ee7d342b"
+        },
+        {
+          "path": "previews/slide-02.png",
+          "bytes": 59382,
+          "sha256": "d6021bcecb16d70d4f4cf7816e53973435ae7f3b3f6829a5ad995724b1009862"
+        },
+        {
+          "path": "previews/slide-03.png",
+          "bytes": 61942,
+          "sha256": "f7b54b5d61907977dc13730e3696eca7f95e72e32cb79834092a31395f84b1c3"
+        },
+        {
+          "path": "previews/slide-04.png",
+          "bytes": 55107,
+          "sha256": "af5d3a13856adf3f39e6b63225588b8d3b9510c1236118c43516d9193510bea6"
+        },
+        {
+          "path": "previews/slide-05.png",
+          "bytes": 69709,
+          "sha256": "718e0a59308944ba34c11145326487ddc16206f475f82e988bfc2fa1605dbb3b"
+        },
+        {
+          "path": "previews/slide-06.png",
+          "bytes": 69704,
+          "sha256": "e0b65a8e83dc4fd570dd0206825460120b0edfed8d8177f461e81ce6c763cc18"
+        },
+        {
+          "path": "previews/slide-07.png",
+          "bytes": 67104,
+          "sha256": "28edfc45eaaa93625980abf80ab62fd83122a1780aec5fbca1d74222220030df"
+        },
+        {
+          "path": "previews/slide-08.png",
+          "bytes": 46703,
+          "sha256": "09dfaa0d1d35373e6fc772cc92067d4592e3e72e654f1c585ff1f5d7accc14d0"
+        },
+        {
+          "path": "previews/slide-09.png",
+          "bytes": 74949,
+          "sha256": "e61850bce6f49d4f85aa28d5e09204faf8356c5f6d8c0b48d7c3c698203d1d92"
+        },
+        {
+          "path": "previews/slide-10.png",
+          "bytes": 71434,
+          "sha256": "f91b79b1270a5b08f947e1f8473f69f07c40ca6fb25dc4cf2e3ed7a9c77c357b"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1256,
+          "sha256": "f4074d79b99646ea84cb650feb3dc2c726963fd619aef95568bf50c875535f3f"
+        },
+        {
+          "path": "speaker-notes.txt",
+          "bytes": 4242,
+          "sha256": "5e380e16b8aff1607f0fde752854685bcdf1f2fd6d842ec779119479519fb160"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 314,
+          "sha256": "cc552d52b67ee2ef17966aefd9ec8b44782a026cf8da666157fa4834132d18e2"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-67",
+      "original_id": "T067",
+      "title": "流程图转SOP",
+      "verdict": "passed",
+      "review": "实际看图有记录，规格→3报价→税运费→经理审批，批准导出归档/拒绝修订正确；无法配送缺失分支与其他推导缺口分开，拒绝后回流节点未造为既定规则，未读其他SOP替代。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "确实读取原图并整图/裁切两次识别，8行转录准确，批准导出归档/驳回改报价正确；运费不可用及回退目标等图中未定义分支清晰，未用其他SOP替代。",
+      "observed_start_at": "2026-10-29T11:34:01.085241+00:00",
+      "observed_finished_at": "2026-10-29T11:35:06.506392+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T067/result.md",
+          "source_sha256": "05710dce8b87efacde94f77c52dc076ebd209b2124ca261cb69dd9f7b8fc8224",
+          "public_sha256": "05710dce8b87efacde94f77c52dc076ebd209b2124ca261cb69dd9f7b8fc8224"
+        },
+        {
+          "path": "codex/T067/execution.md",
+          "source_sha256": "ba7a0c46cab1932b415c02330f1dc805db0911878dc3975422fe9d318b079c72",
+          "public_sha256": "ee4b68a6a70e220e77ccd237a265564c7951e6322a146121350f93496ad02e7a"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1730,
+          "sha256": "ba7a0c46cab1932b415c02330f1dc805db0911878dc3975422fe9d318b079c72"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2678,
+          "sha256": "05710dce8b87efacde94f77c52dc076ebd209b2124ca261cb69dd9f7b8fc8224"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-68",
+      "original_id": "T068",
+      "title": "扫描件字段提取",
+      "verdict": "passed",
+      "review": "图像型PDF实际渲染并目视提取，真实CSV QL-001/2026-10-20/10/120/156/1356与图一致，运费留空及not_stated，不用算术推运费0，源文件未改。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "真实图像PDF经OCR，QL-001/10/120/156/1356与图像一致，运费留空，实际交付字段与置信状态CSV。",
+      "observed_start_at": "2026-10-29T11:34:25.674161+00:00",
+      "observed_finished_at": "2026-10-29T11:35:42.316351+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T068/result.md",
+          "source_sha256": "d038a3d9e39a597c768eac5273250c1e6de3b81dadd431f1f684caf0f7de25bf",
+          "public_sha256": "d038a3d9e39a597c768eac5273250c1e6de3b81dadd431f1f684caf0f7de25bf"
+        },
+        {
+          "path": "codex/T068/execution.md",
+          "source_sha256": "574cea2032db3f98572abaa9f9e8b1fd98e1245da1b030ebc1dd0390f172a0f5",
+          "public_sha256": "de41d678d2add0492f69968f05d46d31dfad8fe6d2f2e31f7008ce3418eb29e8"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2611,
+          "sha256": "574cea2032db3f98572abaa9f9e8b1fd98e1245da1b030ebc1dd0390f172a0f5"
+        },
+        {
+          "path": "invoice.csv",
+          "bytes": 315,
+          "sha256": "c17018e4fb09c3e53a282941807905f2219c6d1dd7fd50a2e26eeecb31ca30f4"
+        },
+        {
+          "path": "result.md",
+          "bytes": 954,
+          "sha256": "d038a3d9e39a597c768eac5273250c1e6de3b81dadd431f1f684caf0f7de25bf"
+        },
+        {
+          "path": "scan-1.png",
+          "bytes": 40694,
+          "sha256": "6c0e0f50d3bfd9edf7926b11311b3241d358779696fdf7b42712a7f8ef7e2ea2"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 243,
+          "sha256": "fe9732278fae643234ea43a88bcd4c6f66230647434305e1a02ff5ab961e1fe4"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-69",
+      "original_id": "T069",
+      "title": "双语一致性审校",
+      "verdict": "passed",
+      "review": "20/200、60/30、12/6、自动下单否定丢失和quote comparison术语五项正确，完整双语修订一致；以中文为修订基准明示，保留对象未知不扩大规则。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "20/200、60/30、12/6、自动下单否定丢失与术语误用均识别，双语修订一致，权威语种假设与起算点待确认。",
+      "observed_start_at": "2026-10-29T11:35:06.416888+00:00",
+      "observed_finished_at": "2026-10-29T11:36:04.681809+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T069/result.md",
+          "source_sha256": "002348fa64a601707ab893d329f8698dca5bfa178aa1b794cc9355740bf0cb8b",
+          "public_sha256": "002348fa64a601707ab893d329f8698dca5bfa178aa1b794cc9355740bf0cb8b"
+        },
+        {
+          "path": "codex/T069/execution.md",
+          "source_sha256": "f53a0dd0ef2eef11ab8bc3d599db93804de746c5342593deda4fde3e83abba60",
+          "public_sha256": "c5f9c0c0582c0ac37a9d962cb15659cc2ce153f85b0c441d7d799aaeb8445867"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1863,
+          "sha256": "f53a0dd0ef2eef11ab8bc3d599db93804de746c5342593deda4fde3e83abba60"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2608,
+          "sha256": "002348fa64a601707ab893d329f8698dca5bfa178aa1b794cc9355740bf0cb8b"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-70",
+      "original_id": "T070",
+      "title": "资料索引",
+      "verdict": "passed",
+      "review": "独立核对64路径集合无遗漏/重复，逐份一句用途；合同PDF与50页报告正文用途正确，p37例外保留，音频未转写限制明确。流程图运费异常概括略窄，但主要目录定位和用途完整。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "重跑实际枚举64份、路径集合与磁盘一致，含PDF/PNG/WAV；但把contract.pdf和50页报告误判只有页脚占位文字，未对正文提取失败换解析器，故两份用途与内容索引错误。",
+      "observed_start_at": "2026-10-29T11:35:06.416888+00:00",
+      "observed_finished_at": "2026-10-29T11:37:28.977834+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T070/result.md",
+          "source_sha256": "8f29598bffb11dccf658b9b6a88927dbc3b9075465b86ec283ad78aa9ed7b58c",
+          "public_sha256": "8f29598bffb11dccf658b9b6a88927dbc3b9075465b86ec283ad78aa9ed7b58c"
+        },
+        {
+          "path": "codex/T070/execution.md",
+          "source_sha256": "fc5c3b609c3b15c2aa1e686acf520a8d455bafc1b3703c368df56189a4312af7",
+          "public_sha256": "731621ff7459f355b243b446f3fe998acc2e19afc979e6aa4dbc6306a8d44fd2"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "contract_extracted.txt",
+          "bytes": 301,
+          "sha256": "3b3c3c17917a9651034d9281ccc4266762a3890137c0b5aa045bde18a64e2e9f"
+        },
+        {
+          "path": "coverage.json",
+          "bytes": 460,
+          "sha256": "02805a019c497345a1718b7b729152cdb99fe76ca356b0d0509578f117a39f3c"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 4447,
+          "sha256": "fc5c3b609c3b15c2aa1e686acf520a8d455bafc1b3703c368df56189a4312af7"
+        },
+        {
+          "path": "report_50pages_extracted.txt",
+          "bytes": 15999,
+          "sha256": "2d0a5b5ad2b8952b22c7dd245767c030991e2d42e2fc4d80a41dacda27e9462e"
+        },
+        {
+          "path": "result.md",
+          "bytes": 9426,
+          "sha256": "8f29598bffb11dccf658b9b6a88927dbc3b9075465b86ec283ad78aa9ed7b58c"
+        },
+        {
+          "path": "scan.png",
+          "bytes": 37968,
+          "sha256": "9be5b0d8987f1af26c57c6d41f2f2c32e4f6919df5883048860cb27e83bc9cc6"
+        },
+        {
+          "path": "scan_extracted.txt",
+          "bytes": 1,
+          "sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-71",
+      "original_id": "T071",
+      "title": "发票付款对账",
+      "verdict": "passed",
+      "review": "实际对账及异常CSV，I03未付3000、I02两笔同额超付2000、I04少付300正确；7500/6200差1300勾稽，I02双分类不重复累计，未到期与逾期分开，实际重复结算状态待核。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "实际交付CSV三异常：I03未付3000、I02/P02/P03重复多付2000、I04少付300；合计差额1300可勾稽，未重复计数。",
+      "observed_start_at": "2026-10-29T11:35:42.237183+00:00",
+      "observed_finished_at": "2026-10-29T11:36:45.905530+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T071/result.md",
+          "source_sha256": "77490202fd34f43ce1821a40d8054718397a17fd97918b9192a23a4489b9ce83",
+          "public_sha256": "77490202fd34f43ce1821a40d8054718397a17fd97918b9192a23a4489b9ce83"
+        },
+        {
+          "path": "codex/T071/execution.md",
+          "source_sha256": "cb9b232da0ed284aa0deceef7348ba798cdf685b3d64055ab50a31d2426435af",
+          "public_sha256": "793999b6a2042041c0f074d7b708a73a045111972da36fea3b8990c09d927810"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "exceptions.csv",
+          "bytes": 532,
+          "sha256": "d9427bc88c039db8a92e42fec15e3c1c44cfc06c1ecefaa21721e829003e4e99"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 2031,
+          "sha256": "cb9b232da0ed284aa0deceef7348ba798cdf685b3d64055ab50a31d2426435af"
+        },
+        {
+          "path": "reconciliation.csv",
+          "bytes": 343,
+          "sha256": "e20fada5b28c69957b2e77477a572b05c927c0feb9ed7350846c0559778e118c"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1435,
+          "sha256": "77490202fd34f43ce1821a40d8054718397a17fd97918b9192a23a4489b9ce83"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 220,
+          "sha256": "572f2910990fb75cfcd93ec443f17ed47b4966bb3ce4864f59234cc4b2f1dec0"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-72",
+      "original_id": "T072",
+      "title": "费用汇总",
+      "verdict": "passed",
+      "review": "真实五种汇总/异常CSV，54000及部门3000/51000、项目2200/51000/800正确；E4=50000占92.5926%，IQR上界1500定义明确，统计异常不当违规或录入错误。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "54000总额、部门/项目/类型汇总及E4=50000异常正确，未直接定性错误，实际汇总及异常CSV完整。",
+      "observed_start_at": "2026-10-29T11:36:04.612427+00:00",
+      "observed_finished_at": "2026-10-29T11:37:56.360760+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T072/result.md",
+          "source_sha256": "4b049770d9266049194532450d74470553e4ddc1ef3cf76c7c9ae6425e178505",
+          "public_sha256": "4b049770d9266049194532450d74470553e4ddc1ef3cf76c7c9ae6425e178505"
+        },
+        {
+          "path": "codex/T072/execution.md",
+          "source_sha256": "46223394cb5b6893273d74d339a7ba6eb4a5c9da56dac34110e1f8ff81b73b37",
+          "public_sha256": "bfca8824b1a9f1154b6747189aa973ec8057dc3a0e74e9ac24cafcd11a0339b1"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "analyze.py",
+          "bytes": 4284,
+          "sha256": "2ff6423851b47bbfbaea35b92feae03dd86ed67448f791f871959a05d8392266"
+        },
+        {
+          "path": "by_department.csv",
+          "bytes": 138,
+          "sha256": "7f38cd99ddf093b63731a849c1d0f372b22550c59240a217549e3d65034186cf"
+        },
+        {
+          "path": "by_department_project_type.csv",
+          "bytes": 205,
+          "sha256": "75808c64d9bcbaec01935fb4ac76d734fe29e0b674d3eb982482b85412d4ecbc"
+        },
+        {
+          "path": "by_project.csv",
+          "bytes": 144,
+          "sha256": "b1f1ec88f5a8b92b618ce12811e8fa9fab2ae02712ede2fe62fcccaf1cb952f4"
+        },
+        {
+          "path": "by_type.csv",
+          "bytes": 159,
+          "sha256": "3e3d63ae565390c711795f932087cb1cde31c7190d2be17891a6bd1b925c6e28"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 3362,
+          "sha256": "46223394cb5b6893273d74d339a7ba6eb4a5c9da56dac34110e1f8ff81b73b37"
+        },
+        {
+          "path": "large_expense_anomalies.csv",
+          "bytes": 419,
+          "sha256": "47d913bc04b4c91508824ccc614fbe67cdfa9cf5004459d586c2ec984e9b5e1a"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2050,
+          "sha256": "4b049770d9266049194532450d74470553e4ddc1ef3cf76c7c9ae6425e178505"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 845,
+          "sha256": "b9ac9bd44f7518ba9a46f75db64570d2fe0f72f65969c790d061ce791b285262"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-73",
+      "original_id": "T073",
+      "title": "预算差异分析",
+      "verdict": "passed",
+      "review": "研发+2000/+20%、市场-5000/-25%、总35000至32000差-3000/-8.57%准确；活动延期为支出递延而非永久节省，合计比例不平均部门比例。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "研发+2000/+20%、市场-5000/-25%、合计-3000/-8.57%正确；市场活动延期解释为时间递延，未当真实效率节约。",
+      "observed_start_at": "2026-10-29T11:36:45.788454+00:00",
+      "observed_finished_at": "2026-10-29T11:37:56.360760+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T073/result.md",
+          "source_sha256": "27a0389e6fbc262aa4cbd6ddb10db5374791078226c8662951f9a0f22f2a7612",
+          "public_sha256": "27a0389e6fbc262aa4cbd6ddb10db5374791078226c8662951f9a0f22f2a7612"
+        },
+        {
+          "path": "codex/T073/execution.md",
+          "source_sha256": "63eb9fad202b653114b1d54db17ddaa916363cfba8e9f4f03a31f6f85d6956e8",
+          "public_sha256": "765fd4443b238575be669e1033939ef8130fe82e99272252b97d45bb48ff56dd"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "calculation.json",
+          "bytes": 660,
+          "sha256": "ec328a7f08882bbb7f8d6b737e1282b207f4bd035e9f469e8034a187072935a6"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 1865,
+          "sha256": "63eb9fad202b653114b1d54db17ddaa916363cfba8e9f4f03a31f6f85d6956e8"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1043,
+          "sha256": "27a0389e6fbc262aa4cbd6ddb10db5374791078226c8662951f9a0f22f2a7612"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-74",
+      "original_id": "T074",
+      "title": "供应商报价比较",
+      "verdict": "passed",
+      "review": "真实比较CSV，11800/11074+未知运费/11865和726/791严格临界正确，税与运费口径假设明确；交期质保和0.55%溢价准确，S2不当完整最低价。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "100件含税含运11800/未知11074+运费/11865正确，S2空值不补0，临界726/791表与交期质保正确；文字725上限应保留小数可能。",
+      "observed_start_at": "2026-10-29T11:37:28.894885+00:00",
+      "observed_finished_at": "2026-10-29T11:39:03.602877+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T074/result.md",
+          "source_sha256": "5a9dbdc26be670642d4a906389e1e43cc8589bb8022172c7ccaed7deee3a5bc7",
+          "public_sha256": "5a9dbdc26be670642d4a906389e1e43cc8589bb8022172c7ccaed7deee3a5bc7"
+        },
+        {
+          "path": "codex/T074/execution.md",
+          "source_sha256": "06c19768dbb73087abd1266de5c40fa0fd776f826299e9c36e6c0698949973cf",
+          "public_sha256": "decd20f9a7f1d920dc52a55009e0619f1b4c8d63dbee01e7712b52fdcbdcb05b"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1984,
+          "sha256": "06c19768dbb73087abd1266de5c40fa0fd776f826299e9c36e6c0698949973cf"
+        },
+        {
+          "path": "normalized_quotes.csv",
+          "bytes": 308,
+          "sha256": "f3cd5284366a3eabea4fbca54111bcd5542a2836bf4372bea71a526e19484717"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2283,
+          "sha256": "5a9dbdc26be670642d4a906389e1e43cc8589bb8022172c7ccaed7deee3a5bc7"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-75",
+      "original_id": "T075",
+      "title": "补货建议",
+      "verdict": "passed",
+      "review": "按任务指定公式实际计算A40/B0，负数归零，在途及时到货/库存可用/单位/安全库存/MOQ假设明示。只给公式补货量，未进一步完成到货前时序分析；无库存足以覆盖交期的错误断言。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "公式计算A40/B0及在途、MOQ假设正确；却称A当前库存能覆盖到货前需求，实际50<7×10=70，会提前缺货，应提示该风险。",
+      "observed_start_at": "2026-10-29T11:37:56.297238+00:00",
+      "observed_finished_at": "2026-10-29T11:39:03.602877+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T075/result.md",
+          "source_sha256": "324b114b27b85fc692d3d3332e205ecdf6c8ed2609a982e7bda7b343f31e3a19",
+          "public_sha256": "324b114b27b85fc692d3d3332e205ecdf6c8ed2609a982e7bda7b343f31e3a19"
+        },
+        {
+          "path": "codex/T075/execution.md",
+          "source_sha256": "13da60ccf025b15397cca74c47586bf02700e5864106032c7ad9a5b2c85a3719",
+          "public_sha256": "ce89c7f5aafed165661a7034f7c11c569c465622f1d449ea71aef0dc1a945783"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1795,
+          "sha256": "13da60ccf025b15397cca74c47586bf02700e5864106032c7ad9a5b2c85a3719"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1118,
+          "sha256": "324b114b27b85fc692d3d3332e205ecdf6c8ed2609a982e7bda7b343f31e3a19"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-76",
+      "original_id": "T076",
+      "title": "应收账龄分析",
+      "verdict": "passed",
+      "review": "3300未清/300逾期1日、重复2000单挂与7500/4200/3300勾稽正确，真实CSV及草稿。按任务应收口径处理vendor字段的假设明示；未把疑似重复当实际多汇，付款日期缺失和实际结算待核，未发送。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "复核仍部分通过：3300未清、300逾期及2000单挂正确。按任务建立应收假设本身不扣分；但把6200付款记录称银行实收、将P03确定为已多汇并让S2选择退款/抵扣，无交易状态与流水支撑。",
+      "observed_start_at": "2026-10-29T11:37:56.297238+00:00",
+      "observed_finished_at": "2026-10-29T11:39:30.205979+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T076/result.md",
+          "source_sha256": "e6e335027279315ad6ca02d137fcf2898fac952a1f558ee17471df2aa31916bd",
+          "public_sha256": "e6e335027279315ad6ca02d137fcf2898fac952a1f558ee17471df2aa31916bd"
+        },
+        {
+          "path": "codex/T076/execution.md",
+          "source_sha256": "c68c654742a3411a90d88973fc0246cdc6d66b76246d5a8a961602d679f6e4b8",
+          "public_sha256": "925503d2f11c56cf35a0992d272bc90f10f67a41916fd45fb40395891c5284fe"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "analyze.py",
+          "bytes": 2702,
+          "sha256": "1d8fa2874963825beacc4223919ec3cbc9fbe65f17e0614de439b3e162c5f5a6"
+        },
+        {
+          "path": "duplicate_payments.csv",
+          "bytes": 132,
+          "sha256": "2af120987d416acc8fc9b52d5bf8b824b053d667e36d6d5f287d115eb3580b87"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 2540,
+          "sha256": "c68c654742a3411a90d88973fc0246cdc6d66b76246d5a8a961602d679f6e4b8"
+        },
+        {
+          "path": "receivables.csv",
+          "bytes": 250,
+          "sha256": "779aceb025cfda0540ebf7e248552762c7530b37d1c3396d5421d8aef198d43f"
+        },
+        {
+          "path": "reconciliation.json",
+          "bytes": 348,
+          "sha256": "e3cec4d806fe92766ad43f9b7d0830f8b54e7acb1beb6878841bd6ffcbcf8b2e"
+        },
+        {
+          "path": "result.md",
+          "bytes": 3268,
+          "sha256": "e6e335027279315ad6ca02d137fcf2898fac952a1f558ee17471df2aa31916bd"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-77",
+      "original_id": "T077",
+      "title": "采购合并",
+      "verdict": "passed",
+      "review": "按SKU+规格合并R1/R2为A-M8数量100、取最早11-10；A-M10与B-12V分别保留，150总量守恒，供应商能力及提前收货条件未知未承诺。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "按SKU+spec合并R1/R2为A/M8共100，日期11-10；A/M10及B/12V分开，缺供应商/MOQ等未编造。",
+      "observed_start_at": "2026-10-29T11:39:03.540418+00:00",
+      "observed_finished_at": "2026-10-29T11:39:48.819106+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T077/result.md",
+          "source_sha256": "bd86d5d5cd06778e8d9431d2abed7ecf9be266b62823423211c0334d82b273d9",
+          "public_sha256": "bd86d5d5cd06778e8d9431d2abed7ecf9be266b62823423211c0334d82b273d9"
+        },
+        {
+          "path": "codex/T077/execution.md",
+          "source_sha256": "a6082934fdff78fd18e1ab9257cf348934a3d11b641e2c8ac934c3cfa429cb53",
+          "public_sha256": "065a0a3df1c0090e7f23332be01f055718da2ee07d99d5752fadf2d5eba0d4ea"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1803,
+          "sha256": "a6082934fdff78fd18e1ab9257cf348934a3d11b641e2c8ac934c3cfa429cb53"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1073,
+          "sha256": "bd86d5d5cd06778e8d9431d2abed7ecf9be266b62823423211c0334d82b273d9"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-78",
+      "original_id": "T078",
+      "title": "供应商履约分析",
+      "verdict": "passed",
+      "review": "实际脚本准时50%/100%、数量加权缺陷2%/0.6667%、同供应商单价10至11/12持平正确；提前算准时，未跨供应商拼价格趋势或声称V2所有维度更优，单价可比性假设明确。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "各供应商准时率50%/100%、加权缺陷率2%/0.6667%、涨价10%/0正确；额外跨供应商合计10→12当价格变化无业务意义，并称V2三项均优，忽略其价格更高。",
+      "observed_start_at": "2026-10-29T11:39:03.540418+00:00",
+      "observed_finished_at": "2026-10-29T11:40:54.007014+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T078/result.md",
+          "source_sha256": "e7fb42422468111deab61d1b66e7e3e1c469af48f1aaa2caff7896939aff4298",
+          "public_sha256": "e7fb42422468111deab61d1b66e7e3e1c469af48f1aaa2caff7896939aff4298"
+        },
+        {
+          "path": "codex/T078/execution.md",
+          "source_sha256": "06069f8a1ccc10bd2f38a14a784d0d4f9c91fba90a2dc4d865eb6fb7792f2284",
+          "public_sha256": "9d302f6d9e64f588449d29cdf8c0cb55f259eb2e5af0a637272d5bf87b780153"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "analyze.mjs",
+          "bytes": 4763,
+          "sha256": "42c5163b1f3fb712934c7434944b7859549a07bdb405df2c6e1869d31c39d05b"
+        },
+        {
+          "path": "calculations.json",
+          "bytes": 876,
+          "sha256": "2ee672e5088a8495ccc4c58cf92655481421ae309699043bd833968ed485b176"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 3117,
+          "sha256": "06069f8a1ccc10bd2f38a14a784d0d4f9c91fba90a2dc4d865eb6fb7792f2284"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2630,
+          "sha256": "e7fb42422468111deab61d1b66e7e3e1c469af48f1aaa2caff7896939aff4298"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-79",
+      "original_id": "T079",
+      "title": "合同90天提醒",
+      "verdict": "passed",
+      "review": "真实5事件CSV，C1/C2到期及C1/C2/C3付款纳入，1-27第90天包含、C3三月到期不纳入；主口径和含起点至1-26的替代口径一致，金额字段不当应付余额，不双算C2。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "主表正确包含C1/C2到期及C1/C2/C3付款，1-27边界明确；替代90天口径错误描述为不含起点却截止1-26，并称C3唯一先付款后又列C1同样情况。",
+      "observed_start_at": "2026-10-29T11:39:30.125477+00:00",
+      "observed_finished_at": "2026-10-29T11:40:54.007014+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T079/result.md",
+          "source_sha256": "ed15bc61292658449e71c7b2d45c29a5d5effc589d13a928c5226ada61484703",
+          "public_sha256": "ed15bc61292658449e71c7b2d45c29a5d5effc589d13a928c5226ada61484703"
+        },
+        {
+          "path": "codex/T079/execution.md",
+          "source_sha256": "31c960d98d16dbe797163a2945f37e4233e701c623c6a31d0c11a597f5b83308",
+          "public_sha256": "5d1ef64123428c1c077fe0511b60d7681ad832370c0299816953fdc97c321c89"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1860,
+          "sha256": "31c960d98d16dbe797163a2945f37e4233e701c623c6a31d0c11a597f5b83308"
+        },
+        {
+          "path": "reminders.csv",
+          "bytes": 296,
+          "sha256": "339485358ec5b666c7a89ccde1d1d231131dd36f5dc3ebd5216cff46468e9462"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1630,
+          "sha256": "ed15bc61292658449e71c7b2d45c29a5d5effc589d13a928c5226ada61484703"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-80",
+      "original_id": "T080",
+      "title": "报价漏项审计",
+      "verdict": "passed",
+      "review": "已知成本154000、余额46000与23%正确，运费/差旅/税费/维护/有效期均待核，不把缺项当0或下净利润结论。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "已知成本154000、毛利46000/23%正确；运费/差旅/税/维护均待确认，不据此给净利润或盈利结论。",
+      "observed_start_at": "2026-10-29T11:39:48.736554+00:00",
+      "observed_finished_at": "2026-10-29T11:40:54.007014+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T080/result.md",
+          "source_sha256": "e5bf3370ed7d7e9987c3f6aceffda2b7df419a05eda979ad97447b13f837f3d7",
+          "public_sha256": "e5bf3370ed7d7e9987c3f6aceffda2b7df419a05eda979ad97447b13f837f3d7"
+        },
+        {
+          "path": "codex/T080/execution.md",
+          "source_sha256": "9dfc1d3f244f85ebf969ed2b410ebe3e265195f340d6bb4c6520988031d26bbc",
+          "public_sha256": "93c0fbceb336aed871c9617b4b0cfa88084b62b806cd43e733b51a54744cabee"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1391,
+          "sha256": "9dfc1d3f244f85ebf969ed2b410ebe3e265195f340d6bb4c6520988031d26bbc"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1277,
+          "sha256": "e5bf3370ed7d7e9987c3f6aceffda2b7df419a05eda979ad97447b13f837f3d7"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-81",
+      "original_id": "T081",
+      "title": "仓库理解",
+      "verdict": "passed",
+      "review": "用途/目录/命令完整，实际原1项测试通过、入口200，折扣整除bug及覆盖不足正确；未把API文档当已实现服务，sample.db明确未读内部，不伪称空库，源码未改。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "实际运行原1条测试通过并正确识别覆盖不足与折扣bug；只查schema就称sample.db空库，独立查询证实orders/items各3行，仓库数据判断错误。",
+      "observed_start_at": "2026-10-29T11:40:53.940062+00:00",
+      "observed_finished_at": "2026-10-29T11:41:41.247265+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T081/result.md",
+          "source_sha256": "3ee8a9c928560bb989e7051d4fb5dd738d757c24de0e38d0a9d32d2f9e6e4511",
+          "public_sha256": "3ee8a9c928560bb989e7051d4fb5dd738d757c24de0e38d0a9d32d2f9e6e4511"
+        },
+        {
+          "path": "codex/T081/execution.md",
+          "source_sha256": "1077b00905bccb1309619e149543fdbb1a0132c34bcb757edd65fd2d4a9ac189",
+          "public_sha256": "d1d4622fa7c606979e6a9ee674f6412435c09274ec0df0ccc44da3a801ca38f7"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2722,
+          "sha256": "1077b00905bccb1309619e149543fdbb1a0132c34bcb757edd65fd2d4a9ac189"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2478,
+          "sha256": "3ee8a9c928560bb989e7051d4fb5dd738d757c24de0e38d0a9d32d2f9e6e4511"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-82",
+      "original_id": "T082",
+      "title": "定位修复bug",
+      "verdict": "passed",
+      "review": "修复源码和测试真实交付，唯一业务变更整除改普通除；独立复跑6测试全过，10%为180/12.5%175/100%0正确，旧码2失败有回执，原输入哈希未变。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "真实在副本将//改/，8条回归通过、旧代码3条失败，原源码哈希未变；修复文件未发布，回复称仅留临时沙箱，用户拿不到请求要求的实际文件附件。",
+      "observed_start_at": "2026-10-29T11:40:53.940062+00:00",
+      "observed_finished_at": "2026-10-29T11:42:02.500577+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T082/result.md",
+          "source_sha256": "0fb1cb9ee0adcfd551267ca32c8ac6f83b587f32b6fa87489d2cb89dc769c332",
+          "public_sha256": "0fb1cb9ee0adcfd551267ca32c8ac6f83b587f32b6fa87489d2cb89dc769c332"
+        },
+        {
+          "path": "codex/T082/execution.md",
+          "source_sha256": "ab7598ac3f628d4aae84ec1e3682b30642180769ceebcbd0b7185659a8b02eb1",
+          "public_sha256": "3949179a1628f7217c3efa4a8d1b47c57f8ababf6ad85ff854a4410d09e48fb2"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2400,
+          "sha256": "ab7598ac3f628d4aae84ec1e3682b30642180769ceebcbd0b7185659a8b02eb1"
+        },
+        {
+          "path": "fix.diff",
+          "bytes": 1061,
+          "sha256": "3acd1c8da8735948bb5b9e3238db561c99acc67040e83b372ca21149744ea913"
+        },
+        {
+          "path": "repo/README.md",
+          "bytes": 194,
+          "sha256": "9a1671e8952ba0ef85ad429bfbf97b801936ba5c4d8ad473e233929e9fda6673"
+        },
+        {
+          "path": "repo/api.md",
+          "bytes": 240,
+          "sha256": "adc7c918517e24048706445fac9f4233fb93742d891b91fd3f0cc5219c28970f"
+        },
+        {
+          "path": "repo/app.py",
+          "bytes": 210,
+          "sha256": "64daf8176120e198ef4ac17e05f1d983dc6dac281a0c6f55800ea30ca9f0b01c"
+        },
+        {
+          "path": "repo/change.diff",
+          "bytes": 118,
+          "sha256": "e9788275e28b46c3230bb1c27b0040d71884051859d4aaead0a253b8f81e0525"
+        },
+        {
+          "path": "repo/error.txt",
+          "bytes": 133,
+          "sha256": "9b22932e9dc63f1e735b5b4f45b19c23cc38d4bc9d8ec17a41df35bea5d4487a"
+        },
+        {
+          "path": "repo/manual.md",
+          "bytes": 176,
+          "sha256": "8014478d860f110579773d3b272e404f53c1a7908f9396f945b3e83527215432"
+        },
+        {
+          "path": "repo/page.html",
+          "bytes": 258,
+          "sha256": "b028022afa41769f3271041368ffa75e3aea1ef7b5303a9948d6198cad493cac"
+        },
+        {
+          "path": "repo/request.log",
+          "bytes": 306,
+          "sha256": "9c9d3a7c3a456b87f43ac8697a8a4ce4042100755215effe511a0967b0b15c91"
+        },
+        {
+          "path": "repo/sample.db",
+          "bytes": 20480,
+          "sha256": "08b2400ae29a07a585a047b1b74e4fa8a303d67af43b156ccf034844483475c8"
+        },
+        {
+          "path": "repo/schema.sql",
+          "bytes": 161,
+          "sha256": "271b300d5f1da042adf6ccd355db37fef5416bb1cc79d99eae221d886d6140a1"
+        },
+        {
+          "path": "repo/tests/test_app.py",
+          "bytes": 631,
+          "sha256": "f47c8f46eb5704d4e90dfd01f00f3b3562172496b09ee3ef92181b63e9d036ea"
+        },
+        {
+          "path": "result.md",
+          "bytes": 912,
+          "sha256": "0fb1cb9ee0adcfd551267ca32c8ac6f83b587f32b6fa87489d2cb89dc769c332"
+        },
+        {
+          "path": "source_sha256.json",
+          "bytes": 923,
+          "sha256": "fc2572a378dd1adf4dd78fec09a5ca9d83f3b7d30caccb814d21c5c962c8a9cd"
+        },
+        {
+          "path": "test-output.txt",
+          "bytes": 403,
+          "sha256": "e3bb2e136047f1aa60020486ac57dc4e2f8e5c145628c3e634ce9e59804c7801"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-83",
+      "original_id": "T083",
+      "title": "数据处理脚本",
+      "verdict": "passed",
+      "review": "可复用脚本/CSV/异常真实交付，去重先于paid筛选、6客户3300及OX排除正确；父评估者独立dry-run未建目录，正式两次3产物哈希相同，源文件未改，Decimal金额与异常来源可复核。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "实际处理16行、剔除cancelled，6客户合计3300；先dry-run零产物、两次正式输出哈希一致，无追加；完整可复用脚本随回答交付，异常及去重规则有对照。",
+      "observed_start_at": "2026-10-29T11:40:53.940062+00:00",
+      "observed_finished_at": "2026-10-29T11:42:35.584304+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T083/result.md",
+          "source_sha256": "133cee661f94c712c52f31fd91f0a32485378a0e1d7ed07834e279e86f58b8b3",
+          "public_sha256": "133cee661f94c712c52f31fd91f0a32485378a0e1d7ed07834e279e86f58b8b3"
+        },
+        {
+          "path": "codex/T083/execution.md",
+          "source_sha256": "ae6299b1a4db42d99d21b0e1f7f690fbdc8c7ed06c3626541b614bc16b11e2ae",
+          "public_sha256": "5155030f834f33dc1b29870d32cfdd6d2a2dfe46234e8fdd22df096c117842d7"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "exceptions.csv",
+          "bytes": 106,
+          "sha256": "4782c1b44f9a99fde517cf9331e380904e6bc013f956db37d7b27ca312f916a9"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 3225,
+          "sha256": "ae6299b1a4db42d99d21b0e1f7f690fbdc8c7ed06c3626541b614bc16b11e2ae"
+        },
+        {
+          "path": "process_sales.py",
+          "bytes": 4460,
+          "sha256": "ac115d471947957665845b41dd37324e67df489da968b9850f719161bad83e63"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2182,
+          "sha256": "133cee661f94c712c52f31fd91f0a32485378a0e1d7ed07834e279e86f58b8b3"
+        },
+        {
+          "path": "statistics.json",
+          "bytes": 277,
+          "sha256": "91dcd0cfbb20e6ba60823dff925772ae65b88639121e21ab642c3d6c64737705"
+        },
+        {
+          "path": "summary.csv",
+          "bytes": 80,
+          "sha256": "f575936403d8666ef7319a7be58d862873c8209dda9dbb70ba33a6dc4da0bd85"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 3275,
+          "sha256": "f38318cbda45c835305c146b92e0ca997f46a3a641e7c34c58a7a27a5c083abc"
+        },
+        {
+          "path": "verify_run.py",
+          "bytes": 2787,
+          "sha256": "6b1c00bcfa85fae362e0ca3cd0ca8caa85a84db5f810fda834faf26321ef17cb"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-84",
+      "original_id": "T084",
+      "title": "补接口边界测试",
+      "verdict": "passed",
+      "review": "源码副本及19新增测试实际交付，独立复跑共20项9过11失败一致；折扣中间值/边界/负数/非法值均覆盖，函数健壮性与JSON/HTTP边界分开，未伪报全绿或改实现。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "实际复制源码新增19条边界测试，含原测试20条，真实9过11失败而未伪报全绿；下载ZIP独立重跑同为11失败，源码与原件相同，HTTP未实现边界说明清楚。",
+      "observed_start_at": "2026-10-29T11:41:41.180967+00:00",
+      "observed_finished_at": "2026-10-29T11:43:21.231831+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T084/result.md",
+          "source_sha256": "893a33e3101ced4166ab0e3e07b8adb9317892b290d237630c86c08c2937106e",
+          "public_sha256": "893a33e3101ced4166ab0e3e07b8adb9317892b290d237630c86c08c2937106e"
+        },
+        {
+          "path": "codex/T084/execution.md",
+          "source_sha256": "dc7ad531780dfc0ca5e9f2dd9733d6e4169fe43c1b379c12d2a608d71a529342",
+          "public_sha256": "d2462bf9411b990ca16fe59db668cafd004ec75a4b65c78b25bd0719d0248e85"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "README.source.md",
+          "bytes": 194,
+          "sha256": "9a1671e8952ba0ef85ad429bfbf97b801936ba5c4d8ad473e233929e9fda6673"
+        },
+        {
+          "path": "api.md",
+          "bytes": 240,
+          "sha256": "adc7c918517e24048706445fac9f4233fb93742d891b91fd3f0cc5219c28970f"
+        },
+        {
+          "path": "app.py",
+          "bytes": 211,
+          "sha256": "157c02fb0d0667bcdc3f0f6ee7378e1fbf266e9b80c29515fad3e39e240c297f"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 2204,
+          "sha256": "dc7ad531780dfc0ca5e9f2dd9733d6e4169fe43c1b379c12d2a608d71a529342"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2047,
+          "sha256": "893a33e3101ced4166ab0e3e07b8adb9317892b290d237630c86c08c2937106e"
+        },
+        {
+          "path": "test-run.log",
+          "bytes": 7093,
+          "sha256": "579a9be3158fe533e9b3f88e5300adec7c9e4f6e5b1de4ff33f66007005ccf43"
+        },
+        {
+          "path": "tests/test_app.py",
+          "bytes": 134,
+          "sha256": "99f6a11358ac52e11a34daa277193a1d789e0c388acd8cf17425d5706cb4653c"
+        },
+        {
+          "path": "tests/test_boundaries.py",
+          "bytes": 2455,
+          "sha256": "4c3a48105c9a6408e7a0467f77f60e07b0813d49db21a8c910440ef59d16eee5"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 844,
+          "sha256": "98ad1b9e18434b07ccc3f43ab77cf21b76ce1fb89fdd0604f48919567896fe70"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-85",
+      "original_id": "T085",
+      "title": "PR审查",
+      "verdict": "passed",
+      "review": "PR仅报有证据的整除回归，位置/触发条件/实际算例完整，10%多计20和99%多计198正确；未把JSON的int/float同属number误报契约bug，也未归入既有校验缺口。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "核心折扣回归定位及算例正确、区分既有校验缺口；但把int/float均属JSON number误报契约缺陷，并无依据断言旧异常必被下游拦截，存在审查误报。",
+      "observed_start_at": "2026-10-29T11:42:02.437860+00:00",
+      "observed_finished_at": "2026-10-29T11:43:21.231831+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T085/result.md",
+          "source_sha256": "bdf7cf62f910868fc3109d8b37eb099dd75e885fa9b6c8f80f17867831b7104f",
+          "public_sha256": "bdf7cf62f910868fc3109d8b37eb099dd75e885fa9b6c8f80f17867831b7104f"
+        },
+        {
+          "path": "codex/T085/execution.md",
+          "source_sha256": "de63bce1014ddf42458f1c5205dedc4e6616135359c367c827c6786bfde46251",
+          "public_sha256": "571e8d7617abdc039f59ed85f482478532e4f920e362b56659104b8e4f6a57e4"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2263,
+          "sha256": "de63bce1014ddf42458f1c5205dedc4e6616135359c367c827c6786bfde46251"
+        },
+        {
+          "path": "repro.json",
+          "bytes": 635,
+          "sha256": "8f1f6f946b31c835aaf30adcef8955bffd8cac29d81968c24076a23b26f519d1"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1389,
+          "sha256": "bdf7cf62f910868fc3109d8b37eb099dd75e885fa9b6c8f80f17867831b7104f"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-86",
+      "original_id": "T086",
+      "title": "日志追踪",
+      "verdict": "passed",
+      "review": "t001五条原始日志完整，parser UTF-8/ff异常→worker parse_error→HTTP200但业务failed正确，t002隔离；4秒/2秒准确，不推实际编码、损坏或重试恢复。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "仅t001五条时间线，定位parser的UTF-8/0xFF失败、worker parse_error与HTTP200业务failed，隔离t002；真实编码和重试未臆断。",
+      "observed_start_at": "2026-10-29T11:42:35.517882+00:00",
+      "observed_finished_at": "2026-10-29T11:43:43.944580+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T086/result.md",
+          "source_sha256": "3ef4ac851189441b1232b405cc715f588f482d2c263827ee69e798571451fc2c",
+          "public_sha256": "3ef4ac851189441b1232b405cc715f588f482d2c263827ee69e798571451fc2c"
+        },
+        {
+          "path": "codex/T086/execution.md",
+          "source_sha256": "3367c4a745080b2bb21172f7fffb11035ba686862b1b29745c4b1e1baaf16bf3",
+          "public_sha256": "278f54d419e8a043c5e6da7536df8b21427c4e74ffb3b7a846059db5ad7f1dc5"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1756,
+          "sha256": "3367c4a745080b2bb21172f7fffb11035ba686862b1b29745c4b1e1baaf16bf3"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1546,
+          "sha256": "3ef4ac851189441b1232b405cc715f588f482d2c263827ee69e798571451fc2c"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-87",
+      "original_id": "T087",
+      "title": "API接入文档",
+      "verdict": "passed",
+      "review": "接口/鉴权/参数/200及400/401/429准确，真实可运行Bash/curl脚本通过语法检查且只用占位配置；缺公式/默认值/错误体/幂等/Retry-After未造规则，未冒充真实HTTP联调。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "接口/鉴权/参数/错误和占位token示例完整，未冒充调用成功；两次错误声称discount99返回0（实际200），退避表与脚本5xx分支不一致，运行受未绑定执行器限制。",
+      "observed_start_at": "2026-10-29T11:43:21.167364+00:00",
+      "observed_finished_at": "2026-10-29T11:44:27.939247+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T087/result.md",
+          "source_sha256": "bd05fa34c5c0c9768730f54242993aaf0f5747440eba5897790d07a1d322d460",
+          "public_sha256": "bd05fa34c5c0c9768730f54242993aaf0f5747440eba5897790d07a1d322d460"
+        },
+        {
+          "path": "codex/T087/execution.md",
+          "source_sha256": "9695c8881b9208d18ab83fb08113598af1ba43c9c5acc5bcfe51f6b66057f47d",
+          "public_sha256": "245bfb2540cda5018387a2dba5e44d58fe77d78aa4b09fb8b8f239dac86164c7"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1884,
+          "sha256": "9695c8881b9208d18ab83fb08113598af1ba43c9c5acc5bcfe51f6b66057f47d"
+        },
+        {
+          "path": "request.sh",
+          "bytes": 418,
+          "sha256": "4a97da283f119f0a663c6cfd981148a4d0def3e7c4ed7f3cae81562cff344527"
+        },
+        {
+          "path": "result.md",
+          "bytes": 3193,
+          "sha256": "bd05fa34c5c0c9768730f54242993aaf0f5747440eba5897790d07a1d322d460"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-88",
+      "original_id": "T088",
+      "title": "人工流程自动化",
+      "verdict": "passed",
+      "review": "实际可复用脚本及CSV/报告，16行paid15/取消1、6客户3300正确；独立复跑dry-run未建输出目录、正式两次哈希相同，保留输入，去重先于筛选和Decimal金额符合手工说明。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "重跑真实交付脚本/CSV/报告ZIP；dry-run前后目录快照无差异且未建输出目录，正式两次三产物哈希相同；6客户3300、取消单排除、源SHA不变。",
+      "observed_start_at": "2026-10-29T11:43:21.167364+00:00",
+      "observed_finished_at": "2026-10-29T11:45:06.427817+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T088/result.md",
+          "source_sha256": "74ca593e6c0f9e3edf7594927c47739d4753b5bd43885d5aa05418f10b6f07c7",
+          "public_sha256": "74ca593e6c0f9e3edf7594927c47739d4753b5bd43885d5aa05418f10b6f07c7"
+        },
+        {
+          "path": "codex/T088/execution.md",
+          "source_sha256": "3bda657b44f41863be564efadb97f5d390e003ba2e5714d552e8679a589b5892",
+          "public_sha256": "d2721d9c129219de9bbd262046e1ad419f20b0043b1851363571bd1598c8184a"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "automate_sales.py",
+          "bytes": 4825,
+          "sha256": "3a3739809c2556c7b1898180f0a0837d6148a8f53b1ae25ce3585503f80afc35"
+        },
+        {
+          "path": "data/exceptions.csv",
+          "bytes": 87,
+          "sha256": "0b673841854fe3dbc0fc5c34aad8ce6baefc585db5d17b87bb910ab54fe171a0"
+        },
+        {
+          "path": "data/report.json",
+          "bytes": 585,
+          "sha256": "7326004b6d3a23103a80dd852d423706726e188cf88c5506eb5ddc3e41ee8eb9"
+        },
+        {
+          "path": "data/summary.csv",
+          "bytes": 73,
+          "sha256": "1a798f15ec0b8740d9beabbddb4b34851ba6af8d1b52b86875cd02bec44797f4"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 8591,
+          "sha256": "3bda657b44f41863be564efadb97f5d390e003ba2e5714d552e8679a589b5892"
+        },
+        {
+          "path": "fixture_output/exceptions.csv",
+          "bytes": 267,
+          "sha256": "dbad391d01468b4c6f21cf520d72dcaea1ca3d9d3445b8d478bf3f575765d211"
+        },
+        {
+          "path": "fixture_output/report.json",
+          "bytes": 595,
+          "sha256": "607cb8b175711787dbff8feb9faba8ca7c7527dff1ccf29d1b81448db23aa809"
+        },
+        {
+          "path": "fixture_output/summary.csv",
+          "bytes": 32,
+          "sha256": "43d808bc7f50554072761239751531280a0417655c68e6f293caf62c52fff1ae"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2501,
+          "sha256": "74ca593e6c0f9e3edf7594927c47739d4753b5bd43885d5aa05418f10b6f07c7"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 8075,
+          "sha256": "a53d670424ea6813507a1e0a1078942cc3614e6d5dff58e0e382c11f5325b661"
+        },
+        {
+          "path": "verification_fixture.csv",
+          "bytes": 139,
+          "sha256": "7f7e45b7ffa51bfe52a5589b1f5087cf2952d4c1ac4244349b0f4c08752abb04"
+        },
+        {
+          "path": "verify.py",
+          "bytes": 3179,
+          "sha256": "083232739471133b17ab97ab3644195a7ab0fba869580e5fab40ae5ed986349d"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-89",
+      "original_id": "T089",
+      "title": "页面性能改进",
+      "verdict": "passed",
+      "review": "修复副本保留1万订单内容顺序，改反复innerHTML追加为一次赋值；实际Chrome headless各3轮含内容断言，中位10133.2ms至2.3ms，脚本与回执可复查。明确只测同步构建、不代表paint/LCP/INP或端到端，未误标字符为字节。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "重跑实际生成原版/修复副本及ZIP，单次DOM写入和输出一致；无浏览器明确采用代理模型计时，不能代表浏览器性能；158890字符被标字节，UTF-8实际198890字节。",
+      "observed_start_at": "2026-10-29T11:43:43.882927+00:00",
+      "observed_finished_at": "2026-10-29T11:46:48.805528+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T089/result.md",
+          "source_sha256": "f1f040f065814d7380399757dfb833446d1e8083435a2b9d0606de60423d623e",
+          "public_sha256": "f1f040f065814d7380399757dfb833446d1e8083435a2b9d0606de60423d623e"
+        },
+        {
+          "path": "codex/T089/execution.md",
+          "source_sha256": "d5e2f9f4b7d39329ac24237697d605d54215f3c83c1af173ac0a9d886cd8222e",
+          "public_sha256": "11a19788fed879b8aad976c990724cb6833520c7dce751a5c5dc0926d97cd89f"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "benchmark-after.html",
+          "bytes": 750,
+          "sha256": "a4ff7d9cf851cccd0dce95e11629ff01a9dbd8a1e720a2b2e273bd651fe3fa5e"
+        },
+        {
+          "path": "benchmark-before.html",
+          "bytes": 749,
+          "sha256": "a260950c1db77e1def7a85cf9167e3e0a81060e1b54d8534dbafa9531e94df6c"
+        },
+        {
+          "path": "benchmark.py",
+          "bytes": 2675,
+          "sha256": "46bd58fdfc1d9b76b646dcd69f670da76f8485e4ab268c55a91d885b8a0aedcd"
+        },
+        {
+          "path": "change.diff",
+          "bytes": 566,
+          "sha256": "943d0e9c2bda1218b07eb2950b9fe6bf0f4d071f30c79a79b72c0bd317222519"
+        },
+        {
+          "path": "chrome-after-1.stderr.log",
+          "bytes": 916,
+          "sha256": "a94a43c112c7581dd4ac0bb7a1c662c0111338629e91974095e104828decd07e"
+        },
+        {
+          "path": "chrome-after-2.stderr.log",
+          "bytes": 916,
+          "sha256": "42d91132e86a435d4b874c57c087ca5a30cae53ff6cbdda949c8d78b5153978a"
+        },
+        {
+          "path": "chrome-after-3.stderr.log",
+          "bytes": 1203,
+          "sha256": "9df42d5785fdee8d56ab1ed4c8b6709c1391942619dc34a5246061b5e50c0772"
+        },
+        {
+          "path": "chrome-before-1.stderr.log",
+          "bytes": 1996,
+          "sha256": "0b8ba88f9cd2d1367e52954132bf12d23f246dae885eed2a35236acf02bd1d98"
+        },
+        {
+          "path": "chrome-before-2.stderr.log",
+          "bytes": 916,
+          "sha256": "84302e112efdf05e470f40f8b7957e70d2935a6fa386e3ab721fbb1414eacea8"
+        },
+        {
+          "path": "chrome-before-3.stderr.log",
+          "bytes": 1203,
+          "sha256": "704ddecfbbdcdee318ddd379054120c974403c7d199b3479df4563dc058888b2"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 4002,
+          "sha256": "d5e2f9f4b7d39329ac24237697d605d54215f3c83c1af173ac0a9d886cd8222e"
+        },
+        {
+          "path": "measurements.json",
+          "bytes": 1582,
+          "sha256": "d71385873e071e5c041f7b7354c045cf76845eed31b7370cd04449d7bad4df7d"
+        },
+        {
+          "path": "page.before.html",
+          "bytes": 258,
+          "sha256": "b028022afa41769f3271041368ffa75e3aea1ef7b5303a9948d6198cad493cac"
+        },
+        {
+          "path": "page.html",
+          "bytes": 259,
+          "sha256": "52c6d0783e84adb5520ac3eab93329ec9015f72d2337694c10f483e1dbf67870"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1404,
+          "sha256": "f1f040f065814d7380399757dfb833446d1e8083435a2b9d0606de60423d623e"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 229,
+          "sha256": "6fc47b1c9da5f0d5c3fffeefe74c1ba1e0ae54ca19d05deb6edf70b04510693f"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-90",
+      "original_id": "T090",
+      "title": "SQL分析",
+      "verdict": "passed",
+      "review": "SQL/CSV真实交付，独立只读执行A金额300/数量4一致；明细先聚合再LEFT JOIN保留无明细paid单，排取消，不用SUM DISTINCT金额，反例400准确，源DB未改。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "真实读取SQLite并执行先聚合明细再JOIN，A金额300/数量4，反例400被识别；边界库含无明细paid及取消单，源3/3行未改，SQL/CSV/日志ZIP可下载。",
+      "observed_start_at": "2026-10-29T11:44:27.848739+00:00",
+      "observed_finished_at": "2026-10-29T11:45:47.759667+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T090/result.md",
+          "source_sha256": "c48078182f6af0c0ca124e6977ae7fa08ede5f7150591346f2e9ac7f3d5cb749",
+          "public_sha256": "c48078182f6af0c0ca124e6977ae7fa08ede5f7150591346f2e9ac7f3d5cb749"
+        },
+        {
+          "path": "codex/T090/execution.md",
+          "source_sha256": "43f6b572d445205064015d1b4559d17a23e74ff908b443035036f68b7c7a93ee",
+          "public_sha256": "d98dc0a0cbad3f73b6366ce5e74e8fca3919d51d14ce48565d33700a0cef5989"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "analysis.sql",
+          "bytes": 337,
+          "sha256": "fd5d78eef03d8f33eab0a41635ecd6a2a993ffb15d1a687ba3a6684d9a8f7d45"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 2878,
+          "sha256": "43f6b572d445205064015d1b4559d17a23e74ff908b443035036f68b7c7a93ee"
+        },
+        {
+          "path": "query_result.csv",
+          "bytes": 42,
+          "sha256": "9b7fed901d4ab575af67be29b919218d316c2550a280159217a84ead06d3517c"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1591,
+          "sha256": "c48078182f6af0c0ca124e6977ae7fa08ede5f7150591346f2e9ac7f3d5cb749"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 783,
+          "sha256": "958dd2038c3016c37c34716de79a43c848132f275cb55312921cf94ef92cfbfa"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-91",
+      "original_id": "T091",
+      "title": "目录分类整理",
+      "verdict": "partial",
+      "review": "真实预览/映射/分类副本及3文件哈希正确，但只复制到results，未执行任务已授权的合成目录移动；误将保留源文件/只写产物的通用限制覆盖明确操作授权。原提交保留，不反馈补做。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "实际先生成预览再在授权合成目录移动3文件，分类依据/映射/前后哈希完整，文件数3→3，无删改内容；用户已授权执行，不需要其附带假设的额外人工批准。",
+      "observed_start_at": "2026-10-29T11:45:06.313372+00:00",
+      "observed_finished_at": "2026-10-29T11:46:48.805528+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T091/result.md",
+          "source_sha256": "c007538dc4475a6c646a7f2cf90927dc802829237587846953fb6362d4e5a354",
+          "public_sha256": "c007538dc4475a6c646a7f2cf90927dc802829237587846953fb6362d4e5a354"
+        },
+        {
+          "path": "codex/T091/execution.md",
+          "source_sha256": "0e0fe0cbfd83e8d67a43d120f8125942f642df90875d73abb3534dbabc847cac",
+          "public_sha256": "d81ec4faa56a0a4a5e91ba4da7bf1f2194bf3336ce3abf770ddce67812d2c41e"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 3069,
+          "sha256": "0e0fe0cbfd83e8d67a43d120f8125942f642df90875d73abb3534dbabc847cac"
+        },
+        {
+          "path": "mapping.json",
+          "bytes": 1150,
+          "sha256": "5ef64824400c29e9788cd8ad5a3730e6d0fb334e7abe20e7785bfc93bdae9c71"
+        },
+        {
+          "path": "move_preview.md",
+          "bytes": 686,
+          "sha256": "2c38bb8fc7e956cf34071673c8ce26617e19f5273d99353a27a6437e2c124528"
+        },
+        {
+          "path": "organized/会议记录/meeting_20261002.txt",
+          "bytes": 19,
+          "sha256": "a369784b50979efddad41531715142f6099c821ef3b024495156ec0dbaa49b5a"
+        },
+        {
+          "path": "organized/财务票据/invoice_20261001.txt",
+          "bytes": 18,
+          "sha256": "42794d61489557e84c9d8fba93282db351a3df7127cd3762a7120376fdff1801"
+        },
+        {
+          "path": "organized/项目资料/project_notes.txt",
+          "bytes": 15,
+          "sha256": "81bc27c6f7f908c69fd3b2fc850eb93b6c901ae086f333389ea8f9be16cec709"
+        },
+        {
+          "path": "result.md",
+          "bytes": 919,
+          "sha256": "c007538dc4475a6c646a7f2cf90927dc802829237587846953fb6362d4e5a354"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 1392,
+          "sha256": "9d4e10d3e3dbfd35b3bffe533de44d90d383d75f398fef337010c53a33ba3399"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-92",
+      "original_id": "T092",
+      "title": "重复文件报告",
+      "verdict": "passed",
+      "review": "实际全字节SHA256及二次字节比较，a/b同11字节、c不同10字节，一组重复正确；完整清单/报告真实交付，源路径和哈希未变、未删除。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "实际整文件SHA256与字节核对，a/b一组同内容11B，c不同；前后哈希不变未删除，报告与ZIP真实交付。",
+      "observed_start_at": "2026-10-29T11:45:47.687665+00:00",
+      "observed_finished_at": "2026-10-29T11:46:48.805528+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T092/result.md",
+          "source_sha256": "f6c8043301b5e382785b02478103714686a7eb150c2edf85fecce1bd5241b744",
+          "public_sha256": "f6c8043301b5e382785b02478103714686a7eb150c2edf85fecce1bd5241b744"
+        },
+        {
+          "path": "codex/T092/execution.md",
+          "source_sha256": "1188563dd2380bfaadb279b09c3f896467b18dc6508e91de507707fb7647b44e",
+          "public_sha256": "a4128c6dc03249b7c1dc9b37ac53fb38e466730f13e703599f382582eb86639c"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2696,
+          "sha256": "1188563dd2380bfaadb279b09c3f896467b18dc6508e91de507707fb7647b44e"
+        },
+        {
+          "path": "hash_manifest.json",
+          "bytes": 459,
+          "sha256": "63bd66104b284db8e36575203e5e2c3f0c0793d4c8c1a69d23da135c48e018f2"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1046,
+          "sha256": "f6c8043301b5e382785b02478103714686a7eb150c2edf85fecce1bd5241b744"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 208,
+          "sha256": "cdf56ea5f25badc916f65ae339254670b07bc07129fb901c09b9305d2631d639"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-93",
+      "original_id": "T093",
+      "title": "批量文件重命名",
+      "verdict": "passed",
+      "review": "实际将完整日期文件改名为2026-10-02_项目A_会议.txt，其余两文件缺年/主题保留原名并在映射标待确认；独立核对3实际路径与映射哈希一致，无猜测年份或内容改动。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "真实重命名3份合成文件，完整日期统一，缺年份/日期/主题用待确认，不编年；映射/日志/备份与结果ZIP已生成，哈希不变。",
+      "observed_start_at": "2026-10-29T11:46:48.740670+00:00",
+      "observed_finished_at": "2026-10-29T11:47:55.887459+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T093/result.md",
+          "source_sha256": "44036cf999ff66da78326666b3bd35ca0325f939372ea0df1bdda4bd2f3780a3",
+          "public_sha256": "44036cf999ff66da78326666b3bd35ca0325f939372ea0df1bdda4bd2f3780a3"
+        },
+        {
+          "path": "codex/T093/execution.md",
+          "source_sha256": "45e73e9475939e136400543caa326607fc58e262136f11f32c8ee34b8c30ece4",
+          "public_sha256": "4f684bc8859f2fea49aeffd098e34524e433d68c7c41a64cf9c669c30056b653"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 3248,
+          "sha256": "45e73e9475939e136400543caa326607fc58e262136f11f32c8ee34b8c30ece4"
+        },
+        {
+          "path": "mapping.csv",
+          "bytes": 808,
+          "sha256": "64084b29866e1fdd3c336bc3f011c2196bde07c8268d9f809745dbd0e4a08f61"
+        },
+        {
+          "path": "receipt.json",
+          "bytes": 1862,
+          "sha256": "42c0c37654a0a6b475f767f3149ba9ef5c7b31e0beb5011210cf71f4638ccab1"
+        },
+        {
+          "path": "rename.py",
+          "bytes": 2006,
+          "sha256": "dcbb80b09a35a69c236ef134ddf03cf13e5297e0e2d4cfb9bab2924e7b7d1e47"
+        },
+        {
+          "path": "result.md",
+          "bytes": 888,
+          "sha256": "44036cf999ff66da78326666b3bd35ca0325f939372ea0df1bdda4bd2f3780a3"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-94",
+      "original_id": "T094",
+      "title": "图片压缩缩放",
+      "verdict": "passed",
+      "review": "真实三张JPEG副本，独立解码尺寸1200×800/800×1200/1200×1200，原图哈希不变，字节192746至26346及86.33%正确，等比有损压缩口径明示。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "实际交付3张1200长边等比副本，独立核对尺寸1200×800/800×1200/1200×1200；源CRC未变。附带对比图右侧标注被裁切，主要尺寸/体积表在回答中完整。",
+      "observed_start_at": "2026-10-29T11:46:48.740670+00:00",
+      "observed_finished_at": "2026-10-29T11:47:55.887459+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T094/result.md",
+          "source_sha256": "bd30298854ccb7f113283754ffe131dda04c44520d2d877d5bdedf8fec0f2d0e",
+          "public_sha256": "bd30298854ccb7f113283754ffe131dda04c44520d2d877d5bdedf8fec0f2d0e"
+        },
+        {
+          "path": "codex/T094/execution.md",
+          "source_sha256": "8b25e06b724afb2b56776d326076b525601674f549d6be6f4b04a133a46c1460",
+          "public_sha256": "8354c6658b8c663524b80eb9004a4ff494323cfccbea42a0d06c6acde6c96414"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "comparison.csv",
+          "bytes": 673,
+          "sha256": "5de3dd9ccaa444b6813ec0a35e12fee722126ac9a519cdc42d5afbcf7f42e8fd"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 2202,
+          "sha256": "8b25e06b724afb2b56776d326076b525601674f549d6be6f4b04a133a46c1460"
+        },
+        {
+          "path": "images/image1.jpg",
+          "bytes": 7722,
+          "sha256": "052325f71e820e418dddefa26297faeb708d220ca1a566a0b552d6342f3cb261"
+        },
+        {
+          "path": "images/image2.jpg",
+          "bytes": 7658,
+          "sha256": "e082dd1569c8e7eff86e016cfca442285535f039a8703864113842b538e65c4f"
+        },
+        {
+          "path": "images/image3.jpg",
+          "bytes": 10966,
+          "sha256": "977fb957c4f0b3263511e40aa3826e2020c8178f59edefbd22ac13841acaa00d"
+        },
+        {
+          "path": "process.py",
+          "bytes": 1877,
+          "sha256": "e9bcc5d2b5c0f03a783e419d80a0b13690c71c1a91b59abb4bf3e57326a08634"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1081,
+          "sha256": "bd30298854ccb7f113283754ffe131dda04c44520d2d877d5bdedf8fec0f2d0e"
+        },
+        {
+          "path": "verification.json",
+          "bytes": 1493,
+          "sha256": "6fcab84c893829e30957d05076d0c2c153bbf06f0cdb411874e63a36670cfe0b"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-95",
+      "original_id": "T095",
+      "title": "四周学习计划",
+      "verdict": "passed",
+      "review": "四周4/2/4/4共14小时准确，出差周限2小时；Excel到SQLite筛选/汇总/关联/项目连贯，各周练习及检查点可判定，关联重复和除零口径正确，未把计划当已代学完成。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "四周4/2/4/4合计14小时，第二周适配出差，每周练习与检查点完整，Excel到SQL衔接清楚；未执行SQL如实披露，计划本身不要求代学完成。",
+      "observed_start_at": "2026-10-29T11:46:48.740670+00:00",
+      "observed_finished_at": "2026-10-29T11:48:32.587233+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T095/result.md",
+          "source_sha256": "8cfc5a9e3d0270cf36d07b8b5df53abb0c1c5aeeb044bfb3b9b69133f29520f6",
+          "public_sha256": "8cfc5a9e3d0270cf36d07b8b5df53abb0c1c5aeeb044bfb3b9b69133f29520f6"
+        },
+        {
+          "path": "codex/T095/execution.md",
+          "source_sha256": "d30d62896dc549f5763468a67955741b14ed408f04fd68f57ffae3c5b190f620",
+          "public_sha256": "dbe4811809db513422bd98fb2aecb258d16496e02b0015e3b9791da56321f90c"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1741,
+          "sha256": "d30d62896dc549f5763468a67955741b14ed408f04fd68f57ffae3c5b190f620"
+        },
+        {
+          "path": "result.md",
+          "bytes": 6222,
+          "sha256": "8cfc5a9e3d0270cf36d07b8b5df53abb0c1c5aeeb044bfb3b9b69133f29520f6"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-96",
+      "original_id": "T096",
+      "title": "概念教学测验",
+      "verdict": "passed",
+      "review": "完整Excel类比与订单明细案例、5题含答案和实际SQL回执；360对260、件数6、SUM DISTINCT=160等正确，按明细预聚合避免重复，右表WHERE与ON影响解释准确，无泛化LEFT均变INNER或qty必重复。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "完整订单/明细例子及5题基本覆盖重复统计；但虚增率应133.33%非233%，左表WHERE筛选不会自动把LEFT变INNER，明细JOIN唯一订单也不重复qty；独立SQLite复算已有证据。",
+      "observed_start_at": "2026-10-29T11:47:55.825807+00:00",
+      "observed_finished_at": "2026-10-29T11:49:39.528419+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T096/result.md",
+          "source_sha256": "8d936b891f72b0a9254081c06184c7776750ea451ec8e8eed61ee7f0a182feb2",
+          "public_sha256": "8d936b891f72b0a9254081c06184c7776750ea451ec8e8eed61ee7f0a182feb2"
+        },
+        {
+          "path": "codex/T096/execution.md",
+          "source_sha256": "f26df03b21d9edfa00fca76beacaf61d061901aa073974bd610a7c1d11f2ca8c",
+          "public_sha256": "f8261ecc57b80ac3140cb73385d1fa668bb8183eb700fd2b874c882e231ba359"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "example.sql",
+          "bytes": 1859,
+          "sha256": "21bed49e799b0162e12f27756021fde7c5656c80dc1662d13fcbfd38a6681aab"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 2649,
+          "sha256": "f26df03b21d9edfa00fca76beacaf61d061901aa073974bd610a7c1d11f2ca8c"
+        },
+        {
+          "path": "query-results.json",
+          "bytes": 3296,
+          "sha256": "3e9e494d575771fbdeef102a897ea2b24c2fab3c5c89db21fd9065f89da6b6f6"
+        },
+        {
+          "path": "result.md",
+          "bytes": 8352,
+          "sha256": "8d936b891f72b0a9254081c06184c7776750ea451ec8e8eed61ee7f0a182feb2"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-97",
+      "original_id": "T097",
+      "title": "活动方案比较",
+      "verdict": "passed",
+      "review": "A2300/B1600/C3150和预算余量正确，C超150且17点才入场无法覆盖14至18完整时段；A容量12与B天气限制准确，档期/交通/地址/费条款待核，未预订。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "总价A2300/B1600/C3150与余量正确，识别C超150和17点才入场，天气/容量/可订等待确认，未预订。",
+      "observed_start_at": "2026-10-29T11:47:55.825807+00:00",
+      "observed_finished_at": "2026-10-29T11:48:53.968281+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T097/result.md",
+          "source_sha256": "63cc9408ceb8516e920a3353b9490b467ebefb5cfca0fa0bcf5882f35722fdba",
+          "public_sha256": "63cc9408ceb8516e920a3353b9490b467ebefb5cfca0fa0bcf5882f35722fdba"
+        },
+        {
+          "path": "codex/T097/execution.md",
+          "source_sha256": "5b2cb137aef59cac5640c6ee3bd80942455bf759bc957a7de8cfb80fc1e2fc6c",
+          "public_sha256": "44f19b7916b4871be891fc1370f89f06b1a3053eb53f41fb9f2e63322f06ff40"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1781,
+          "sha256": "5b2cb137aef59cac5640c6ee3bd80942455bf759bc957a7de8cfb80fc1e2fc6c"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2043,
+          "sha256": "63cc9408ceb8516e920a3353b9490b467ebefb5cfca0fa0bcf5882f35722fdba"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-98",
+      "original_id": "T098",
+      "title": "行程冲突检查",
+      "verdict": "passed",
+      "review": "11:30落地+90分理论13点到、晚会议开始120分/结束60分准确；11/11缺一晚及返程接驳未知识别，三调整方案不冒充已确认，不假设返程同需90分，无预订改签。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "识别11点会议早于11:30落地且需90分钟交通、11/11缺一晚；给改期/早到/补酒店选项，额外出站30分钟标估算，未预订。迟到文字应按开始算150分钟。",
+      "observed_start_at": "2026-10-29T11:48:32.523050+00:00",
+      "observed_finished_at": "2026-10-29T11:49:55.107392+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T098/result.md",
+          "source_sha256": "6d1fcc781db39877f0c31171c652a2cc8587a380bc1c896526aa1e15fabccea2",
+          "public_sha256": "6d1fcc781db39877f0c31171c652a2cc8587a380bc1c896526aa1e15fabccea2"
+        },
+        {
+          "path": "codex/T098/execution.md",
+          "source_sha256": "33eef8464aabaf84b4a73adb99e06b2c81330ba3fe088fdeb0bd9ff86bdfd7dc",
+          "public_sha256": "4c0d35ba343a9845787802bb01aab369a6003bab8f81d119f37007b814701e08"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 2516,
+          "sha256": "33eef8464aabaf84b4a73adb99e06b2c81330ba3fe088fdeb0bd9ff86bdfd7dc"
+        },
+        {
+          "path": "result.md",
+          "bytes": 2587,
+          "sha256": "6d1fcc781db39877f0c31171c652a2cc8587a380bc1c896526aa1e15fabccea2"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-99",
+      "original_id": "T099",
+      "title": "周报整理",
+      "verdict": "passed",
+      "review": "成果/问题/下周三段完整，W2重复去除且W1至W5来源保留；20单120至60/无对照限制、权限仍未通过和下周事项准确，未虚构完成。",
+      "historical_moi_verdict": "通过",
+      "historical_moi_review": "成果/问题/下周三段完整，W2去重，W来源逐项保留，20单无对照限制保留，未新增完成事项。",
+      "observed_start_at": "2026-10-29T11:48:53.902086+00:00",
+      "observed_finished_at": "2026-10-29T11:49:39.528419+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T099/result.md",
+          "source_sha256": "31520c6d917ff2e95e64892692baeac3fda373b817a6d68a191ce166cf09060f",
+          "public_sha256": "31520c6d917ff2e95e64892692baeac3fda373b817a6d68a191ce166cf09060f"
+        },
+        {
+          "path": "codex/T099/execution.md",
+          "source_sha256": "ed5085f02587cac3d7ffc9c3045393237847cb41f61a6cd960fd28acb515268c",
+          "public_sha256": "81b7eebc759ac26f1f8bf907eacd72ff5c451ded2a8e8e95979a9ab203d66b0d"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "execution.md",
+          "bytes": 1694,
+          "sha256": "ed5085f02587cac3d7ffc9c3045393237847cb41f61a6cd960fd28acb515268c"
+        },
+        {
+          "path": "result.md",
+          "bytes": 497,
+          "sha256": "31520c6d917ff2e95e64892692baeac3fda373b817a6d68a191ce166cf09060f"
+        }
+      ]
+    },
+    {
+      "case_id": "J4-100",
+      "original_id": "T100",
+      "title": "完整客户提案",
+      "verdict": "passed",
+      "review": "实际可编辑DOCX与公式XLSX，源文件完整；独立结构/缓存/公式检查及5页渲染检查。S2运费未知保持待确认，11800/11865与726/791阈值正确；客户私有部署/中文/留存要求不冒充产品事实，50k与货款分开，11月27日前决策。",
+      "historical_moi_verdict": "部分通过",
+      "historical_moi_review": "DOCX与XLSX真实可编辑，报价基础11800/11074下限/11865正确；但最低价MIN和RANK仍纳入缺运费S2，S1/S3错误排2/3；提案把未证实私有部署/中文与预算覆盖写成事实，12月前决策却把预算/签约排12-05/12-15。",
+      "observed_start_at": "2026-10-29T10:56:22.948154+00:00",
+      "observed_finished_at": "2026-10-29T11:15:04.411440+00:00",
+      "timing_comparable": false,
+      "evidence": [
+        {
+          "path": "codex/T100/result.md",
+          "source_sha256": "b350973f02065bbc64d4a0ee450a5be325e74b609466b128607c11f4257a5aa9",
+          "public_sha256": "b350973f02065bbc64d4a0ee450a5be325e74b609466b128607c11f4257a5aa9"
+        },
+        {
+          "path": "codex/T100/execution.md",
+          "source_sha256": "7aae5b7c04f4eb0e97b3a543ccfd5155a5963e5652fb893635dfc084203b26c2",
+          "public_sha256": "12f98cd1765511001b57087398042c5b2759c0d25b87f1d1573e86d8a1b8b4af"
+        }
+      ],
+      "artifact_manifest": [
+        {
+          "path": "build_doc.py",
+          "bytes": 11037,
+          "sha256": "55cf9927e8d21df2db27a4033d91bf450111301c9ec2753949a3e2c6d35da313"
+        },
+        {
+          "path": "build_sheet.mjs",
+          "bytes": 5985,
+          "sha256": "a6730c1b05ca7eb595ecf9906a819b9892f3843e806e6873a99aee38fd52f0a8"
+        },
+        {
+          "path": "execution.md",
+          "bytes": 6107,
+          "sha256": "7aae5b7c04f4eb0e97b3a543ccfd5155a5963e5652fb893635dfc084203b26c2"
+        },
+        {
+          "path": "qa/docx/page-1.png",
+          "bytes": 342514,
+          "sha256": "c73676edbedbf6d27fc25020df3861221b397f4fe76eaa28d6a6ff5a0fd3f08e"
+        },
+        {
+          "path": "qa/docx/page-2.png",
+          "bytes": 440033,
+          "sha256": "0e480857024b195133b64f9d86a4342c1c932a6d4f4b4d1755053350c16c16df"
+        },
+        {
+          "path": "qa/docx/page-3.png",
+          "bytes": 404730,
+          "sha256": "74f5bb0ebc3980448830c941305208b802a96f333c9b0ade8935e3e6976005b2"
+        },
+        {
+          "path": "qa/docx/page-4.png",
+          "bytes": 395096,
+          "sha256": "eea0c3e9d31d6d321166bfef326b1f835ab145bbee4f3828df7bfe10de532d81"
+        },
+        {
+          "path": "qa/docx/page-5.png",
+          "bytes": 117258,
+          "sha256": "66e95706c43aa789c00774e3b7901537ac47c2a1de6a9110c2915860e92b9f8a"
+        },
+        {
+          "path": "qa/docx/青岚制造试点提案.pdf",
+          "bytes": 464467,
+          "sha256": "c4e70ba3a59ec9fbf8753b4d5d5937fcb29ff6a2d184e4ec72b3c6f5696eb02e"
+        },
+        {
+          "path": "qa/fonts.conf",
+          "bytes": 276,
+          "sha256": "fb7879aa69545eee672f9768e41ac3a2ae39e1f495a44fa0dba6cb3173b28852"
+        },
+        {
+          "path": "qa/verification.json",
+          "bytes": 930,
+          "sha256": "8783de628dae4db8d6cf9a6a1ae66c0698600f623480afea2a24427b4440c7e5"
+        },
+        {
+          "path": "qa/workbook-inspection.json",
+          "bytes": 382,
+          "sha256": "14228a1625944e572e824df6b3c8e0ccf84e5227e0f094f8a93c5f1998fa1902"
+        },
+        {
+          "path": "qa/原始报价.png",
+          "bytes": 52701,
+          "sha256": "e9c4b5c326a912cb84c68762a13ce009f9606a47f1bd4f69c39725037f1a4043"
+        },
+        {
+          "path": "qa/报价比较.png",
+          "bytes": 200137,
+          "sha256": "103b4700ff6c1cc54e3faecff532b55e163737d049cb9106f2333787356a058b"
+        },
+        {
+          "path": "result.md",
+          "bytes": 1836,
+          "sha256": "b350973f02065bbc64d4a0ee450a5be325e74b609466b128607c11f4257a5aa9"
+        },
+        {
+          "path": "供应商报价比较.xlsx",
+          "bytes": 7006,
+          "sha256": "f8000aa39db1a8c9ccc6dff842ca0661946881786ce1b16de7e009a540b8b261"
+        },
+        {
+          "path": "供应商报价比较.xlsx.inspect.ndjson",
+          "bytes": 36024,
+          "sha256": "5915d43270fb6287ea86e7e41a985b597a407a274384ad5afd306f5c5ce567b2"
+        },
+        {
+          "path": "青岚制造试点提案.docx",
+          "bytes": 43212,
+          "sha256": "b6badafc1b6da10124b73d446432f884905e34dd0b6969e89f411b4d460a23a1"
+        }
+      ]
+    }
+  ]
+}

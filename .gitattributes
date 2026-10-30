@@ -1,3 +1,6 @@
 # Preserve fixture bytes, including deliberately truncated PNG inputs.
 *.png binary
 *.pdf binary
+# Historical inputs and evidence retain original byte hashes and Markdown hard breaks.
+cases/journey-4/_materials/** -text whitespace=cr-at-eol
+baselines/journey-4/codex/** -text whitespace=-blank-at-eol

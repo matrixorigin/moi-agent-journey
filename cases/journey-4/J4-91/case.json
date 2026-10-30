@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "J4-91",
+  "title": "目录分类整理",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T091",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T091/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T091/task.md",
+      "sha256": "93cb6449d7113616236093b23c643ac8a03460f64aa5be6b7b43c63ebcca248c"
+    },
+    {
+      "path": "samples/T091_downloads/invoice_20261001.txt",
+      "local_path": "cases/journey-4/_materials/samples/T091_downloads/invoice_20261001.txt",
+      "sha256": "42794d61489557e84c9d8fba93282db351a3df7127cd3762a7120376fdff1801"
+    },
+    {
+      "path": "samples/T091_downloads/meeting_20261002.txt",
+      "local_path": "cases/journey-4/_materials/samples/T091_downloads/meeting_20261002.txt",
+      "sha256": "a369784b50979efddad41531715142f6099c821ef3b024495156ec0dbaa49b5a"
+    },
+    {
+      "path": "samples/T091_downloads/project_notes.txt",
+      "local_path": "cases/journey-4/_materials/samples/T091_downloads/project_notes.txt",
+      "sha256": "81bc27c6f7f908c69fd3b2fc850eb93b6c901ae086f333389ea8f9be16cec709"
+    },
+    {
+      "path": "samples/shared/local_rules.md",
+      "local_path": "cases/journey-4/_materials/samples/shared/local_rules.md",
+      "sha256": "86047fbe1720008f7d1f8a4d787954c6a0a47338a9d8f6583aedbcc90884dfca"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：仅整理samples/T091_downloads，先给移动预览清单；本任务已授权只对这些合成文件执行分类，保存映射。",
+    "只处理指定合成副本，先预览再实际分类移动并交付整理目录和映射",
+    "原暂存位置不残留副本、字节和数量保持",
+    "只复制不移动为不满足",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-91（原始编号 T091）：目录分类整理\n\n仅整理samples/T091_downloads，先给移动预览清单；本任务已授权只对这些合成文件执行分类，保存映射。\n\n读取 inputs/samples/T091/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T091 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。\n文件操作授权：先将 inputs/samples/T091_downloads 完整复制到 outputs/T091_downloads 作本次可写暂存目录；只对这个暂存目录内的合成文件实际移动/重命名，并把整理后的整个目录、操作前预览、操作后映射及hash一起交付。此授权优先于附件local_rules中的一般只读条款；原始inputs保持不变。不能只复制分类却保留暂存目录中的原位置。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：仅整理samples/T091_downloads，先给移动预览清单；本任务已授权只对这些合成文件执行分类，保存映射。",
+        "只处理指定合成副本，先预览再实际分类移动并交付整理目录和映射",
+        "原暂存位置不残留副本、字节和数量保持",
+        "只复制不移动为不满足",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}

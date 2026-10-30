@@ -1,0 +1,4 @@
+﻿customer,renewal,value,active_trend,open_tickets
+C01,2026-12-01,100000,up,0
+C02,2026-11-05,150000,down,4
+C03,2026-11-15,20000,zero,1

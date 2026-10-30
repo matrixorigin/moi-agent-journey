@@ -1,0 +1,1 @@
+中文：试点20单，耗时从120分钟降到60分钟。保留12个月。支持CSV，不支持自动下单。English: Pilot of 200 orders, time decreased from 120 to 30 minutes. Retain data for 6 months. Supports CSV and automatic ordering. 术语：报价比较=quote comparison；后文误用quotation contrast。

@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import time
 import urllib.request
 from pathlib import Path
@@ -79,11 +80,30 @@ def prepare(case, work):
         path = Path(asset["path"])
         if path.is_absolute() or ".." in path.parts:
             raise ValueError("unsafe_asset_path")
-        download(asset, work / "inputs" / path)
+        if 'local_path' in asset:
+            source = local_asset(asset)
+            target = work / 'inputs' / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target)
+        else:
+            download(asset, work / "inputs" / path)
     for asset in case["oracles"]:
         download(asset, work / "oracle" / asset["path"])
     for fixture in case.get('fixtures', []):
         fixture_path(case, fixture)
+
+
+def local_asset(asset):
+    """Only versioned case materials may be attached; never an arbitrary host path."""
+    relative = Path(asset['local_path'])
+    base = (ROOT / 'cases').resolve()
+    path = ROOT / relative
+    if (relative.is_absolute() or '..' in relative.parts or
+            not path.resolve().is_relative_to(base) or path.is_symlink() or not path.is_file()):
+        raise ValueError('unsafe_local_asset')
+    if sha256(path) != asset['sha256']:
+        raise ValueError('local_asset_checksum_mismatch:' + asset['path'])
+    return path
 
 
 def main():

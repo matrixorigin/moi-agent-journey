@@ -164,6 +164,13 @@ class Execution:
         params = {"message": {"kind": "message", "role": "user", "messageId": message_id,
                   "contextId": cid, "parts": parts, "metadata": metadata},
                   "model": self.model if model is None else model, "idempotencyKey": message_id}
+        if self.case.get('source', {}).get('benchmark') == 'Business-100' and phase in {
+                session['id'] + ':' + session['turns'][0]['phase'] for session in self.case['sessions']}:
+            from .chat_attachments import validate_chat_attachment
+            try:
+                validate_chat_attachment({'params': params})
+            except (KeyError, TypeError, ValueError) as error:
+                raise Failure('invalid_business_input_attachment:' + str(error)) from error
         dialogue = {"at": utc_now(), "phase": phase,
             "conversation_id": cid, "message_id": message_id, "prompt": prompt,
             "attachments": list(attachments), "file_only": file_only}
@@ -516,6 +523,14 @@ class Execution:
                         for p in destination.rglob("*") if p.is_file()}})
                 self.checkpoint()
             self.report['task_seconds']=round(time.monotonic()-self.started,3)
+            if self.case['source']['benchmark'] == 'Business-100':
+                self.report['stage'] = 'semantic_judge'
+                from .business import judge
+                judge_started=time.monotonic()
+                try:
+                    judge(self)
+                finally:
+                    self.report['semantic_judge_seconds']=round(time.monotonic()-judge_started,3)
             if self.case["source"]["benchmark"] == "π-Bench":
                 self.report["stage"] = "semantic_judge"
                 judge_started=time.monotonic()

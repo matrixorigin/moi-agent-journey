@@ -408,6 +408,9 @@ def main():
         if family=='OfficeVal':checks,raw=officeval(case,oracle,inputs,outputs)
         elif family=='SkillsBench':checks,raw=skills(case,oracle,inputs,outputs)
         elif family=='π-Bench':checks,raw=pi_structural(case,outputs,args.session)
+        elif family=='Business-100':
+            from .business import verify
+            checks,raw=verify(case,inputs,outputs,check)
         elif family in {'EvoCowork','SpreadsheetBench 2 经 EvoCowork 改编'}:checks,raw=evo(case,oracle,inputs,outputs)
         else:raise ValueError('unsupported_benchmark_validator:'+family)
         rendered = Path('/verification/rendered')

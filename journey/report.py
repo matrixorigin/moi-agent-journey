@@ -17,6 +17,7 @@ from .catalog import ROOT, case_executor, is_functional_case, load_case
 from .diagnostics import analyze_events, success_rate
 from .evidence import Evidence, configured_secrets, utc_now,TOKEN_BYTES
 from .outcomes import assess
+from .comparison import build as build_comparison, publish as publish_comparison, markdown as comparison_markdown
 from .native_skill_stages import LABELS as NATIVE_STAGE_LABELS
 
 FINAL = {"passed", "failed", "timeout", "error"}
@@ -613,6 +614,10 @@ def aggregate(source, destination, workspace='all'):
                                'cases': sorted({case_id for case_id, _, _ in calls})}
                               for (scope, tool, code, expected), calls in sorted(tool_errors.items())],
               'withheld_files': sum(len(row.get('publication', {}).get('withheld_files', [])) for row in rows)}
+    comparison = build_comparison(rows, ROOT)
+    if comparison is not None:
+        report['historical_comparison'] = comparison
+        publish_comparison(comparison, destination, ROOT)
     (destination / 'summary.json').write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n')
     with (destination / 'summary.csv').open('w', newline='', encoding='utf-8') as stream:
         writer = csv.writer(stream)
@@ -622,9 +627,11 @@ def aggregate(source, destination, workspace='all'):
                          'tool_calls', 'tool_rounds', 'tool_succeeded', 'tool_failed', 'tool_skipped', 'tool_unknown',
                          'unidentified_tool_events',
                          'tool_success_rate', 'conversation_ids', 'trace_ids', 'failure_reasons', 'tool_errors',
-                         'judge_tool_errors'])
+                         'judge_tool_errors', 'historical_codex_verdict', 'historical_codex_review',
+                         'historical_codex_model', 'historical_codex_date', 'speed_comparable'])
         for row in rows:
             metrics = row['tools'].get('metrics') or {}
+            historic = next((r for r in comparison['cases'] if r['case_id'] == row['case_id']), {}) if comparison else {}
             writer.writerow([row['workspace'], row['case_id'], row['title'], row['test_status'], row.get('functional', {}).get('state'),
                 row['task']['state'], row['agent']['state'],
                 row['delivery']['state'], row['quality']['state'], row['quality'].get('passed_checks'),
@@ -639,7 +646,10 @@ def aggregate(source, destination, workspace='all'):
                 ';'.join(str(t['trace_id']) for t in row.get('tasks', []) if t.get('trace_id')),
                 json.dumps(row.get('failures', []) + row.get('harness_errors', []), ensure_ascii=False),
                 json.dumps(row['tools'].get('errors', []), ensure_ascii=False),
-                json.dumps(row['tools'].get('judge_errors', []), ensure_ascii=False)])
+                json.dumps(row['tools'].get('judge_errors', []), ensure_ascii=False),
+                historic.get('codex_verdict'), historic.get('codex_review'),
+                comparison['baseline_model'] if historic else None,
+                comparison['baseline_date'] if historic else None, False if historic else None])
     task, agent, delivery, quality, tools = (report[key] for key in ('task', 'agent', 'delivery', 'quality', 'tools'))
     rate = f"{tools['success_rate']:.1%}" if tools['success_rate'] is not None else '不可计算'
     completion = f"{report['confirmed_completion_rate']:.1%}" if report['confirmed_completion_rate'] is not None else '不可计算'
@@ -722,6 +732,8 @@ def aggregate(source, destination, workspace='all'):
               'events.jsonl 保存公开事件（凭据已脱敏）。', '',
               '智能体异常、超时、交付或质量问题不使 job 变红；执行、验收或取证错误会使 job 变红。', '',
               '下载 journey-run-* artifact 获取完整报告与证据；artifact 保留 1 天。']
+    if comparison is not None:
+        lines.append(comparison_markdown(comparison))
     markdown = '\n'.join(lines)+'\n'
     (destination/'summary.md').write_text(markdown, encoding='utf-8')
     if os.environ.get('GITHUB_STEP_SUMMARY'):

@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "J4-68",
+  "title": "扫描件字段提取",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T068",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T068/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T068/task.md",
+      "sha256": "a07e612ebb66a9c533c50623be74e7560b6381a360063003d24f8e0a5827ae70"
+    },
+    {
+      "path": "samples/shared/scan.pdf",
+      "local_path": "cases/journey-4/_materials/samples/shared/scan.pdf",
+      "sha256": "43491657d015f9c2996816961481cae47da76a19f3b57ef0ae91977e277eb166"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md",
+    "invoice.csv"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：读取图像型scan.pdf，提取发票号、日期、数量、单价、税额、总额、运费，输出CSV并标记不确定内容。",
+    "真实读取图像型PDF提取CSV",
+    "QL-001/2026-10-20/Sensor A/10/120/156/1356，运费未述保持未知，不补零",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-68（原始编号 T068）：扫描件字段提取\n\n读取图像型scan.pdf，提取发票号、日期、数量、单价、税额、总额、运费，输出CSV并标记不确定内容。\n\n读取 inputs/samples/T068/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T068 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\", \"invoice.csv\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md",
+        "invoice.csv"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：读取图像型scan.pdf，提取发票号、日期、数量、单价、税额、总额、运费，输出CSV并标记不确定内容。",
+        "真实读取图像型PDF提取CSV",
+        "QL-001/2026-10-20/Sensor A/10/120/156/1356，运费未述保持未知，不补零",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}

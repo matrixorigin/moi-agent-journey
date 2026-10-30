@@ -1,0 +1,1 @@
+人工处理：读取input.csv；按order_id去重（保留首条）；只保留paid；按customer求和；输出summary.csv和异常列表；先dry-run；不得修改输入。

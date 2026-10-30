@@ -1,0 +1,1 @@
+POST /v1/quotes；Authorization: Bearer <token>；JSON {qty:正整数, unit_price:非负数, discount:0到100}；成功200 {total:number, currency:CNY}；400非法参数；401无效凭据；429限流。请求示例不得包含真实token。

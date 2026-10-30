@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "id": "J4-23",
+  "title": "客户数据清洗",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T023",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T023/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T023/task.md",
+      "sha256": "6d1738f6551d4a3606188eac9455c464e35d1d88b073fad4a8e11ba21e6e6b5d"
+    },
+    {
+      "path": "samples/shared/customers_dirty.csv",
+      "local_path": "cases/journey-4/_materials/samples/shared/customers_dirty.csv",
+      "sha256": "5759042155f05b9fd90b94737139694ce2137ee3bc030e7c44ed45ab4824dc3e"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md",
+    "cleaned.csv",
+    "exceptions.csv"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：清洗客户名单，去重、规范邮箱、标记异常与缺失，输出cleaned.csv和exceptions.csv，保留源文件。",
+    "实际cleaned.csv和exceptions.csv，5到4唯一记录、1重复",
+    "C02非法邮箱/C03缺邮箱/C04缺地区",
+    "清洗不凭空补值",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-23（原始编号 T023）：客户数据清洗\n\n清洗客户名单，去重、规范邮箱、标记异常与缺失，输出cleaned.csv和exceptions.csv，保留源文件。\n\n读取 inputs/samples/T023/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T023 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\", \"cleaned.csv\", \"exceptions.csv\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md",
+        "cleaned.csv",
+        "exceptions.csv"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：清洗客户名单，去重、规范邮箱、标记异常与缺失，输出cleaned.csv和exceptions.csv，保留源文件。",
+        "实际cleaned.csv和exceptions.csv，5到4唯一记录、1重复",
+        "C02非法邮箱/C03缺邮箱/C04缺地区",
+        "清洗不凭空补值",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}

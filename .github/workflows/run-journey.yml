@@ -64,6 +64,11 @@ jobs:
       - name: Install Chromium
         if: matrix.executor == 'browser'
         run: npx playwright install --with-deps chromium
+      - name: Load isolated validator
+        if: matrix.executor == 'office'
+        uses: ./.github/actions/load-judge
+        with:
+          artifact-name: ${{ inputs.judge_image_artifact }}
       - name: Run QA task and capture events
         if: matrix.executor == 'office'
         timeout-minutes: ${{ matrix.step_timeout_minutes }}
@@ -100,11 +105,6 @@ jobs:
           MOI_UI_BASE_URL: ${{ secrets.MOI_UI_BASE_URL }}
           MOI_UI_AUTH_ORIGIN: ${{ secrets.MOI_UI_AUTH_ORIGIN }}
         run: python3 -m journey.browser_case "$CASE_ID"
-      - name: Load isolated validator
-        if: matrix.executor == 'office'
-        uses: ./.github/actions/load-judge
-        with:
-          artifact-name: ${{ inputs.judge_image_artifact }}
       - name: Validate actual delivered files
         if: matrix.executor == 'office' && !cancelled() && success()
         timeout-minutes: 32

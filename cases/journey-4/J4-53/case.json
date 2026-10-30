@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "J4-53",
+  "title": "招标逐项响应",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T053",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T053/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T053/task.md",
+      "sha256": "678f825889be271ef8d9771e07112c9e28588211c7af8ea8a54c91e4cae0a562"
+    },
+    {
+      "path": "samples/shared/product.md",
+      "local_path": "cases/journey-4/_materials/samples/shared/product.md",
+      "sha256": "5675838cd0ae815724f29bf5233e674950a9f4d7beea5f723b58fa17cdf0714f"
+    },
+    {
+      "path": "samples/shared/tender.md",
+      "local_path": "cases/journey-4/_materials/samples/shared/tender.md",
+      "sha256": "767d6d9dfefd15d189452eef943c077667c33c9e47716690a216db41879bc235"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：将招标要求与产品能力逐项映射为支持、部分支持、待确认或不支持，并给依据。",
+    "逐条支持程度与原文证据一致",
+    "私有SSO权限不能由经理审批证明",
+    "导出报告不当验收报告，未知项不虚构支持",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-53（原始编号 T053）：招标逐项响应\n\n将招标要求与产品能力逐项映射为支持、部分支持、待确认或不支持，并给依据。\n\n读取 inputs/samples/T053/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T053 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：将招标要求与产品能力逐项映射为支持、部分支持、待确认或不支持，并给依据。",
+        "逐条支持程度与原文证据一致",
+        "私有SSO权限不能由经理审批证明",
+        "导出报告不当验收报告，未知项不虚构支持",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}

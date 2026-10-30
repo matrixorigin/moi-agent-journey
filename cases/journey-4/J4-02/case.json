@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "J4-02",
+  "title": "编写PRD",
+  "workspace": "journey-4",
+  "executor": "office",
+  "timeout_seconds": 1800,
+  "source": {
+    "benchmark": "Business-100",
+    "task": "T002",
+    "revision": "desktop-100-2026-10-29",
+    "provenance": "docs/journey-4.md"
+  },
+  "assets": [
+    {
+      "path": "samples/README.md",
+      "local_path": "cases/journey-4/_materials/samples/README.md",
+      "sha256": "8d36ddd4509fbdb385ec0d2b517993d155490d518d0a7168495ef6636029eeff"
+    },
+    {
+      "path": "samples/T002/task.md",
+      "local_path": "cases/journey-4/_materials/samples/T002/task.md",
+      "sha256": "784b7483fe28b45711d683d21378d914b496f7cc6d28d1caec4b333b731d3940"
+    },
+    {
+      "path": "samples/shared/idea.md",
+      "local_path": "cases/journey-4/_materials/samples/shared/idea.md",
+      "sha256": "4416a8c4c7ef281f26b71942b7d0b5eafdec1bbc588d82fe0336800382f69313"
+    }
+  ],
+  "oracles": [],
+  "expected_files": [
+    "result.md",
+    "execution.md"
+  ],
+  "assertions": [
+    "完整完成原始用户任务：把想法整理成PRD，包含场景、范围、流程、边界、验收标准。",
+    "PRD包含场景范围流程边界和可判断验收",
+    "三份报价来自输入，缺费用不补零",
+    "新增角色、计算税基及产品范围标建议或待确认",
+    "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+    "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+  ],
+  "dialogue_origin": "original_business_task_with_isolated_qa_delivery_contract",
+  "sessions": [
+    {
+      "id": "business",
+      "turns": [
+        {
+          "phase": "execute",
+          "prompt": "独立业务任务 J4-02（原始编号 T002）：编写PRD\n\n把想法整理成PRD，包含场景、范围、流程、边界、验收标准。\n\n读取 inputs/samples/T002/task.md 和本轮附件中的必要输入。原任务 samples/ 对应本轮 inputs/samples/，results/T002 对应本轮 outputs/。仅完成这一项任务。文本结论写 outputs/result.md，真实命令、回执、来源、校验和未完成项写 outputs/execution.md；不得自评打分。\n要求实际音频识别、看图、PDF读取、代码运行或交付文件的步骤必须实际执行，失败如实记录，不能用计划或示例代替。基准业务日期2026-10-29、时区Asia/Shanghai；要求“最近/当前”的公开调研使用实际查询日并标注。不得发送邮件、预订、下单、读取其他案例结果或真实客户私有数据。\n明确文件名要求：[\"result.md\", \"execution.md\"]。其他需要的脚本、数据、修复源码和真实运行日志也一并交付。"
+        }
+      ],
+      "expected_files": [
+        "result.md",
+        "execution.md"
+      ],
+      "rubric": [
+        "完整完成原始用户任务：把想法整理成PRD，包含场景、范围、流程、边界、验收标准。",
+        "PRD包含场景范围流程边界和可判断验收",
+        "三份报价来自输入，缺费用不补零",
+        "新增角色、计算税基及产品范围标建议或待确认",
+        "事实、计算与输入一致；未知、假设、建议与已执行结果清楚区分；不虚构来源、能力或工具成功。",
+        "要求的实际文件与执行步骤有可核验的产物/回执；result.md和execution.md自述不是单独的成功证明。"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+﻿vendor,qty,unit_price,tax_rate,shipping,lead_days,warranty_months
+S1,100,100,0.13,500,7,12
+S2,100,98,0.13,,5,12
+S3,100,105,0.13,0,3,24
