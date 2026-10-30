@@ -50,6 +50,8 @@ from .task_failure import expected_model_failure
 from .builder_recovery import BuilderRecoveryJourney
 from .artifact_knowledge import ArtifactKnowledgeFixture
 from .embedded_skill import EmbeddedSkillJourney
+from .message_admission import MessageAdmissionJourney
+from .published_conflict import PublishedConflictJourney
 from .system_skill_journey import SystemSkillJourney
 from .channel_journey import ChannelJourney, ChannelUnavailable, channel_targets, evaluate_channel_call, resolve_values
 from .channel_receivers import verify_receiver
@@ -186,13 +188,16 @@ class FunctionalExecution(Execution):
     def cleanup(self):
         native = getattr(self, "native_resources", None)
         generated = getattr(self, 'generated_knowledge', None)
+        ingress = getattr(self, 'ingress_journey', None)
         def cleanup_outputs(cid):
             if generated and generated.state.get('conversation_id') == cid:
                 confirmed = self.pending_conversation is None and all(task.get('state') in TERMINAL for task in self.tasks)
                 generated.cleanup(dependencies_confirmed=confirmed)
             if native:
                 native.cleanup_outputs(cid)
-        super().cleanup(cleanup_outputs=cleanup_outputs if native or generated else None)
+            if ingress:
+                ingress.cleanup_outputs(cid)
+        super().cleanup(cleanup_outputs=cleanup_outputs if native or generated or ingress else None)
 
     def check_skill(self, skill_id, task_id, session_id, phase, checks):
         if not isinstance(skill_id, str) or not skill_id:
@@ -224,6 +229,9 @@ class FunctionalExecution(Execution):
             self.root, self.selector = discover(self.client, self.case['workspace'])
             start_version(self)
             variables = case_variables(self.case)
+            if self.case.get('message_admission') is not None:
+                self.ingress_journey = MessageAdmissionJourney(self, self.case['message_admission'], checks)
+                variables.update(self.ingress_journey.prepare())
             if self.case.get('resource_lifecycle') is not None:
                 self.report['stage'] = 'resource_lifecycle'
                 resource_lifecycle = ResourceLifecycleJourney(self, self.case['resource_lifecycle'], checks)
@@ -243,6 +251,10 @@ class FunctionalExecution(Execution):
                 self.report['stage'] = 'builder_recovery'
                 builder_input = BuilderRecoveryJourney(self, self.case['builder_recovery'], checks)
                 builder_input.prepare()
+            if self.case.get('published_conflict') is True:
+                self.report['stage'] = 'published_conflict'
+                builder_input = PublishedConflictJourney(self, checks)
+                variables.update(builder_input.prepare())
             if self.case.get('system_skills') is not None:
                 self.report['stage'] = 'system_skills'
                 builder_input = SystemSkillJourney(self, self.case['system_skills'], checks)
@@ -459,9 +471,14 @@ class FunctionalExecution(Execution):
                         continue
                     else:
                         sender = self.native_skill.send if self.native_skill else self.send
+                        ingress = getattr(self, 'ingress_journey', None)
+                        probe = turn.get('admission_check') == 'probe'
+                        if turn.get('admission_check') is not None and (not ingress or cancel or live_resume or self.native_skill):
+                            raise Failure('invalid_admission_check')
+                        admission = {'on_admitted': ingress.admitted} if probe else {}
                         final_entry, task = sender(cid, session['id'] + ':' + turn['phase'], prompt, attachments,
                                                       cancel_after_admission=cancel, live_resume=live_resume,
-                                                      knowledge_ids=knowledge_ids, a2ui_action=action_data, file_only=turn.get("file_only", False))
+                                                      knowledge_ids=knowledge_ids, a2ui_action=action_data, file_only=turn.get("file_only", False), **admission)
                     if cancel:
                         accepted = final_entry.get('cancel_request') == 'accepted'
                         canceled = task['status']['state'] == 'canceled'
@@ -501,6 +518,8 @@ class FunctionalExecution(Execution):
                     self.evidence.write('sessions/' + session['id'] + '/replies/' + turn['phase'] + '.json',
                                         {'task_id': final_entry['task_id'], 'text': reply})
                     checks.extend(check_reply(session['id'], turn, reply, variables))
+                    if turn.get('admission_check') is not None:
+                        self.ingress_journey.finish(cid, final_entry, task, prompt, turn['admission_check'])
                     if turn.get('artifact_to_knowledge') is not None:
                         spec = turn['artifact_to_knowledge']
                         if (not isinstance(spec, dict) or set(spec) != {'filename', 'marker'} or

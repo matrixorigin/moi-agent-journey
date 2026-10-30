@@ -10,7 +10,7 @@ from .hello import TERMINAL
 from .run_case import Execution
 
 
-def same_cleanup_command(actual, expected):
+def same_python_command(actual, expected):
     try:
         left, right = shlex.split(actual), shlex.split(expected)
         return (len(left) == len(right) == 3 and left[:2] == right[:2] == ['python3', '-c'] and
@@ -61,7 +61,7 @@ def cleanup_sandbox(journey, conversation_id):
                 calls[payload['call_id']] = payload.get('arguments', {}).get('command')
             elif event.get('kind') == 'tool_result':
                 outputs[payload['call_id']] = payload
-        matched = [key for key, value in calls.items() if same_cleanup_command(value, command)]
+        matched = [key for key, value in calls.items() if same_python_command(value, command)]
         result = outputs.get(matched[0], {}) if len(matched) == len(calls) == 1 else {}
         wrapper = result.get('output', {})
         output = wrapper.get('output', {}) if isinstance(wrapper, dict) else {}

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI ingress and published-version regression"
+  },
+  "assets": [],
+  "oracles": [],
+  "id": "J2-129",
+  "title": "消息运行中及完成后重放不重复任务、消息或工具写入",
+  "message_admission": "replay",
+  "sessions": [
+    {
+      "id": "replay",
+      "delivery_kind": "answer",
+      "expected_checks": 14,
+      "turns": [
+        {
+          "phase": "write",
+          "admission_check": "probe",
+          "prompt": "请只用 bash 工具准确执行下面这条 Python 命令一次，不要执行其他命令。然后只回复 WRITE_DONE。\n{admission_command}",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "WRITE_DONE",
+              "rule": "原始写入任务正常完成"
+            }
+          ]
+        },
+        {
+          "phase": "verify",
+          "admission_check": "followup",
+          "prompt": "现在仅执行下面这条核验命令一次。不要重建或再次写入文件，不要重复上一轮命令。根据实际输出简要说明结果。\n{admission_verify_command}"
+        }
+      ]
+    }
+  ]
+}

@@ -137,7 +137,7 @@ class Execution:
         self.checkpoint()
 
     def send(self, cid, phase, prompt, attachments=(), *, cancel_after_admission=False, live_resume=False,
-             knowledge_ids=None, a2ui_action=None, file_only=False, model=None):
+             knowledge_ids=None, a2ui_action=None, file_only=False, model=None, on_admitted=None):
         if cancel_after_admission and live_resume:
             raise Failure('invalid_live_resume_case')
         selector = self.conversation_selector(cid)
@@ -197,6 +197,8 @@ class Execution:
                              "event_cursor": 0, "event_count": 0, "event_kinds": {}, "capture_complete": False}
                     self.tasks.append(entry)
                     self.pending_conversation = None
+                    if on_admitted is not None:
+                        on_admitted(entry, params)
                     # Live-resume must disconnect promptly; draining a growing event
                     # log here can take longer than the task itself. Its events are
                     # captured after resubscription (or during failure cleanup).
