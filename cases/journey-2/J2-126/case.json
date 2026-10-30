@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "J2-126",
+  "workspace": "journey-2",
+  "title": "真实失败任务结束后同会话可继续成功对话",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI recovery regression",
+    "issues": [
+      "https://github.com/matrixorigin/matrixflow/issues/20015",
+      "https://github.com/matrixorigin/matrixflow/issues/20056"
+    ]
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "sessions": [
+    {
+      "id": "live",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "baseline",
+          "prompt": "只回复这段公开代号：{code}",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{code}",
+              "rule": "智能体实际完成对话"
+            }
+          ]
+        },
+        {
+          "phase": "failed",
+          "prompt": "只回复 HELLO",
+          "expected_state": "failed",
+          "expected_model_failure": true
+        },
+        {
+          "phase": "recovered",
+          "prompt": "忽略上一轮错误，只回复这段公开代号：{code}",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{code}",
+              "rule": "智能体实际完成对话"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

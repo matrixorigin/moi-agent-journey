@@ -137,7 +137,7 @@ class Execution:
         self.checkpoint()
 
     def send(self, cid, phase, prompt, attachments=(), *, cancel_after_admission=False, live_resume=False,
-             knowledge_ids=None, a2ui_action=None, file_only=False):
+             knowledge_ids=None, a2ui_action=None, file_only=False, model=None):
         if cancel_after_admission and live_resume:
             raise Failure('invalid_live_resume_case')
         selector = self.conversation_selector(cid)
@@ -163,7 +163,7 @@ class Execution:
             metadata['semantic_model_ids'] = knowledge_ids
         params = {"message": {"kind": "message", "role": "user", "messageId": message_id,
                   "contextId": cid, "parts": parts, "metadata": metadata},
-                  "model": self.model, "idempotencyKey": message_id}
+                  "model": self.model if model is None else model, "idempotencyKey": message_id}
         if self.case.get('source', {}).get('benchmark') == 'Business-100' and phase in {
                 session['id'] + ':' + session['turns'][0]['phase'] for session in self.case['sessions']}:
             from .chat_attachments import validate_chat_attachment

@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI recovery regression",
+    "issues": [
+      "https://github.com/matrixorigin/matrixflow/issues/19507"
+    ]
+  },
+  "assets": [],
+  "oracles": [],
+  "id": "J2-128",
+  "title": "智能体生成 PDF 直接加入知识库、另会话检索并打开引用",
+  "random_tokens": [
+    "filename",
+    "content"
+  ],
+  "sessions": [
+    {
+      "id": "generate",
+      "delivery_kind": "file",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "file",
+          "prompt": "请使用 PDF 技能生成一页可下载的 PDF 文件 {filename}.pdf。写明 Harbor 项目的公开项目编号是 {content}，仅包含这条合成测试事实。",
+          "action": {
+            "type": "deliver_pdf_with_skill",
+            "skill_id": "moi.agent.momo.skill.pdf",
+            "filename": "{filename}.pdf",
+            "content": "{content}"
+          },
+          "artifact_to_knowledge": {
+            "filename": "{filename}.pdf",
+            "marker": "{content}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "lookup",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "query",
+          "prompt": "请检索本轮选定的知识库，Harbor 项目的公开项目编号是什么？必须基于检索结果回答并提供来源引用。",
+          "knowledge_selection": [
+            "generated"
+          ],
+          "knowledge_evidence": [
+            "generated"
+          ],
+          "citation_open": "generated",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{content}",
+              "rule": "独立会话从知识库取得项目编号"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

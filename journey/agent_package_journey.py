@@ -39,9 +39,10 @@ def package_files(raw):
 
 class AgentPackageJourney(ResourceJourney):
     kind = 'agent'
+    modes = {'archive', 'roundtrip', 'invalid'}
 
     def __init__(self, execution, definition, checks):
-        if not isinstance(definition, dict) or set(definition) != {'mode'} or definition['mode'] not in {'archive', 'roundtrip', 'invalid'}:
+        if not isinstance(definition, dict) or set(definition) != {'mode'} or definition['mode'] not in self.modes:
             raise Failure('invalid_package_case')
         self.execution, self.checks, self.mode = execution, checks, definition['mode']
         self.session_id = execution.case['sessions'][0]['id']
@@ -75,6 +76,9 @@ class AgentPackageJourney(ResourceJourney):
     def versions(self):
         return self.request('GET', self.agent_path + '/versions')
 
+    def package_contents(self, files):
+        return files
+
     def prepare(self):
         if not self.absent(self.agent_path):
             raise Failure('package_agent_already_exists')
@@ -88,7 +92,7 @@ class AgentPackageJourney(ResourceJourney):
             'prompts/main.md': instruction.encode()}
         self.agent_pending = True
         self.execution.checkpoint()
-        loaded = self.load(package_bytes(files))
+        loaded = self.load(package_bytes(self.package_contents(files)))
         version = loaded.get('version', {})
         self.record('导入包得到本次可运行版本', version.get('agent_id') == self.agent_id and
             version.get('version') == '1.0.0' and version.get('status') == 'runnable', 'package_load_mismatch', required=True)

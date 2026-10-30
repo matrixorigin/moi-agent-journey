@@ -263,6 +263,13 @@ class AgentBuilderFlow:
                 raise
             self.record('候选发布成功', False, 'commit_http_status:' + str(error.http_status))
             raise ProductCaseFailure('candidate_commit_failed') from None
+        return self.verify_commit(commit, expected_resources, expected_description,
+            capture_current=capture_current, changes=changes, expected_instruction=expected_instruction)
+
+    def verify_commit(self, commit, expected_resources=(), expected_description=None, *,
+                      capture_current=False, changes=None, expected_instruction=None):
+        output = self.current
+        agent_id = output['agent_id']
         version = commit.get('load_version')
         ok = (commit.get('agent_id') == agent_id and commit.get('workspace_id') == self.workspace and
               commit.get('source_digest') == output['source_digest'] and isinstance(version, str) and bool(version))

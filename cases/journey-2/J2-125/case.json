@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "J2-125",
+  "workspace": "journey-2",
+  "title": "候选发布失败后仍可修订、重新确认和使用",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI recovery regression",
+    "issues": [
+      "https://github.com/matrixorigin/matrixflow/issues/19807",
+      "https://github.com/matrixorigin/matrixflow/issues/18918"
+    ]
+  },
+  "assets": [],
+  "oracles": [],
+  "random_tokens": [
+    "code"
+  ],
+  "builder_recovery": "publication_recovery",
+  "sessions": [
+    {
+      "id": "live",
+      "delivery_kind": "answer",
+      "expected_checks": 17,
+      "turns": [
+        {
+          "phase": "use",
+          "prompt": "只回复这段公开代号：{code}",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{code}",
+              "rule": "智能体实际完成对话"
+            }
+          ]
+        }
+      ],
+      "agent_from_builder_input": true
+    }
+  ]
+}

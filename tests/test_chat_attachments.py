@@ -75,9 +75,10 @@ class ChatAttachmentTests(unittest.TestCase):
             client.stream_rpc.assert_not_called()
             client.stream_rpc.return_value = (item for item in ())
             with self.assertRaisesRegex(Failure, 'stream_ended_without_task'):
-                execution.send('cid', 'business:execute', 'Read the attached input.', [self.upload])
+                execution.send('cid', 'business:execute', 'Read the attached input.', [self.upload], model='per-turn-model')
             selector, params = client.stream_rpc.call_args.args
             self.assertEqual(selector['agent_id'], 'momo')
+            self.assertEqual(params['model'], 'per-turn-model')
             validate_chat_attachment({'params': params})
             self.assertEqual(params['message']['metadata']['files'], [self.upload])
             client.stream_rpc.reset_mock()
