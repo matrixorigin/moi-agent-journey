@@ -19,7 +19,17 @@ def load_suite(name):
 
 def journey_label(suite):
     subtitle = suite.get('subtitle')
-    return suite['workspace'] + (' · ' + subtitle if subtitle else '')
+    return suite['workspace'] + (' (' + subtitle + ')' if subtitle else '')
+
+
+def select_suites(config, selection):
+    suites = config['journeys']
+    if selection == 'all':
+        return suites
+    selected = [suite for suite in suites if selection in {suite['workspace'], journey_label(suite)}]
+    if not selected:
+        raise ValueError('unknown_workspace:' + selection)
+    return selected
 
 
 def case_executor(case):
@@ -96,10 +106,22 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     plan = sub.add_parser("plan")
     plan.add_argument("suite")
+    workspaces = sub.add_parser("plan-workspaces")
+    workspaces.add_argument("selection", nargs='?', default='all')
     prep = sub.add_parser("prepare")
     prep.add_argument("case_id")
     prep.add_argument("--work", default="work")
     args = parser.parse_args()
+    if args.command == 'plan-workspaces':
+        config = json.loads((ROOT / 'suites.json').read_text())
+        suites = select_suites(config, args.selection)
+        output = json.dumps({'include': [
+            {'workspace': suite['workspace'], 'display_name': journey_label(suite)} for suite in suites]})
+        if os.environ.get('GITHUB_OUTPUT'):
+            with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                f.write('matrix=' + output + '\n')
+        print(output)
+        return 0
     if args.command == "plan":
         suite = load_suite(args.suite)
         # Case executors inherit the suite's declared default and may override it.
@@ -120,7 +142,6 @@ def main():
             with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                 f.write("matrix=" + output + "\n")
                 f.write("concurrency=" + str(suite["concurrency"]) + "\n")
-                f.write("display_name=" + journey_label(suite) + "\n")
         print(output)
         return 0
     case = load_case(args.case_id)

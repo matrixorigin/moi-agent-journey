@@ -17,7 +17,6 @@ jobs:
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
       concurrency: ${{ steps.plan.outputs.concurrency }}
-      display_name: ${{ steps.plan.outputs.display_name }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -27,7 +26,7 @@ jobs:
           JOURNEY_WORKSPACE: ${{ inputs.workspace }}
         run: python3 -m journey.catalog plan "$JOURNEY_WORKSPACE"
   cases:
-    name: ${{ needs.plan.outputs.display_name }} / cases (${{ matrix.case }})
+    name: cases (${{ matrix.case }})
     needs: plan
     environment: qa
     runs-on: ubuntu-latest
