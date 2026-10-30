@@ -6,10 +6,10 @@
   "environment": "Codex Desktop local macOS; 100 independent sessions; original synthetic input copies; local document/browser/ASR tools",
   "method": "Independent answers; parent evaluator reviewed delivered files and recalculated source data. Not third-party blind grading. Execution.md is author-recorded evidence, not a complete externally collected tool stream.",
   "comparison_limits": [
-    "Historical final outcomes, not first-turn success; historic MOI had retries and reused conversations.",
-    "QA uses cloud runtime, selected per-case input ZIPs, normalized output names and new isolated file-operation contract; prompts and tool environments differ.",
-    "New automated semantic judge is not calibrated to historical manual reviews; pass/partial/fail definitions differ. No win-rate or significance claim.",
-    "Observed Codex dispatch-to-noticed-completion intervals include polling delay and concurrency; they are not comparable to QA task_seconds. No speed ratio."
+    "历史记录是最终成果验收；历史 MOI 存在重试和会话复用，不能当作首轮成功率。",
+    "新 QA 使用云端环境、逐任务输入包、统一交付文件名及隔离文件操作约定，与历史 Desktop 的提示和工具环境不同。",
+    "新自动语义评审尚未校准到历史人工量表；通过、部分通过、未通过口径不同，不计算产品胜率或显著性。",
+    "Codex 的起止观察包含轮询延迟和并发，与 QA task_seconds 不同口径；保留观察时间，不计算速度倍数。"
   ],
   "counts": {
     "passed": 99,

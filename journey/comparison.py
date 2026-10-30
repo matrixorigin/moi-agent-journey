@@ -9,7 +9,12 @@ from pathlib import Path
 
 LABELS = {'passed':'通过','partial':'部分通过','failed':'未通过','blocked':'阻塞',
           'missing':'结果缺失/未运行','error':'框架或验收错误','unavailable':'未完成验收',
-          'partial_validation':'仅部分检查'}
+          'partial_validation':'仅部分检查','timeout':'主任务超时','task_failed':'主任务异常',
+          'not_delivered':'未交付'}
+
+
+def counts_text(counts):
+    return '、'.join(f'{LABELS.get(state,state)} {count} 项' for state,count in counts.items())
 
 
 def current_state(row):
@@ -18,6 +23,11 @@ def current_state(row):
         return 'missing'
     if row.get('test_status') == 'error':
         return 'error'
+    task = row.get('task',{}).get('state')
+    if task in {'timeout','not_delivered'}:
+        return task
+    if task == 'abnormal':
+        return 'task_failed'
     quality = row.get('quality',{})
     if quality.get('state') == 'checked':
         return 'failed' if quality.get('failed_checks') else 'passed'
@@ -78,7 +88,7 @@ def markdown(comparison):
         return str(value).replace('|','／').replace('\n',' ')
     lines = ['', '## Journey-4 与历史 Codex 对照', '',
         f"历史 Codex：{comparison['baseline_date']} / {comparison['baseline_model']}，"
-        f"{comparison['historical_codex_counts']}。本次 QA：{comparison['current_counts']}。", '',
+        f"{counts_text(comparison['historical_codex_counts'])}。本次 QA：{counts_text(comparison['current_counts'])}。", '',
         '历史评分不计入本次通过数；本次为自动检查，历史为人工成果验收，不能直接计算产品胜率或速度倍数。', '',
         '| Case | 业务任务 | 本次 MOI QA 检查 | 历史 MOI 人工验收 | 历史 Codex 人工验收 | Codex 依据 |',
         '|---|---|---|---|---|---|']
@@ -104,7 +114,7 @@ def publish(comparison, destination, root):
     with (destination/'comparison.csv').open('w',newline='',encoding='utf-8-sig') as stream:
         writer = csv.DictWriter(stream,fields,extrasaction='ignore');writer.writeheader();writer.writerows(comparison['cases'])
     (destination/'comparison.md').write_text(markdown(comparison))
-    esc = lambda v: html.escape(str(v),quote=True)
+    esc = lambda v: html.escape(str(v) if v is not None else '—',quote=True)
     body = []
     for r in comparison['cases']:
         current = (f'<a href="{esc(r["current_result"])}">{esc(LABELS[r["current_state"]])}</a>'
@@ -116,7 +126,7 @@ def publish(comparison, destination, root):
     doc = '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>Journey-4 与 Codex 历史对照</title>'
     doc += '<style>body{font:15px system-ui;margin:32px;color:#192c36}table{border-collapse:collapse;width:100%}td,th{padding:10px;border:1px solid #ccc;text-align:left;vertical-align:top}th{background:#edf3f6}p,li{line-height:1.6}a{color:#075ba5}</style>'
     doc += '<h1>Journey-4 与 Codex 历史对照</h1><p>'+esc(comparison['baseline_date']+' / '+comparison['baseline_model'])+'</p>'
-    doc += '<p>历史 Codex：'+esc(comparison['historical_codex_counts'])+'；本次 QA：'+esc(comparison['current_counts'])+'</p>'
+    doc += '<p>历史 Codex：'+esc(counts_text(comparison['historical_codex_counts']))+'；本次 QA：'+esc(counts_text(comparison['current_counts']))+'</p>'
     doc += '<p>本次 QA 检查与历史人工验收分别呈现。历史成绩不计入本次通过数；新用例未运行时保持缺失，不生成假通过。</p><ul>'
     doc += ''.join('<li>'+esc(s)+'</li>' for s in comparison['comparison_limits'])+'</ul>'
     doc += '<table><thead><tr><th>Case</th><th>业务任务</th><th>本次 MOI QA</th><th>历史 MOI</th><th>历史 Codex</th><th>Codex 依据与成果</th><th>本次耗时/秒</th></tr></thead><tbody>'

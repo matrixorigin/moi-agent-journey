@@ -128,6 +128,8 @@ class BusinessJourneyTests(unittest.TestCase):
         self.assertEqual(comparison['cases'][0]['codex_verdict'],'passed')
         row['test_status']='error'
         self.assertEqual(current_state(row),'error')
+        row['test_status']='completed';row['task']={'state':'timeout'}
+        self.assertEqual(current_state(row),'timeout')
         self.assertIsNone(build([dict(row,workspace='journey-1')],ROOT))
 
 
