@@ -5,7 +5,13 @@ on:
       workspace:
         description: '工作区（all 表示运行全部）'
         type: choice
-        options: [all, journey-1, journey-2, journey-3, journey-4, journey-5]
+        options:
+          - all
+          - journey-1 (Complex Long-Horizon Tasks)
+          - journey-2 (Basic Functional End-to-End Tasks)
+          - journey-3
+          - journey-4
+          - journey-5
         default: all
   schedule:
     - cron: '17 */6 * * *'
@@ -16,15 +22,28 @@ concurrency:
   cancel-in-progress: false
   queue: max
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - id: plan
+        env:
+          JOURNEY_WORKSPACE: ${{ inputs.workspace || 'all' }}
+        run: python3 -m journey.catalog plan-workspaces "$JOURNEY_WORKSPACE"
   judge-image:
     uses: ./.github/workflows/build-judge.yml
   journeys:
-    needs: judge-image
+    name: ${{ matrix.display_name }}
+    needs: [plan, judge-image]
     strategy:
       fail-fast: false
       max-parallel: 5
-      matrix:
-        workspace: ${{ fromJSON(inputs.workspace != '' && inputs.workspace != 'all' && format('["{0}"]', inputs.workspace) || '["journey-1","journey-2","journey-3","journey-4","journey-5"]') }}
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     uses: ./.github/workflows/run-journey.yml
     with:
       workspace: ${{ matrix.workspace }}

@@ -13,7 +13,7 @@ import zipfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from .catalog import ROOT, case_executor, is_functional_case, journey_label, load_case, load_suite
+from .catalog import ROOT, case_executor, is_functional_case, journey_label, load_case, load_suite, select_suites
 from .diagnostics import analyze_events, success_rate
 from .evidence import Evidence, configured_secrets, utc_now,TOKEN_BYTES
 from .outcomes import assess
@@ -558,10 +558,9 @@ def _valid_case_result(result):
 
 def aggregate(source, destination, workspace='all'):
     config = json.loads((ROOT / 'suites.json').read_text())
-    suites_to_run = config['journeys'] if workspace == 'all' else [
-        suite for suite in config['journeys'] if suite['workspace'] == workspace]
-    if not suites_to_run:
-        raise ValueError('unknown_workspace:' + workspace)
+    suites_to_run = select_suites(config, workspace)
+    if workspace != 'all':
+        workspace = suites_to_run[0]['workspace']
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
     rows, suites = [], []
