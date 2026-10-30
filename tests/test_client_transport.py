@@ -14,6 +14,27 @@ from journey.client import Client, Failure, transport_details
 
 
 class ClientTransportTests(unittest.TestCase):
+    def test_task_and_event_collections_exceed_ordinary_json_budget_without_truncation(self):
+        content = 'journal-data-' + 'x' * 33_000_000
+        client = Client('https://example.invalid', 'synthetic-pat')
+        def open_response(request, timeout):
+            value = {'code': 0, 'data': {'content': content}}
+            if request.data:
+                body = json.loads(request.data)
+                value = {'jsonrpc': '2.0', 'id': body['id'], 'result': {'content': content}}
+            response = io.BytesIO(json.dumps(value).encode())
+            response.status = 200; response.headers = Message()
+            return response
+        client.opener.open = Mock(side_effect=open_response)
+        self.assertEqual(client.rpc({'agent_id': 'a'}, 'tasks/get', {'id': 'task'})['content'], content)
+        self.assertEqual(client.product('GET', '/workspaces/ws/agent-runtime-tasks/task/events?after_seq=0')['content'], content)
+        with self.assertRaises(Failure) as raised:
+            client.product('GET', '/workspaces/ws/agents/agent')
+        self.assertEqual(raised.exception.code, 'response_too_large')
+        with patch('journey.client.TASK_EVIDENCE_RESPONSE_LIMIT', 100), self.assertRaises(Failure) as raised:
+            client.rpc({'agent_id': 'a'}, 'tasks/get', {'id': 'task'})
+        self.assertEqual(raised.exception.code, 'response_too_large')
+
     def test_large_artifact_frames_are_preserved_and_frame_budget_resets(self):
         client = Client('https://example.invalid', 'synthetic-pat')
         payload = 'large artifact ' + '界' * 1_000_000

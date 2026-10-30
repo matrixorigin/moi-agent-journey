@@ -52,6 +52,7 @@ python3 -m journey.knowledge_case J3-01 --agent-id '<agent-id>' --bound-corpora 
 只运行部分题目时，用 `python3 -m journey.report aggregate --workspace journey-3 --cases J3-01 J3-35 --root published-results --out bundle` 明确汇总范围。所选题目的结果缺失仍计为错误，未选题目不计入分母。
 
 SSE 与普通 JSON 接口均采用 32 MB 接收上限；按 UTF-8 字节限制单条事件，支持大表产生的多 MB 检索产物，不截断内容。
+`tasks/get` 和任务事件集合接口没有服务端页大小参数，单次证据响应预算为 1 GB；下载超过 1 MB 后使用私有临时文件，超限显式报错。其他业务 JSON 接口仍采用 32 MB 上限。
 
 ## 如何阅读结果
 

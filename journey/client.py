@@ -2,8 +2,10 @@
 
 import json
 import http.client
+import re
 import socket
 import ssl
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -11,6 +13,8 @@ import urllib.request
 import uuid
 
 JSON_RESPONSE_LIMIT = 32_000_000
+# Task history and event collections have no server-side page-size parameter.
+TASK_EVIDENCE_RESPONSE_LIMIT = 1_000_000_000
 
 
 class Failure(Exception):
@@ -112,15 +116,32 @@ class Client:
             with self.opener.open(req, timeout=remaining) as response:
                 response_headers = dict(response.headers)
                 status = response.status
-                payload = response.read(max_bytes + 1)
+                if binary:
+                    payload = response.read(max_bytes + 1)
+                    if len(payload) > max_bytes:
+                        raise Failure('response_too_large')
+                else:
+                    # Large journals spill to a private temporary file instead of
+                    # retaining the raw response alongside its decoded JSON tree.
+                    with tempfile.SpooledTemporaryFile(max_size=1_000_000) as spool:
+                        size = 0
+                        while True:
+                            if time.monotonic() > self.deadline:
+                                raise Failure('deadline_exceeded')
+                            chunk = response.read(min(1_000_000, max_bytes + 1 - size))
+                            if not chunk:
+                                break
+                            size += len(chunk)
+                            if size > max_bytes:
+                                raise Failure('response_too_large')
+                            spool.write(chunk)
+                        spool.seek(0)
+                        result = json.load(spool)
             if time.monotonic() > self.deadline:
                 raise Failure("deadline_exceeded")
-            if len(payload) > max_bytes:
-                raise Failure("response_too_large")
             if binary:
                 observe(status, {"bytes": len(payload)}, response_headers)
                 return payload
-            result = json.loads(payload)
             observe(status, result, response_headers)
             if not isinstance(result, dict):
                 raise Failure("invalid_response")
@@ -139,17 +160,20 @@ class Client:
             raise Failure("invalid_response") from None
 
     def product(self, method, path, body=None, *, expected_code=0):
-        result = self.request(method, path, body)
+        budget = ({'max_bytes': TASK_EVIDENCE_RESPONSE_LIMIT} if method == 'GET' and re.fullmatch(
+            r'/workspaces/[^/]+/agent-runtime-tasks/[^/]+/events', path.split('?', 1)[0]) else {})
+        result = self.request(method, path, body, **budget)
         if result.get("code") != expected_code or not isinstance(result.get("data"), dict):
             raise Failure("product_error")
         return result["data"]
 
     def rpc(self, selector, method, params):
         request_id = str(uuid.uuid4())
+        budget = {'max_bytes': TASK_EVIDENCE_RESPONSE_LIMIT} if method == 'tasks/get' else {}
         result = self.request("POST", "/agents/a2a", {
             "jsonrpc": "2.0", "id": request_id, **selector,
             "method": method, "params": params,
-        })
+        }, **budget)
         if result.get("jsonrpc") != "2.0" or result.get("id") != request_id:
             raise Failure("invalid_rpc_response")
         if "error" in result:
