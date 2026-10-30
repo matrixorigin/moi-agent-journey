@@ -183,15 +183,15 @@ class ArtifactKnowledgeTests(unittest.TestCase):
 
 
 class GeneratedKnowledgeCleanupOrderTests(unittest.TestCase):
-    def test_owned_referenced_file_can_disappear_during_bounded_read_only_wait(self):
+    def test_referenced_file_is_recorded_and_never_force_deleted(self):
         from journey.native_skill_cleanup import delete_owned_file
-        execution = SimpleNamespace(root='/workspaces/ws', evidence=Mock(), client=Mock(deadline=time.monotonic()+30))
-        execution.client.product.side_effect = [
-            {'file_id': 'file', 'source_session_id': 'cid', 'source_task_id': 'task', 'ref_count': 1},
-            Failure('http_error', 404)]
-        with patch('journey.native_skill_cleanup.time.sleep'):
+        execution = SimpleNamespace(root='/workspaces/ws', evidence=Mock(), client=Mock())
+        execution.client.product.return_value = {
+            'file_id': 'file', 'source_session_id': 'cid', 'source_task_id': 'task', 'ref_count': 1}
+        with self.assertRaises(Failure) as error:
             delete_owned_file(execution, 'file', 'cid', {'task'})
-        self.assertEqual(execution.client.product.call_count, 2)
+        self.assertEqual(error.exception.details['ref_count'], 1)
+        execution.evidence.append.assert_called_once()
         execution.client.request.assert_not_called()
 
     def test_unrelated_file_is_never_polled_or_deleted(self):
