@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "J3-16",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · paples",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "paples",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "paples",
+    "original_number": 16
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nPaplesはDPSで何のために使うシステムですか。利用できる主な出力方法も教えてください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "見積書・発注書等の定型帳票出力"
+              },
+              {
+                "id": "C02",
+                "text": "印刷、PDF、ファイル送信（FAX）"
+              },
+              {
+                "id": "C03",
+                "text": "ブラウザ上で動作、Edge推奨"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-ec801be0d3320973ffb7e38b",
+                "file_id": "5204632d-fea6-44f4-94db-6004480831f3",
+                "file_name": "DPC概要_2026受入.xlsx",
+                "segment_id": "kbsegrow-21e7ec086c8c1eab836766e5",
+                "quote": "/tr><tr><td>バッチ</td><td>バッチ</td><td>－</td><td>－</td><td>特定の処理を一気にまとめて実行する処理（処理の自動実行）。<br>※繰り返し行われる一連の手順・処理をあらかじめ登録しておき、スケジュールした(もしくは任意の)タイミングで実行させる。<br><br>≒バッチ処理</td></tr><tr><td>Paples</td><td>パピレス</td><td>－</td><td>－</td><td>見積書・発注書等の定型帳票出力のシステム。<br>印刷、PDF、ファイル送信（FAX）が可能。ブラウザ上で動作（Edgeブラウザを利用推奨）。</td></tr><tr><td>バリアント</td><td>バリアント</td><td>－</td><td>－</td><td>プログラムの実行条件を設定した値を管理するオブジェクト。<br>※同条件で実行することが多いプログラムに対し、各項目の入力値を組み合わせ1セットとして登録しておくことが可能。また、バリアントを利用することで入力のミス防止、省力化が可能。<br>《例》<br>日次チェックするレポート系機能での検索条件をバリアントとして登録しておく</td></tr><tr><td>半製品</td><td>ハンセイヒン</td><td>－</td><td>－</td><td>販売する製品が完成していない状態を半製品と呼ぶ。例としてFWでは靴のアッパー等、HMの帽体、ストラップ等が該当する。保守パーツやサンプル品とは異なる区分となる。</td></tr><tr><td>販売組織</td><td>ハンバイソシキ</td><td>－</td><td>－</td><td>販売活動についての管理単位。<br>《例》<br>■販社は会社ごとに１つ設定する。<br>■ミドリ安全本社の店所は支店・営業所ごとに１つ設定する。<br>■ミドリ安全本社の仕入部門は部門ごとに１つ設定する。<br>■ミドリ安全本社の仕入部門以外の店販社の営業統括及び営業機能を有する部門については部門ごとに1つ設定する。<br>※リテイル事業部、クリーン静電部、F&amp;H部の設定については検討中。<br>■仕入会社は会社ごとに１つ設定する。</td></tr><tr><td>ＢＰマスタ</td><td>ビーピーマスタ</td><td>－</td><td>－</td><td>BP：Buisiness Partner の略<br>得意先（取引先及び仕入先）を管理するマスタ。1BPに対し複数のロール（役割）を割り当てることが可能。<br>《例》<br>得意先にも仕入先にもなる取引先",
+                "etag": "24113a0dcf6766cc48aa2d994705e11feb9c64dffc1a4d530ef0d96fa39bdd1d",
+                "document_sha256": "d42cb01d6d03438f7eca0977dc0e9da05f6bd153daea6f61b2b20a29a5961721"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-ec801be0d3320973ffb7e38b"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

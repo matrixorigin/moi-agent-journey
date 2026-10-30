@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "J3-21",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · order_vs_item",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "order_vs_item",
+    "original_reference_status": "manual_review_required"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "order_vs_item",
+    "original_number": 21
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n受注タイプと明細カテゴリは何が違いますか。DPSで使用する代表例も示してください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "受注类型用于区分受注传票整体的业务，如ZBB1参照确定报价、ZBB4不参照报价"
+              },
+              {
+                "id": "C02",
+                "text": "明细类别用于区分单行项目处理，如ZB1E库存引当、ZB1F对外受注紐付发注、ZB1J社内转送"
+              },
+              {
+                "id": "C03",
+                "text": "不能将两类编码当作同一层次"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-1ad7a91f1e927ae9b3b41734",
+                "file_id": "d9c0fa44-64db-4a1c-b640-e88be4c84ccb",
+                "file_name": "第４回受発注の流れ.xlsx",
+                "segment_id": "kbsegrow-2be4f9a83034fdd4015b0599",
+                "quote": "# 第5章 発注業務\n\n## さまざまなタイプの受注伝票登録 Tr-cd : VA01\n\n受注にも確定見積ありのZBB1や確定見積なしのZBB4以外にもさまざまな受注タイプを使用する場合があります。\n\n**【得意先からの受注の主な受注タイプ】**\n\n| 受注タイプ | テキスト | 受注タイプの説明 |\n|---|---|---|\n| ZBB1 | 標準・サービス受注 (通常) | 確定見積をベースに入力する場合に使用する |\n| ZBB3 | 標準受注 (前受金) | 商品の代金を事前に受領している場合に使用します |\n| ZBB4 | 標準・サービス受注 (見積参照無) | 確定見積を参照せずに受注登録する場合に使用します |\n| ZBB5 | 現金販売 | 商品を代金引換で引き渡す場合に使用します |\n| ZBB6 | ＥＤＩ受注 | EDI取引分を入力するときに使用します |\n| ZBB7 | ＥＣ受注 | ミドリ安全ドットコム受注分を入力するときに使用します |\n| ZBE1 | 即伝出荷 | 受注登録と同時に納品書を発行する場合に使用します |\n\nミドリ安全株式会社\n\nCopyright (C) ",
+                "etag": "68f6c8a3370982cfc86619f2d220d1f545f0ab90152f1253ee419e70ac7186cc",
+                "document_sha256": "993cdb60ca1a1b9d0143d4ac92f2eaf0eb884150d74b0c8977ad6e82efb7adaf"
+              },
+              {
+                "source_id": "kb-source-59ddb5f1a0caa0b6c120a508",
+                "file_id": "9262c508-ee2b-43b2-ba74-627545e19ac5",
+                "file_name": "DPSロジの基本.xlsx",
+                "segment_id": "kbsegrow-737e8c17e42f5d2d32105bb3",
+                "quote": "# 仕入部門に発注する際の明細カテゴリ（支店）\n\n新システム（VA01：入力画面 ▶ 明細カテゴリ）\n\n| タイプ | テキスト | 明細カテゴリの説明 |\n|---|---|---|\n| ZB1J | 受注組付社内転送 | 受注に組付けして社内に商品を注文します（店所が生産部に発注する場合に使用） |\n| ZB1F | 受注組付発注 | 受注に組付けして社外に商品を注文します |\n| ZB1E | 在庫引当 | 自店倉庫にある在庫を引当して出荷します |\n\n【仕入部門】\n\n- ミドリ安全㈱フットウェア生産部 1XXXXXXX 2XXXXXXX\n- ミドリ安全㈱ヘルメット生産部 45XXXXXX\n- ミドリ安全㈱電気計測事業部 5XXXXXXX\n- ミドリ安全㈱メディカル推進部 7XXXXXXX\n- ミドリ安全㈱OO支店\n\n【仕入会社】\n\n- エムシアパレル㈱ 3XXXXXXX\n- ミドリ安全用品㈱ 4XXXXXXX\n- ミドリ安全エアクオリティ㈱ 6XXXXXXX\n- ミドリ安全OO㈱",
+                "etag": "fc413a6777013f8e85521a4db49826bd5a6cc44792bae996bef6ab2a9c5a2b58",
+                "document_sha256": "cdad097ee4674564aead5ded13db03151c65c210fa1a48270b1a8bfeb381dc9c"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-1ad7a91f1e927ae9b3b41734",
+              "kb-source-59ddb5f1a0caa0b6c120a508"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

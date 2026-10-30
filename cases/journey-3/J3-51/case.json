@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "id": "J3-51",
+  "workspace": "journey-3",
+  "title": "MOI 产品文档 · service_account",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "service_account",
+    "original_reference_status": "criteria_only"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "moi",
+    "key": "service_account",
+    "original_number": 4
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 7,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n我想用moi的服务账号，这个东西怎么用，给我举个例子吧",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "MOI服务账号是独立应用身份，不继承创建者权限，需要配置产品授权和凭据"
+              },
+              {
+                "id": "C02",
+                "text": "Genesis授权模型、额度或速率，AI Studio授权工作区和角色"
+              },
+              {
+                "id": "C03",
+                "text": "区分Secret与API Key，不把Grafana服务账号当作MOI凭据"
+              },
+              {
+                "id": "C04",
+                "text": "给出有文档依据的调用示例，凭据用占位符，不生成或索要真实Secret"
+              },
+              {
+                "id": "C05",
+                "text": "资料中AI Studio支持的认证描述存在差异时说明差异，不能把已配置产品权限等同于已验证所有接口可调用"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-d1cabac29d2498e9d52223af",
+                "file_id": "9eecdeac-50dc-4fdb-b54d-4ab019a23b3b",
+                "file_name": "moi-docs-guides_billing-1.md",
+                "segment_id": "doc_1756107388dd79cfec5ad81c72a1109b",
+                "quote": "服务账号用于应用或自动化任务，不继承创建者的个人权限。创建服务账号时，需要设置初始 Secret 的有效期，并至少添加一项产品权限：",
+                "etag": "a451916dbc9fdd7ac814a53e040e317b6fe1a25e1fb3b3dccdfacc1ffad3503c",
+                "document_sha256": "f4e5e5040ce31652f2189fda622d9f8a031b83186071fdfe8ed9f409ed72d3f0"
+              },
+              {
+                "source_id": "kb-source-d1cabac29d2498e9d52223af",
+                "file_id": "9eecdeac-50dc-4fdb-b54d-4ab019a23b3b",
+                "file_name": "moi-docs-guides_billing-1.md",
+                "segment_id": "doc_0a1b1e4e2a53c8ba157638ad22a4bf71",
+                "quote": "- Genesis： 授权全部模型或指定模型，也可以设置额度限制和速率限制。\n- AI Studio： 选择工作区，并为服务账号绑定该工作区中的角色。",
+                "etag": "a451916dbc9fdd7ac814a53e040e317b6fe1a25e1fb3b3dccdfacc1ffad3503c",
+                "document_sha256": "f4e5e5040ce31652f2189fda622d9f8a031b83186071fdfe8ed9f409ed72d3f0"
+              },
+              {
+                "source_id": "kb-source-d1cabac29d2498e9d52223af",
+                "file_id": "9eecdeac-50dc-4fdb-b54d-4ab019a23b3b",
+                "file_name": "moi-docs-guides_billing-1.md",
+                "segment_id": "doc_fa515c8e2696198de2edc717cd022a1a",
+                "quote": "-studio/http-api.html)</td><td>[AI Studio SDK](../../developer/quickstart/ai-studio/sdk.html)</td><td>[AI Studio CLI](../../developer/quickstart/ai-studio/cli.html)</td><td>个人访问令牌 Client ID 和 Client Secret（服务账号）</td></tr></table>",
+                "etag": "a451916dbc9fdd7ac814a53e040e317b6fe1a25e1fb3b3dccdfacc1ffad3503c",
+                "document_sha256": "f4e5e5040ce31652f2189fda622d9f8a031b83186071fdfe8ed9f409ed72d3f0"
+              },
+              {
+                "source_id": "kb-source-89dfe68129325b397646b8e0",
+                "file_id": "4ef97b98-637b-4c00-a000-a3896d5fbbc7",
+                "file_name": "moi-docs-reference_api-12.md",
+                "segment_id": "doc_4c737aa73fe0dae6f57e0463b8b37ddf",
+                "quote": "- Genesis：使用个人访问令牌或服务账号 API Key。创建步骤见[管理 Genesis 访问凭据](../../../guides/genesis/api-keys.html)。\n- AI Studio：使用个人访问令牌。",
+                "etag": "dfad5dc7b253b787d4f5054a9cb84366c326a1b3ec053a9ef3c33ec9fa31a48b",
+                "document_sha256": "9e84215870851280e79b3f4688f3c09e3c6331a3f48d947c27c22a8fb053d495"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-d1cabac29d2498e9d52223af",
+              "kb-source-89dfe68129325b397646b8e0"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

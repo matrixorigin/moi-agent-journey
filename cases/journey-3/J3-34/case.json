@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "id": "J3-34",
+  "workspace": "journey-3",
+  "title": "Cedar 综合对照 · timeout_cross_document",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "timeout_cross_document",
+    "original_reference_status": "criteria_only"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "cedar",
+    "key": "timeout_cross_document",
+    "original_number": 5
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nCedar 创建导出超时了，重试又收到503。请结合 API 指南和日语交接记录给出下一步操作、等待间隔、升级负责人；续签下载链接是否需要重新生成数据？",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "先原幂等键查询"
+              },
+              {
+                "id": "C02",
+                "text": "2/4/8秒"
+              },
+              {
+                "id": "C03",
+                "text": "森田到Chen"
+              },
+              {
+                "id": "C04",
+                "text": "续签不重生成"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-4a7ad5a100122402870efe82",
+                "file_id": "140e699a-2674-4e0c-ad47-53b3aa867232",
+                "file_name": "Cedar-Export-API-Integration.md",
+                "segment_id": "doc_56f89e96fc91b679f9c7b289976175e7",
+                "quote": "equest returns the same task, not a new task. Reusing it with a different request returns HTTP 409 and reason idempotency_payload_conflict. For HTTP 429 obey Retry-After. For HTTP 503 retry after 2, 4, then 8 seconds; after those attempts inspect task status before another create. A client timeout does not prove the task was not created. Query GE",
+                "etag": "986f80473a16577a025993011a8f3f581553fe37df3d1159015483c6064f5d0b",
+                "document_sha256": "c14f71377f8b8739681b66a7273983854dc029b1411bee9c46ab2e0e191ff506"
+              },
+              {
+                "source_id": "kb-source-4a7ad5a100122402870efe82",
+                "file_id": "140e699a-2674-4e0c-ad47-53b3aa867232",
+                "file_name": "Cedar-Export-API-Integration.md",
+                "segment_id": "doc_7016721bc0eb5e7a78b0e780a652c677",
+                "quote": " does not prove the task was not created. Query GET /v3/exports/by-key/{key} first; resume polling an existing task. Never change the key merely because the create response was lost. Failed task exports use a new logical request only after the original status is known. Single downloadable part maximum: 67108864 bytes (64 MiB). Larger exports are split into parts. This limit is not a cap on the total export size. Download URLs expire after 15 minutes; renew the URL for the same task. URL renewal does not reg",
+                "etag": "986f80473a16577a025993011a8f3f581553fe37df3d1159015483c6064f5d0b",
+                "document_sha256": "c14f71377f8b8739681b66a7273983854dc029b1411bee9c46ab2e0e191ff506"
+              },
+              {
+                "source_id": "kb-source-4a7ad5a100122402870efe82",
+                "file_id": "140e699a-2674-4e0c-ad47-53b3aa867232",
+                "file_name": "Cedar-Export-API-Integration.md",
+                "segment_id": "doc_7016721bc0eb5e7a78b0e780a652c677",
+                "quote": "8864 bytes (64 MiB). Larger exports are split into parts. This limit is not a cap on the total export size. Download URLs expire after 15 minutes; renew the URL for the same task. URL renewal does not reg",
+                "etag": "986f80473a16577a025993011a8f3f581553fe37df3d1159015483c6064f5d0b",
+                "document_sha256": "c14f71377f8b8739681b66a7273983854dc029b1411bee9c46ab2e0e191ff506"
+              },
+              {
+                "source_id": "kb-source-59ae1dc009848b0fa0915f81",
+                "file_id": "465ebf69-ff57-428b-8162-5f20148711fe",
+                "file_name": "Cedar-当番引継ぎ-202610.md",
+                "segment_id": "doc_fad3c865c2ec9f0ac63259d478f28781",
+                "quote": "通常のエクスポート障害は運用当番が一次切り分けを行う。 一次担当：森田。エスカレーション先：Export Runtime チームの Chen。 ファイル保存期間・法的保全の相談先：Compliance チームの Vega。 顧客の作成要求がタイムアウトした場合、まず元の Idempotency-Key でタスク状態を照会する。 同じタスクが存在するなら再作成せず監視を継続する。503 の待機間隔は API Integration Guide に従う。 INC-20261012 は調査中で、原因確定前に「DB障害」と顧客へ断定してはならない。",
+                "etag": "312058cac0c9062f2a2fa53bd15a85f5540c2caea1dceffeec59d8da8eb66e26",
+                "document_sha256": "7db5dd6ff5cde6cbd827d2a1016c4bd602a606d750e7c5ab09f3982b4e2914cc"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-4a7ad5a100122402870efe82",
+              "kb-source-59ae1dc009848b0fa0915f81"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

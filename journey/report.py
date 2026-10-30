@@ -18,6 +18,8 @@ from .diagnostics import analyze_events, success_rate
 from .evidence import Evidence, configured_secrets, utc_now,TOKEN_BYTES
 from .outcomes import assess
 from .native_skill_stages import LABELS as NATIVE_STAGE_LABELS
+from .rag_report import (aggregate_lines as rag_aggregate_lines, case_lines as rag_case_lines,
+                         summarize_rag, valid_rag_result)
 
 FINAL = {"passed", "failed", "timeout", "error"}
 AGENT_LABELS = {'completed': '请求正常结束', 'canceled': '按请求取消', 'abnormal': '请求异常', 'timeout': '超时', 'unknown': '无法确认'}
@@ -202,6 +204,7 @@ def case_summary(result):
     lines += ['', '完整判词、逐轮事件与产物见本 case artifact 中的 result.json、events.jsonl 和其他证据文件；'
               '公开包中被隔离的文件见 publication.json。', '',
               '智能体问题和质量检查不改变测试框架状态；质量判据需结合原始证据复核。', '']
+    lines.extend(rag_case_lines(result, cell))
     return '\n'.join(lines)
 
 
@@ -251,6 +254,10 @@ def finish_case(case_id, directory):
     result.setdefault('failures', [])
     result.setdefault('harness_errors', [])
     raw_status = result.get('status')
+    if case_executor(case) == 'knowledge' and not valid_rag_result(result.get('rag')):
+        result['harness_errors'].append({'stage': 'evidence', 'reason': 'knowledge_report_missing_or_invalid'})
+        result['rag'] = {'corpus': case['rag']['corpus'], 'answers': [],
+            'expected_answers': sum('rag_reference' in turn for session in case['sessions'] for turn in session['turns'])}
     if raw_status not in FINAL:
         result["harness_errors"].append({"stage": result.get("stage"), "reason": "case_did_not_reach_final_verdict"})
     if raw_status == 'error' and not result['harness_errors']:
@@ -434,7 +441,7 @@ def _group_summary(rows):
     functional = Counter(row['functional']['state'] for row in rows if row.get('functional'))
     completion_rows = [row for row in rows if not row.get('expected_cancellation')]
     completed_count = sum(row['task']['state'] == 'completed' for row in completion_rows)
-    return {'total': len(rows),
+    summary = {'total': len(rows),
             'test_errors': sum(row['test_status'] == 'error' for row in rows),
             'functional': {key: functional[key] for key in ('pass', 'fail', 'blocked', 'error')},
             'functional_pass_rate': functional['pass'] / sum(functional.values()) if functional else None,
@@ -450,6 +457,9 @@ def _group_summary(rows):
             'completed_task_seconds': _time_stats(row.get('task_seconds') for row in rows
                                                   if row['task']['state'] == 'completed'),
             'tools': tools}
+    if any(isinstance(row.get('rag'), dict) for row in rows):
+        summary['rag'] = summarize_rag(rows)
+    return summary
 
 
 def _qa_versions(rows):
@@ -480,6 +490,9 @@ def _missing_case(case, workspace, reason):
             'tools': _unavailable_tools()}
     if is_functional_case(case):
         result['functional'] = {'state': 'error'}
+    if case_executor(case) == 'knowledge':
+        result['rag'] = {'corpus': case['rag']['corpus'], 'answers': [],
+            'expected_answers': sum('rag_reference' in turn for session in case['sessions'] for turn in session['turns'])}
     return result
 
 
@@ -556,11 +569,17 @@ def _valid_case_result(result):
                for key in ('tasks', 'conversations', 'failures', 'harness_errors'))
 
 
-def aggregate(source, destination, workspace='all'):
+def aggregate(source, destination, workspace='all', case_ids=None):
     config = json.loads((ROOT / 'suites.json').read_text())
     suites_to_run = select_suites(config, workspace)
     if workspace != 'all':
         workspace = suites_to_run[0]['workspace']
+    if case_ids is not None:
+        available = {case_id for suite in suites_to_run for case_id in suite['cases']}
+        if not case_ids or len(set(case_ids)) != len(case_ids) or set(case_ids) - available:
+            raise ValueError('invalid_case_selection')
+        suites_to_run = [{**suite, 'cases': [cid for cid in suite['cases'] if cid in case_ids]}
+                         for suite in suites_to_run if set(suite['cases']) & set(case_ids)]
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
     rows, suites = [], []
@@ -576,7 +595,8 @@ def aggregate(source, destination, workspace='all'):
                     result = _missing_case(case, suite['workspace'], 'case_result_unreadable')
                 if not isinstance(result, dict) or result.get('case_id') != case_id or result.get('workspace') != suite['workspace']:
                     result = _missing_case(case, suite['workspace'], 'case_result_identity_mismatch')
-                elif not _valid_case_result(result) or (is_functional_case(case) and not result.get('functional')):
+                elif (not _valid_case_result(result) or (is_functional_case(case) and not result.get('functional')) or
+                      (case_executor(case) == 'knowledge' and not valid_rag_result(result.get('rag')))):
                     result = _missing_case(case, suite['workspace'], 'case_result_incomplete')
             else:
                 result = _missing_case(case, suite['workspace'], 'case_artifact_missing')
@@ -603,7 +623,8 @@ def aggregate(source, destination, workspace='all'):
                     tool_errors[(scope, str(call.get('tool') or 'unknown'), str(item.get('code') or item.get('kind')),
                                  item.get('expected') is True)].add(
                         (row['case_id'], call['task_id'], call['call_id']))
-    report = {'generated_at': utc_now(), 'workspace_selection': workspace, 'github_run_id': os.environ.get('GITHUB_RUN_ID'),
+    report = {'generated_at': utc_now(), 'workspace_selection': workspace, 'case_selection': case_ids,
+              'github_run_id': os.environ.get('GITHUB_RUN_ID'),
               'github_run_attempt': os.environ.get('GITHUB_RUN_ATTEMPT'), 'commit': os.environ.get('GITHUB_SHA'),
               **totals, 'journeys': suites, 'cases': rows,
               'task_errors': [{'stage': stage, 'reason': reason, 'cases': sorted(cases)}
@@ -621,9 +642,11 @@ def aggregate(source, destination, workspace='all'):
                          'tool_calls', 'tool_rounds', 'tool_succeeded', 'tool_failed', 'tool_skipped', 'tool_unknown',
                          'unidentified_tool_events',
                          'tool_success_rate', 'conversation_ids', 'trace_ids', 'failure_reasons', 'tool_errors',
-                         'judge_tool_errors'])
+                         'judge_tool_errors', 'rag_correctness_rate', 'rag_faithfulness_rate',
+                         'rag_citation_support_rate', 'rag_citation_integrity_rate', 'rag_efficiency', 'rag_evaluation_states'])
         for row in rows:
             metrics = row['tools'].get('metrics') or {}
+            rag = summarize_rag([row]) if row.get('rag') else None
             writer.writerow([row['workspace'], row['case_id'], row['title'], row['test_status'], row.get('functional', {}).get('state'),
                 row['task']['state'], row['agent']['state'],
                 row['delivery']['state'], row['quality']['state'], row['quality'].get('passed_checks'),
@@ -638,7 +661,11 @@ def aggregate(source, destination, workspace='all'):
                 ';'.join(str(t['trace_id']) for t in row.get('tasks', []) if t.get('trace_id')),
                 json.dumps(row.get('failures', []) + row.get('harness_errors', []), ensure_ascii=False),
                 json.dumps(row['tools'].get('errors', []), ensure_ascii=False),
-                json.dumps(row['tools'].get('judge_errors', []), ensure_ascii=False)])
+                json.dumps(row['tools'].get('judge_errors', []), ensure_ascii=False),
+                *([rag['metrics'][name]['rate'] for name in ('correctness', 'faithfulness', 'citation_support', 'citation_integrity')]
+                  if rag else [None] * 4),
+                json.dumps(rag['efficiency'], ensure_ascii=False) if rag else None,
+                json.dumps(rag['evaluation_states'], ensure_ascii=False) if rag else None])
     task, agent, delivery, quality, tools = (report[key] for key in ('task', 'agent', 'delivery', 'quality', 'tools'))
     rate = f"{tools['success_rate']:.1%}" if tools['success_rate'] is not None else '不可计算'
     completion = f"{report['confirmed_completion_rate']:.1%}" if report['confirmed_completion_rate'] is not None else '不可计算'
@@ -668,6 +695,8 @@ def aggregate(source, destination, workspace='all'):
         '工具成功率依据公开事件中的执行状态；跳过及结果不明确的调用不计入分母。用例主动触发的错误仍计入成功率，并在错误统计中标记；该比例不代表业务正确率。', '',
         '| 工作区 | Case | 框架 | 功能验收 | 任务 | 智能体请求 | 交付 | 质量检查 | 耗时（秒） | 工具成功/已判定 |',
         '|---|---|---|---|---|---|---|---|---:|---|']
+    if case_ids is not None:
+        lines[4:4] = ['本次仅统计显式选择的题目：' + cell(', '.join(case_ids), 10000) + '。', '']
     for row in rows:
         q, m = row['quality'], row['tools'].get('metrics') or {}
         quality_text = ((('部分检查 ' if q['state'] == 'partial' else
@@ -719,6 +748,7 @@ def aggregate(source, destination, workspace='all'):
             category = '预期测试错误' if item.get('expected') else '未标记为预期'
             lines.append(f"- {scope} / {category} / {cell(item['tool'])} / {cell(item['code'])}：{item['records']} 条记录，"
                          f"涉及 {cell(', '.join(item['cases']))}。")
+    lines.extend(rag_aggregate_lines(report, cell))
     lines += ['', '单个 case 的报告和 result.json 包含会话 ID、trace ID、质量判词、工具参数和错误；'
               'events.jsonl 保存公开事件（凭据已脱敏）。', '',
               '智能体异常、超时、交付或质量问题不使 job 变红；执行、验收或取证错误会使 job 变红。', '',
@@ -741,6 +771,7 @@ def main():
     finish=sub.add_parser('case');finish.add_argument('case_id');finish.add_argument('--root',default='results')
     security=sub.add_parser('scan');security.add_argument('directory')
     summary=sub.add_parser('aggregate');summary.add_argument('--root',default='downloaded-results');summary.add_argument('--out',default='bundle');summary.add_argument('--workspace',default='all')
+    summary.add_argument('--cases', nargs='+', help='Explicit subset; selected missing results still count as errors')
     args=parser.parse_args()
     if args.command=='case':
         result=finish_case(args.case_id,args.root)
@@ -753,7 +784,7 @@ def main():
     if args.command=='scan':
         scan(args.directory, configured_secrets())
         return 0
-    report=aggregate(args.root,args.out,args.workspace)
+    report=aggregate(args.root,args.out,args.workspace,args.cases)
     print(json.dumps({k: report[k] for k in ['total', 'test_errors', 'task', 'agent', 'delivery', 'quality', 'tools']}))
     return 1 if report['test_errors'] else 0
 

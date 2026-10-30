@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "J3-02",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · exact_change",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "exact_change",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "exact_change",
+    "original_number": 2
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 3,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n登録済みの受注伝票を修正する場合、どのT-codeを使用しますか。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "VA02"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-5a81f295c398d24c4e90eb31",
+                "file_id": "f434a192-7d23-4dda-8581-88630edd5876",
+                "file_name": "【第一～三回】伝票登録レクチャー会資料.xlsx",
+                "segment_id": "doc_1b23846b298fe19348b27d7ddac433a0",
+                "quote": "ステップ①：受注登録(VA01)、変更(VA02)、照会(VA03)",
+                "etag": "a40e485051dd3766a7e583d6272b7c9c50d2b0f43473f3eefedb67528e6ba612",
+                "document_sha256": "c4a5b1701a8a9b67b025d1f1cb25bdffd06bae792423b1291c5eb802179f3c78"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-5a81f295c398d24c4e90eb31"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

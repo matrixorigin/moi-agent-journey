@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "id": "J3-50",
+  "workspace": "journey-3",
+  "title": "MOI 产品文档 · permissions_fresh",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "permissions_fresh",
+    "original_reference_status": "criteria_only"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "moi",
+    "key": "permissions_fresh",
+    "original_number": 3,
+    "comparison_group": "moi-permissions-context-vs-fresh"
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nmoi的权限怎么设计的",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "统一账号与工作区成员关系分开"
+              },
+              {
+                "id": "C02",
+                "text": "工作区成员关联角色，角色的权限项和范围决定可用功能"
+              },
+              {
+                "id": "C03",
+                "text": "资源访问还受对应资源授权限制，不声称登录统一账号就有全部资源权限"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-a3e73e29c922b3383b88bb6c",
+                "file_id": "3278b275-e235-468e-8621-ba53c4fc3851",
+                "file_name": "moi-docs-guides_ai-studio-1.md",
+                "segment_id": "doc_d4f4c3026c1a4c76e41241c54aa09705",
+                "quote": "角色是工作区功能权限的配置对象。为工作区成员分配角色后，成员的可用功能由角色中的权限项和适用范围共同决定。成员角色分配操作见[用户管理](users.html)。",
+                "etag": "f15a4cc26c7c50cc46a671d757a82d81c3343efdaa98569207e696961b0044b3",
+                "document_sha256": "aa635ff81c0f2abe44be2524079cf0ab34e4cbdd1411e6cb868795946a044dfd"
+              },
+              {
+                "source_id": "kb-source-a3e73e29c922b3383b88bb6c",
+                "file_id": "3278b275-e235-468e-8621-ba53c4fc3851",
+                "file_name": "moi-docs-guides_ai-studio-1.md",
+                "segment_id": "doc_feedf4a30aafe6695bd55131faa0493a",
+                "quote": "<table><tr><th>主题</th><th>可以完成的工作</th><th>入口</th></tr><tr><td>用户管理</td><td>邀请成员、分配角色、维护标签和成员状态</td><td>[用户管理](users.html)</td></tr><tr><td>角色权限</td><td>创建或复制角色，并配置角色权限</td><td>[角色权限](roles.html)</td></tr></table>",
+                "etag": "f15a4cc26c7c50cc46a671d757a82d81c3343efdaa98569207e696961b0044b3",
+                "document_sha256": "aa635ff81c0f2abe44be2524079cf0ab34e4cbdd1411e6cb868795946a044dfd"
+              },
+              {
+                "source_id": "kb-source-d1cabac29d2498e9d52223af",
+                "file_id": "9eecdeac-50dc-4fdb-b54d-4ab019a23b3b",
+                "file_name": "moi-docs-guides_billing-1.md",
+                "segment_id": "doc_19408d5356428be85ded7ced6dd33c20",
+                "quote": "账号管理页面在账号站点打开。该页面不负责工作区成员、角色或资源权限。",
+                "etag": "a451916dbc9fdd7ac814a53e040e317b6fe1a25e1fb3b3dccdfacc1ffad3503c",
+                "document_sha256": "f4e5e5040ce31652f2189fda622d9f8a031b83186071fdfe8ed9f409ed72d3f0"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-a3e73e29c922b3383b88bb6c",
+              "kb-source-d1cabac29d2498e9d52223af"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

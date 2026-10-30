@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "id": "J3-38",
+  "workspace": "journey-3",
+  "title": "Cedar 综合对照 · ledger_duplicates",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "ledger_duplicates",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "cedar",
+    "key": "ledger_duplicates",
+    "original_number": 9
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n根据《Cedar-日次イベント台帳》，统计有效事件总数、USD净金额，以及web和api各自的事件数与净金额。同一逻辑表的印刷再掲不要重复统计，同值的独立事件必须保留。请附依据。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "6 records / USD375"
+              },
+              {
+                "id": "C02",
+                "text": "web4 / USD225"
+              },
+              {
+                "id": "C03",
+                "text": "api2 / USD150"
+              },
+              {
+                "id": "C04",
+                "text": "keep two equal web100 events, count mirrored logical table once"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-ba987334c628a999e7d01a2b",
+                "file_id": "e3929948-bec0-4292-8e28-8b0d92a7c5ff",
+                "file_name": "Cedar-日次イベント台帳.md",
+                "segment_id": "doc_2a2d96f3684e3449489fc133f47a3cca",
+                "quote": "対象日: 2026-10-13。金額は USD、負額は返金、0 も有効なイベント。 各データ行は独立したイベントを表す。同じ地域・チャネル・金額が並んでも、同じイベントを意味しない。",
+                "etag": "bfa1f62a34b24daf1e69e7ab35614335e198cc3ac18dd1221b63042c1cb34d83",
+                "document_sha256": "e95b988270e04bd0bd86955c3bc04c09907e2960b2b53beea8f0ae2fa168bc7c"
+              },
+              {
+                "source_id": "kb-source-ba987334c628a999e7d01a2b",
+                "file_id": "e3929948-bec0-4292-8e28-8b0d92a7c5ff",
+                "file_name": "Cedar-日次イベント台帳.md",
+                "segment_id": "doc_7c2b1819ac058b181ed3a2f314ac4326",
+                "quote": "原台帳（論理表 ledger-20261013）",
+                "etag": "bfa1f62a34b24daf1e69e7ab35614335e198cc3ac18dd1221b63042c1cb34d83",
+                "document_sha256": "e95b988270e04bd0bd86955c3bc04c09907e2960b2b53beea8f0ae2fa168bc7c"
+              },
+              {
+                "source_id": "kb-source-ba987334c628a999e7d01a2b",
+                "file_id": "e3929948-bec0-4292-8e28-8b0d92a7c5ff",
+                "file_name": "Cedar-日次イベント台帳.md",
+                "segment_id": "doc_21f7c848210b4e00aa631d317ee4529a",
+                "quote": "<table><tr><th>地域</th><th>チャネル</th><th>金額 USD</th></tr><tr><td>east</td><td>web</td><td>100</td></tr><tr><td>east</td><td>web</td><td>100</td></tr><tr><td>east</td><td>api</td><td>200</td></tr><tr><td>west</td><td>api</td><td>-50</td></tr><tr><td>west</td><td>web</td><td>0</td></tr><tr><td>west</td><td>web</td><td>25</td></tr></table>",
+                "etag": "bfa1f62a34b24daf1e69e7ab35614335e198cc3ac18dd1221b63042c1cb34d83",
+                "document_sha256": "e95b988270e04bd0bd86955c3bc04c09907e2960b2b53beea8f0ae2fa168bc7c"
+              }
+            ],
+            "citation_required": true,
+            "verification": {
+              "method": "同一ledger-20261013的印刷再掲只计一次，原表内两个独立web100事件都保留",
+              "records": 6,
+              "USD": 375,
+              "web": [
+                4,
+                225
+              ],
+              "api": [
+                2,
+                150
+              ]
+            },
+            "expected_source_ids": [
+              "kb-source-ba987334c628a999e7d01a2b"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

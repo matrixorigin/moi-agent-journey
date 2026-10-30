@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "J3-20",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · onboarding",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "onboarding",
+    "original_reference_status": "manual_review_required"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "onboarding",
+    "original_number": 20
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n受発注保守チームに初めて参加する場合、知識庫にある入門KT資料とその用途を挙げ、読む順序を提案してください。資料に明記された事実とあなたの提案を区別してください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "列出知识库实际存在的DPC概要、DPS受发注流引继资料、传票登记讲义等入门材料并说明其用途"
+              },
+              {
+                "id": "C02",
+                "text": "将学习先概览再业务流再操作的次序明确标为建议，不编造资料规定的唯一强制学习顺序"
+              },
+              {
+                "id": "C03",
+                "text": "不把不相关系统材料当作本团队KT依据"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-52e3682dde7114ac7c918883",
+                "file_id": "7e5bfc8a-38be-4e10-8264-844266ddde4b",
+                "file_name": "引継ぎ資料_DPSの受発注の流れ.xlsx",
+                "segment_id": "kbsegrow-2bbaabafdc0a6685e43034b7",
+                "quote": "<table><tr><td>コマNo.</td><td>開催日時</td><td>大枠</td><td>内容</td><td>内容</td><td>担当者</td></tr><tr><td>1</td><td>7/8/2026</td><td>概要</td><td>DPSや体制について</td><td></td><td></td></tr><tr><td></td><td></td><td></td><td>DPSシステム(S/4)の仕組み大枠①</td><td></td><td></td></tr><tr><td>2</td><td>7/9/2026</td><td>作業説明</td><td>問合せ対応の流れ</td><td></td><td></td></tr><tr><td></td><td></td><td></td><td>当番作業（JOBチェック）の流れ</td><td></td><td></td></tr><tr><td>3</td><td>7/14/2026</td><td>概要</td><td>DPSシステム(S/4)の仕組み大枠②</td><td></td><td></td></tr><tr><td></td><td></td><td></td><td>Redmineの使い方</td><td></td><td></td></tr><tr><td>4</td><td>7/15/2026</td><td>概要</td><td>DPSの受発注の流れ①</td><td>在庫引当、補充発注(ZNB,ZUB）</td><td>田松</td></tr></table>",
+                "etag": "702f8fae38584d8323fbd0b7b781de8ffb6904739ee4ee5b3a6f4ab5a46241aa",
+                "document_sha256": "d4fc9139ed0297296a2bba8d5f26393aa8bdcb8f94c624de41df9aa92244ce0d"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-52e3682dde7114ac7c918883"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

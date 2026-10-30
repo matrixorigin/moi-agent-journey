@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "J3-18",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · goods_receipt",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "goods_receipt",
+    "original_reference_status": "manual_review_required"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "goods_receipt",
+    "original_number": 18
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nZMM0009とMIGOはそれぞれどのように使われていますか。DPS資料に記載された用途の違いを説明してください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "资料的流程中ZMM0009用于入库登记"
+              },
+              {
+                "id": "C02",
+                "text": "取消表明确使用MIGO取消入库传票"
+              },
+              {
+                "id": "C03",
+                "text": "区分登记与取消的用途，不声称两者在所有场景完全互斥或可任意替代"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-5a81f295c398d24c4e90eb31",
+                "file_id": "f434a192-7d23-4dda-8581-88630edd5876",
+                "file_name": "【第一～三回】伝票登録レクチャー会資料.xlsx",
+                "segment_id": "doc_81006a65f025baaa09f8094047ee2603",
+                "quote": "<td>個別発注コベツハッチュウ</td><td>ZSD0019</td><td></td><td>ME22Nで削除フラグサクジョ</td><td colspan=\"7\">仕入部門・仕入会社シイレブモンシイレガイシャ</td><td></td></tr><tr><td>入荷処理ニュウカショリ</td><td>ZMM0009</td><td></td><td>MIGOで入庫伝票を取消ニュウコデンピョウトリケ</td><td colspan=\"7\">仕入部門・仕入会社シイレブモンシイレガイシャ</td><td></td></tr><tr><td>(請求書照合)セイキュウショショウゴウ</td><td>MIRO</td><td>基本的に自動処理(設定による)キホンテキジドウショリセッテイ</td><td>MR8M</td><td colspan=\"7\">仕入部門・仕入会社シイレブモンシイレガイシャ</td><td>※請求書伝票については処理の流れと直接の関係はないため、このタイミングでの取消でなくともよいセイキュウショデンピョウショリナガチョクセツカンケイトリケシ</td></tr><tr><td>出荷伝票シデ</td><td>VL10B</td><td></td><td>VL02Nで削除ボタンサクジョ</td><td colspan=\"7\">仕入部門・仕入会社シイレブモンシイレガイシャ</td><td></td></tr><tr><td>出庫確認シュッコカクニン</td><td>VL02N</td><td>基本的に自動処理キホンテキジドウショリ</td><td>VL09</td><td colspan=\"7\">仕入部門・仕入会社シイレブモンシイレガイシャ</td><td></td></tr><tr><td>請求伝票セデ</td><td>VF01</td><td>基本的に自動処理キホンテキジドウショリ</td><td>VF11</td><td colspan=\"7\">仕入部門・仕入会社シイレブモンシイレガイシャ</td><td></td></tr><tr><td>(請求書照合)セイキュウショショウゴウ</td><td>MIRO</td><td>基本的に自動処理(設定による)キホンテキジドウショリセッテイ</td><td>MR8M</td><td colspan=\"7\">店販社テンハンシャ</td><td>※請求書伝票については処理の流れと直接の関係はないため、このタイミングでの取消でなくともよいセイキュウショデンピョウショリナガチョクセツカンケイトリケシ</td></tr><tr><td>入荷処理ニュウカショリ</td><td>ZMM0009</td",
+                "etag": "a40e485051dd3766a7e583d6272b7c9c50d2b0f43473f3eefedb67528e6ba612",
+                "document_sha256": "c4a5b1701a8a9b67b025d1f1cb25bdffd06bae792423b1291c5eb802179f3c78"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-5a81f295c398d24c4e90eb31"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

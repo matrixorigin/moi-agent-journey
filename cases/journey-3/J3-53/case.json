@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "id": "J3-53",
+  "workspace": "journey-3",
+  "title": "MOI 产品文档 · catalog",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "catalog",
+    "original_reference_status": "criteria_only"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "moi",
+    "key": "catalog",
+    "original_number": 6
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nmoi里的catalog是什么意思",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "按资料解释Catalog是工作区资源组织/管理入口"
+              },
+              {
+                "id": "C02",
+                "text": "区分目录、数据库/表、卷/文件的实际层次和访问边界，不把Catalog等同于某个单独的表，也不扩展成无关流程"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-cbc086822d3fac01e8981822",
+                "file_id": "00a1271f-5858-4170-9458-70bddc60b146",
+                "file_name": "moi-docs-reference_api-8.md",
+                "segment_id": "doc_d6e39df159f86d700ec977e18da76254",
+                "quote": "返回当前工作区中可访问的 Catalog、数据库、卷和表的层级导航数据。",
+                "etag": "3d747f98f6e07668982f0f6fbe5aea8a7a7a477d0b4a642aaeb7989b37614556",
+                "document_sha256": "54ea6eb0c2293f7b60050f69946b284464acebffe9380ff0dbd63c7eb0ab84e4"
+              },
+              {
+                "source_id": "kb-source-09e2dcd45297b4b22dc7a494",
+                "file_id": "271f430f-e208-4fdc-be02-efcbcd3ecb7c",
+                "file_name": "moi-docs-developer_api-1.md",
+                "segment_id": "doc_6154f5984112448d7670a330e164434f",
+                "quote": "1. 先从 Catalog 层级中确定目标数据库；需要新存储位置时，在该数据库中创建根卷，并保留卷 ID。\n2. 通过卷 ID 查看文件列表，确认操作位置。需要新增子层级时，在卷或现有文件夹下创建文件夹；列表中的 folder 条目仍在同一卷下，再次查询时保留 volume_id 并传入 parent_id。\n3. 上传文件后，使用创建文件操作将已有文件记录关联到目标卷；随后查看文件详情或文件列表确认关联结果。需要修改文件夹时先确认其位置。\n4. 需要检查内容时，预览或下载文件；需要检查多个文件的处理结果时，批量查看文件处理关联或数据资产。\n5. 解除引用、清空或删除前，先查看目标详情和引用关系。删除卷、文件夹或文件后，重新查询可用资源确认结果。",
+                "etag": "f4a6f8387b658a08d7d3dac1773404a1b0bb98559197869e5857a9c801b9f719",
+                "document_sha256": "8585c77b66ca15bde69d57d0e2751e57b32b78e8a1376b0199bdff7e26a72de2"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-cbc086822d3fac01e8981822",
+              "kb-source-09e2dcd45297b4b22dc7a494"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

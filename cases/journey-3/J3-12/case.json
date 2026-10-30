@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "id": "J3-12",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · order_types",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "order_types",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "order_types",
+    "original_number": 12
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 9,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n得意先からの受注で使用する主な受注タイプと、それぞれの用途を教えてください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "ZBB1: 確定見積をベースに入力"
+              },
+              {
+                "id": "C02",
+                "text": "ZBB3: 代金を事前受領（前受金）"
+              },
+              {
+                "id": "C03",
+                "text": "ZBB4: 確定見積参照なし"
+              },
+              {
+                "id": "C04",
+                "text": "ZBB5: 代金引換の現金販売"
+              },
+              {
+                "id": "C05",
+                "text": "ZBB6: EDI取引"
+              },
+              {
+                "id": "C06",
+                "text": "ZBB7: ミドリ安全ドットコム受注"
+              },
+              {
+                "id": "C07",
+                "text": "ZBE1: 受注登録と同時に納品書を発行"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-1ad7a91f1e927ae9b3b41734",
+                "file_id": "d9c0fa44-64db-4a1c-b640-e88be4c84ccb",
+                "file_name": "第４回受発注の流れ.xlsx",
+                "segment_id": "kbsegrow-2be4f9a83034fdd4015b0599",
+                "quote": "# 第5章 発注業務\n\n## さまざまなタイプの受注伝票登録 Tr-cd : VA01\n\n受注にも確定見積ありのZBB1や確定見積なしのZBB4以外にもさまざまな受注タイプを使用する場合があります。\n\n**【得意先からの受注の主な受注タイプ】**\n\n| 受注タイプ | テキスト | 受注タイプの説明 |\n|---|---|---|\n| ZBB1 | 標準・サービス受注 (通常) | 確定見積をベースに入力する場合に使用する |\n| ZBB3 | 標準受注 (前受金) | 商品の代金を事前に受領している場合に使用します |\n| ZBB4 | 標準・サービス受注 (見積参照無) | 確定見積を参照せずに受注登録する場合に使用します |\n| ZBB5 | 現金販売 | 商品を代金引換で引き渡す場合に使用します |\n| ZBB6 | ＥＤＩ受注 | EDI取引分を入力するときに使用します |\n| ZBB7 | ＥＣ受注 | ミドリ安全ドットコム受注分を入力するときに使用します |\n| ZBE1 | 即伝出荷 | 受注登録と同時に納品書を発行する場合に使用します |\n\nミドリ安全株式会社\n\nCopyright (C) ",
+                "etag": "68f6c8a3370982cfc86619f2d220d1f545f0ab90152f1253ee419e70ac7186cc",
+                "document_sha256": "993cdb60ca1a1b9d0143d4ac92f2eaf0eb884150d74b0c8977ad6e82efb7adaf"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-1ad7a91f1e927ae9b3b41734"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

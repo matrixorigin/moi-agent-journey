@@ -31,7 +31,7 @@ class CaseTimeoutTests(unittest.TestCase):
         self.assertTrue(all(item['step_timeout_minutes'] == 64 for item in self.plan('journey-1')))
         for item in self.plan('journey-2'):
             self.assertEqual(item['step_timeout_minutes'], 19 if item['case'] == 'J2-111' else 9)
-        self.assertEqual(self.plan('journey-3')[0]['step_timeout_minutes'], 1)
+        self.assertEqual(self.plan('journey-4')[0]['step_timeout_minutes'], 1)
 
     def test_explicit_case_exception_is_reflected_in_the_workflow_budget(self):
         with tempfile.TemporaryDirectory() as directory:

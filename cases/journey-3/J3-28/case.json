@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "id": "J3-28",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · p6_named_source",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "p6_named_source",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "p6_named_source",
+    "original_number": 28
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n《引継ぎ資料_DPSの受発注の流れ.xlsx》のパターン⑥「渡り加工：現地加工(1次)⇒MCA加工(2次)」で、MCA構成品のZMM5060在庫引当は何番目ですか。直前と直後の処理、T-code、担当も示してください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "パターン⑥のMCA構成品ZMM5060在庫引当は7番目"
+              },
+              {
+                "id": "C02",
+                "text": "直前6番は構成品購買発注ZMM0085、担当店販社"
+              },
+              {
+                "id": "C03",
+                "text": "7番の担当は仕入側（MCA）"
+              },
+              {
+                "id": "C04",
+                "text": "直後8番は出荷伝票登録VL10B、担当仕入側（MCA）"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-52e3682dde7114ac7c918883",
+                "file_id": "7e5bfc8a-38be-4e10-8264-844266ddde4b",
+                "file_name": "引継ぎ資料_DPSの受発注の流れ.xlsx",
+                "segment_id": "kbsegrow-a45921887f78acfce02ecb22",
+                "quote": "<table><tr><td>⑥</td><td>渡り加工：現地加工(1次)⇒MCA加工(2次)　※MCA品の店販社持込加工</td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td>CL211</td><td>1</td><td>受注伝票登録ジュチュウデンピョウトウロク</td><td>VA01</td><td>店販社が2次加工品の受注登録ミセハンシャジカコウヒンジュチュウトウロク</td><td>店販社ミセハンシャ</td></tr><tr><td></td><td>1008441072</td><td>2</td><td>発注変換ハッチュウヘンカン</td><td>ZME59N</td><td>店販社が2次加工品の発注登録ミセハンシャジカコウヒンハッチュウトウロク</td><td>店販社ミセハンシャ</td></tr><tr><td></td><td></td><td>3</td><td>グループ間サービス受発注連携カンジュハッチュウレンケイ</td><td>ZSD0001</td><td>店販社持込加工のためMCAで加工賃のサービス受注ミセハンシャモチコミカコウカコウチンジュチュウ</td><td>仕入シイレ</td></tr><tr><td></td><td></td><td>4</td><td>発注変換ハッチュウヘンカン</td><td>ZME59N</td><td>店販社持込加工のためMCAで加工賃のサービス発注ミセハンシャモチコミカコウカコウチンハッチュウ</td><td>仕入シイレ</td></tr><tr><td></td><td></td><td>5</td><td>構成品購買発注コウセイヒンコウバイハッチュウ</td><td>ZMM0085</td><td>No.2に対して構成品(1次加工品)の発注タイコウセイヒンジカコウヒンハッチュウ</td><td>店販社ミセハンシャ</td></tr><tr><td></td><td></td><td>6</td><td>構成品購買発注コウセイヒンコウバイハッチュウ</td><td>ZMM0085</td><td>No.5に対して構成品(MCA品)の発注",
+                "etag": "702f8fae38584d8323fbd0b7b781de8ffb6904739ee4ee5b3a6f4ab5a46241aa",
+                "document_sha256": "d4fc9139ed0297296a2bba8d5f26393aa8bdcb8f94c624de41df9aa92244ce0d"
+              },
+              {
+                "source_id": "kb-source-52e3682dde7114ac7c918883",
+                "file_id": "7e5bfc8a-38be-4e10-8264-844266ddde4b",
+                "file_name": "引継ぎ資料_DPSの受発注の流れ.xlsx",
+                "segment_id": "kbsegrow-a45921887f78acfce02ecb22",
+                "quote": "シャ</td></tr><tr><td></td><td></td><td>6</td><td>構成品購買発注コウセイヒンコウバイハッチュウ</td><td>ZMM0085</td><td>No.5に対して構成品(MCA品)の発注タイコウセイヒンヒンハッチュウ</td><td>店販社ミセハンシャ</td></tr><tr><td></td><td></td><td>7</td><td>在庫引当ザイコヒキアテ</td><td>ZMM5060</td><td>No.6に対して構成品(MCA品)の引当タイコウセイヒンヒンヒキアテ</td><td>仕入シイレ</td></tr><tr><td></td><td></td><td>8</td><td>出荷伝票登録シュッカデンピョウトウロク</td><td>VL10B</td><td>No.7に対して構成品(MCA品)の出荷登録タイコウセイヒンヒンシュッカトウロク</td><td>仕入シイレ</td></tr><tr><td></td><td></td><td>9</td><td>出庫確認シュッコカクニン</td><td>VL02N</td><td>No.8に対して構成品(MCA品)の出庫確認タイコウセイヒンヒンシュッコカクニン</td><td>仕入シイレ</td></tr><tr><td></td><td></td><td>10</td><td>請求登録セイキュウトウロク</td><td>VF01</td><td>店販社に対して構成品(MCA品)の売掛金登録ミセハンシャタイコウセイヒンヒンウリカケキントウロク</td><td>仕入シイレ</td></tr><tr><td></td><td></td><td>11</td><td>入庫登録(MCA構成品)ニュウコトウロクコウセイヒン</td><td>ZMM0009</td><td>No.5に対して構成品(MCA品)の入庫タイコウセイヒンヒンニュウコ</td><td>店販社ミセハンシャ</td></tr><tr><td></td><td></td><td>12</td><td>請求書照合登録セイキュウショショウゴウトウロク</td><td>MIRO</td><td>MCAに対して構成品(MCA品)の買掛金登録タイコウセイヒンヒンカイカケキントウロク</td><td>店販社ミセハンシャ</td></tr><tr><td></td><td></td><td>13</td><td>構成品無償出荷(MCA構成品)コウセイヒンムショウシュッカ</td><td>ZMM0085</td><td>No.5に対して構成品(MCA品)の無償支給出荷タイコウセイヒンヒンムショウシキュウシュッカ",
+                "etag": "702f8fae38584d8323fbd0b7b781de8ffb6904739ee4ee5b3a6f4ab5a46241aa",
+                "document_sha256": "d4fc9139ed0297296a2bba8d5f26393aa8bdcb8f94c624de41df9aa92244ce0d"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-52e3682dde7114ac7c918883"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

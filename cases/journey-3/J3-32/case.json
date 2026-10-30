@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "J3-32",
+  "workspace": "journey-3",
+  "title": "Cedar 综合对照 · incident_scoped",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "incident_scoped",
+    "original_reference_status": "criteria_only"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "cedar",
+    "key": "incident_scoped",
+    "original_number": 3
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 7,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n只依据《Cedar-INC-20261012-调查记录》，给出从首次告警到恢复的时间线、已确认影响，以及能否判定是数据库故障。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "09:07"
+              },
+              {
+                "id": "C02",
+                "text": "09:34"
+              },
+              {
+                "id": "C03",
+                "text": "3客户回执延迟"
+              },
+              {
+                "id": "C04",
+                "text": "根因未确定"
+              },
+              {
+                "id": "C05",
+                "text": "没有确认数据丢失"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-6d311082d765d9ee1008d257",
+                "file_id": "b730f6d8-ffe2-494f-ad94-eec8c0532e18",
+                "file_name": "Cedar-INC-20261012-调查记录.md",
+                "segment_id": "doc_d67f863ffb21a80400a8104303d7b3e1",
+                "quote": "状态：调查中，根因未确定。所有时间为 UTC，日期为 2026-10-12。 09:07 第一条导出创建超时告警；09:11 值班同学开始检查任务状态。 09:16 找到 3 个已经创建但客户端未收到回执的任务；09:21 暂停客户端重复创建。 09:28 等待队列恢复；09:34 告警恢复；09:40 进入根因调查。 观察：客户端创建接口有超时，队列延迟同时升高。没有证据确认磁盘、CPU 或数据库任一项是根因。 已确认影响：3 个客户的回执延迟，没有确认数据丢失。 后续：将客户端改为通过原始幂等键查询状态；根因报告待发布。",
+                "etag": "98248c6e21782501a01ee8c939b13098dbee7a27e4a1c497427b0b484230191f",
+                "document_sha256": "66de8da677e2395ceb2a001787acae012c8d12b114d68bc6a4acd6799c81c5e6"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-6d311082d765d9ee1008d257"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

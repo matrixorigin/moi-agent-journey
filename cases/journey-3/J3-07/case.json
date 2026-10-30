@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "J3-07",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · missing_sla",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "missing_sla",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "missing_sla",
+    "original_number": 7
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nこの知識庫の資料に基づき、DPS運用の2027年向け契約で定めた月間稼働率SLAと違約金の正確な計算式を教えてください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "2027契約SLA・違約金式の裏付けを確認できないと明示"
+              },
+              {
+                "id": "C02",
+                "text": "運用受付目安を契約SLAに置換しない"
+              }
+            ],
+            "evidence": [],
+            "citation_required": false,
+            "expected_source_ids": [],
+            "verify_whole_corpus": true
+          }
+        }
+      ]
+    }
+  ]
+}

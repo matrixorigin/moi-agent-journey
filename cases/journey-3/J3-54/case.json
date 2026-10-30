@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "id": "J3-54",
+  "workspace": "journey-3",
+  "title": "MOI 产品文档 · missing_change",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "missing_change",
+    "original_reference_status": "criteria_only"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 300,
+  "rag": {
+    "corpus": "moi",
+    "key": "missing_change",
+    "original_number": 7
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n你看下昨天跟今天有啥变化",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "先澄清比较对象以及昨天/今天对应的版本、时间范围或历史快照"
+              },
+              {
+                "id": "C02",
+                "text": "只有静态知识库与更新时间不足以证明两天的完整变化"
+              },
+              {
+                "id": "C03",
+                "text": "不靠不断换关键词编造发布差异"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-d1cabac29d2498e9d52223af",
+                "file_id": "9eecdeac-50dc-4fdb-b54d-4ab019a23b3b",
+                "file_name": "moi-docs-guides_billing-1.md",
+                "segment_id": "doc_ac34e47df3d605c8d36020c208535284",
+                "quote": "账号管理",
+                "etag": "a451916dbc9fdd7ac814a53e040e317b6fe1a25e1fb3b3dccdfacc1ffad3503c",
+                "document_sha256": "f4e5e5040ce31652f2189fda622d9f8a031b83186071fdfe8ed9f409ed72d3f0"
+              }
+            ],
+            "citation_required": false,
+            "expected_source_ids": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "with-context",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "catalog-context",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nmoi里的catalog是什么意思"
+        },
+        {
+          "phase": "question",
+          "prompt": "你看下昨天跟今天有啥变化",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "先澄清比较对象以及昨天/今天对应的版本、时间范围或历史快照"
+              },
+              {
+                "id": "C02",
+                "text": "只有静态知识库与更新时间不足以证明两天的完整变化"
+              },
+              {
+                "id": "C03",
+                "text": "不靠不断换关键词编造发布差异"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-d1cabac29d2498e9d52223af",
+                "file_id": "9eecdeac-50dc-4fdb-b54d-4ab019a23b3b",
+                "file_name": "moi-docs-guides_billing-1.md",
+                "segment_id": "doc_ac34e47df3d605c8d36020c208535284",
+                "quote": "账号管理",
+                "etag": "a451916dbc9fdd7ac814a53e040e317b6fe1a25e1fb3b3dccdfacc1ffad3503c",
+                "document_sha256": "f4e5e5040ce31652f2189fda622d9f8a031b83186071fdfe8ed9f409ed72d3f0"
+              }
+            ],
+            "citation_required": false,
+            "expected_source_ids": []
+          }
+        }
+      ]
+    }
+  ]
+}

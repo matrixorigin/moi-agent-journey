@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "id": "J3-24",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · job_environment_compare",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "job_environment_compare",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "job_environment_compare",
+    "original_number": 24
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 9,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n比较【本番機】#127338_JOB依頼内容_H0284和【開発・検証機】#127338_JOB依頼内容_H0281：各自的目标环境、依赖顺序和出错时后续单据处理。请用中文回答，不能把测试环境作业名写成本番。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "本番文档对应H0284/PRD"
+              },
+              {
+                "id": "C02",
+                "text": "开发验证文档对应H0281及DEV/QAS/QAS6（QA56称呼）"
+              },
+              {
+                "id": "C03",
+                "text": "不能把复制的PRD示例都当作测试环境实际作业。"
+              },
+              {
+                "id": "C04",
+                "text": "显式说明在FI品目会计期间CLOSE的0001之后追加MM的请求开始日期更新0002，禁止并列执行。"
+              },
+              {
+                "id": "C05",
+                "text": "票据描述的是错误发生后后续单据未处理的故障"
+              },
+              {
+                "id": "C06",
+                "text": "文档仅能证明变更安排，不能保证部署成功或所有错误均可自动继续。"
+              },
+              {
+                "id": "C07",
+                "text": "本番概览的MM-...0002与详细表FI-...0002存在不一致，应指出或限定推断。"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-ea8f59f410179cab09795c0a",
+                "file_id": "fbfabb36-9f9b-4762-97d0-22f76311ffce",
+                "file_name": "【本番機】#127338_JOB依頼内容_H0284.xlsx",
+                "segment_id": "kbsegrow-9d79f6522e8e79030e79d0a7",
+                "quote": "</td></tr><tr><td>JN-PRD-HS4-FI-2212-0002</td><td></td><td></td><td>-</td></tr><tr><td></td><td></td><td></td><td>-</td></tr><tr><td></td><td></td><td>JB-PRD-HS4-FI-2212-0002-0004-0001</td><td>-</td></tr><tr><td></td><td></td><td>JB-PRD-HS4-MM-2212-0002-0004-0002</td><td>新規作成</td></tr></table>",
+                "etag": "5adc815946034b6eca5cc4f1f3b1972fb13f282e2ceec1acab035b0ce43d9fe4",
+                "document_sha256": "ef862108ff1241467a8c8a3564b55646e2f97465c841908beac7009e6f7b490f"
+              },
+              {
+                "source_id": "kb-source-ea8f59f410179cab09795c0a",
+                "file_id": "fbfabb36-9f9b-4762-97d0-22f76311ffce",
+                "file_name": "【本番機】#127338_JOB依頼内容_H0284.xlsx",
+                "segment_id": "kbsegrow-ab1788b94eb34dce54d4eed2",
+                "quote": "<table><tr><td>■対象チケット：#127338: 【受発注】一括請求更新のジョブでエラー発生時に後続伝票が処理されない</td></tr></table>",
+                "etag": "5adc815946034b6eca5cc4f1f3b1972fb13f282e2ceec1acab035b0ce43d9fe4",
+                "document_sha256": "ef862108ff1241467a8c8a3564b55646e2f97465c841908beac7009e6f7b490f"
+              },
+              {
+                "source_id": "kb-source-a20b3beb540fa24af5a25b08",
+                "file_id": "ef59b6a9-aac9-4572-8b25-217909cda6bf",
+                "file_name": "【開発・検証機】#127338_JOB依頼内容_H0281.xlsx",
+                "segment_id": "kbsegrow-a4e00042929a54919af5d4b1",
+                "quote": "><td></td></tr><tr><td></td><td>新規追加されるジョブが稼働することの確認をするため、下記ジョブIDを手動にて単体実行していただく。カキシュドウタンタイジッコウ</td><td></td></tr><tr><td></td><td>ジョブID</td><td>ジョブ名称</td></tr><tr><td></td><td>JB-QAS6-HS4-MM-2212-0002-0004-0002</td><td>2212-HS4-MM_ジョブ日付更新(請求開始日付)</td></tr></table>",
+                "etag": "16c3bf90665d83504b256aa1c93d80b05b099cf009aad5d4813fcaa4a1567524",
+                "document_sha256": "5f8d32b7dcf2bd9091194bb9dc9bbf2e7481a366a00ca1448d2a12762e599e72"
+              },
+              {
+                "source_id": "kb-source-a20b3beb540fa24af5a25b08",
+                "file_id": "ef59b6a9-aac9-4572-8b25-217909cda6bf",
+                "file_name": "【開発・検証機】#127338_JOB依頼内容_H0281.xlsx",
+                "segment_id": "kbsegrow-4c74b6ce8552490d82062273",
+                "quote": "</td></tr><tr><td>JN-XXX-HS4-FI-2212-0002</td><td></td><td></td><td>-</td></tr><tr><td></td><td></td><td></td><td>-</td></tr><tr><td></td><td></td><td>JB-XXX-HS4-FI-2212-0002-0004-0001</td><td>-</td></tr><tr><td></td><td></td><td>JB-XXX-HS4-MM-2212-0002-0004-0002</td><td>新規作成</td></tr></table>",
+                "etag": "16c3bf90665d83504b256aa1c93d80b05b099cf009aad5d4813fcaa4a1567524",
+                "document_sha256": "5f8d32b7dcf2bd9091194bb9dc9bbf2e7481a366a00ca1448d2a12762e599e72"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-ea8f59f410179cab09795c0a",
+              "kb-source-a20b3beb540fa24af5a25b08"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "J3-17",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · stock_ownership",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "stock_ownership",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "stock_ownership",
+    "original_number": 17
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n預託品とユーザー預かり品は、所有者と保管場所の観点でどう違いますか。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "預託品: 保管場所=得意先、所有権=ミドリ安全"
+              },
+              {
+                "id": "C02",
+                "text": "預かり品: 保管場所=ミドリ安全、所有権=得意先"
+              },
+              {
+                "id": "C03",
+                "text": "納品後の顧客資産をG拠点に保管するのは預かり品"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-59ddb5f1a0caa0b6c120a508",
+                "file_id": "9262c508-ee2b-43b2-ba74-627545e19ac5",
+                "file_name": "DPSロジの基本.xlsx",
+                "segment_id": "kbsegrow-52d3ba7feb00eae1abac30b3",
+                "quote": "コウゴ</td><td>後続入出庫伝票の基本的な移動タイプコウゾクニュウシュッコデンピョウキホンテキイドウ</td></tr><tr><td rowspan=\"4\">預託品<br>（委託品）ヨタクヒン</td><td rowspan=\"4\">得意先トクイサキ</td><td rowspan=\"4\">ミドリ安全アンゼン</td><td rowspan=\"4\">得意先が保管するが、所有権は自社在庫として管理する品目（委託在庫および供覧見本として貸出中の在庫など）</td><td>ZBC1</td><td>預託品引取(委託品戻り)</td><td>預託在庫→自店在庫ザイコ</td><td>632：得意先預託品返品確認トクイサキヨタクヒンヘンピンカクニン</td></tr><tr><td>ZBC2</td><td>預託品引渡(委託品出庫)</td><td>自店在庫→預託在庫ザイコ</td><td>631：得意先へ預託品出庫トクイサキヨタクヒンシュッコ</td></tr><tr><td>ZBC5</td><td>預託品売上</td><td>預託品を払出して、請求するヨタクヒンハラダセイキュウ</td><td>633：得意先預託品払出トクイサキヨタクヒンハライダシ</td></tr><tr><td>ZBC6</td><td>預託品返品</td><td>ZBC5（預託品売上）の返品ヨタクヒンウリアゲヘンピン</td><td>634：預託品払出取消ヨタクヒンハライダシトリケシ</td></tr><tr><td rowspan=\"2\">供覧見本キョウランミホン</td><td rowspan=\"2\">得意先トクイサキ</td><td rowspan=\"2\">△</td><td rowspan=\"2\">・預託品の中の、返却/有償提供の見本品。<br>・基本的には返却が前提。<br>　（顧客買い取りの場合もある）<br>・無償提供見本(試供品)とは別物ヨタクヒンナカベツモノ</td><td>ZBC3</td><td>供覧見本引取</td><td>預託在庫→自店在庫</td><td>Z06：得意先預託品返品</td></tr><tr><td>ZBC4</td><td>供覧見本引渡</td><td>自店在庫→預託在庫</td><td>Z05：得意先へ預託品出庫</td></tr><tr><td rowspan=\"2\">預かり品<br>(預託品と呼ぶことも?)ヨタクヒンヨ</td><td rowspan=\"2\">ミドリ安全アンゼン</td><td rowspan=\"2\">得意先トクイサキ</td><td rowspan=\"2\">納品後に、お客様資産としてミドリ",
+                "etag": "fc413a6777013f8e85521a4db49826bd5a6cc44792bae996bef6ab2a9c5a2b58",
+                "document_sha256": "cdad097ee4674564aead5ded13db03151c65c210fa1a48270b1a8bfeb381dc9c"
+              },
+              {
+                "source_id": "kb-source-59ddb5f1a0caa0b6c120a508",
+                "file_id": "9262c508-ee2b-43b2-ba74-627545e19ac5",
+                "file_name": "DPSロジの基本.xlsx",
+                "segment_id": "kbsegrow-66bd5dedd702d9a9eae7e7db",
+                "quote": "□ 他社所有、他社保管の状態にある特殊な在庫管理の方法について\n所有権\n他社所有\n自社所有\n自社保管\n預かり品在庫\n通常在庫\n物理的境界\n取引先\n予約品在庫\n供覧見本品、予約品の引き渡し時\n仕入先\n支給品在庫\n外注業者への支給品在庫\n外部保管",
+                "etag": "fc413a6777013f8e85521a4db49826bd5a6cc44792bae996bef6ab2a9c5a2b58",
+                "document_sha256": "cdad097ee4674564aead5ded13db03151c65c210fa1a48270b1a8bfeb381dc9c"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-59ddb5f1a0caa0b6c120a508"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

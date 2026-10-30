@@ -52,6 +52,9 @@ def load_case(case_id):
     if type(timeout) is not int or timeout <= 0:
         raise ValueError('invalid_case_timeout:' + case_id)
     case['timeout_seconds'] = timeout
+    evaluation_timeout = case.get('evaluation_timeout_seconds')
+    if evaluation_timeout is not None and (type(evaluation_timeout) is not int or evaluation_timeout <= 0):
+        raise ValueError('invalid_evaluation_timeout:' + case_id)
     case["model"] = config["model"]
     return case
 
@@ -130,11 +133,12 @@ def main():
         for case_id in suite["cases"]:
             case = load_case(case_id)
             executor = case_executor(case)
-            if executor not in {"office", "browser", "api"}:
+            if executor not in {"office", "browser", "api", "knowledge"}:
                 raise ValueError("invalid_case_executor:" + case_id)
             # Leave bounded time after the QA deadline for evidence capture and cleanup.
             matrix["include"].append({"case": case_id, "executor": executor,
-                                      "step_timeout_minutes": (case['timeout_seconds'] + 59) // 60 + 4})
+                                      "step_timeout_minutes": (case['timeout_seconds'] +
+                                          case.get('evaluation_timeout_seconds', 0) + 59) // 60 + 4})
         if not matrix["include"]:
             matrix["include"].append({"case": "EMPTY", "executor": "empty", "step_timeout_minutes": 1})
         output = json.dumps(matrix)

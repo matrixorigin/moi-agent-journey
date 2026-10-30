@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "J3-40",
+  "workspace": "journey-3",
+  "title": "Cedar 综合对照 · missing_billing_approval",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "missing_billing_approval",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "cedar",
+    "key": "missing_billing_approval",
+    "original_number": 11
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nCedar 在2026年第三季度最终确认的服务费减免金额是多少？对应的审批单号、签批人和签批日期是什么？",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "No Q3service-fee compensation/approval record exists in the corpus"
+              },
+              {
+                "id": "C02",
+                "text": "The October13event ledger is not an approved Q3service-fee credit record"
+              },
+              {
+                "id": "C03",
+                "text": "do not substitute its amounts"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-ba987334c628a999e7d01a2b",
+                "file_id": "e3929948-bec0-4292-8e28-8b0d92a7c5ff",
+                "file_name": "Cedar-日次イベント台帳.md",
+                "segment_id": "doc_2a2d96f3684e3449489fc133f47a3cca",
+                "quote": "対象日: 2026-10-13。金額は USD、負額は返金、0 も有効なイベント。 各データ行は独立したイベントを表す。同じ地域・チャネル・金額が並んでも、同じイベントを意味しない。",
+                "etag": "bfa1f62a34b24daf1e69e7ab35614335e198cc3ac18dd1221b63042c1cb34d83",
+                "document_sha256": "e95b988270e04bd0bd86955c3bc04c09907e2960b2b53beea8f0ae2fa168bc7c"
+              }
+            ],
+            "citation_required": false,
+            "expected_source_ids": [],
+            "verify_whole_corpus": true
+          }
+        }
+      ]
+    }
+  ]
+}

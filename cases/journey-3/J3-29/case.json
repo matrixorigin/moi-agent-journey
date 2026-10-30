@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "id": "J3-29",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · version_text_compare_repeat",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "version_text_compare_repeat",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "version_text_compare_repeat",
+    "original_number": 29,
+    "comparison_group": "sap-version-comparison"
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n【確認依頼0817】テキスト変更内容_127666と【確定0818】テキスト変更内容_127666で、変更内容と確定の扱いを比較してください。ファイル名だけで不明な事項まで確定したと扱わないでください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "两份索引正文各有52个去重段落，51个一致"
+              },
+              {
+                "id": "C02",
+                "text": "差异集中在同一张大表的两行备注。"
+              },
+              {
+                "id": "C03",
+                "text": "移动类型551（廃棄）和552（廃棄取消）的４Ｓ全角疑问，在0818增加「⇒OKとのこと」。"
+              },
+              {
+                "id": "C04",
+                "text": "仅凭文件名「確定」不能断言其他事项全部审批、系统已上线或工作簿格式完全相同。"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-967f8105b445ee5c9609a7b1",
+                "file_id": "05d04af5-097c-4df7-b56f-f9d6563fd269",
+                "file_name": "【確認依頼0817】テキスト変更内容_127666.xlsx",
+                "segment_id": "kbsegrow-81c664c9a3f2262047cd30cb",
+                "quote": "/td><td>551</td><td></td><td></td><td></td><td></td><td>廃棄</td><td>×</td><td>×</td><td>【使用不可】シヨウフカ</td><td>実績なしジッセキ</td><td>要</td><td>評価減処理（４Ｓ）ヒョウカゲンショリ</td><td>9</td><td></td><td>「４Ｓ」は全角でよいのか？</td><td>FALSE</td><td></td><td>【使用不可】SC 副産物出庫</td><td>SC 副産物出庫</td></tr><tr><td>JA</td><td>551</td><td>B</td><td></td><td></td><td></td><td>廃棄 (得意先在庫)</td><td>×</td><td>〇</td><td>【使用不可】シヨウフカ</td><td></td><td>要</td><td>禁）廃棄 (得意先在庫)</td><td>12</td><td></td><td></td><td>FALSE</td><td></td><td>【使用不可】SC 副産物出庫</td><td>SC 副産物出庫</td></tr><tr><td>JA</td><td>551</td><td>C</td><td></td><td></td><td></td><td>廃棄 (SC 得意先在庫)</td><td>×</td><td>×</td><td>【使用不可】シヨウフカ</td><td>実績なしジッセキ</td><td>要</td><td>禁）廃棄 (SC 得意先在庫)</td><td>15</td><td></td><td></td><td>FALSE</td><td></td><td>【使用不可】SC 副産物出庫</td><td>SC 副産物出庫</td></tr><tr><td>JA</td><td>551</td><td>E</td><td></td><td></td><td></td><td>廃棄 (受注在庫)</td><td>×</td><td>×</td><td>【使用不可】シヨウフカ</td><td>実績なしジッセキ</td><td>要</td><td>禁）廃棄 (受注在庫)</td><td>11</td><td></td><td></td><td>FALSE</td><td></td><td>【使用不可】SC 副産物出庫</td><td>SC 副産物出庫</td></tr><tr><td>JA</td><td>551</td><td>E</td><td></td><td></td><td>E</td><td>廃棄",
+                "etag": "0e3d2c69266abd7bdb5b336f59f85ff4a883de1135b2aa4d226ea5ae30b96a46",
+                "document_sha256": "c9e81b577c5fc580f5a7192474cb64b8322ba971e97e96d3e2aeff44c7527722"
+              },
+              {
+                "source_id": "kb-source-15b71ad6e82fc5b43622d54c",
+                "file_id": "c7140ceb-e98d-49a8-8f5b-fa1945d67f0f",
+                "file_name": "【確定0818】テキスト変更内容_127666.xlsx",
+                "segment_id": "kbsegrow-66ab98a34549514d78baa947",
+                "quote": "/td><td>551</td><td></td><td></td><td></td><td></td><td>廃棄</td><td>×</td><td>×</td><td>【使用不可】シヨウフカ</td><td>実績なしジッセキ</td><td>要</td><td>評価減処理（４Ｓ）ヒョウカゲンショリ</td><td>9</td><td></td><td>「４Ｓ」は全角でよいのか？⇒OKとのこと</td><td>FALSE</td><td></td><td>【使用不可】SC 副産物出庫</td><td>SC 副産物出庫</td></tr><tr><td>JA</td><td>551</td><td>B</td><td></td><td></td><td></td><td>廃棄 (得意先在庫)</td><td>×</td><td>〇</td><td>【使用不可】シヨウフカ</td><td></td><td>要</td><td>禁）廃棄 (得意先在庫)</td><td>12</td><td></td><td></td><td>FALSE</td><td></td><td>【使用不可】SC 副産物出庫</td><td>SC 副産物出庫</td></tr><tr><td>JA</td><td>551</td><td>C</td><td></td><td></td><td></td><td>廃棄 (SC 得意先在庫)</td><td>×</td><td>×</td><td>【使用不可】シヨウフカ</td><td>実績なしジッセキ</td><td>要</td><td>禁）廃棄 (SC 得意先在庫)</td><td>15</td><td></td><td></td><td>FALSE</td><td></td><td>【使用不可】SC 副産物出庫</td><td>SC 副産物出庫</td></tr><tr><td>JA</td><td>551</td><td>E</td><td></td><td></td><td></td><td>廃棄 (受注在庫)</td><td>×</td><td>×</td><td>【使用不可】シヨウフカ</td><td>実績なしジッセキ</td><td>要</td><td>禁）廃棄 (受注在庫)</td><td>11</td><td></td><td></td><td>FALSE</td><td></td><td>【使用不可】SC 副産物出庫</td><td>SC 副産物出庫</td></tr><tr><td>JA</td><td>551</td><td>E</td><td></td><td></td><td>E</td",
+                "etag": "0af478772d88e2b2ba4a2a62396a7cee55c6faa14cbdd711c670f4d0c32d4cb2",
+                "document_sha256": "3c0905ba643b374b3aed21ffba20f6f8d1cd02ad8055f58731c3123bb184b60c"
+              }
+            ],
+            "citation_required": true,
+            "verification": {
+              "method": "两份完整索引正文按精确内容去重后比较",
+              "unique_paragraphs_each": 52,
+              "identical": 51,
+              "changed_table_rows": [
+                "551",
+                "552"
+              ]
+            },
+            "expected_source_ids": [
+              "kb-source-967f8105b445ee5c9609a7b1",
+              "kb-source-15b71ad6e82fc5b43622d54c"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

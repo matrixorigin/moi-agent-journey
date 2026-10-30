@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "J3-42",
+  "workspace": "journey-3",
+  "title": "Cedar 综合对照 · mixed_known_owner_missing_contact",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "mixed_known_owner_missing_contact",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "cedar",
+    "key": "mixed_known_owner_missing_contact",
+    "original_number": 13
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nCedar 的法律保全问题应该咨询谁？请同时给出这个人的工作邮箱和个人手机号码。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "Contact is Vega from Compliance team"
+              },
+              {
+                "id": "C02",
+                "text": "No work email or personal phone is provided in this corpus"
+              },
+              {
+                "id": "C03",
+                "text": "do not invent contact details"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-59ae1dc009848b0fa0915f81",
+                "file_id": "465ebf69-ff57-428b-8162-5f20148711fe",
+                "file_name": "Cedar-当番引継ぎ-202610.md",
+                "segment_id": "doc_fad3c865c2ec9f0ac63259d478f28781",
+                "quote": "通常のエクスポート障害は運用当番が一次切り分けを行う。 一次担当：森田。エスカレーション先：Export Runtime チームの Chen。 ファイル保存期間・法的保全の相談先：Compliance チームの Vega。 顧客の作成要求がタイムアウトした場合、まず元の Idempotency-Key でタスク状態を照会する。 同じタスクが存在するなら再作成せず監視を継続する。503 の待機間隔は API Integration Guide に従う。 INC-20261012 は調査中で、原因確定前に「DB障害」と顧客へ断定してはならない。",
+                "etag": "312058cac0c9062f2a2fa53bd15a85f5540c2caea1dceffeec59d8da8eb66e26",
+                "document_sha256": "7db5dd6ff5cde6cbd827d2a1016c4bd602a606d750e7c5ab09f3982b4e2914cc"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-59ae1dc009848b0fa0915f81"
+            ],
+            "verify_whole_corpus": true
+          }
+        }
+      ]
+    }
+  ]
+}

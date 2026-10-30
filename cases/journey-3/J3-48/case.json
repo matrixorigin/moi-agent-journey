@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "J3-48",
+  "workspace": "journey-3",
+  "title": "MOI 产品文档 · workflow_intro",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "workflow_intro",
+    "original_reference_status": "criteria_only"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "moi",
+    "key": "workflow_intro",
+    "original_number": 1
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nmoi工作流功能介绍",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "工作流通过节点和连线编排处理步骤"
+              },
+              {
+                "id": "C02",
+                "text": "支持变量及节点间数据传递"
+              },
+              {
+                "id": "C03",
+                "text": "说明调试/运行与发布版本的关系，引用本库适用的MOI工作流资料，不全库枚举"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-a3e73e29c922b3383b88bb6c",
+                "file_id": "3278b275-e235-468e-8621-ba53c4fc3851",
+                "file_name": "moi-docs-guides_ai-studio-1.md",
+                "segment_id": "doc_1973c85c60c9d803f95ad90348edcc4f",
+                "quote": ">资源与使用数量</td><td>对话、技能、工具、知识库、任务等数量</td><td>快速检查配置与关联情况</td></tr><tr><td>系统提示词</td><td>定义长期职责、输入处理方式和输出约束</td><td>需要改变工作方法或边界时</td></tr><tr><td>技能</td><td>可复用的执行指令或能力包</td><td>增加固定工作流程时</td></tr><tr><td>知识库</td><td>可供检索的资料范围</td><td>回答业务资料中的问题时</td></tr><tr><td>工具</td><td>可以调用的执行能力</td><td>访问搜索、业务系统或其他服务时</td></tr></table>",
+                "etag": "f15a4cc26c7c50cc46a671d757a82d81c3343efdaa98569207e696961b0044b3",
+                "document_sha256": "aa635ff81c0f2abe44be2524079cf0ab34e4cbdd1411e6cb868795946a044dfd"
+              },
+              {
+                "source_id": "kb-source-a3e73e29c922b3383b88bb6c",
+                "file_id": "3278b275-e235-468e-8621-ba53c4fc3851",
+                "file_name": "moi-docs-guides_ai-studio-1.md",
+                "segment_id": "doc_bbfb8033822cef06f020c57a17cabd74",
+                "quote": "连线表示执行关系，输入绑定决定节点实际收到的数据。连接节点后，还需要检查字段是否匹配。例如文档解析接收文件来源，分段接收解析后的文档数组。详细说明见[变量与数据传递](variables-and-data.html)。",
+                "etag": "f15a4cc26c7c50cc46a671d757a82d81c3343efdaa98569207e696961b0044b3",
+                "document_sha256": "aa635ff81c0f2abe44be2524079cf0ab34e4cbdd1411e6cb868795946a044dfd"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-a3e73e29c922b3383b88bb6c"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

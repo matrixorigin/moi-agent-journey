@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "id": "J3-19",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · cross_company",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "cross_company",
+    "original_reference_status": "manual_review_required"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "cross_company",
+    "original_number": 19
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n法人をまたぐ店販社間在庫融通の標準手順と、融通済み在庫をさらに別拠点へ融通する場合の運用ルールを説明してください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "区分仕入3社品与現地品的适用分支"
+              },
+              {
+                "id": "C02",
+                "text": "依手册先由融通先向仕入部门7000仓发注，再作融通元返品购需发注，按顺序出货/出库及实物发送，并核对确认数量"
+              },
+              {
+                "id": "C03",
+                "text": "已经融通的库存不能直接再融通，应先融通戻し"
+              },
+              {
+                "id": "C04",
+                "text": "运营禁止与系统不强制检查分开说明"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-e25ecb2c6a8100c93b48f552",
+                "file_id": "3f14ac21-0e15-4671-a111-8614653deb6e",
+                "file_name": "【仕入3社品及び現地品】在庫融通手順書_ver4.xlsx",
+                "segment_id": "kbsegrow-39c26e314d75ff4e7fe6e178",
+                "quote": "・必ず\"融通先から仕入部門7000倉庫への発注（①）\"を先に行って下さい。・融通元店販社の返品購買発注（②）について、納入先住所の初期値は仕入部門/仕入会社が設定されます。　融通先へ出荷する場合は住所を変更して下さい。",
+                "etag": "574a10cb404a9daa6f6fcd6f48d27403e1fec111ce95391d182975291ae371d2",
+                "document_sha256": "0ffee30b00e360c161a8945b545834559a227ad222aae03f3d3414a1f5cfa85a"
+              },
+              {
+                "source_id": "kb-source-e25ecb2c6a8100c93b48f552",
+                "file_id": "3f14ac21-0e15-4671-a111-8614653deb6e",
+                "file_name": "【仕入3社品及び現地品】在庫融通手順書_ver4.xlsx",
+                "segment_id": "kbsegrow-1fb5ed688b276cce46195a90",
+                "quote": "<table><tr><td>①</td><td>ME21Nで在庫転送オーダー登録ザイコテンソウトウロク</td></tr><tr><td></td><td>発注タイプ：ハッチュウ</td></tr></table>",
+                "etag": "574a10cb404a9daa6f6fcd6f48d27403e1fec111ce95391d182975291ae371d2",
+                "document_sha256": "0ffee30b00e360c161a8945b545834559a227ad222aae03f3d3414a1f5cfa85a"
+              },
+              {
+                "source_id": "kb-source-e25ecb2c6a8100c93b48f552",
+                "file_id": "3f14ac21-0e15-4671-a111-8614653deb6e",
+                "file_name": "【仕入3社品及び現地品】在庫融通手順書_ver4.xlsx",
+                "segment_id": "kbsegrow-295c7b7d9d357469b03bff04",
+                "quote": "<table><tr><td>②</td><td>ME21Nで返品購買発注登録ヘンピンコウバイハッチュウトウロク</td></tr><tr><td></td><td>発注タイプ：ハッチュウ</td></tr></table>",
+                "etag": "574a10cb404a9daa6f6fcd6f48d27403e1fec111ce95391d182975291ae371d2",
+                "document_sha256": "0ffee30b00e360c161a8945b545834559a227ad222aae03f3d3414a1f5cfa85a"
+              },
+              {
+                "source_id": "kb-source-e25ecb2c6a8100c93b48f552",
+                "file_id": "3f14ac21-0e15-4671-a111-8614653deb6e",
+                "file_name": "【仕入3社品及び現地品】在庫融通手順書_ver4.xlsx",
+                "segment_id": "kbsegrow-69e1538ff64c385621b35cbe",
+                "quote": "<table><tr><td>⑤</td><td>実商品を融通先へ発送ジツショウヒンユウズウサキハッソウ</td></tr></table>",
+                "etag": "574a10cb404a9daa6f6fcd6f48d27403e1fec111ce95391d182975291ae371d2",
+                "document_sha256": "0ffee30b00e360c161a8945b545834559a227ad222aae03f3d3414a1f5cfa85a"
+              },
+              {
+                "source_id": "kb-source-e25ecb2c6a8100c93b48f552",
+                "file_id": "3f14ac21-0e15-4671-a111-8614653deb6e",
+                "file_name": "【仕入3社品及び現地品】在庫融通手順書_ver4.xlsx",
+                "segment_id": "kbsegrow-196b25d473ccc0d9b9e4b935",
+                "quote": "<table><tr><td>⑧</td><td>ME23Nで確認済数量の確認カクニンスミスウリョウカクニン</td></tr></table>",
+                "etag": "574a10cb404a9daa6f6fcd6f48d27403e1fec111ce95391d182975291ae371d2",
+                "document_sha256": "0ffee30b00e360c161a8945b545834559a227ad222aae03f3d3414a1f5cfa85a"
+              },
+              {
+                "source_id": "kb-source-206ef2c731efb5ed9bf7ce1a",
+                "file_id": "b0051c26-ae8e-4912-b6c1-98c64cdea72d",
+                "file_name": "DPSPJ_現地仕入品店販社間の融通運用方針_v2.0.pptx",
+                "segment_id": "kbsegrow-8fc96b80e8f1990533fbc19a",
+                "quote": "を行う。</td></tr><tr><td colspan=\"2\">融通戻し</td><td>運用方法</td><td>【確定】受発注で処理した「本体取引」:赤伝票処理で戻す。業績で処理した「現地仕入手数料調整」:取り消し処理で戻す。会計で処理した「手数料請求」:経理 WF で戻しの経費請求を行う。</td></tr><tr><td colspan=\"2\">再融通</td><td>運用ルール</td><td>【確定】再融通は禁止。必ず融通元へ戻してから、新たな拠点へ融通する。また、チェックするためのアドオンコスト見合いでシステム的には制御はかけない。融通アイテムを適切に社外へ販売したかどうかを本社へ報告させるなどの運用ではん制する。</td></tr></table>",
+                "etag": "c4b568a4edbc4ba6d3e1ac1a2d9f3a5cb162a831d674a931f2e5e133ce1488ae",
+                "document_sha256": "9f485cc6cd95c80dfbfc3ceee443fabe6068d46f4b887ac96d80bba70f5fe52d"
+              },
+              {
+                "source_id": "kb-source-206ef2c731efb5ed9bf7ce1a",
+                "file_id": "b0051c26-ae8e-4912-b6c1-98c64cdea72d",
+                "file_name": "DPSPJ_現地仕入品店販社間の融通運用方針_v2.0.pptx",
+                "segment_id": "kbsegrow-8fc96b80e8f1990533fbc19a",
+                "quote": "付替え。業績上は、融通元の一括売り上げを立てないため、現地仕入手数料分のみ、COPA 伝票で減算処理する。</td></tr><tr><td>その他実費手数料</td><td>融通先への手数料請求(事務処理代など)</td><td>【確定】必要に応じて融通元から会計上(経理 WF)で経費請求を行う。</td></tr><tr><td colspan=\"2\">融通戻し</td><td>運用方法</td><td>【確定】受発注で処理した「本体取引」:赤伝票処理で戻す。業績で処理した「現地仕入手数料調整」:取り消し処理で戻す。会計で処理した「手数料請求」:経理 WF で戻しの経費請求を行う。</td></tr><tr><td colspan=\"2\">再融通</td><td>運用ルール</td><td>【確定】再融通は禁止。必ず融通元へ戻してから、新たな拠点へ融通する。また、チェックするためのアドオンコスト見合いでシステム的には制御はかけない。融通アイテムを適切に社外へ販売したかどうかを本社へ報告させるなどの運用ではん制する。</td></tr></table>",
+                "etag": "c4b568a4edbc4ba6d3e1ac1a2d9f3a5cb162a831d674a931f2e5e133ce1488ae",
+                "document_sha256": "9f485cc6cd95c80dfbfc3ceee443fabe6068d46f4b887ac96d80bba70f5fe52d"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-e25ecb2c6a8100c93b48f552",
+              "kb-source-206ef2c731efb5ed9bf7ce1a"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

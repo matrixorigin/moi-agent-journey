@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "J3-05",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · medium_afterhours",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "medium_afterhours",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "medium_afterhours",
+    "original_number": 5
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\nHyperCareのRedmine運用で、優先度「中」の問い合わせが受付時間外（17:30以降）に来た場合、受付の目安はいつですか。最高優先度の緊急受付と混同しないでください。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "翌営業日10:30まで"
+              },
+              {
+                "id": "C02",
+                "text": "中の受付時間内は2時間以内"
+              },
+              {
+                "id": "C03",
+                "text": "緊急受付の1時間以内と区別"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-2af0b12f7ec6d963bd39fd96",
+                "file_id": "c089b84b-1237-405d-af41-172942617657",
+                "file_name": "Redmine操作手順書_HyperCare期間用.pptx",
+                "segment_id": "kbsegrow-043dfbfba40bf2b362acd365",
+                "quote": " チケット番号</td><td>（チケットを紐づけて管理したい場合に入力）</td></tr><tr><td>⑦</td><td>○</td><td>開始日</td><td>対応開始する日付</td><td>当日日付（初期値のまま）</td></tr><tr><td>⑧</td><td>○</td><td>期日</td><td>対応完了期日</td><td>翌営業日（登録時点では、仮の期日として翌営業日を設定）<br>※優先度が判断できる場合は、優先度の暫定対応目標時間に合わせて設定</td></tr></table>",
+                "etag": "51c72c1cc15fe75d55e96bb94a0b49785f650c977ff66bf3f88c19e505a906fc",
+                "document_sha256": "cc8068be7ddc52bc8822f48f557ef933e10ceb88c0227200ac779465e41ccea3"
+              },
+              {
+                "source_id": "kb-source-2af0b12f7ec6d963bd39fd96",
+                "file_id": "c089b84b-1237-405d-af41-172942617657",
+                "file_name": "Redmine操作手順書_HyperCare期間用.pptx",
+                "segment_id": "kbsegrow-b9b5df5c5ba05156b65ad7ee",
+                "quote": "1）<br>受付時間 8:30-17:30</td></tr><tr><td>中</td><td>・事象による影響が1週間以上猶予があるケース<br>・事象解消の代替手段が有り代替手段で対応完了まで業務回避ができるケース</td><td>・優先度のデフォルト設定（状況判断して優先度を変える）</td><td rowspan=\"2\">・受付時間内<br>即時（2時間以内）<br>・受付時間外（17:30以降）<br>翌営業日（10:30まで）</td></tr><tr><td>低</td><td>・事象による業務影響、システムに与える影響が乏しいケース<br>・事象回避の代替手段有り<br>・対応の期日に猶予がある。（2週間以上）</td><td>・システムに係る相談（作業の効率化など）<br>・期末処理など次回実行までに対応期間があるもの</td></tr></table>",
+                "etag": "51c72c1cc15fe75d55e96bb94a0b49785f650c977ff66bf3f88c19e505a906fc",
+                "document_sha256": "cc8068be7ddc52bc8822f48f557ef933e10ceb88c0227200ac779465e41ccea3"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-2af0b12f7ec6d963bd39fd96"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

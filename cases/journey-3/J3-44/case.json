@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "id": "J3-44",
+  "workspace": "journey-3",
+  "title": "Cedar 综合对照 · whole_document_aggregation",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "whole_document_aggregation",
+    "original_reference_status": "criteria_only"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "cedar",
+    "key": "whole_document_aggregation",
+    "original_number": 15
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 8,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n请完整统计《Cedar-连接器接入总表》中的所有连接器：共有几个，各归档格式各几个，单批上限的最小值和最大值分别属于谁？所有连接器单批上限相加是多少？请用完整资料核对，不要把检索返回的前几条当成全表。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "36"
+              },
+              {
+                "id": "C02",
+                "text": "JSONL 18"
+              },
+              {
+                "id": "C03",
+                "text": "Parquet 18"
+              },
+              {
+                "id": "C04",
+                "text": "Atlas-01 7137"
+              },
+              {
+                "id": "C05",
+                "text": "Atlas-36 11932"
+              },
+              {
+                "id": "C06",
+                "text": "343242"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-ab24a244b97156bbae1ca7aa",
+                "file_id": "9ead2e40-83ab-434e-b5b4-396e6d220f73",
+                "file_name": "Cedar-连接器接入总表.md",
+                "segment_id": "doc_16d599b147e4106b4a4eb794ad4c7879",
+                "quote": "连接器代码 Atlas-01，单批记录上限 7137，归档格式 JSONL，所有者 Team-2。 字段含义：单批记录上限只限制单次传输，不限制完整任务规模。传输失败按原批次标识恢复，不能跳过记录。 运行说明：先确认源端快照已固定，再按偏移分批传输；恢复时读取已确认偏移，不把重试次数当作已完成批数。文件保留遵循平台政策，不以本接入表替代正式政策。 审计记录包含批次标识、源快照标识、起止偏移、目的文件、行数校验和；完成前对账源行数与目标累计行数。",
+                "etag": "6f3a30d3bf7593aba065d0544b786f6187234e5be2d32d91dc8c349c565db897",
+                "document_sha256": "8005ce891a39a2b594579bfdf2c0251996674023b1635119135d40d70ace14e2"
+              },
+              {
+                "source_id": "kb-source-ab24a244b97156bbae1ca7aa",
+                "file_id": "9ead2e40-83ab-434e-b5b4-396e6d220f73",
+                "file_name": "Cedar-连接器接入总表.md",
+                "segment_id": "doc_62a86d45d82b47a349a73554feed13c4",
+                "quote": "连接器代码 Atlas-36，单批记录上限 11932，归档格式 Parquet，所有者 Team-2。 字段含义：单批记录上限只限制单次传输，不限制完整任务规模。传输失败按原批次标识恢复，不能跳过记录。 运行说明：先确认源端快照已固定，再按偏移分批传输；恢复时读取已确认偏移，不把重试次数当作已完成批数。文件保留遵循平台政策，不以本接入表替代正式政策。 审计记录包含批次标识、源快照标识、起止偏移、目的文件、行数校验和；完成前对账源行数与目标累计行数。",
+                "etag": "6f3a30d3bf7593aba065d0544b786f6187234e5be2d32d91dc8c349c565db897",
+                "document_sha256": "8005ce891a39a2b594579bfdf2c0251996674023b1635119135d40d70ace14e2"
+              }
+            ],
+            "citation_required": true,
+            "verification": {
+              "method": "按Atlas编号提取36个独立连接器，重复片段按同一编号核对，不把同值独立项去重",
+              "count": 36,
+              "JSONL": 18,
+              "Parquet": 18,
+              "min": [
+                "Atlas-01",
+                7137
+              ],
+              "max": [
+                "Atlas-36",
+                11932
+              ],
+              "sum": 343242
+            },
+            "expected_source_ids": [
+              "kb-source-ab24a244b97156bbae1ca7aa"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

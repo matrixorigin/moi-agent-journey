@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "id": "J3-06",
+  "workspace": "journey-3",
+  "title": "SAP 运维 · stock_lookup",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "stock_lookup",
+    "original_reference_status": "reviewed"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "sap",
+    "key": "stock_lookup",
+    "original_number": 6
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 6,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n在庫照会でZMM0011、MB58、MMBE、RWBEはそれぞれ何を確認するために使いますか。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "ZMM0011: サイズ別倉庫別の在庫を包括品目単位で照会、プラント指定必須"
+              },
+              {
+                "id": "C02",
+                "text": "MB58: 得意先預託品在庫の一覧"
+              },
+              {
+                "id": "C03",
+                "text": "MMBE: 1品目×プラント・保管場所×在庫ステータス"
+              },
+              {
+                "id": "C04",
+                "text": "RWBE: MMBE形式で複数品目を照会"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-59ddb5f1a0caa0b6c120a508",
+                "file_id": "9262c508-ee2b-43b2-ba74-627545e19ac5",
+                "file_name": "DPSロジの基本.xlsx",
+                "segment_id": "kbsegrow-421b3a7c188723c89062a84e",
+                "quote": "<table><tr><td>トランザクションコード</td><td>機能名称キノウメイショウ</td><td>用途ヨウト</td><td>関連テーブルカンレン</td></tr><tr><td>ZMM0011</td><td>サイズ別倉庫別在庫照会</td><td>サイズ展開のある商品の在庫を包括品目単位で照会可能（プラント指定必須）</td><td></td></tr><tr><td>MB52</td><td>在庫一覧</td><td>複数品目×プラント・保管場所×在庫ステータスごとに在庫照会<br>※在庫ステータス：保留在庫、積層中在庫など</td><td></td></tr><tr><td>MB53</td><td>プラント在庫照会</td><td>１品目×プラントレベルごとに在庫照会</td><td></td></tr><tr><td>MMBE</td><td>在庫状況照会</td><td>１品目×プラント・保管場所×在庫ステータスごとに在庫照会</td><td></td></tr><tr><td>MD04</td><td>在庫/所要状況照会</td><td>１品目ごとの所要量(受注などに引当済の数量)と在庫状況を照会<br>※MRPエリアには「プラント４桁＋保管場所４桁＋&quot;00&quot;」を入力ケタホカンバショケタニュウリョク</td><td></td></tr><tr><td>MB58</td><td>得意先預託品および要返却梱包材</td><td>預託品在庫の一覧ヨタクヒンザイコイチラン</td><td></td></tr><tr><td>RWBE</td><td>在庫状況照会</td><td>MMBEの形式で複数品目について在庫照会できる</td><td></td></tr></table>",
+                "etag": "fc413a6777013f8e85521a4db49826bd5a6cc44792bae996bef6ab2a9c5a2b58",
+                "document_sha256": "cdad097ee4674564aead5ded13db03151c65c210fa1a48270b1a8bfeb381dc9c"
+              },
+              {
+                "source_id": "kb-source-59ddb5f1a0caa0b6c120a508",
+                "file_id": "9262c508-ee2b-43b2-ba74-627545e19ac5",
+                "file_name": "DPSロジの基本.xlsx",
+                "segment_id": "kbsegrow-421b3a7c188723c89062a84e",
+                "quote": "庫照会</td><td></td></tr><tr><td>MD04</td><td>在庫/所要状況照会</td><td>１品目ごとの所要量(受注などに引当済の数量)と在庫状況を照会<br>※MRPエリアには「プラント４桁＋保管場所４桁＋&quot;00&quot;」を入力ケタホカンバショケタニュウリョク</td><td></td></tr><tr><td>MB58</td><td>得意先預託品および要返却梱包材</td><td>預託品在庫の一覧ヨタクヒンザイコイチラン</td><td></td></tr><tr><td>RWBE</td><td>在庫状況照会</td><td>MMBEの形式で複数品目について在庫照会できる</td><td></td></tr></table>",
+                "etag": "fc413a6777013f8e85521a4db49826bd5a6cc44792bae996bef6ab2a9c5a2b58",
+                "document_sha256": "cdad097ee4674564aead5ded13db03151c65c210fa1a48270b1a8bfeb381dc9c"
+              },
+              {
+                "source_id": "kb-source-59ddb5f1a0caa0b6c120a508",
+                "file_id": "9262c508-ee2b-43b2-ba74-627545e19ac5",
+                "file_name": "DPSロジの基本.xlsx",
+                "segment_id": "kbsegrow-421b3a7c188723c89062a84e",
+                "quote": "在庫状況を照会<br>※MRPエリアには「プラント４桁＋保管場所４桁＋&quot;00&quot;」を入力ケタホカンバショケタニュウリョク</td><td></td></tr><tr><td>MB58</td><td>得意先預託品および要返却梱包材</td><td>預託品在庫の一覧ヨタクヒンザイコイチラン</td><td></td></tr><tr><td>RWBE</td><td>在庫状況照会</td><td>MMBEの形式で複数品目について在庫照会できる</td><td></td></tr></table>",
+                "etag": "fc413a6777013f8e85521a4db49826bd5a6cc44792bae996bef6ab2a9c5a2b58",
+                "document_sha256": "cdad097ee4674564aead5ded13db03151c65c210fa1a48270b1a8bfeb381dc9c"
+              }
+            ],
+            "citation_required": true,
+            "expected_source_ids": [
+              "kb-source-59ddb5f1a0caa0b6c120a508"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

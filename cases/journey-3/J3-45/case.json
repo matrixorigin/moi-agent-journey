@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "J3-45",
+  "workspace": "journey-3",
+  "title": "Cedar 综合对照 · binding_scope",
+  "executor": "knowledge",
+  "source": {
+    "benchmark": "MOI knowledge-base Q&A",
+    "original_key": "binding_scope",
+    "original_reference_status": "criteria_only"
+  },
+  "assets": [],
+  "oracles": [],
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "cedar",
+    "key": "binding_scope",
+    "original_number": 16
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 4,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "请仅依据当前智能体绑定的知识库回答，并提供能支持结论的出处；没有依据时明确说明。本任务只做问答，不执行创建、修改或删除操作。\n\n当前选择的知识库能否说明 SAP 受注伝票登録 用哪个事务码？请仅根据当前所选资料回答，没有依据就说无法确认。",
+          "rag_reference": {
+            "status": "reviewed",
+            "criteria": [
+              {
+                "id": "C01",
+                "text": "当前Cedar资料没有SAP事务码依据"
+              },
+              {
+                "id": "C02",
+                "text": "应说明无法从当前知识库确认，不从其他未选择的SAP资料补出VA01或ZVA01等事实"
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "kb-source-79224b2ed6aa5be36faf4fab",
+                "file_id": "1f5a4397-4b15-4a7b-bdbe-b11f5c8720be",
+                "file_name": "Cedar-数据留存政策-v2-正式版.md",
+                "segment_id": "doc_4f686386cb64945ea89ab118c0860ff6",
+                "quote": "状态：正式批准，批准号 ARC-2026-093；生效日期 2026-09-01。 适用对象：Cedar 平台导出任务产生的临时下载文件，不适用于原始数据库与账单。 普通导出文件保留 45 天。法律保全文件保留 365 天，必须由法务解除保全才可删除。 普通文件到期后 12 小时内删除；清理时区为 UTC。重新下载不延长保留时间。 EU 和 US 区域采用相同保留期限。缓存副本随主文件删除，不另算保留期。 版本关系：本正式版替代 v1，v1 的 30 天与 180 天不再用于当前生产。 本政策不规定第三方下游自行保存的副本，也未发布 2027 年修订。",
+                "etag": "2d7e58086ee33673209d8d4232f8de5fd31488c487ef28fb1718ea385c6e1091",
+                "document_sha256": "a42ae07e5b88ad466a2e786e6e5ea971a9a475badb485952d44911b30e16205d"
+              }
+            ],
+            "citation_required": false,
+            "expected_source_ids": [],
+            "verify_whole_corpus": true
+          }
+        }
+      ]
+    }
+  ]
+}
