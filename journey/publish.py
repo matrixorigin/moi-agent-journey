@@ -7,6 +7,26 @@ from .evidence import Evidence, configured_secrets, sha256
 from .report import ArtifactRejected,inspect_payload
 
 
+def redact_record(data, suffix, evidence):
+    """Redact decoded values so quoted code examples cannot break JSON escaping."""
+    text = data.decode('utf-8')
+    if suffix == '.json':
+        value = json.loads(text)
+        cleaned = evidence.clean(value)
+        return (json.dumps(cleaned, ensure_ascii=False, indent=2) + '\n').encode() if cleaned != value else data
+    if suffix == '.jsonl':
+        lines = []
+        for line in text.splitlines(keepends=True):
+            if line.strip():
+                value = json.loads(line)
+                cleaned = evidence.clean(value)
+                if cleaned != value:
+                    line = json.dumps(cleaned, ensure_ascii=False) + ('\n' if line.endswith('\n') else '')
+            lines.append(line)
+        return ''.join(lines).encode()
+    return evidence.text(text).encode()
+
+
 def prepare_publication(source,destination,secrets):
     source,destination=Path(source),Path(destination)
     public=Evidence(destination,secrets)
@@ -25,7 +45,7 @@ def prepare_publication(source,destination,secrets):
         if not payload:
             # Recorder files are UTF-8 JSON/JSONL/logs. Apply the same credential
             # redaction at this publication boundary, preserving every event.
-            data=public.text(data.decode('utf-8')).encode('utf-8')
+            data=redact_record(data, file.suffix, public)
         try:
             inspect_payload(relative.as_posix().encode(),public.secrets)
             inspect_payload(data,public.secrets,name=file.name)

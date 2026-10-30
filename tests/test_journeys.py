@@ -592,6 +592,23 @@ class JourneyTests(unittest.TestCase):
             self.assertEqual(rejected[0]['reason'],'credential_detected_in_artifact')
             self.assertTrue(all(b'private-qa-key' not in p.read_bytes() for p in (root/'public').rglob('*') if p.is_file()))
 
+    def test_publication_keeps_json_and_jsonl_valid_when_code_contains_quoted_secret_assignments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); case = root / 'results/J3-52'; case.mkdir(parents=True)
+            code = 'MOI_API_KEY="synthetic-value"\n--client-secret "synthetic-other"\nnext'
+            result = {'case_id': 'J3-52', 'text': code}
+            (case / 'result.json').write_text(json.dumps(result))
+            (case / 'events.jsonl').write_text(json.dumps({'text': code}) + '\n')
+            self.assertEqual(prepare_publication(root / 'results', root / 'public', []), [])
+            published = root / 'public/J3-52'
+            parsed = json.loads((published / 'result.json').read_text())
+            event = json.loads((published / 'events.jsonl').read_text())
+            self.assertEqual(parsed['text'], event['text'])
+            self.assertIn('\nnext', event['text'])
+            self.assertNotIn('synthetic-value', event['text'])
+            self.assertNotIn('synthetic-other', event['text'])
+            self.assertEqual(event['text'].count('[REDACTED]'), 2)
+
     def test_procurement_checks_selected_items_instead_of_words_in_reasons(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
