@@ -30,7 +30,8 @@ DELIVERY_LABELS = {'delivered': '已交付', 'partial': '部分交付', 'not_del
 TEST_LABELS = {'completed': '正常完成', 'error': '执行、验收或取证出错'}
 FUNCTIONAL_LABELS = {'pass': '通过', 'fail': '不通过', 'blocked': '前置条件不足', 'error': '测试执行错误'}
 QUALITY_REASONS = {'validator_error': '验收器异常', 'not_evaluated': '尚未完成验收',
-                   'no_validated_delivery': '没有完整可验收的交付'}
+                   'no_validated_delivery': '没有完整可验收的交付',
+                   'unfinished_turns': '任务未全部结束', 'quality_dimensions_unavailable': '部分质量维度未评分'}
 
 
 def cell(value, limit=1000):
@@ -109,8 +110,8 @@ def case_summary(result):
         lines.append(f"- 测试输入：{cell(item.get('fixture'))}（文件 ID：{cell(item.get('file_id'))}），"
                      '作为会话附件保留在 QA。')
     if quality['state'] in {'checked', 'partial'}:
-        qualifier = ('部分检查（任务未全部结束）' if quality.get('reason') == 'unfinished_turns' else
-                     '部分检查（验收器异常）') if quality['state'] == 'partial' else '检查'
+        reason = QUALITY_REASONS.get(quality.get('reason'), quality.get('reason'))
+        qualifier = f'部分检查（{reason}）' if quality['state'] == 'partial' else '检查'
         lines.append(f"- {'功能验收' if cancellation else '交付质量'}：{qualifier}通过 {quality['passed_checks']}/{quality['total_checks']}，"
                      f"未通过 {len(quality['failed_checks'])} 项；判据仍需结合证据复核。")
     else:
@@ -420,6 +421,9 @@ def _group_summary(rows):
     deliveries = Counter(row['delivery']['state'] for row in rows)
     quality = Counter(row['quality']['state'] if row['quality']['state'] != 'checked' else
                       ('issues' if row['quality']['failed_checks'] else 'all_checks_passed') for row in rows)
+    # Coverage and known failures are independent: an unscored dimension must
+    # not hide failures already established by completed checks.
+    quality['issues'] = sum(bool(row['quality']['failed_checks']) for row in rows)
     metrics = [row['tools']['metrics'] for row in rows if row['tools']['state'] == 'available']
     tools = {key: sum(item[key] for item in metrics)
              for key in ('calls', 'succeeded', 'failed', 'skipped', 'unknown', 'tool_rounds',
@@ -682,7 +686,8 @@ def aggregate(source, destination, workspace='all', case_ids=None):
         f"交付：完整 {delivery['delivered']}；取消确认 {delivery['canceled']}；部分 {delivery['partial']}；未交付 {delivery['not_delivered']}；"
         f"交付不完整 {delivery['incomplete']}；对象不明确 {delivery['ambiguous']}；无法确认 {delivery['unknown']}。", '',
         f"质量：检查全部符合 {quality['all_checks_passed']}；存在未通过项 {quality['issues']}；"
-        f"仅完成部分检查 {quality['partial']}；无法评价 {quality['unavailable']}。检查结果需结合原始证据复核。", '',
+        f"仅完成部分检查 {quality['partial']}；无法评价 {quality['unavailable']}。"
+        '未通过项与部分检查可同时存在；检查结果需结合原始证据复核。', '',
         f"工具：{tools['calls']} 次调用、{tools['tool_rounds']} 个可识别轮次；成功 {tools['succeeded']}、"
         f"失败 {tools['failed']}、跳过 {tools['skipped']}、结果不明确 {tools['unknown']}；调用成功率 {rate}。", '',
         f"无法关联调用 ID 的工具事件：{tools['unidentified_events']} 条，不计入调用次数和成功率。", '',
@@ -699,8 +704,9 @@ def aggregate(source, destination, workspace='all', case_ids=None):
         lines[4:4] = ['本次仅统计显式选择的题目：' + cell(', '.join(case_ids), 10000) + '。', '']
     for row in rows:
         q, m = row['quality'], row['tools'].get('metrics') or {}
-        quality_text = ((('部分检查 ' if q['state'] == 'partial' else
-                         '存在未通过项 ' if q['failed_checks'] else '全部符合 ') +
+        quality_text = ((('存在未通过项（部分检查） ' if q['state'] == 'partial' and q['failed_checks'] else
+                         '存在未通过项 ' if q['failed_checks'] else
+                         '部分检查 ' if q['state'] == 'partial' else '全部符合 ') +
                          f"{q['passed_checks']}/{q['total_checks']}")
                         if q['state'] in {'checked', 'partial'} else '无法评价')
         tool_text = f"{m['succeeded']}/{m['succeeded'] + m['failed']}" if m else '不可用'

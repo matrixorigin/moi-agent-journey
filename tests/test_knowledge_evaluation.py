@@ -13,6 +13,8 @@ from journey.knowledge_trace import cli_feedback, attach_selected_reads
 from journey.rag_quality import observe_rag, judge_data, judge_prompt, parse_verdict, summarize_verdict
 from journey.rag_report import summarize_rag
 import test_knowledge_journey as fixtures
+import test_journeys as report_fixtures
+from journey.report import _group_summary, case_summary
 from test_knowledge_journey import page, chunk
 
 
@@ -115,6 +117,20 @@ class EvaluationProtocolTests(unittest.TestCase):
         verdict['claims'][0].update(supported=False, source_ids=[], reason='not observed')
         with self.assertRaisesRegex(ValueError, 'unverifiable_negative'):
             parse_verdict(json.dumps(verdict), '45 days', reference, observed, efficiency)
+
+
+class QualityCoverageReportTests(unittest.TestCase):
+    def test_partial_coverage_does_not_hide_known_quality_failures(self):
+        row = report_fixtures.JourneyTests.finished_result('J1-01')
+        row['quality'] = {'state': 'partial', 'reason': 'quality_dimensions_unavailable',
+            'passed_checks': 1, 'total_checks': 2, 'failed_checks': [{'rule': 'missing fact', 'passed': False}]}
+        quality = _group_summary([row])['quality']
+        self.assertEqual(quality['issues'], 1)
+        self.assertEqual(quality['partial'], 1)
+        self.assertEqual(quality['all_checks_passed'], 0)
+        markdown = case_summary(row)
+        self.assertIn('部分质量维度未评分', markdown)
+        self.assertNotIn('验收器异常', markdown)
 
 
 class NativeCLITraceTests(unittest.TestCase):
