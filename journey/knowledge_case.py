@@ -131,6 +131,8 @@ class KnowledgeExecution(Execution):
                 if chunk.get('origin') == 'native_selected_read_receipt':
                     observed['retrieved_chunks'].append({**chunk,
                         'evidence_id': 'R' + str(len(observed['retrieved_chunks']) + 1)})
+        if observed['context_reads']:
+            observed['retrieval_scope'] = 'selected_reads'
         observed['context_chunks'] = sum(chunk['source_task_id'] != observed['task_id']
                                          for chunk in observed['retrieved_chunks'])
 

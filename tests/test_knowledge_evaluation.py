@@ -185,6 +185,7 @@ class NativeCLITraceTests(unittest.TestCase):
             self.assertEqual(observed['retrieved_chunks'][1]['evidence_id'], 'R2')
             self.assertEqual(observed['retrieved_chunks'][1]['source_task_id'], 'prior')
             self.assertEqual(observed['context_chunks'], 1)
+            self.assertEqual(observed['retrieval_scope'], 'selected_reads')
             self.assertEqual(len(observed['context_reads']), 1)
 
     def test_stdout_summary_or_other_task_cannot_forge_native_feedback(self):
