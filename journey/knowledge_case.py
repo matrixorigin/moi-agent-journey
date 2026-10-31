@@ -111,12 +111,28 @@ class KnowledgeExecution(Execution):
         for (model_id, source_id), document in documents.items():
             selected = {item['chunk_id'] for item in observed['citation_chunks']
                         if item['source_row_id'] == source_id and str(item['semantic_model_id']) == model_id}
-            self.evidence.write('knowledge/cited/' + model_id + '/' + segment(source_id) + '.json', {
+            self.evidence.write('knowledge/cited/' + segment(observed['task_id']) + '/' + model_id + '/' + segment(source_id) + '.json', {
                 'source': document['source'], 'etag': document.get('etag'),
                 'total_segments': document['segment_status']['total'],
                 'cited_segments': [row for row in document['segments'] if (row.get('chunk_id') or row['segment_id']) in selected]})
         observed['citation_integrity']['valid'] = sum(item['integrity'] for item in observed['citations'])
         attach_selected_reads(observed)
+
+    def validate_context_reads(self, observed, context):
+        """Carry forward only native reads attested in this conversation's earlier tasks."""
+        observed['context_reads'] = []
+        for task_id in context:
+            previous = observe_rag(self.evidence.root / 'events.jsonl', task_id, self.allowed_model_ids)
+            if not previous['selected_read_receipt']:
+                continue
+            self.validate_sources(previous)
+            observed['context_reads'].append(previous)
+            for chunk in previous['retrieved_chunks']:
+                if chunk.get('origin') == 'native_selected_read_receipt':
+                    observed['retrieved_chunks'].append({**chunk,
+                        'evidence_id': 'R' + str(len(observed['retrieved_chunks']) + 1)})
+        observed['context_chunks'] = sum(chunk['source_task_id'] != observed['task_id']
+                                         for chunk in observed['retrieved_chunks'])
 
     def check_reference(self, config):
         state, records = 'matched', []
@@ -157,11 +173,12 @@ class KnowledgeExecution(Execution):
                 context.append(task['task_id'])
         observed = observe_rag(self.evidence.root / 'events.jsonl', answer['task_id'], self.allowed_model_ids, context)
         observed['context_evidence'] = self.binding_context
+        answer['observations'] = observed
         efficiency = task_trajectory(self.evidence.root / 'events.jsonl', self.tasks, answer['task_id'])
         efficiency['task_seconds'] = answer['seconds']
         answer['efficiency'] = efficiency
         self.validate_sources(observed)
-        answer['observations'] = observed
+        self.validate_context_reads(observed, context)
         integrity = observed['citation_integrity']
         answer['metrics'] = {'citation_integrity': {**integrity,
             'rate': integrity['valid'] / integrity['total'] if integrity['total'] else None}}

@@ -124,6 +124,8 @@ def case_lines(result, cell):
         citations = observed.get('citations', [])
         lines += ['', f"检索：{observed.get('retrieval_calls', 0)} 次可识别调用；"
                   f"{len(observed.get('retrieved_chunks', []))} 个可核验证据片段；结构化引用 {len(citations)} 个。"]
+        if observed.get('context_chunks'):
+            lines.append(f"其中 {observed['context_chunks']} 个证据片段来自同一会话的前序读取，来源另经核验。")
         if observed.get('cli_feedback') or observed.get('selected_read_receipt'):
             lines += [f"CLI 原生回执：已观测累计发现 {cell(observed.get('cli_discovery_calls'))} 次、"
                       f"证据读取 {cell(observed.get('cli_evidence_reads'))} 次；证据范围 {cell(observed.get('retrieval_scope'))}。",

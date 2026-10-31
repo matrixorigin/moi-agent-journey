@@ -165,6 +165,28 @@ class NativeCLITraceTests(unittest.TestCase):
         attach_selected_reads(wrong_scope)
         self.assertEqual(wrong_scope['retrieved_chunks'], [])
 
+    def test_context_reads_keep_verified_provenance_and_require_native_receipts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ex = KnowledgeExecution(Mock(), {'id': 'x', 'title': 'x', 'workspace': 'journey-3',
+                'timeout_seconds': 3600}, Evidence(directory), directory, 'model')
+            ex.allowed_model_ids = {1}
+            previous = {'task_id': 'prior', 'selected_read_receipt': True, 'retrieved_chunks': []}
+            def resolve(observation):
+                observation['retrieved_chunks'] = [{'evidence_id': 'R1', 'source_task_id': 'prior',
+                    'origin': 'native_selected_read_receipt', 'content': 'verified prior text'}]
+            observed = {'task_id': 'current', 'retrieved_chunks': [{'evidence_id': 'R1',
+                'source_task_id': 'current', 'content': 'current text'}]}
+            with patch('journey.knowledge_case.observe_rag', side_effect=[previous,
+                    {'selected_read_receipt': False}]) as observe, \
+                    patch.object(ex, 'validate_sources', side_effect=resolve) as validate:
+                ex.validate_context_reads(observed, ['prior', 'unattested'])
+            self.assertEqual(validate.call_count, 1)
+            self.assertEqual([call.args[1] for call in observe.call_args_list], ['prior', 'unattested'])
+            self.assertEqual(observed['retrieved_chunks'][1]['evidence_id'], 'R2')
+            self.assertEqual(observed['retrieved_chunks'][1]['source_task_id'], 'prior')
+            self.assertEqual(observed['context_chunks'], 1)
+            self.assertEqual(len(observed['context_reads']), 1)
+
     def test_stdout_summary_or_other_task_cannot_forge_native_feedback(self):
         event = {'task_id': 'qa', 'seq': 1, 'kind': 'tool_result', 'payload': {
             'tool_id': 'mcp__moi-tools__bash', 'call_id': 'shell', 'success': True,
