@@ -105,16 +105,19 @@ def assess(case, result, raw_status):
 
     validation = result.get('validation', {})
     checks = validation.get('checks', [])
-    validator_error = any(item.get('stage') in {'validation', 'semantic_judge'}
+    validator_error = any(item.get('stage') in {'validation', 'semantic_judge', 'knowledge_evidence_validation'}
                           for item in result.get('harness_errors', []))
     expected_answer_checks = sum(session.get('expected_checks', sum(1 + len(turn.get('assertions', []))
                                       for turn in session['turns'])) for session in sessions
                                  if session.get('delivery_kind') in {'agent', 'answer', 'candidate', 'file', 'cancellation'})
     incomplete_answer_checks = bool(expected_answer_checks) and len(checks) < expected_answer_checks
+    unavailable_dimensions = any(metric.get('unavailable', 0) for answer in
+        result.get('rag', {}).get('answers', []) for metric in answer.get('metrics', {}).values())
     if checks:
         failed = [item for item in checks if not item.get('passed')]
-        quality = {'state': 'partial' if validator_error or incomplete_answer_checks else 'checked',
-                   'reason': 'unfinished_turns' if incomplete_answer_checks else 'validator_error' if validator_error else None,
+        quality = {'state': 'partial' if validator_error or incomplete_answer_checks or unavailable_dimensions else 'checked',
+                   'reason': 'quality_dimensions_unavailable' if unavailable_dimensions else
+                             'unfinished_turns' if incomplete_answer_checks else 'validator_error' if validator_error else None,
                    'passed_checks': len(checks) - len(failed),
                    'total_checks': len(checks), 'failed_checks': failed}
     else:

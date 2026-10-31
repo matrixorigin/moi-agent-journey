@@ -138,7 +138,7 @@ def main():
             # Leave bounded time after the QA deadline for evidence capture and cleanup.
             matrix["include"].append({"case": case_id, "executor": executor,
                                       "step_timeout_minutes": (case['timeout_seconds'] +
-                                          case.get('evaluation_timeout_seconds', 0) + 59) // 60 + 4})
+                                          case.get('evaluation_timeout_seconds', 0) * (2 if executor == 'knowledge' else 1) + 59) // 60 + 4})
         if not matrix["include"]:
             matrix["include"].append({"case": "EMPTY", "executor": "empty", "step_timeout_minutes": 1})
         output = json.dumps(matrix)

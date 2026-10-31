@@ -33,6 +33,12 @@ class CaseTimeoutTests(unittest.TestCase):
             self.assertEqual(item['step_timeout_minutes'], 19 if item['case'] == 'J2-111' else 9)
         self.assertEqual(self.plan('journey-4')[0]['step_timeout_minutes'], 1)
 
+    def test_knowledge_budget_includes_source_validation_and_model_inference(self):
+        for item in self.plan('journey-3'):
+            case = load_case(item['case'])
+            self.assertEqual(item['step_timeout_minutes'],
+                (case['timeout_seconds'] + 2 * case['evaluation_timeout_seconds'] + 59) // 60 + 4)
+
     def test_explicit_case_exception_is_reflected_in_the_workflow_budget(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

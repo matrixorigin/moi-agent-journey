@@ -1,6 +1,7 @@
 """Evaluate fixed Q&A against existing, bound agents without changing their resources."""
 import argparse
 import copy
+from contextlib import contextmanager
 import json
 import os
 import shutil
@@ -14,7 +15,8 @@ from .client import Client, Failure, error_record, segment
 from .evidence import Evidence, configured_secrets, utc_now
 from .hello import discover
 from .knowledge_sources import list_sources, read_document
-from .rag_quality import judge_prompt, observe_rag, parse_verdict, summarize_verdict
+from .knowledge_trace import attach_selected_reads
+from .rag_quality import judge_data, judge_prompt, observe_rag, parse_verdict, summarize_verdict
 from .run_case import Execution
 from .trajectory import task_trajectory
 from .version import finish_version, start_version
@@ -24,7 +26,7 @@ class KnowledgeExecution(Execution):
     def setup(self, *, capture_version=True):
         self.root, self.judge_selector = discover(self.client, self.case['workspace'])
         self.report['rag']['evaluator'] = {'method': 'independent_MOMO_conversations',
-                                          'model': self.model, 'selector': self.judge_selector}
+                                          'model': self.model, 'selector': self.judge_selector, 'protocol': 2}
         catalog = json.loads((ROOT / 'datasets/journey-3/corpora.json').read_text())
         corpus = catalog[self.case['rag']['corpus']]
         self.corpus = corpus
@@ -65,6 +67,12 @@ class KnowledgeExecution(Execution):
     def validate_sources(self, observed):
         sources = {(str(item['model_id']), item['row_id']): item for item in self.sources}
         documents = {}
+        wanted_by_source = {}
+        for citation in observed['citations']:
+            ref = citation['reference']
+            ids = [ref.get('chunk_id')] + (ref.get('chunk_ids') if isinstance(ref.get('chunk_ids'), list) else [])
+            wanted_by_source.setdefault((str(ref.get('semantic_model_id')), ref.get('source_row_id')), set()).update(
+                value for value in ids if isinstance(value, str) and value)
         for citation in observed['citations']:
             ref = citation['reference']
             source_id = ref.get('source_row_id')
@@ -79,7 +87,8 @@ class KnowledgeExecution(Execution):
             try:
                 key = (model_id, source_id)
                 if key not in documents:
-                    documents[key] = read_document(self.client, int(model_id), source_id)
+                    documents[key] = read_document(self.client, int(model_id), source_id,
+                                                   chunk_ids=wanted_by_source[key])
                 document = documents[key]
                 cited_ids = [ref.get('chunk_id')] + (ref.get('chunk_ids') if isinstance(ref.get('chunk_ids'), list) else [])
                 available = {row.get('chunk_id') or row['segment_id']: row for row in document['segments']
@@ -91,6 +100,7 @@ class KnowledgeExecution(Execution):
                     evidence_id = 'C' + str(len(observed['citation_chunks']) + 1)
                     observed['citation_chunks'].append({'evidence_id': evidence_id, 'source_row_id': source_id,
                         'semantic_model_id': int(model_id),
+                        'file_name': ref.get('file_name'),
                         'file_id': source['kb_file_id'], 'chunk_id': chunk_id, 'content': available[chunk_id]['content']})
                     citation['source_evidence_ids'].append(evidence_id)
             except Failure as error:
@@ -101,11 +111,30 @@ class KnowledgeExecution(Execution):
         for (model_id, source_id), document in documents.items():
             selected = {item['chunk_id'] for item in observed['citation_chunks']
                         if item['source_row_id'] == source_id and str(item['semantic_model_id']) == model_id}
-            self.evidence.write('knowledge/cited/' + model_id + '/' + segment(source_id) + '.json', {
+            self.evidence.write('knowledge/cited/' + segment(observed['task_id']) + '/' + model_id + '/' + segment(source_id) + '.json', {
                 'source': document['source'], 'etag': document.get('etag'),
                 'total_segments': document['segment_status']['total'],
                 'cited_segments': [row for row in document['segments'] if (row.get('chunk_id') or row['segment_id']) in selected]})
         observed['citation_integrity']['valid'] = sum(item['integrity'] for item in observed['citations'])
+        attach_selected_reads(observed)
+
+    def validate_context_reads(self, observed, context):
+        """Carry forward only native reads attested in this conversation's earlier tasks."""
+        observed['context_reads'] = []
+        for task_id in context:
+            previous = observe_rag(self.evidence.root / 'events.jsonl', task_id, self.allowed_model_ids)
+            if not previous['selected_read_receipt']:
+                continue
+            self.validate_sources(previous)
+            observed['context_reads'].append(previous)
+            for chunk in previous['retrieved_chunks']:
+                if chunk.get('origin') == 'native_selected_read_receipt':
+                    observed['retrieved_chunks'].append({**chunk,
+                        'evidence_id': 'R' + str(len(observed['retrieved_chunks']) + 1)})
+        if observed['context_reads']:
+            observed['retrieval_scope'] = 'selected_reads'
+        observed['context_chunks'] = sum(chunk['source_task_id'] != observed['task_id']
+                                         for chunk in observed['retrieved_chunks'])
 
     def check_reference(self, config):
         state, records = 'matched', []
@@ -136,7 +165,7 @@ class KnowledgeExecution(Execution):
                 state = 'changed'
         return {'state': state, 'sources': records}
 
-    def evaluate(self, session, turn, answer):
+    def prepare_answer(self, session, turn, answer):
         config = turn['rag_reference']
         context = []
         for task in self.tasks:
@@ -146,11 +175,12 @@ class KnowledgeExecution(Execution):
                 context.append(task['task_id'])
         observed = observe_rag(self.evidence.root / 'events.jsonl', answer['task_id'], self.allowed_model_ids, context)
         observed['context_evidence'] = self.binding_context
+        answer['observations'] = observed
         efficiency = task_trajectory(self.evidence.root / 'events.jsonl', self.tasks, answer['task_id'])
         efficiency['task_seconds'] = answer['seconds']
         answer['efficiency'] = efficiency
         self.validate_sources(observed)
-        answer['observations'] = observed
+        self.validate_context_reads(observed, context)
         integrity = observed['citation_integrity']
         answer['metrics'] = {'citation_integrity': {**integrity,
             'rate': integrity['valid'] / integrity['total'] if integrity['total'] else None}}
@@ -167,10 +197,25 @@ class KnowledgeExecution(Execution):
         if answer['reference_check']['state'] != 'matched':
             answer.update(evaluation_state='unavailable', evaluation_reason=answer['reference_check'])
             return
-        prompt = judge_prompt(turn['prompt'], answer['text'], config, observed, efficiency)
+        return True
+
+    def judge_answer(self, session, turn, answer):
+        config, observed, efficiency = turn['rag_reference'], answer['observations'], answer['efficiency']
+        conversation = []
+        for prior in self.report['rag']['answers']:
+            if prior['task_id'] == answer['task_id']:
+                break
+            if prior['conversation_id'] == answer['conversation_id']:
+                conversation.append(prior)
+        answer['evaluation_context_task_ids'] = [item['task_id'] for item in conversation]
+        plan = judge_data(turn['prompt'], answer['text'], config, observed, efficiency, conversation)
+        answer['judge_coverage'] = {key: plan[key] for key in ('protocol', 'grounding_scope',
+            'unavailable_evidence', 'unavailable_citations')}
+        prompt = judge_prompt(turn['prompt'], answer['text'], config, observed, efficiency, conversation)
         cid = self.conversation('judge-' + session['id'] + '-' + turn['phase'], selector=self.judge_selector)
         _, task = self.send(cid, 'judge:' + session['id'] + ':' + turn['phase'], prompt)
-        verdict = parse_verdict(final_reply(task), answer['text'], config, observed, efficiency)
+        verdict = parse_verdict(final_reply(task), answer['text'], config, observed, efficiency, conversation,
+                                question=turn['prompt'])
         self.apply_verdict(session, turn, answer, verdict)
 
     def apply_verdict(self, session, turn, answer, verdict):
@@ -188,34 +233,65 @@ class KnowledgeExecution(Execution):
                            'passed': criterion['passed'], 'detail': criterion['reason'],
                            'evidence_quote': criterion.get('answer_quote')})
         for index, claim in enumerate(verdict['claims'] if observed['retrieved_chunks'] else []):
+            if claim['supported'] is None:
+                continue
             checks.append({'session': session['id'], 'rule': turn['phase'] + ':检索依据支持主张' + str(index + 1),
                            'passed': claim['supported'], 'detail': claim['reason']})
         for citation in verdict['citations']:
+            if citation['supported'] is None:
+                continue
             checks.append({'session': session['id'], 'rule': turn['phase'] + ':引用支持结论' + str(citation['index']),
                            'passed': citation['supported'], 'detail': citation['reason']})
 
     def grade_answers(self, answers):
         self.report['stage'] = 'semantic_judge'
         budget = self.case['evaluation_timeout_seconds']
-        signal.alarm(budget)
-        self.client.deadline = time.monotonic() + budget
-        started = time.monotonic()
+        self.phase_remaining = {'knowledge_evidence_validation': budget, 'semantic_judge': budget}
+        signal.alarm(0)
         try:
             for session, turn, answer in answers:
                 try:
-                    self.evaluate(session, turn, answer)
+                    with self.evaluation_phase('knowledge_evidence_validation'):
+                        ready = self.prepare_answer(session, turn, answer)
+                    if ready:
+                        with self.evaluation_phase('semantic_judge'):
+                            self.judge_answer(session, turn, answer)
                 except Exception as error:
-                    answer.update(evaluation_state='unavailable', evaluation_reason=error_record('semantic_judge', error))
-                    self.report['harness_errors'].append(error_record('semantic_judge', error))
+                    stage = self.report['stage']
+                    answer.update(evaluation_state='unavailable', evaluation_reason=error_record(stage, error))
+                    self.report['harness_errors'].append(error_record(stage, error))
                 self.checkpoint()
         finally:
-            self.report['semantic_judge_seconds'] = self.report.get('semantic_judge_seconds', 0) + round(time.monotonic() - started, 3)
             signal.alarm(0)
         checks = self.report['validation']['checks']
         self.report['status'] = ('error' if self.report['harness_errors'] else
                                  'passed' if all(item['passed'] for item in checks) else 'failed')
         if self.report['status'] == 'failed':
             self.report['failures'].append({'stage': 'validation', 'reason': 'acceptance_checks_failed'})
+
+    @contextmanager
+    def evaluation_phase(self, stage):
+        self.report['stage'] = stage
+        remaining = self.phase_remaining[stage]
+        if remaining <= 0:
+            raise Failure(stage + '_timeout')
+        started = time.monotonic()
+        previous_deadline = self.client.deadline
+        self.client.deadline = started + remaining
+        signal.alarm(max(1, int(remaining + .999)))
+        try:
+            yield
+        except Failure as error:
+            if error.code in {'case_timeout', 'deadline_exceeded'}:
+                raise Failure(stage + '_timeout') from None
+            raise
+        finally:
+            elapsed = time.monotonic() - started
+            self.phase_remaining[stage] -= elapsed
+            field = 'evidence_validation_seconds' if stage == 'knowledge_evidence_validation' else 'semantic_judge_seconds'
+            self.report[field] = round(self.report.get(field, 0) + elapsed, 3)
+            self.client.deadline = previous_deadline
+            signal.alarm(0)
 
     @staticmethod
     def delivery_check(answer):
@@ -230,7 +306,8 @@ class KnowledgeExecution(Execution):
         history.append({'started_at': utc_now(), 'original_task_ids': [task['task_id'] for task in self.tasks
             if not task['phase'].startswith('judge:')], 'previous_harness_errors': self.report.get('harness_errors', [])})
         self.report['harness_errors'] = [error for error in self.report.get('harness_errors', [])
-                                        if error.get('stage') not in {'semantic_judge', 'trajectory_capture'}]
+                                        if error.get('stage') not in {'semantic_judge', 'knowledge_evidence_validation', 'trajectory_capture'}]
+        self.report['semantic_judge_seconds'] = self.report['evidence_validation_seconds'] = 0
         self.report['failures'] = [error for error in self.report.get('failures', []) if error.get('reason') != 'acceptance_checks_failed']
         self.report['validation'] = {'checks': [self.delivery_check(answer) for answer in self.report['rag']['answers']]}
         self.report['status'] = 'running'

@@ -16,6 +16,8 @@ def _metrics(answers):
         values = [answer.get('metrics', {}).get(name, {}) for answer in answers]
         result[name] = _ratio(sum(value.get('passed', value.get('valid', 0)) for value in values),
                               sum(value.get('total', 0) for value in values))
+        result[name]['expected_total'] = sum(value.get('expected_total', value.get('total', 0)) for value in values)
+        result[name]['unavailable'] = result[name]['expected_total'] - result[name]['total']
     return result
 
 
@@ -39,6 +41,9 @@ def valid_rag_result(rag):
             passed, total = value.get('passed', value.get('valid')), value.get('total')
             if (type(passed) is not int or type(total) is not int or not 0 <= passed <= total or
                     value.get('rate') != (passed / total if total else None)):
+                return False
+            if 'expected_total' in value and (type(value['expected_total']) is not int or
+                    value['expected_total'] < total or value.get('unavailable') != value['expected_total'] - total):
                 return False
         if answer['evaluation_state'] == 'scored' and (set(metrics) != set(METRICS) or
                 not isinstance(answer.get('verdict'), dict) or not metrics['correctness']['total']):
@@ -81,7 +86,7 @@ def case_lines(result, cell):
         return []
     lines = ['', '## 知识库问答', '', f"知识库组：{cell(rag['corpus'])}。",
              '参考要点按语义判定，允许同义表达；标识符、数值、单位和适用范围须准确。',
-             '主张支持率仅检查已观测检索片段；未观测到检索上下文时显示无法评价。']
+             '主张支持率仅检查已观测或服务端回执确认读取的证据；未观测到检索上下文时显示无法评价。']
     if rag.get('target'):
         lines.append(f"被测智能体：{cell(rag['target']['agent_id'])}；绑定知识库组：{cell(rag['target']['corpora'])}。")
     for key in ('qa_version_start', 'qa_version_end'):
@@ -104,16 +109,30 @@ def case_lines(result, cell):
         lines += ['', '**正确性**', '', '**实际最终回答**', '', answer.get('text', '')]
         if answer.get('evaluation_reason'):
             lines += ['', '无法完整评价的原因：' + cell(answer['evaluation_reason'])]
+        if answer.get('judge_coverage', {}).get('unavailable_evidence'):
+            lines += ['', '评分输入未包含的完整证据单元（原文仍保留）：' +
+                      cell(answer['judge_coverage']['unavailable_evidence'], 12000)]
         if answer.get('metrics'):
             lines += ['', '| 质量维度 | 满足／已检查 | 比例 |', '|---|---:|---:|']
             for name, label in METRICS.items():
                 value = answer['metrics'].get(name, {'passed': 0, 'total': 0, 'rate': None})
                 rate = f"{value['rate']:.1%}" if value.get('rate') is not None else '无法评价'
+                if value.get('unavailable'):
+                    rate += f"；另 {value['unavailable']} 项未评分"
                 lines.append(f"| {label} | {value.get('passed', value.get('valid', 0))}/{value['total']} | {rate} |")
         observed = answer.get('observations', {})
         citations = observed.get('citations', [])
         lines += ['', f"检索：{observed.get('retrieval_calls', 0)} 次可识别调用；"
-                  f"{len(observed.get('retrieved_chunks', []))} 个返回片段；结构化引用 {len(citations)} 个。"]
+                  f"{len(observed.get('retrieved_chunks', []))} 个可核验证据片段；结构化引用 {len(citations)} 个。"]
+        if observed.get('context_chunks'):
+            lines.append(f"其中 {observed['context_chunks']} 个证据片段来自同一会话的前序读取，来源另经核验。")
+        if observed.get('cli_feedback') or observed.get('selected_read_receipt'):
+            lines += [f"CLI 原生回执：已观测累计发现 {cell(observed.get('cli_discovery_calls'))} 次、"
+                      f"证据读取 {cell(observed.get('cli_evidence_reads'))} 次；证据范围 {cell(observed.get('retrieval_scope'))}。",
+                      '已选择的读取证据由服务端引用回执与来源快照联合核验，不代表采集了全部候选内容。']
+        if result.get('evidence_validation_seconds') is not None:
+            lines.append(f"来源核验 {cell(result['evidence_validation_seconds'])} 秒；模型评分 "
+                         f"{cell(result.get('semantic_judge_seconds'))} 秒，使用独立预算。")
         for citation in citations:
             ref = citation['reference']
             lines.append(f"- 引用 {citation['index']}：{cell(ref.get('file_name'))}；"
@@ -136,7 +155,7 @@ def case_lines(result, cell):
         for call in trajectory['timeline']:
             lines.append(f"| {cell(trajectory['phase'])} | {cell(call['call_id'])} | {cell(call['tool'])} | "
                          f"{cell(call['arguments'])} | {cell(call['outcome'])} | {cell(call['seconds'])} | "
-                         f"{call['new_retrieved_chunks']} | {cell(call['seqs'])} |")
+                         f"{cell(call['new_retrieved_chunks'])} | {cell(call['seqs'])} |")
     return lines
 
 
@@ -155,6 +174,8 @@ def aggregate_lines(report, cell):
     for name, label in METRICS.items():
         value = rag['metrics'][name]
         rate = f"{value['rate']:.1%}" if value['rate'] is not None else '无法评价'
+        if value.get('unavailable'):
+            rate += f"；另 {value['unavailable']} 项未评分"
         lines.append(f"| {label} | {value['passed']}/{value['total']} | {rate} |")
     for suite in report.get('journeys', []):
         if suite.get('rag'):
