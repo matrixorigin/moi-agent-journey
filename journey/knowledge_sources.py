@@ -28,7 +28,11 @@ def list_sources(client, model_id):
         page += 1
 
 
-def read_document(client, model_id, source_id):
+def read_document(client, model_id, source_id, *, chunk_ids=None):
+    """Read a whole snapshot, or stop once every explicitly cited chunk is found."""
+    wanted = None if chunk_ids is None else set(chunk_ids)
+    if wanted is not None and not wanted:
+        raise ValueError('empty_cited_chunk_selection')
     segments, cursors, cursor, first = [], set(), '', None
     while True:
         data = client.product('GET', f'/semantic-models/{model_id}/sources/{segment(source_id)}/document?' +
@@ -47,6 +51,10 @@ def read_document(client, model_id, source_id):
         segments.extend(rows)
         if len({row['segment_id'] for row in segments}) != len(segments):
             raise Failure('duplicate_knowledge_segment')
+        if wanted is not None and wanted.issubset({row.get('chunk_id') or row['segment_id'] for row in segments}):
+            first['segments'] = [row for row in segments if (row.get('chunk_id') or row['segment_id']) in wanted]
+            first['segment_status'] = {**status, 'selection_complete': True}
+            return first
         cursor = status.get('next_cursor', '')
         if not isinstance(cursor, str) or (cursor and (cursor in cursors or not rows)):
             raise Failure('invalid_knowledge_document_cursor')

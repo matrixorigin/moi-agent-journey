@@ -637,7 +637,7 @@ def aggregate(source, destination, workspace='all', case_ids=None):
     with (destination / 'summary.csv').open('w', newline='', encoding='utf-8') as stream:
         writer = csv.writer(stream)
         writer.writerow(['workspace', 'case_id', 'title', 'test_status', 'functional_state', 'task_state', 'agent_state', 'delivery_state',
-                         'quality_state', 'checks_passed', 'checks_total', 'task_seconds', 'semantic_judge_seconds',
+                         'quality_state', 'checks_passed', 'checks_total', 'task_seconds', 'evidence_validation_seconds', 'semantic_judge_seconds',
                          'preparation_seconds', 'validation_seconds', 'cleanup_seconds', 'total_seconds',
                          'tool_calls', 'tool_rounds', 'tool_succeeded', 'tool_failed', 'tool_skipped', 'tool_unknown',
                          'unidentified_tool_events',
@@ -650,7 +650,7 @@ def aggregate(source, destination, workspace='all', case_ids=None):
             writer.writerow([row['workspace'], row['case_id'], row['title'], row['test_status'], row.get('functional', {}).get('state'),
                 row['task']['state'], row['agent']['state'],
                 row['delivery']['state'], row['quality']['state'], row['quality'].get('passed_checks'),
-                row['quality'].get('total_checks'), row.get('task_seconds'), row.get('semantic_judge_seconds'),
+                row['quality'].get('total_checks'), row.get('task_seconds'), row.get('evidence_validation_seconds'), row.get('semantic_judge_seconds'),
                 row.get('preparation_seconds'), row.get('validation', {}).get('seconds'), row.get('cleanup_seconds'),
                 row.get('total_seconds'), metrics.get('calls'), metrics.get('tool_rounds'), metrics.get('succeeded'),
                 metrics.get('failed'), metrics.get('skipped'), metrics.get('unknown'), metrics.get('unidentified_events'),

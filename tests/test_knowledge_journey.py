@@ -159,21 +159,21 @@ class RagEvidenceTests(unittest.TestCase):
                     'citation_integrity': {'valid': 1, 'total': 1}}
         efficiency = {'timeline': [{'call_id': 'real-call'}]}
         reference = {'criteria': [{'id': 'C01', 'text': '45 days'}]}
-        verdict = {'criteria': [{'id': 'C01', 'passed': True, 'reason': 'correct', 'answer_quote': '45 days'}],
-                   'claims': [{'answer_quote': '45 days', 'supported': True, 'reason': 'in retrieval',
-                               'source_quotes': [{'evidence_id': 'R1', 'quote': '45 days'}]}],
-                   'citations': [{'index': 1, 'supported': True, 'reason': 'supported', 'answer_quote': '45 days',
-                                  'source_quotes': [{'evidence_id': 'C1', 'quote': '45 days'}]}],
+        verdict = {'criteria': [{'id': 'C01', 'passed': True, 'reason': 'correct', 'answer_ids': ['A1']}],
+                   'claims': [{'answer_ids': ['A1'], 'supported': True, 'reason': 'in retrieval',
+                               'source_ids': ['R1']}],
+                   'citations': [{'index': 1, 'supported': True, 'reason': 'supported', 'answer_ids': ['A1'],
+                                  'source_ids': ['C1']}],
                    'efficiency': {'assessment': 'efficient', 'summary': 'direct lookup', 'findings': []}}
         return observed, efficiency, reference, verdict
 
     def test_judge_cannot_invent_quotes_claim_grounding_citations_or_detours(self):
         observed, efficiency, reference, valid = self.verdict_fixture()
-        self.assertEqual(parse_verdict(json.dumps(valid), '45 days', reference, observed, efficiency), valid)
-        mutations = [lambda v: v['criteria'][0].update(answer_quote='90 days'),
+        self.assertTrue(parse_verdict(json.dumps(valid), '45 days', reference, observed, efficiency)['criteria'][0]['passed'])
+        mutations = [lambda v: v['criteria'][0].update(answer_ids=['invented']),
                      lambda v: v['criteria'].clear(),
-                     lambda v: v['claims'][0]['source_quotes'][0].update(evidence_id='C1'),
-                     lambda v: v['citations'][0]['source_quotes'][0].update(quote='90 days'),
+                     lambda v: v['claims'][0].update(source_ids=['C1']),
+                     lambda v: v['citations'][0].update(source_ids=['invented']),
                      lambda v: v['efficiency'].update(assessment='inefficient', findings=[
                          {'kind': 'detour', 'reason': 'wrong', 'avoidable': True, 'call_ids': ['invented']}])]
         for mutation in mutations:
@@ -200,7 +200,7 @@ class RagEvidenceTests(unittest.TestCase):
         observed, efficiency, reference, verdict = self.verdict_fixture()
         raw = json.dumps(verdict)
         for text in (raw, '  ```json\n' + raw + '\n```\n', '```\n' + raw + '\n```'):
-            self.assertEqual(parse_verdict(text, '45 days', reference, observed, efficiency), verdict)
+            self.assertTrue(parse_verdict(text, '45 days', reference, observed, efficiency)['criteria'][0]['passed'])
         for text in ('Result: ' + raw, '```json\n' + raw + '\n```\nextra',
                      '```python\n' + raw + '\n```', '```json\n' + raw + '\n```\n```json\n{}\n```'):
             with self.assertRaises(ValueError):
@@ -208,26 +208,26 @@ class RagEvidenceTests(unittest.TestCase):
 
     def test_canonical_quote_requires_actual_same_source_retrieval_not_just_source_availability(self):
         observed, efficiency, reference, verdict = self.verdict_fixture()
-        identity = {'semantic_model_id': 1, 'source_row_id': 'source', 'file_id': 'file'}
+        identity = {'semantic_model_id': 1, 'source_row_id': 'source', 'file_id': 'file', 'chunk_id': 'chunk'}
         for evidence in observed['retrieved_chunks'] + observed['citation_chunks']:
             evidence.update(identity)
-        verdict['claims'][0]['source_quotes'][0]['evidence_id'] = 'C1'
-        self.assertEqual(parse_verdict(json.dumps(verdict), '45 days', reference, observed, efficiency), verdict)
+        verdict['claims'][0]['source_ids'] = ['C1']
+        self.assertTrue(parse_verdict(json.dumps(verdict), '45 days', reference, observed, efficiency)['criteria'][0]['passed'])
         for field in identity:
             changed = copy.deepcopy(observed)
             changed['retrieved_chunks'][0][field] = 'other'
-            with self.assertRaisesRegex(ValueError, 'claim_quote_not_in_retrieval'):
+            with self.assertRaisesRegex(ValueError, 'claim_not_in_observed_evidence'):
                 parse_verdict(json.dumps(verdict), '45 days', reference, changed, efficiency)
         observed['retrieved_chunks'][0]['content'] = 'different retrieved text'
-        with self.assertRaisesRegex(ValueError, 'claim_quote_not_in_retrieval'):
+        with self.assertRaisesRegex(ValueError, 'claim_not_in_observed_evidence'):
             parse_verdict(json.dumps(verdict), '45 days', reference, observed, efficiency)
 
     def test_verified_bindings_support_context_claims_but_cannot_support_citations(self):
         observed, efficiency, reference, verdict = self.verdict_fixture()
         observed['context_evidence'] = [{'evidence_id': 'B1', 'content': '45 days'}]
-        verdict['claims'][0]['source_quotes'][0]['evidence_id'] = 'B1'
-        self.assertEqual(parse_verdict(json.dumps(verdict), '45 days', reference, observed, efficiency), verdict)
-        verdict['citations'][0]['source_quotes'][0]['evidence_id'] = 'B1'
+        verdict['claims'][0]['source_ids'] = ['B1']
+        self.assertTrue(parse_verdict(json.dumps(verdict), '45 days', reference, observed, efficiency)['criteria'][0]['passed'])
+        verdict['citations'][0]['source_ids'] = ['B1']
         with self.assertRaisesRegex(ValueError, 'quote_not_in_cited_source'):
             parse_verdict(json.dumps(verdict), '45 days', reference, observed, efficiency)
 
@@ -318,7 +318,7 @@ class KnowledgeDatasetTests(unittest.TestCase):
             execution.tasks.append(entry)
             text = '45 days'
             if phase.startswith('judge:'):
-                text = json.dumps({'criteria': [{'id': 'C01', 'passed': False, 'reason': 'incorrect', 'answer_quote': ''}],
+                text = json.dumps({'criteria': [{'id': 'C01', 'passed': False, 'reason': 'incorrect', 'answer_ids': []}],
                     'claims': [], 'citations': [],
                     'efficiency': {'assessment': 'efficient', 'summary': 'direct', 'findings': []}})
             return entry, {'status': {'state': 'completed', 'message': {'role': 'agent',

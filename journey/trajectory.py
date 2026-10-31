@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .diagnostics import analyze_events
 from .rag_artifacts import retrieved_chunks
+from .knowledge_trace import cli_feedback
 
 
 def task_trajectory(path, tasks, task_id):
@@ -14,6 +15,8 @@ def task_trajectory(path, tasks, task_id):
     calls = [call for call in analysis['calls'] if call['task_id'] == task_id]
     events = [json.loads(line) for line in Path(path).read_text().splitlines()]
     by_seq = {event['seq']: event for event in events if event.get('task_id') == task_id}
+    native = {item['call_id']: item['state'] for event in events if event.get('task_id') == task_id
+              for item in [cli_feedback(event)] if item is not None}
     signatures, repeated, timeline, seen_chunks, no_gain, max_no_gain = [], defaultdict(list), [], set(), 0, 0
     for call in calls:
         signature = json.dumps([call['tool'], call['arguments']], sort_keys=True, ensure_ascii=False)
@@ -38,7 +41,17 @@ def task_trajectory(path, tasks, task_id):
         seen_chunks.update(keys)
         timeline.append({'call_id': call['call_id'], 'tool': call['tool'], 'arguments': call['arguments'],
                          'outcome': call['outcome'], 'seqs': call['seqs'], 'round': call['round'],
-                         'seconds': seconds, 'new_retrieved_chunks': novel, 'errors': call['errors']})
+                         'seconds': seconds, 'new_retrieved_chunks': None if call['tool'] in
+                         {'bash', 'mcp__moi-tools__bash'} else novel, 'errors': call['errors'],
+                         'knowledge_feedback': native.get(call['call_id'])})
+    observed_retrievals = any(call['tool'] == 'search_rag_chunks' for call in calls)
+    for state in native.values():
+        search = state.get('last_search')
+        if isinstance(search, dict):
+            observed_retrievals = True
+            count = search.get('consecutive_searches_without_new_chunks', 0)
+            if type(count) is int and count >= 0:
+                max_no_gain = max(max_no_gain, count)
     patterns = []
     for width in range(1, min(4, len(signatures) // 2) + 1):
         for start in range(len(signatures) - width * 2 + 1):
@@ -47,6 +60,6 @@ def task_trajectory(path, tasks, task_id):
                                                                calls[start:start + width * 2]]})
     return {'tool_calls': len(calls), 'tool_rounds': len({call['round'] for call in calls if call['round'] is not None}),
             'exact_repetitions': [ids for ids in repeated.values() if len(ids) > 1],
-            'repeated_patterns': patterns, 'max_consecutive_retrievals_without_new_chunks': max_no_gain,
+            'repeated_patterns': patterns, 'max_consecutive_retrievals_without_new_chunks': max_no_gain if observed_retrievals else None,
             'timeline': timeline,
             'note': '重复是观察信号，不自动判为低效；工具耗时由服务端 created_at 推算，受时间戳精度限制。'}
