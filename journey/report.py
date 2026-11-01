@@ -144,6 +144,15 @@ def case_summary(result):
         lines.append('- 工具：没有可用的事件数据。')
     if result.get('native_skill_stages'):
         lines += native_stage_summary(result['native_skill_stages'])
+    if result.get('model_evaluations'):
+        lines += ['', '## 模型评审调用', '',
+                  '| 评审 | 状态 | 请求模型 | 实际模型 | 模型响应 ID | 耗时（秒） | Token 用量 |',
+                  '|---|---|---|---|---|---:|---|']
+        for evaluation in result['model_evaluations']:
+            lines.append('| ' + ' | '.join(cell(evaluation.get(key)) for key in
+                ('label', 'state', 'requested_model', 'model', 'id', 'seconds', 'usage')) + ' |')
+        lines += ['', '模型响应 ID 与被测智能体的 task/trace ID 分开记录；'
+                  '原始请求、响应与用量见 `evaluations/<评审>/`。']
     failures = result.get('failures', [])
     errors = result.get('harness_errors', [])
     if failures or errors:

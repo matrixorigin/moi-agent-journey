@@ -26,7 +26,8 @@ def channel_targets(execution, providers, checks):
     if not isinstance(providers, list) or not providers or len(set(providers)) != len(providers) or any(p not in PROVIDERS for p in providers):
         raise Failure('invalid_channel_case')
     try:
-        configured = json.loads(os.environ.get('MOI_J2_CHANNEL_TARGETS', '{}'))
+        raw = os.environ.get('MOI_J2_CHANNEL_TARGETS', '')
+        configured = json.loads(raw) if raw.strip() else {}
     except ValueError:
         raise Failure('invalid_channel_targets') from None
     if not isinstance(configured, dict) or set(configured) - set(PROVIDERS):

@@ -120,6 +120,16 @@ class EvaluationProtocolTests(unittest.TestCase):
 
 
 class QualityCoverageReportTests(unittest.TestCase):
+    def test_report_distinguishes_model_response_identity_from_agent_trace(self):
+        row = report_fixtures.JourneyTests.finished_result('J1-01')
+        row['model_evaluations'] = [{'label': 'grade', 'state': 'completed',
+            'requested_model': 'configured', 'model': 'reported', 'id': 'model-response',
+            'seconds': 12, 'usage': {'total_tokens': 30}}]
+        markdown = case_summary(row)
+        for value in ['configured', 'reported', 'model-response', 'total_tokens',
+                      '模型响应 ID 与被测智能体的 task/trace ID 分开记录']:
+            self.assertIn(value, markdown)
+
     def test_partial_coverage_does_not_hide_known_quality_failures(self):
         row = report_fixtures.JourneyTests.finished_result('J1-01')
         row['quality'] = {'state': 'partial', 'reason': 'quality_dimensions_unavailable',

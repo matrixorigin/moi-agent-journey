@@ -27,6 +27,20 @@ class ChannelTests(unittest.TestCase):
         self.assertTrue(all(c.args[0]=='GET' for c in ex.client.product.call_args_list))
         self.assertEqual([item['provider'] for item in ex.report['channel_preflight']],['qq_mail','wecom_mail'])
 
+    def test_optional_unset_empty_and_whitespace_targets_are_all_blocked(self):
+        for raw in [None, '', '  \n ']:
+            ex=self.execution();ex.client.product.return_value={'items':[]}
+            with patch.dict(os.environ, {}, clear=False):
+                os.environ.pop('MOI_J2_CHANNEL_TARGETS', None)
+                if raw is not None:os.environ['MOI_J2_CHANNEL_TARGETS']=raw
+                with self.assertRaisesRegex(ChannelUnavailable,'dedicated_target_not_configured'):
+                    channel_targets(ex,['github'],[])
+            self.assertTrue(all(call.args[0]=='GET' for call in ex.client.product.call_args_list))
+        for raw in ['{bad', 'null', '[]', '{"unknown":{}}']:
+            with patch.dict(os.environ,{'MOI_J2_CHANNEL_TARGETS':raw}):
+                with self.assertRaisesRegex(Exception,'invalid_channel_targets'):
+                    channel_targets(self.execution(),['github'],[])
+
     def test_matching_instance_requires_workspace_type_active_status_and_explicit_target(self):
         target={'github':{'instance_id':'owned','owner':'test-org','repo':'test-repo'}}
         item={'id':'owned','workspace_id':'ws','provider':'github','channel_type':'github_app','status':'active'}

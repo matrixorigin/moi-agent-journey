@@ -13,20 +13,21 @@ from .a2a import final_reply
 from .catalog import ROOT, load_case
 from .client import Client, Failure, error_record, segment
 from .evidence import Evidence, configured_secrets, utc_now
-from .hello import discover
+from .hello import discover_workspace
 from .knowledge_sources import list_sources, read_document
 from .knowledge_trace import attach_selected_reads
-from .rag_quality import judge_data, judge_prompt, observe_rag, parse_verdict, summarize_verdict
+from .rag_quality import judge_data, judge_prompt, judge_schema, observe_rag, parse_verdict, summarize_verdict
 from .run_case import Execution
+from .model_judge import evaluate_model
 from .trajectory import task_trajectory
 from .version import finish_version, start_version
 
 
 class KnowledgeExecution(Execution):
     def setup(self, *, capture_version=True):
-        self.root, self.judge_selector = discover(self.client, self.case['workspace'])
-        self.report['rag']['evaluator'] = {'method': 'independent_MOMO_conversations',
-                                          'model': self.model, 'selector': self.judge_selector, 'protocol': 2}
+        self.root = discover_workspace(self.client, self.case['workspace'])
+        self.report['rag']['evaluator'] = {'method': 'workspace_model_json_schema',
+                                          'model': self.model, 'protocol': 3}
         catalog = json.loads((ROOT / 'datasets/journey-3/corpora.json').read_text())
         corpus = catalog[self.case['rag']['corpus']]
         self.corpus = corpus
@@ -212,18 +213,22 @@ class KnowledgeExecution(Execution):
         answer['judge_coverage'] = {key: plan[key] for key in ('protocol', 'grounding_scope',
             'unavailable_evidence', 'unavailable_citations')}
         prompt = judge_prompt(turn['prompt'], answer['text'], config, observed, efficiency, conversation)
-        cid = self.conversation('judge-' + session['id'] + '-' + turn['phase'], selector=self.judge_selector)
-        _, task = self.send(cid, 'judge:' + session['id'] + ':' + turn['phase'], prompt)
-        verdict = parse_verdict(final_reply(task), answer['text'], config, observed, efficiency, conversation,
-                                question=turn['prompt'])
+        text = evaluate_model(self, answer['task_id'], prompt, judge_schema(plan, observed))
+        verdict = parse_verdict(text, answer['text'], config, observed, efficiency, conversation,
+                                question=turn['prompt'], allow_partial=True)
+        self.evidence.write('evaluations/' + segment(answer['task_id']) + '/verdict.json', verdict)
+        for dimension, error in verdict.get('dimension_errors', {}).items():
+            self.report['harness_errors'].append({'stage': 'semantic_judge', 'dimension': dimension,
+                'reason': 'judge_dimension_rejected', 'details': error, 'task_id': answer['task_id']})
         self.apply_verdict(session, turn, answer, verdict)
 
     def apply_verdict(self, session, turn, answer, verdict):
         """Use the same accounting for live verdicts and revalidated saved verdicts."""
         config, observed, efficiency = turn['rag_reference'], answer['observations'], answer['efficiency']
         checks = self.report['validation']['checks']
-        efficiency['review'] = verdict['efficiency']
-        answer.update(evaluation_state='scored', verdict=verdict, metrics=summarize_verdict(verdict, observed))
+        if verdict['efficiency']:
+            efficiency['review'] = verdict['efficiency']
+        answer.update(evaluation_state='partial' if verdict.get('dimension_errors') else 'scored', verdict=verdict, metrics=summarize_verdict(verdict, observed))
         expected_sources = config.get('expected_source_ids', [])
         actual = {item.get('source_row_id') for item in observed['retrieved_chunks']}
         answer['annotated_source_recall'] = {'retrieved': len(set(expected_sources) & actual), 'total': len(expected_sources),

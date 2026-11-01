@@ -111,7 +111,8 @@ def assess(case, result, raw_status):
                                       for turn in session['turns'])) for session in sessions
                                  if session.get('delivery_kind') in {'agent', 'answer', 'candidate', 'file', 'cancellation'})
     incomplete_answer_checks = bool(expected_answer_checks) and len(checks) < expected_answer_checks
-    unavailable_dimensions = any(metric.get('unavailable', 0) for answer in
+    unavailable_dimensions = any(answer.get('evaluation_state') == 'partial' for answer in
+        result.get('rag', {}).get('answers', [])) or any(metric.get('unavailable', 0) for answer in
         result.get('rag', {}).get('answers', []) for metric in answer.get('metrics', {}).values())
     if checks:
         failed = [item for item in checks if not item.get('passed')]
