@@ -108,9 +108,14 @@ class KnowledgeFixture:
             execution.report.setdefault('knowledge_fixtures', {})[alias] = self.state
         self.save()
 
+    def evidence_path(self, name):
+        return 'knowledge-fixtures/' + self.alias + '/' + name if self.alias else name
+
     def write(self, name, value):
-        path = 'knowledge-fixtures/' + self.alias + '/' + name if self.alias else name
-        self.execution.evidence.write(path, value)
+        self.execution.evidence.write(self.evidence_path(name), value)
+
+    def read(self, name):
+        return json.loads((self.execution.evidence.root / self.evidence_path(name)).read_text())
 
     def save(self):
         self.write('knowledge-fixture.json', self.state)

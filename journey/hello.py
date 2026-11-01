@@ -20,7 +20,7 @@ def unique(items, field, value, label):
     return matches[0]
 
 
-def discover(client, workspace_name):
+def discover_workspace(client, workspace_name):
     query = urllib.parse.urlencode({"name": workspace_name})
     data = client.product("GET", "/workspaces?" + query, expected_code="OK")
     workspace = unique(data["workspaces"], "name", workspace_name, "workspace")
@@ -29,6 +29,11 @@ def discover(client, workspace_name):
     workspace_id = workspace["id"]
     client.headers["X-Workspace-ID"] = workspace_id
     root = "/workspaces/" + segment(workspace_id)
+    return root
+
+
+def discover(client, workspace_name):
+    root = discover_workspace(client, workspace_name)
     agents = []
     for _ in range(100):
         page = client.product("GET", root + "/agents?" + urllib.parse.urlencode({

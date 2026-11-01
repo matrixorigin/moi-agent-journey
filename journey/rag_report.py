@@ -28,7 +28,7 @@ def valid_rag_result(rag):
         return False
     evaluated = 0
     for answer in rag['answers']:
-        if (not isinstance(answer, dict) or answer.get('evaluation_state') not in {'scored', 'unavailable', 'context_only'} or
+        if (not isinstance(answer, dict) or answer.get('evaluation_state') not in {'scored', 'partial', 'unavailable', 'context_only'} or
                 any(not isinstance(answer.get(key), str) for key in ('session', 'phase', 'question', 'text', 'task_id'))):
             return False
         evaluated += answer['evaluation_state'] != 'context_only'
@@ -45,8 +45,8 @@ def valid_rag_result(rag):
             if 'expected_total' in value and (type(value['expected_total']) is not int or
                     value['expected_total'] < total or value.get('unavailable') != value['expected_total'] - total):
                 return False
-        if answer['evaluation_state'] == 'scored' and (set(metrics) != set(METRICS) or
-                not isinstance(answer.get('verdict'), dict) or not metrics['correctness']['total']):
+        if answer['evaluation_state'] in {'scored', 'partial'} and (set(metrics) != set(METRICS) or
+                not isinstance(answer.get('verdict'), dict) or (answer['evaluation_state'] == 'scored' and not metrics['correctness']['total'])):
             return False
     return evaluated <= rag['expected_answers']
 
@@ -59,7 +59,7 @@ def summarize_rag(rows):
     groups, corpora = defaultdict(list), defaultdict(list)
     for case_id, rag, answer in answers:
         corpora[rag['corpus']].append(answer)
-        if rag.get('comparison_group') and answer.get('evaluation_state') == 'scored':
+        if rag.get('comparison_group') and answer.get('evaluation_state') in {'scored', 'partial'} and not answer.get('verdict', {}).get('dimension_errors', {}).get('criteria'):
             groups[rag['comparison_group']].append({'case_id': case_id,
                 'phase': answer['phase'], 'seconds': answer.get('seconds'),
                 'criteria': {item['id']: item['passed'] for item in answer['verdict']['criteria']}})
@@ -107,6 +107,8 @@ def case_lines(result, cell):
         for finding in review.get('findings', []):
             lines.append(f"- {cell(finding['kind'])}：{cell(finding['reason'], 4000)}；调用 {cell(finding['call_ids'])}。")
         lines += ['', '**正确性**', '', '**实际最终回答**', '', answer.get('text', '')]
+        if answer.get('verdict', {}).get('dimension_errors'):
+            lines += ['', '评估维度错误（其他已验证维度保留）：' + cell(answer['verdict']['dimension_errors'], 12000)]
         if answer.get('evaluation_reason'):
             lines += ['', '无法完整评价的原因：' + cell(answer['evaluation_reason'])]
         if answer.get('judge_coverage', {}).get('unavailable_evidence'):

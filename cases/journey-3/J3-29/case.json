@@ -22,7 +22,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 6,
+      "expected_checks": 5,
       "turns": [
         {
           "phase": "question",
@@ -30,10 +30,6 @@
           "rag_reference": {
             "status": "reviewed",
             "criteria": [
-              {
-                "id": "C01",
-                "text": "两份索引正文各有52个去重段落，51个一致"
-              },
               {
                 "id": "C02",
                 "text": "差异集中在同一张大表的两行备注。"

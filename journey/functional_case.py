@@ -225,6 +225,7 @@ class FunctionalExecution(Execution):
         package_journey = None
         channel_journeys = {}
         checks = []
+        self.report['validation'] = {'checks': checks}
         try:
             self.root, self.selector = discover(self.client, self.case['workspace'])
             start_version(self)
@@ -656,7 +657,7 @@ class FunctionalExecution(Execution):
                             if fixture.kind != 'document' or fixture.state.get('status') != 'ready':
                                 raise Failure('knowledge_fixture_not_ready')
                             knowledge_checks, blocked = evaluate_knowledge(self.evidence.root / 'events.jsonl',
-                                final_entry['task_id'], session['id'], fixture.state, fixture.marker)
+                                final_entry['task_id'], session['id'], fixture.state, fixture.marker, document=fixture.read('knowledge-document.json'))
                             if len(evidence_names) > 1:
                                 for check in knowledge_checks:
                                     check['rule'] += ' (' + alias + ')'
@@ -672,7 +673,7 @@ class FunctionalExecution(Execution):
                         if not fixture or fixture.kind != 'table' or fixture.state.get('status') != 'ready':
                             raise Failure('knowledge_fixture_not_ready')
                         table_checks, blocked = evaluate_knowledge_table(self.evidence.root / 'events.jsonl',
-                            final_entry['task_id'], session['id'], fixture.state, fixture.verification)
+                            final_entry['task_id'], session['id'], fixture.state, fixture.verification, baseline=fixture.read('knowledge-table-total.json'))
                         checks.extend(table_checks)
                         if blocked:
                             self.report['blocked'] = True

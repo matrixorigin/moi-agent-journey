@@ -259,8 +259,7 @@ class KnowledgeDatasetTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             execution = KnowledgeExecution(client, case, Evidence(directory), directory, 'model')
             execution.report['rag'] = {}
-            with patch('journey.knowledge_case.discover', return_value=('/workspaces/workspace',
-                      {'agent_id': 'momo', 'agent_workspace_id': 'system'})), \
+            with patch('journey.knowledge_case.discover_workspace', return_value='/workspaces/workspace'), \
                     patch('journey.knowledge_case.list_sources', side_effect=sources), \
                     patch('journey.knowledge_case.start_version'):
                 execution.setup()
@@ -291,7 +290,7 @@ class KnowledgeDatasetTests(unittest.TestCase):
                         self.assertTrue(all(item['source_id'] in corpora[case['rag']['corpus']]['source_ids']
                                             for item in ref['evidence']))
 
-    def test_question_and_judge_use_separate_agents_and_only_judge_sees_reference(self):
+    def test_only_model_judge_sees_reference_and_replay_never_submits_an_agent_task(self):
         case = load_case('J3-30')
         reference = {'status': 'reviewed', 'citation_required': False, 'evidence': [],
                      'criteria': [{'id': 'C01', 'text': 'SCORER-ONLY-GOLDEN'}]}
@@ -317,23 +316,22 @@ class KnowledgeDatasetTests(unittest.TestCase):
                      'trace_id': 'trace-' + task_id, 'seconds': 1.0, 'event_count': 0, 'capture_complete': True}
             execution.tasks.append(entry)
             text = '45 days'
-            if phase.startswith('judge:'):
-                text = json.dumps({'criteria': [{'id': 'C01', 'passed': False, 'reason': 'incorrect', 'answer_ids': []}],
-                    'claims': [], 'citations': [],
-                    'efficiency': {'assessment': 'efficient', 'summary': 'direct', 'findings': []}})
             return entry, {'status': {'state': 'completed', 'message': {'role': 'agent',
                              'parts': [{'kind': 'text', 'text': text}]}}}
+        verdict = json.dumps({'criteria': [{'id': 'C01', 'passed': False, 'reason': 'incorrect', 'answer_ids': []}],
+                    'claims': [], 'citations': [],
+                    'efficiency': {'assessment': 'efficient', 'summary': 'direct', 'findings': []}})
         with tempfile.TemporaryDirectory() as directory:
             evidence = Evidence(Path(directory) / 'results/J3-30')
             (evidence.root / 'events.jsonl').write_text('')
             execution = KnowledgeExecution(client, case, evidence, directory, 'model')
-            with patch('journey.knowledge_case.discover', return_value=('/workspaces/workspace',
-                        {'agent_id': 'momo', 'agent_workspace_id': 'system'})), \
+            with patch('journey.knowledge_case.discover_workspace', return_value='/workspaces/workspace'), \
                     patch('journey.knowledge_case.list_sources', return_value=[{'row_id': sid, 'model_id': corpus['model_id']}
                                                                               for sid in corpus['source_ids']]), \
                     patch('journey.knowledge_case.start_version'), patch('journey.knowledge_case.finish_version'), \
                     patch('journey.knowledge_case.signal.alarm'), \
-                    patch.object(KnowledgeExecution, 'send', send), patch.object(KnowledgeExecution, 'cleanup'):
+                    patch.object(KnowledgeExecution, 'send', send), patch.object(KnowledgeExecution, 'cleanup'), \
+                    patch('journey.knowledge_case.evaluate_model', return_value=verdict) as model_judge:
                 result = execution.run()
                 original_sent = list(sent)
                 original_tasks = copy.deepcopy([task for task in result['tasks'] if not task['phase'].startswith('judge:')])
@@ -342,8 +340,8 @@ class KnowledgeDatasetTests(unittest.TestCase):
                                           {'stage': 'trajectory_capture', 'reason': 'old_decode_failure'}]
                 sent.clear()
                 replay = KnowledgeExecution(client, case, evidence, directory, 'model').reevaluate(prior)
-                self.assertEqual(len(sent), 1)
-                self.assertTrue(sent[0][0].startswith('judge:'))
+                self.assertEqual(sent, [])
+                self.assertEqual(model_judge.call_count, 2)
                 self.assertEqual([task for task in replay['tasks'] if not task['phase'].startswith('judge:')], original_tasks)
                 self.assertEqual(replay['task_seconds'], result['task_seconds'])
                 self.assertEqual(replay['harness_errors'], [])
@@ -358,8 +356,8 @@ class KnowledgeDatasetTests(unittest.TestCase):
             self.assertEqual(result['harness_errors'], [])
             self.assertEqual(sent[0][1]['agent_id'], corpus['agent_id'])
             self.assertNotIn('SCORER-ONLY-GOLDEN', sent[0][2])
-            self.assertEqual(sent[1][1]['agent_id'], 'momo')
-            self.assertIn('SCORER-ONLY-GOLDEN', sent[1][2])
+            self.assertEqual(len(sent), 1)
+            self.assertIn('SCORER-ONLY-GOLDEN', model_judge.call_args.args[2])
             with patch('journey.report.load_case', return_value=case):
                 finalized = finish_case('J3-30', Path(directory) / 'results')
             self.assertEqual(finalized['test_status'], 'completed')

@@ -301,7 +301,7 @@ def run(case, evidence, work):
                 for alias in turns[0]['knowledge_evidence']:
                     fixture = knowledge[alias]
                     source_checks, blocked = evaluate_knowledge(execution.evidence.root / 'events.jsonl',
-                        query_task['task_id'], 'browser', fixture.state, fixture.marker)
+                        query_task['task_id'], 'browser', fixture.state, fixture.marker, document=fixture.read('knowledge-document.json'))
                     for check in source_checks:
                         check['rule'] += ' (' + alias + ')'
                     checks.extend(source_checks)
