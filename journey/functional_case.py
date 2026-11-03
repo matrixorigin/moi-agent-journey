@@ -944,7 +944,11 @@ def main():
     try:
         client = Client(os.environ['MOI_BASE_URL'], os.environ['MOI_PAT'], timeout=case['timeout_seconds'],
                         observer=evidence.observe_transport)
-        execution = FunctionalExecution(client, case, evidence, args.work, case['model'])
+        if case.get('persistent_conversation') is not None:
+            from .persistent_case import PersistentExecution
+            execution = PersistentExecution(client, case, evidence, args.work, case['model'])
+        else:
+            execution = FunctionalExecution(client, case, evidence, args.work, case['model'])
         report = execution.run()
     except (KeyError, Failure) as error:
         evidence.write('result.json', {'case_id': case['id'], 'workspace': case['workspace'], 'title': case['title'],

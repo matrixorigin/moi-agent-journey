@@ -1,0 +1,1 @@
+Project Orion reference handbook. The fictional operations team uses the release code J2-ORION-6B2F5C193D. The launch window is 20 November 2026 and the service owner is the Northstar team. All entries in this handbook are synthetic test data. The release code is used only for QA verification.

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "J2-132",
+  "title": "跨 Action 保留同一会话并持续追加多模态任务",
+  "workspace": "journey-2",
+  "executor": "api",
+  "source": {
+    "benchmark": "MOI product journey"
+  },
+  "assets": [],
+  "oracles": [],
+  "persistent_conversation": {
+    "key": "long-lived-v1"
+  },
+  "fixtures": [
+    {
+      "path": "handbook.txt",
+      "sha256": "81ca4fb5eee9861dcefb7782c16d8e2eaa3006573a03d5273c7e1ac6441f0e50"
+    }
+  ],
+  "knowledge_fixture": {
+    "kind": "document",
+    "path": "handbook.txt",
+    "marker": "J2-ORION-6B2F5C193D"
+  },
+  "sessions": [
+    {
+      "id": "persistent",
+      "delivery_kind": "answer",
+      "expected_checks": 9,
+      "turns": [
+        {
+          "phase": "recall",
+          "prompt": "追问真实历史中的最新检查编号；首次初始化单独标记。"
+        },
+        {
+          "phase": "exercise",
+          "prompt": "按真实历史中的检查点序号轮换对话、文件、图片、Skill、知识库。"
+        },
+        {
+          "phase": "checkpoint",
+          "prompt": "记录本轮新检查编号并回读真实用户历史。"
+        }
+      ]
+    }
+  ]
+}

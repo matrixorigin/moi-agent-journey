@@ -106,6 +106,15 @@ def case_summary(result):
                          f"结束 {cell(after.get('version'))} / {cell(after.get('git_commit'))}。")
         else:
             lines.append('- QA MOI 版本：未完整获取。')
+    persistent = result.get('persistent_conversation')
+    if persistent:
+        continuity = {'bootstrap': '首次初始化，尚无跨运行验收', 'passed': '通过',
+                      'failed': '未通过', 'missing_checkpoint': '已有会话缺少历史检查点，未通过',
+                      'not_checked': '未完成验收'}
+        lines += [f"- 持久会话：{cell(persistent.get('conversation_id'))}；"
+                  f"本轮序号 {cell(persistent.get('sequence'))}，模式 {cell(persistent.get('mode'))}。",
+                  f"- 跨运行上下文：{cell(continuity.get(persistent.get('continuity'), '未完成验收'))}；"
+                  f"会话保留状态：{cell(persistent.get('retention'))}。"]
     for item in result.get('retained_inputs', []):
         lines.append(f"- 测试输入：{cell(item.get('fixture'))}（文件 ID：{cell(item.get('file_id'))}），"
                      '作为会话附件保留在 QA。')

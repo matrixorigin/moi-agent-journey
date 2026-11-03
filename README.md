@@ -11,14 +11,14 @@
 | 工作区 | 副名 | 当前内容 | 最大并发 |
 |---|---|---|---:|
 | journey-1 | Complex Long-Horizon Tasks | 18 个文档与办公任务 | 9 |
-| journey-2 | Basic Functional End-to-End Tasks | 131 个智能体功能用例 | 3 |
+| journey-2 | Basic Functional End-to-End Tasks | 132 个智能体功能用例 | 9 |
 | journey-3 | Knowledge Base Tasks | 57 个知识库 Q&A 用例 | 3 |
 | journey-4 | — | 空 | 3 |
 | journey-5 | — | 空 | 3 |
 
 GitHub 手动运行的工作区下拉选项和运行分组显示为 `journey-1 (Complex Long-Horizon Tasks)`、`journey-2 (Basic Functional End-to-End Tasks)`；命令行仍可使用 `journey-1`、`journey-2` 工作区 ID。
 
-五组可以同时运行；按当前并发配置，全部配置 case 后最多 21 个 case 同时调用 QA。空组显示 `empty`，不产生虚假通过结果，也不计入成功率分母。每个 case 单独使用一个标准 `ubuntu-latest` runner，失败不会取消同组其他任务。全局 concurrency group 防止整批运行相互重叠；后续批次排队等待，最多保留 100 个等待中的运行。连续提交过多可能造成积压并推迟定时回归。
+五组可以同时运行；按当前并发配置，全部配置 case 后最多 27 个 case 同时调用 QA。空组显示 `empty`，不产生虚假通过结果，也不计入成功率分母。每个 case 单独使用一个标准 `ubuntu-latest` runner，失败不会取消同组其他任务。全局 concurrency group 防止整批运行相互重叠；后续批次排队等待，最多保留 100 个等待中的运行。连续提交过多可能造成积压并推迟定时回归。
 
 Journey-1 每个 case 的 **QA 总预算为 3600 秒**，Journey-2 为 **300 秒**，覆盖一个 case 的全部对话轮次；如确有特殊长耗时用例，可在该 case 中显式设置 `timeout_seconds`。主任务超时记为 timeout，未能开始任务或取证出错会另记框架错误；语义评分阶段超时或结果无效记为验收器错误。超时后会取消已知未结束任务、补采事件并归档会话；清理和最终取证不占 QA 预算。工作流为执行步骤按 QA 预算额外留出 4 分钟用于取证和清理，材料准备及上传另计。主任务耗时与语义评分耗时分开统计。长任务统一使用正式的 message/stream SSE 协议，先取得 task ID 并实时落盘；随后核对持久化任务和事件。业务请求和模型任务不自动重试，保留第一次失败证据。
 
@@ -113,6 +113,8 @@ Journey-2 另有**功能验收**：通过、不通过、前置条件不足和执
 验证在无网络、无 QA 凭据、只读输入/交付物、受 CPU/内存/进程限制的 Docker 内执行。J1-15 会执行智能体生成的处理器做回放；该代码不能在有 QA 凭据的宿主 runner 上执行。每次工作流只构建一次验收镜像，以 1 天有效的 `judge-image-<run_id>-attempt-<n>` artifact 分发给各 case；各 runner 校验镜像的哈希和代码版本后独立运行容器。镜像不包含 QA 凭据或 case 数据。
 
 ## Journey-2 的功能 case
+
+Journey-2 的 J2-132 是[跨 Action 持久会话测试](docs/journey-2-persistent-conversation.md)：复用同一会话，轮换普通对话、文件、图片、Skill 和知识库，每次追问上轮编号。首次初始化单独显示；其余 case 仍新建独立会话。
 
 J2-01 在独立浏览器会话中登录 QA，使用 Momo 生成候选卡片，检查卡片和确认按钮，点击创建，读取新智能体，等 Momo 输出结束后进入其会话，并在流式回复结束后验证最终内容。两轮任务分别保存 QA 的 trace 和事件。测试完成后归档本次创建的会话及智能体；创建未确认时只清理能够验证身份的候选。模型生成仍存在随机性，测试会记录具体失败阶段，不能将单次失败直接归因于前端。
 

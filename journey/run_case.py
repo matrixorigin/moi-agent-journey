@@ -271,7 +271,7 @@ class Execution:
         self.evidence.write("uploads.json", self.uploads)
         return upload
 
-    def collect_artifacts(self, cid, entry=None):
+    def collect_artifacts(self, cid, entry=None, *, task_ids=None):
         artifacts = []
         for page in range(1, 1001):
             query = {**self.conversation_selector(cid), "conversation_id": cid, "page": page, "page_size": 100}
@@ -283,6 +283,8 @@ class Execution:
                 raise Failure("invalid_artifact_pagination")
         else:
             raise Failure("artifact_inventory_too_large")
+        if task_ids is not None:
+            artifacts = [item for item in artifacts if item.get('task_id') in task_ids]
         self.evidence.write("artifacts/" + cid + "/inventory.json", artifacts)
         for item in artifacts:
             if item.get("conversation_id") != cid:
