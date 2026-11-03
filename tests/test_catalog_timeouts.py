@@ -10,7 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from journey.catalog import load_case, main
+from journey.catalog import load_case, load_suite, main, step_timeout_minutes
 from journey.client import Failure
 from journey.evidence import Evidence
 from journey.report import finish_case
@@ -29,8 +29,8 @@ class CaseTimeoutTests(unittest.TestCase):
         self.assertEqual(load_case('J1-01')['timeout_seconds'], 3600)
         self.assertEqual(load_case('J2-01')['timeout_seconds'], 300)
         self.assertTrue(all(item['step_timeout_minutes'] == 64 for item in self.plan('journey-1')))
-        for item in self.plan('journey-2'):
-            self.assertEqual(item['step_timeout_minutes'], 19 if item['case'] == 'J2-111' else 9)
+        for case_id in load_suite('journey-2')['cases']:
+            self.assertEqual(step_timeout_minutes(load_case(case_id)), 19 if case_id == 'J2-111' else 9)
         self.assertEqual(self.plan('journey-4')[0]['step_timeout_minutes'], 1)
 
     def test_knowledge_budget_includes_source_validation_and_model_inference(self):

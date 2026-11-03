@@ -250,7 +250,7 @@ class PersistentTests(unittest.TestCase):
             self.assertEqual(len(zlib.decompress(data[at + 8:at + 8 + length])), 100 * (280 * 3 + 1))
         with self.assertRaises(Failure): checkpoint_value(CHECKPOINT + '\n{}')
         self.assertIsNone(checkpoint_value('ordinary message'))
-        self.assertEqual(load_suite('journey-2')['concurrency'], 9)
+        self.assertEqual(load_suite('journey-2')['concurrency'], 10)
 
     def test_current_artifact_capture_does_not_require_a_zip_or_download_old_files(self):
         backend = Backend()

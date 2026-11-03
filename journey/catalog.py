@@ -42,6 +42,28 @@ def is_functional_case(case):
     return case_executor(case) in {'api', 'browser'}
 
 
+def step_timeout_minutes(case):
+    executor = case_executor(case)
+    evaluation = case.get('evaluation_timeout_seconds', 0) * (2 if executor == 'knowledge' else 1)
+    return (case['timeout_seconds'] + evaluation + 59) // 60 + 4
+
+
+def plan_suite(suite):
+    items = []
+    for case_id in suite['cases']:
+        case = load_case(case_id)
+        executor = case_executor(case)
+        if executor not in {'office', 'browser', 'api', 'knowledge'}:
+            raise ValueError('invalid_case_executor:' + case_id)
+        items.append({'case': case_id, 'executor': executor,
+                      'step_timeout_minutes': step_timeout_minutes(case), 'job_timeout_minutes': 135})
+    if items and 'batch_jobs' in suite:
+        from .batch import plan_batches
+        items = plan_batches(items, suite['batch_jobs'])
+    return {'include': items or [{'case': 'EMPTY', 'executor': 'empty',
+                                 'step_timeout_minutes': 1, 'job_timeout_minutes': 5}]}
+
+
 def load_case(case_id):
     if not re.fullmatch(r"J[1-5]-[0-9]{2,}", case_id):
         raise ValueError("invalid_case_id")
@@ -127,21 +149,7 @@ def main():
         return 0
     if args.command == "plan":
         suite = load_suite(args.suite)
-        # Case executors inherit the suite's declared default and may override it.
-        # An explicit no-op matrix member keeps empty suites out of the denominator.
-        matrix = {"include": []}
-        for case_id in suite["cases"]:
-            case = load_case(case_id)
-            executor = case_executor(case)
-            if executor not in {"office", "browser", "api", "knowledge"}:
-                raise ValueError("invalid_case_executor:" + case_id)
-            # Leave bounded time after the QA deadline for evidence capture and cleanup.
-            matrix["include"].append({"case": case_id, "executor": executor,
-                                      "step_timeout_minutes": (case['timeout_seconds'] +
-                                          case.get('evaluation_timeout_seconds', 0) * (2 if executor == 'knowledge' else 1) + 59) // 60 + 4})
-        if not matrix["include"]:
-            matrix["include"].append({"case": "EMPTY", "executor": "empty", "step_timeout_minutes": 1})
-        output = json.dumps(matrix)
+        output = json.dumps(plan_suite(suite))
         if os.environ.get("GITHUB_OUTPUT"):
             with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                 f.write("matrix=" + output + "\n")

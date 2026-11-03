@@ -272,6 +272,15 @@ def finish_case(case_id, directory):
     result.setdefault('tasks', [])
     result.setdefault('failures', [])
     result.setdefault('harness_errors', [])
+    batch_path = evidence.root / 'batch-stages.json'
+    if batch_path.exists():
+        batch = json.loads(batch_path.read_text())
+        if batch['case_id'] != case_id:
+            raise ValueError('batch_case_identity_mismatch')
+        for name, stage in batch['stages'].items():
+            if name in {'prepare', 'execute'} and (stage['exit_code'] != 0 or stage['timed_out'] or stage.get('error')):
+                result['harness_errors'].append({'stage': 'batch:' + name,
+                    'reason': 'process_timeout' if stage['timed_out'] else 'process_failed', **stage})
     raw_status = result.get('status')
     if case_executor(case) == 'knowledge' and not valid_rag_result(result.get('rag')):
         result['harness_errors'].append({'stage': 'evidence', 'reason': 'knowledge_report_missing_or_invalid'})
