@@ -29,6 +29,58 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
+  batch-artifact-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: python3 -m pip install -r requirements-functional.txt
+      # Without QA credentials both cases must record configuration errors.
+      # The second must still run and both reports must survive a grouped upload.
+      - name: Exercise failure reporting without QA
+        id: batch
+        continue-on-error: true
+        run: >-
+          python3 -m journey.batch --workspace journey-2 --cases '["J2-02", "J2-06"]'
+          --work batch-work --out published-results
+      - name: Verify both cases ran despite the first failure
+        env:
+          BATCH_OUTCOME: ${{ steps.batch.outcome }}
+        run: |
+          python3 - <<'PYVERIFY'
+          import json, os
+          from pathlib import Path
+          assert os.environ['BATCH_OUTCOME'] == 'failure'
+          rows = json.loads(Path('batch-work/batch-result.json').read_text())['cases']
+          assert [row['case_id'] for row in rows] == ['J2-02', 'J2-06']
+          assert all(row['failed_stages'] == ['execute', 'report'] for row in rows), rows
+          PYVERIFY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: case-group-smoke-attempt-${{ github.run_attempt }}
+          path: published-results/
+          if-no-files-found: error
+          retention-days: 1
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: case-group-smoke-attempt-${{ github.run_attempt }}
+          path: smoke-results
+      - name: Verify independent case reports survived grouped upload and download
+        run: |
+          python3 - <<'PYVERIFY'
+          import json
+          from pathlib import Path
+          for case_id in ('J2-02', 'J2-06'):
+              root = Path('smoke-results') / case_id
+              result = json.loads((root / 'result.json').read_text())
+              assert result['test_status'] == 'error'
+              assert result['harness_errors'][0]['stage'] == 'configuration'
+              assert (root / 'case-summary.md').is_file()
+              assert json.loads((root / 'publication.json').read_text())['status'] == 'complete'
+          PYVERIFY
   judge-test:
     needs: judge-image
     runs-on: ubuntu-latest
