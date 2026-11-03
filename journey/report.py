@@ -109,7 +109,8 @@ def case_summary(result):
     persistent = result.get('persistent_conversation')
     if persistent:
         continuity = {'bootstrap': '首次初始化，尚无跨运行验收', 'passed': '通过',
-                      'failed': '未通过', 'not_checked': '未完成验收'}
+                      'failed': '未通过', 'missing_checkpoint': '已有会话缺少历史检查点，未通过',
+                      'not_checked': '未完成验收'}
         lines += [f"- 持久会话：{cell(persistent.get('conversation_id'))}；"
                   f"本轮序号 {cell(persistent.get('sequence'))}，模式 {cell(persistent.get('mode'))}。",
                   f"- 跨运行上下文：{cell(continuity.get(persistent.get('continuity'), '未完成验收'))}；"

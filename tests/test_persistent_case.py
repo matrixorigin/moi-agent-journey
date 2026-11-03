@@ -14,6 +14,7 @@ from journey.client import Failure
 from journey.evidence import Evidence
 from journey.persistent_case import CHECKPOINT, PersistentExecution, checkpoint_value, contains_value, number_image
 from journey.report import finish_case
+from journey.publish import prepare_publication
 
 ROOT = '/workspaces/test-workspace'
 SELECTOR = {'agent_id': 'momo', 'agent_workspace_id': 'system'}
@@ -137,6 +138,20 @@ class PersistentTests(unittest.TestCase):
             self.assertEqual(result['harness_errors'], [])
             self.assertEqual(len(backend.conversations), 1)
 
+    def test_missing_history_on_an_existing_conversation_cannot_pass_as_bootstrap(self):
+        backend = Backend()
+        with tempfile.TemporaryDirectory() as tmp, patch('journey.persistent_case.discover', return_value=(ROOT, SELECTOR)), \
+                patch.object(PersistentExecution, 'send', send), patch.object(PersistentExecution, 'collect_artifacts'), \
+                patch.object(PersistentExecution, 'capture'):
+            root = Path(tmp)
+            one = self.execution(root / 'one', backend); one.run()
+            backend.messages.clear()
+            two = self.execution(root / 'two', backend); result = two.run()
+            self.assertEqual(result['status'], 'failed')
+            self.assertEqual(result['persistent_conversation']['continuity'], 'missing_checkpoint')
+            self.assertEqual(two.cid, one.cid)
+            self.assertEqual(len(backend.conversations), 1)
+
     def test_only_not_found_allows_creation_and_identity_changes_are_rejected(self):
         backend = Backend()
         with tempfile.TemporaryDirectory() as tmp:
@@ -254,6 +269,25 @@ class PersistentTests(unittest.TestCase):
         self.assertTrue(contains_value('编号是 1234。', '1234'))
         self.assertFalse(contains_value('12345', '1234'))
         self.assertFalse(contains_value('prefix_J2P_' + 'A' * 32, 'J2P_' + 'A' * 32))
+
+    def test_generated_image_evidence_survives_the_real_publication_pipeline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            execution = self.execution(root / 'source', Backend())
+            execution.work = root / 'work'
+            execution.sequence = 3
+            execution.cid = 'conversation'
+            execution.conversation_path = ROOT + '/conversations/conversation'
+            execution.selector, execution.root = SELECTOR, ROOT
+            execution.report['validation'] = {'checks': []}
+            execution.report['persistent_conversation'] = {'mode': 'image'}
+            with patch.object(PersistentExecution, 'send', send):
+                execution.exercise('image')
+            rejected = prepare_publication(root / 'source', root / 'public', [])
+            self.assertEqual(rejected, [])
+            files = list((root / 'public/J2-132/persistent/artifacts').glob('*.png'))
+            self.assertEqual(len(files), 1)
+            self.assertTrue(files[0].read_bytes().startswith(b'\x89PNG'))
 
 
 if __name__ == '__main__':

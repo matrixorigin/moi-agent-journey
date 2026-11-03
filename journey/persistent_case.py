@@ -173,7 +173,7 @@ class PersistentExecution(Execution):
                 expected = str(1000 + uuid.uuid4().int % 9000)
                 number_image(path, expected)
                 prompt = '请看本轮图片，原样回答图上的四位数字。不要使用以前图片的内容。'
-            target = self.evidence.root / 'persistent' / path.name
+            target = self.evidence.root / 'persistent' / 'artifacts' / path.name
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(path.read_bytes())
             self.evidence.write('persistent/exercise-source.json', {'mode': mode, 'expected': expected, 'sha256': sha256(path)})
@@ -274,9 +274,13 @@ class PersistentExecution(Execution):
             prompt = ('我们上一次运行最后记录的最新检查编号是什么？只回答完整编号。不要查其他会话或文件。'
                       if previous else '这是持久测试对话的初始化轮次，请回复 PERSISTENT_READY。')
             _, reply = self.turn('recall', prompt)
-            correct = contains_value(reply, previous['code'] if previous else 'PERSISTENT_READY')
-            state['continuity'] = ('passed' if correct else 'failed') if previous else 'bootstrap'
-            self.record('跨运行记住上次检查编号' if previous else '首次初始化答复正确', correct, 'persistent_recall_mismatch')
+            missing = previous is None and not state['created']
+            correct = contains_value(reply, previous['code'] if previous else 'PERSISTENT_READY') and not missing
+            state['continuity'] = ('passed' if correct else 'failed') if previous else (
+                'missing_checkpoint' if missing else 'bootstrap')
+            rule = '跨运行记住上次检查编号' if previous else '已有会话保留历史检查点' if missing else '首次初始化答复正确'
+            self.record(rule, correct,
+                        'persistent_checkpoint_missing' if missing else 'persistent_recall_mismatch')
             self.exercise(mode)
             current = {'run_id': self.report['run_id'], 'sequence': self.sequence, 'code': 'J2P_' + uuid.uuid4().hex.upper()}
             self.report['stage'] = 'persistent:checkpoint'
