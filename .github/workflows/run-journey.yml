@@ -80,7 +80,7 @@ jobs:
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ secrets.MOI_PAT }}
         run: python3 -m journey.knowledge_case "$CASE_ID"
-      - name: Install functional validators
+      - name: Install evidence validators
         if: matrix.executor == 'api' || matrix.executor == 'batch'
         run: python3 -m pip install -r requirements-functional.txt
       - name: Run functional conversation and capture QA events
@@ -115,11 +115,11 @@ jobs:
           JOURNEY_CASES: ${{ toJSON(matrix.case_ids) }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ secrets.MOI_PAT }}
-          MOI_J2_NATIVE_SKILL_SOURCE_FILE_ID: ${{ vars.MOI_J2_NATIVE_SKILL_SOURCE_FILE_ID }}
-          MOI_J2_CHANNEL_TARGETS: ${{ vars.MOI_J2_CHANNEL_TARGETS }}
-          MOI_J2_SLACK_READ_TOKEN: ${{ secrets.MOI_J2_SLACK_READ_TOKEN }}
-          MOI_J2_FEISHU_APP_ID: ${{ secrets.MOI_J2_FEISHU_APP_ID }}
-          MOI_J2_FEISHU_APP_SECRET: ${{ secrets.MOI_J2_FEISHU_APP_SECRET }}
+          MOI_J2_NATIVE_SKILL_SOURCE_FILE_ID: ${{ inputs.workspace == 'journey-2' && vars.MOI_J2_NATIVE_SKILL_SOURCE_FILE_ID || '' }}
+          MOI_J2_CHANNEL_TARGETS: ${{ inputs.workspace == 'journey-2' && vars.MOI_J2_CHANNEL_TARGETS || '' }}
+          MOI_J2_SLACK_READ_TOKEN: ${{ inputs.workspace == 'journey-2' && secrets.MOI_J2_SLACK_READ_TOKEN || '' }}
+          MOI_J2_FEISHU_APP_ID: ${{ inputs.workspace == 'journey-2' && secrets.MOI_J2_FEISHU_APP_ID || '' }}
+          MOI_J2_FEISHU_APP_SECRET: ${{ inputs.workspace == 'journey-2' && secrets.MOI_J2_FEISHU_APP_SECRET || '' }}
           MOI_UI_ACCOUNT: ${{ matrix.needs_browser && secrets.MOI_UI_ACCOUNT || '' }}
           MOI_UI_PASSWORD: ${{ matrix.needs_browser && secrets.MOI_UI_PASSWORD || '' }}
           MOI_UI_BASE_URL: ${{ matrix.needs_browser && secrets.MOI_UI_BASE_URL || '' }}

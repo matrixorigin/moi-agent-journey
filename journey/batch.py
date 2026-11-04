@@ -11,13 +11,15 @@ from pathlib import Path
 STAGE_SECONDS = {'prepare': 120, 'report': 60, 'publish': 120}
 TERMINATION_GRACE = 10
 CASE_OVERHEAD_MINUTES = math.ceil((sum(STAGE_SECONDS.values()) + 4 * (TERMINATION_GRACE + 5)) / 60)
+CASE_MODULES = {'api': 'journey.functional_case', 'browser': 'journey.browser_case',
+                'knowledge': 'journey.knowledge_case'}
 
 
 def plan_batches(items, count):
     if type(count) is not int or count <= 0:
         raise ValueError('invalid_batch_jobs')
-    if any(item['executor'] not in {'api', 'browser'} for item in items):
-        raise ValueError('batch_requires_functional_cases')
+    if any(item['executor'] not in CASE_MODULES for item in items):
+        raise ValueError('unsupported_batch_executor')
     groups = [[] for _ in range(min(count, len(items)))]
     weights = [0] * len(groups)
     ordered = sorted(enumerate(items), key=lambda row: (-row[1]['step_timeout_minutes'], row[0]))
@@ -84,6 +86,7 @@ def run_case(case, workspace, directory, public_root, repo, env):
     from .catalog import case_executor, step_timeout_minutes
     from .evidence import Evidence, configured_secrets
 
+    module = CASE_MODULES[case_executor(case)]
     directory.mkdir(parents=True, exist_ok=False)
     case_id = case['id']
     child_env = dict(env)
@@ -108,7 +111,6 @@ def run_case(case, workspace, directory, public_root, repo, env):
 
     prepared = stage('prepare', [sys.executable, '-m', 'journey.catalog', 'prepare', case_id], STAGE_SECONDS['prepare'])
     if prepared:
-        module = 'journey.browser_case' if case_executor(case) == 'browser' else 'journey.functional_case'
         stage('execute', [sys.executable, '-m', module, case_id], step_timeout_minutes(case) * 60)
     stage('report', [sys.executable, '-m', 'journey.report', 'case', case_id], STAGE_SECONDS['report'])
     if stage('publish', [sys.executable, '-m', 'journey.publish'], STAGE_SECONDS['publish']):
@@ -139,7 +141,7 @@ def write_summary(rows, destination, env):
              '|---|---|---|---:|']
     for row in rows:
         lines.append(f'| {row["case_id"]} | {", ".join(row["failed_stages"]) or "无"} | '
-                     f'{(row.get("functional") or {}).get("state", "未知")} | '
+                     f'{(row.get("functional") or {}).get("state", "—")} | '
                      f'{row.get("task_seconds") if row.get("task_seconds") is not None else "—"} |')
     for row in rows:
         path = Path(row['directory']) / 'results' / row['case_id'] / 'case-summary.md'
@@ -160,8 +162,8 @@ def run_batch(case_ids, workspace, directory, public_root, env):
             len(set(case_ids)) != len(case_ids)):
         raise ValueError('invalid_batch_case_ids')
     cases = [load_case(case_id) for case_id in case_ids]
-    if any(case['workspace'] != workspace or case_executor(case) not in {'api', 'browser'} for case in cases):
-        raise ValueError('batch_requires_functional_cases')
+    if any(case['workspace'] != workspace or case_executor(case) not in CASE_MODULES for case in cases):
+        raise ValueError('unsupported_batch_executor')
     if any((public_root / case_id).exists() for case_id in case_ids):
         raise ValueError('batch_publication_already_exists')
     rows = []

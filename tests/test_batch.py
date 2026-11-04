@@ -7,10 +7,30 @@ from pathlib import Path
 from unittest.mock import patch
 
 from journey.batch import CASE_OVERHEAD_MINUTES, plan_batches, run_batch, run_case, run_stage
-from journey.catalog import ROOT, case_executor, load_case, load_suite, plan_suite
+from journey.catalog import ROOT, case_executor, load_case, load_suite, plan_suite, step_timeout_minutes
 
 
 class BatchPlanTests(unittest.TestCase):
+    def test_knowledge_suite_is_ten_complete_groups_with_both_evaluation_budgets(self):
+        suite = load_suite('journey-3')
+        groups = plan_suite(suite)['include']
+        self.assertEqual(len(groups), 10)
+        self.assertEqual(suite['concurrency'], 10)
+        ids = [case_id for group in groups for case_id in group['case_ids']]
+        self.assertCountEqual(ids, suite['cases'])
+        self.assertEqual(len(ids), len(set(ids)))
+        for group in groups:
+            self.assertIn(len(group['case_ids']), (5, 6))
+            self.assertFalse(group['needs_browser'])
+            budget = 15
+            for case_id in group['case_ids']:
+                case = load_case(case_id)
+                self.assertEqual(case['timeout_seconds'], 600)
+                self.assertEqual(case['evaluation_timeout_seconds'], 300 if case_id == 'J3-54' else 180)
+                budget += step_timeout_minutes(case) + CASE_OVERHEAD_MINUTES
+            self.assertEqual(group['job_timeout_minutes'], budget)
+            self.assertLessEqual(budget, 360)
+
     def test_real_suite_is_ten_balanced_groups_with_exactly_once_coverage(self):
         suite = load_suite('journey-2')
         groups = plan_suite(suite)['include']
@@ -37,7 +57,7 @@ class BatchPlanTests(unittest.TestCase):
         for count in (0, -1, True, '10'):
             with self.subTest(count=count), self.assertRaisesRegex(ValueError, 'invalid_batch_jobs'):
                 plan_batches([item], count)
-        with self.assertRaisesRegex(ValueError, 'functional_cases'):
+        with self.assertRaisesRegex(ValueError, 'unsupported_batch_executor'):
             plan_batches([{**item, 'executor': 'office'}], 10)
         with self.assertRaisesRegex(ValueError, 'hosted_runner_limit'):
             plan_batches([{**item, 'step_timeout_minutes': 350}], 1)
@@ -50,10 +70,10 @@ class BatchRunnerTests(unittest.TestCase):
         def stage(command, directory, env, budget):
             directory = Path(directory)
             name = {'journey.catalog': 'prepare', 'journey.functional_case': 'execute',
-                    'journey.browser_case': 'execute', 'journey.report': 'report',
+                    'journey.browser_case': 'execute', 'journey.knowledge_case': 'execute', 'journey.report': 'report',
                     'journey.publish': 'publish'}[command[2]]
             case_id = directory.name
-            calls.append((case_id, name, directory, env.copy(), budget))
+            calls.append((case_id, name, directory, env.copy(), budget, command[2]))
             result_dir = directory / 'results' / case_id
             result_dir.mkdir(parents=True, exist_ok=True)
             if name == 'report':
@@ -69,7 +89,7 @@ class BatchRunnerTests(unittest.TestCase):
 
     def run_single(self, root, calls, case_id='J2-02', **kwargs):
         with patch('journey.batch.run_stage', side_effect=self.fake_stages(calls, **kwargs)):
-            return run_case(load_case(case_id), 'journey-2', root / case_id, root / 'public', ROOT,
+            return run_case(load_case(case_id), load_case(case_id)['workspace'], root / case_id, root / 'public', ROOT,
                             {'MOI_UI_PASSWORD': 'private-ui-password'})
 
     def test_failure_or_timeout_still_reports_and_publishes(self):
@@ -113,13 +133,16 @@ class BatchRunnerTests(unittest.TestCase):
             self.assertEqual(run_batch(['J2-02'], 'journey-2', root / 'work', root / 'public', {}), 0)
 
     def test_browser_credentials_and_exceptional_execution_budget_are_preserved(self):
-        for case_id, budget, browser in (('J2-01', 540, True), ('J2-111', 1140, False)):
+        for case_id, budget, browser in (('J2-01', 540, True), ('J2-111', 1140, False),
+                                         ('J3-01', 1200, False), ('J3-54', 1440, False)):
             with self.subTest(case_id=case_id), tempfile.TemporaryDirectory() as tmp:
                 calls = []
                 self.run_single(Path(tmp).resolve(), calls, case_id)
                 execute = next(call for call in calls if call[1] == 'execute')
                 self.assertEqual(execute[4], budget)
                 self.assertEqual('MOI_UI_PASSWORD' in execute[3], browser)
+                self.assertEqual(execute[5], 'journey.knowledge_case' if case_id.startswith('J3-') else
+                                 'journey.browser_case' if browser else 'journey.functional_case')
 
     def test_unexpected_error_continues_but_cancellation_stops(self):
         for error, count in ((OSError('synthetic-error'), 2), (KeyboardInterrupt(), 1)):
@@ -191,19 +214,23 @@ class BatchRunnerTests(unittest.TestCase):
                 os.kill(int(child_pid.read_text()), 0)
 
     def test_real_pipeline_publishes_two_reports_without_qa_credentials(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp).resolve()
-            env = {key: value for key, value in os.environ.items() if not key.startswith('MOI_')}
-            self.assertEqual(run_batch(['J2-02', 'J2-06'], 'journey-2', root / 'work', root / 'public', env), 1)
-            rows = json.loads((root / 'work/batch-result.json').read_text())['cases']
-            self.assertTrue(all(row['failed_stages'] == ['execute', 'report'] for row in rows))
-            for case_id in ('J2-02', 'J2-06'):
-                public = root / 'public' / case_id
-                result = json.loads((public / 'result.json').read_text())
-                self.assertEqual(result['test_status'], 'error')
-                self.assertEqual(result['harness_errors'][0]['stage'], 'configuration')
-                self.assertTrue((public / 'case-summary.md').is_file())
-                self.assertEqual(json.loads((public / 'publication.json').read_text())['status'], 'complete')
+        for workspace, ids in [('journey-2', ['J2-02', 'J2-06']), ('journey-3', ['J3-01', 'J3-02'])]:
+            with self.subTest(workspace=workspace), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp).resolve()
+                env = {key: value for key, value in os.environ.items() if not key.startswith('MOI_')}
+                self.assertEqual(run_batch(ids, workspace, root / 'work', root / 'public', env), 1)
+                rows = json.loads((root / 'work/batch-result.json').read_text())['cases']
+                self.assertEqual([row['case_id'] for row in rows], ids)
+                self.assertTrue(all(row['failed_stages'] == ['execute', 'report'] for row in rows))
+                for case_id in ids:
+                    public = root / 'public' / case_id
+                    result = json.loads((public / 'result.json').read_text())
+                    self.assertEqual(result['test_status'], 'error')
+                    self.assertEqual(result['harness_errors'][0]['stage'], 'configuration')
+                    self.assertTrue((public / 'case-summary.md').is_file())
+                    self.assertEqual(json.loads((public / 'publication.json').read_text())['status'], 'complete')
+                    if workspace == 'journey-3':
+                        self.assertEqual(result['rag']['expected_answers'], 1)
 
 
 if __name__ == '__main__':
