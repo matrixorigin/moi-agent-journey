@@ -43,6 +43,18 @@ def _unavailable_tools():
     return {'state': 'unavailable', 'metrics': None, 'errors': [], 'judge_errors': [], 'runtime_sessions': {}}
 
 
+def _call_signature(call):
+    tool = str(call.get('tool') or 'unknown')
+    arguments = call.get('arguments')
+    if isinstance(arguments, dict):
+        args_key = json.dumps(arguments, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+    elif arguments is None:
+        args_key = 'null'
+    else:
+        args_key = str(arguments)
+    return tool, args_key
+
+
 def mark_expected_tool_errors(analysis, checks):
     """Mark only the exact error observation verified by a negative test."""
     expected = []
@@ -69,6 +81,96 @@ def mark_expected_tool_errors(analysis, checks):
             raise ValueError('expected_tool_error_not_in_events')
         for item in matches:
             item['expected'] = True
+
+
+def _round_number(value):
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    if not isinstance(value, str):
+        return None
+    match = re.search(r'(\d+)$', value)
+    if not match:
+        return None
+    return int(match.group(1))
+
+
+def _safe_ratio(numerator, denominator):
+    if not isinstance(denominator, int) or denominator <= 0:
+        return None
+    return numerator / denominator
+
+
+def _tool_retry_jitter_ratio(calls):
+    """Share of identified calls that repeat an earlier unsuccessful attempt in the same task.
+
+    Identical successful calls in different tasks, or a later successful repeat of an
+    already successful call, are ordinary work and do not count.
+    """
+    identified = [call for call in calls if call.get('identified')]
+    if not identified:
+        return None
+    grouped = defaultdict(list)
+    for call in identified:
+        grouped[call.get('task_id')].append(call)
+    retries = 0
+    for task_calls in grouped.values():
+        ordered = sorted(task_calls, key=lambda call: min(call.get('seqs') or [0]))
+        unsuccessful = set()
+        for call in ordered:
+            signature = _call_signature(call)
+            if signature in unsuccessful:
+                retries += 1
+            if call.get('outcome') != 'succeeded':
+                unsuccessful.add(signature)
+    return retries / len(identified)
+
+
+def compute_observable_metrics(result, analysis=None, unavailable_reason='events_unavailable'):
+    analysis = analysis or {}
+    metrics = analysis.get('metrics') or {}
+    calls = list(analysis.get('calls') or [])
+    if metrics:
+        invalid_or_unknown = (metrics.get('failed', 0) + metrics.get('unknown', 0) + metrics.get('skipped', 0))
+        tool = {
+            'state': 'available',
+            'invalid_or_unknown_ratio': _safe_ratio(invalid_or_unknown, metrics.get('calls', 0)),
+            'retry_jitter_ratio': _tool_retry_jitter_ratio(calls),
+        }
+        successful_rounds = [call.get('round') for call in calls
+                             if call.get('identified') and call.get('outcome') == 'succeeded' and call.get('round') is not None]
+        round_numbers = [number for number in (_round_number(value) for value in successful_rounds) if number is not None]
+        first_success_round = min(round_numbers) if round_numbers else None
+        rounds_total = metrics.get('tool_rounds', 0) if isinstance(metrics.get('tool_rounds'), int) else 0
+        rounds_with_success = {(call.get('task_id'), str(call.get('round'))) for call in calls
+                               if call.get('identified') and call.get('outcome') == 'succeeded' and call.get('round') is not None}
+        idle_round_ratio = _safe_ratio(max(0, rounds_total - len(rounds_with_success)), rounds_total)
+        execution = {
+            'state': 'available',
+            'first_success_tool_round': first_success_round,
+            'idle_round_ratio': idle_round_ratio,
+        }
+    else:
+        tool = {'state': 'unavailable', 'reason': unavailable_reason}
+        execution = {'state': 'unavailable', 'reason': unavailable_reason}
+    functional = result.get('functional') if isinstance(result.get('functional'), dict) else {}
+    timeout_or_blocked = (result.get('task', {}).get('state') == 'timeout' or
+                          functional.get('state') == 'blocked')
+    infra_stages = {'setup', 'evidence', 'qa_version', 'semantic_judge'}
+    infra_error_count = sum(1 for item in result.get('harness_errors', [])
+                            if isinstance(item, dict) and item.get('stage') in infra_stages)
+    environment = {
+        'state': 'available',
+        'timeout_or_blocked': bool(timeout_or_blocked),
+        'infra_error_count': infra_error_count,
+        'capture_complete': bool(result.get('capture_complete')),
+    }
+    return {
+        'plan': {'state': 'unavailable', 'reason': 'insufficient_observability'},
+        'tool': tool,
+        'memory': {'state': 'unavailable', 'reason': 'no_memory_trace_fields'},
+        'execution': execution,
+        'environment': environment,
+    }
 
 
 def case_summary(result):
@@ -151,6 +253,27 @@ def case_summary(result):
                              f"{item['skipped']} | {item['unknown']} | {item_rate} |")
     else:
         lines.append('- 工具：没有可用的事件数据。')
+    observable = result.get('observable_metrics')
+    if isinstance(observable, dict):
+        tool_metrics = observable.get('tool') if isinstance(observable.get('tool'), dict) else {}
+        execution_metrics = observable.get('execution') if isinstance(observable.get('execution'), dict) else {}
+        environment_metrics = observable.get('environment') if isinstance(observable.get('environment'), dict) else {}
+        invalid_ratio = tool_metrics.get('invalid_or_unknown_ratio')
+        jitter_ratio = tool_metrics.get('retry_jitter_ratio')
+        idle_ratio = execution_metrics.get('idle_round_ratio')
+        lines += ['', '## 可观测指标（诊断）', '']
+        lines.append(f"- 计划：未观测（{cell(observable.get('plan', {}).get('reason') if isinstance(observable.get('plan'), dict) else 'insufficient_observability')}）。")
+        lines.append(f"- 记忆：未观测（{cell(observable.get('memory', {}).get('reason') if isinstance(observable.get('memory'), dict) else 'no_memory_trace_fields')}）。")
+        lines.append("- 工具："
+                     f"无效/不明确调用占比 {cell(f'{invalid_ratio:.1%}' if isinstance(invalid_ratio, float) else '不可计算')}；"
+                     f"重试抖动占比 {cell(f'{jitter_ratio:.1%}' if isinstance(jitter_ratio, float) else '不可计算')}。")
+        lines.append("- 执行："
+                     f"首个成功调用轮次 {cell(execution_metrics.get('first_success_tool_round'))}；"
+                     f"空转轮次占比 {cell(f'{idle_ratio:.1%}' if isinstance(idle_ratio, float) else '不可计算')}。")
+        lines.append("- 环境："
+                     f"超时/阻塞 {cell('是' if environment_metrics.get('timeout_or_blocked') else '否')}；"
+                     f"基础设施错误 {cell(environment_metrics.get('infra_error_count'))}；"
+                     f"事件采集完整 {cell('是' if environment_metrics.get('capture_complete') else '否')}。")
     if result.get('native_skill_stages'):
         lines += native_stage_summary(result['native_skill_stages'])
     if result.get('model_evaluations'):
@@ -354,17 +477,22 @@ def finish_case(case_id, directory):
           all(item['passed'] for item in checks)):
         result['harness_errors'].append({'stage': 'validation', 'reason': 'contradictory_quality_verdict'})
     events = evidence.root / 'events.jsonl'
+    observed_calls = None
+    unavailable_reason = 'events_unavailable'
     if events.exists():
         try:
-            analysis = analyze_events(events, result.get('tasks', []))
+            analysis = analyze_events(events, result.get('tasks', []), include_calls=True)
             mark_expected_tool_errors(analysis, checks)
+            observed_calls = analysis.pop('calls', None)
             result['tools'] = {'state': 'available', 'complete': bool(result.get('capture_complete')), **analysis}
         except (OSError, ValueError, TypeError, UnicodeError) as error:
             result['harness_errors'].append({'stage': 'evidence', 'reason': 'invalid_event_log:' + str(error)})
             result['tools'] = _unavailable_tools()
+            unavailable_reason = 'invalid_event_log'
     elif any(task.get('event_count', 0) for task in result.get('tasks', [])):
         result['harness_errors'].append({'stage': 'evidence', 'reason': 'recorded_events_missing'})
         result['tools'] = _unavailable_tools()
+        unavailable_reason = 'recorded_events_missing'
     else:
         result['tools'] = _unavailable_tools()
     result['task'], result['agent'], result['delivery'], result['quality'] = assess(case, result, raw_status)
@@ -379,6 +507,11 @@ def finish_case(case_id, directory):
         else:
             functional_state = 'fail'
         result['functional'] = {'state': functional_state}
+    if result['tools']['state'] == 'available':
+        result['observable_metrics'] = compute_observable_metrics(
+            result, {'metrics': result['tools'].get('metrics'), 'calls': observed_calls or []})
+    else:
+        result['observable_metrics'] = compute_observable_metrics(result, unavailable_reason=unavailable_reason)
     preparation=evidence.root/'preparation.json'
     if preparation.exists():
         result['preparation_seconds']=json.loads(preparation.read_text()).get('seconds')
@@ -442,6 +575,57 @@ def _time_stats(values):
             'median': round(statistics.median(values), 3), 'min': min(values), 'max': max(values)}
 
 
+def _observable_summary(rows):
+    tool_rows = [row for row in rows if isinstance(row.get('observable_metrics', {}).get('tool'), dict)
+                 and row['observable_metrics']['tool'].get('state') == 'available']
+    execution_rows = [row for row in rows if isinstance(row.get('observable_metrics', {}).get('execution'), dict)
+                      and row['observable_metrics']['execution'].get('state') == 'available']
+    environment_rows = [row for row in rows if isinstance(row.get('observable_metrics', {}).get('environment'), dict)
+                        and row['observable_metrics']['environment'].get('state') == 'available']
+    plan_rows = [row for row in rows if isinstance(row.get('observable_metrics', {}).get('plan'), dict)
+                 and row['observable_metrics']['plan'].get('state') == 'available']
+    memory_rows = [row for row in rows if isinstance(row.get('observable_metrics', {}).get('memory'), dict)
+                   and row['observable_metrics']['memory'].get('state') == 'available']
+    invalid_values = [row['observable_metrics']['tool'].get('invalid_or_unknown_ratio')
+                      for row in tool_rows if isinstance(row['observable_metrics']['tool'].get('invalid_or_unknown_ratio'), (int, float))]
+    jitter_values = [row['observable_metrics']['tool'].get('retry_jitter_ratio')
+                     for row in tool_rows if isinstance(row['observable_metrics']['tool'].get('retry_jitter_ratio'), (int, float))]
+    idle_values = [row['observable_metrics']['execution'].get('idle_round_ratio')
+                   for row in execution_rows if isinstance(row['observable_metrics']['execution'].get('idle_round_ratio'), (int, float))]
+    first_round_values = [row['observable_metrics']['execution'].get('first_success_tool_round')
+                          for row in execution_rows
+                          if isinstance(row['observable_metrics']['execution'].get('first_success_tool_round'), int)]
+    timeout_or_blocked = sum(1 for row in environment_rows
+                             if row['observable_metrics']['environment'].get('timeout_or_blocked') is True)
+    infra_error_count = sum(int(row['observable_metrics']['environment'].get('infra_error_count') or 0)
+                            for row in environment_rows)
+    capture_complete = sum(1 for row in environment_rows
+                           if row['observable_metrics']['environment'].get('capture_complete') is True)
+    return {
+        'plan': {'available_cases': len(plan_rows), 'unavailable_cases': len(rows) - len(plan_rows)},
+        'tool': {
+            'available_cases': len(tool_rows),
+            'unavailable_cases': len(rows) - len(tool_rows),
+            'invalid_or_unknown_ratio_mean': round(statistics.mean(invalid_values), 6) if invalid_values else None,
+            'retry_jitter_ratio_mean': round(statistics.mean(jitter_values), 6) if jitter_values else None,
+        },
+        'memory': {'available_cases': len(memory_rows), 'unavailable_cases': len(rows) - len(memory_rows)},
+        'execution': {
+            'available_cases': len(execution_rows),
+            'unavailable_cases': len(rows) - len(execution_rows),
+            'first_success_tool_round_median': statistics.median(first_round_values) if first_round_values else None,
+            'idle_round_ratio_mean': round(statistics.mean(idle_values), 6) if idle_values else None,
+        },
+        'environment': {
+            'available_cases': len(environment_rows),
+            'unavailable_cases': len(rows) - len(environment_rows),
+            'timeout_or_blocked_cases': timeout_or_blocked,
+            'infra_error_count': infra_error_count,
+            'capture_complete_rate': _safe_ratio(capture_complete, len(environment_rows)),
+        },
+    }
+
+
 def _group_summary(rows):
     tasks = Counter(row['task']['state'] for row in rows)
     agents = Counter(row['agent']['state'] for row in rows)
@@ -487,7 +671,8 @@ def _group_summary(rows):
             'task_seconds': _time_stats(row.get('task_seconds') for row in rows),
             'completed_task_seconds': _time_stats(row.get('task_seconds') for row in rows
                                                   if row['task']['state'] == 'completed'),
-            'tools': tools}
+            'tools': tools,
+            'observable_metrics': _observable_summary(rows)}
     if any(isinstance(row.get('rag'), dict) for row in rows):
         summary['rag'] = summarize_rag(rows)
     return summary
@@ -595,6 +780,35 @@ def _valid_case_result(result):
                 any(sum(item[key] for item in metrics['by_tool']) != metrics[key]
                     for key in ('calls', 'succeeded', 'failed', 'skipped', 'unknown'))):
             return False
+    if 'observable_metrics' in result:
+        observable = result['observable_metrics']
+        if not isinstance(observable, dict):
+            return False
+        required = {'plan', 'tool', 'memory', 'execution', 'environment'}
+        if set(observable.keys()) != required:
+            return False
+        for key in required:
+            if not isinstance(observable.get(key), dict):
+                return False
+            if observable[key].get('state') not in {'available', 'unavailable'}:
+                return False
+        for key in ('invalid_or_unknown_ratio', 'retry_jitter_ratio'):
+            value = observable['tool'].get(key)
+            if value is not None and not isinstance(value, (int, float)):
+                return False
+        first_round = observable['execution'].get('first_success_tool_round')
+        if first_round is not None and (not isinstance(first_round, int) or isinstance(first_round, bool)):
+            return False
+        idle_ratio = observable['execution'].get('idle_round_ratio')
+        if idle_ratio is not None and not isinstance(idle_ratio, (int, float)):
+            return False
+        if observable['environment'].get('timeout_or_blocked') not in {True, False}:
+            return False
+        infra_count = observable['environment'].get('infra_error_count')
+        if type(infra_count) is not int or infra_count < 0:
+            return False
+        if observable['environment'].get('capture_complete') not in {True, False}:
+            return False
     return all(isinstance(result.get(key, []), list) and
                all(isinstance(item, dict) for item in result.get(key, []))
                for key in ('tasks', 'conversations', 'failures', 'harness_errors'))
@@ -672,11 +886,19 @@ def aggregate(source, destination, workspace='all', case_ids=None):
                          'preparation_seconds', 'validation_seconds', 'cleanup_seconds', 'total_seconds',
                          'tool_calls', 'tool_rounds', 'tool_succeeded', 'tool_failed', 'tool_skipped', 'tool_unknown',
                          'unidentified_tool_events',
+                         'obs_tool_invalid_or_unknown_ratio', 'obs_tool_retry_jitter_ratio',
+                         'obs_execution_first_success_round', 'obs_execution_idle_round_ratio',
+                         'obs_environment_timeout_or_blocked', 'obs_environment_infra_error_count',
+                         'obs_environment_capture_complete',
                          'tool_success_rate', 'conversation_ids', 'trace_ids', 'failure_reasons', 'tool_errors',
                          'judge_tool_errors', 'rag_correctness_rate', 'rag_faithfulness_rate',
                          'rag_citation_support_rate', 'rag_citation_integrity_rate', 'rag_efficiency', 'rag_evaluation_states'])
         for row in rows:
             metrics = row['tools'].get('metrics') or {}
+            observable = row.get('observable_metrics') if isinstance(row.get('observable_metrics'), dict) else {}
+            tool_observable = observable.get('tool') if isinstance(observable.get('tool'), dict) else {}
+            execution_observable = observable.get('execution') if isinstance(observable.get('execution'), dict) else {}
+            environment_observable = observable.get('environment') if isinstance(observable.get('environment'), dict) else {}
             rag = summarize_rag([row]) if row.get('rag') else None
             writer.writerow([row['workspace'], row['case_id'], row['title'], row['test_status'], row.get('functional', {}).get('state'),
                 row['task']['state'], row['agent']['state'],
@@ -685,6 +907,13 @@ def aggregate(source, destination, workspace='all', case_ids=None):
                 row.get('preparation_seconds'), row.get('validation', {}).get('seconds'), row.get('cleanup_seconds'),
                 row.get('total_seconds'), metrics.get('calls'), metrics.get('tool_rounds'), metrics.get('succeeded'),
                 metrics.get('failed'), metrics.get('skipped'), metrics.get('unknown'), metrics.get('unidentified_events'),
+                tool_observable.get('invalid_or_unknown_ratio'),
+                tool_observable.get('retry_jitter_ratio'),
+                execution_observable.get('first_success_tool_round'),
+                execution_observable.get('idle_round_ratio'),
+                environment_observable.get('timeout_or_blocked'),
+                environment_observable.get('infra_error_count'),
+                environment_observable.get('capture_complete'),
                 metrics.get('success_rate'),
                 ';'.join(dict.fromkeys(
                     [str(c['id']) for c in row.get('conversations', []) if c.get('id')] +
@@ -702,6 +931,14 @@ def aggregate(source, destination, workspace='all', case_ids=None):
     completion = f"{report['confirmed_completion_rate']:.1%}" if report['confirmed_completion_rate'] is not None else '不可计算'
     display_names = {suite['workspace']: suite['display_name'] for suite in suites}
     scope_label = 'all' if workspace == 'all' else display_names[workspace]
+    observable = report.get('observable_metrics') if isinstance(report.get('observable_metrics'), dict) else {}
+    tool_observable = observable.get('tool') if isinstance(observable.get('tool'), dict) else {}
+    execution_observable = observable.get('execution') if isinstance(observable.get('execution'), dict) else {}
+    environment_observable = observable.get('environment') if isinstance(observable.get('environment'), dict) else {}
+    invalid_ratio_mean = tool_observable.get('invalid_or_unknown_ratio_mean')
+    jitter_ratio_mean = tool_observable.get('retry_jitter_ratio_mean')
+    idle_ratio_mean = execution_observable.get('idle_round_ratio_mean')
+    capture_complete_rate = environment_observable.get('capture_complete_rate')
     lines = ['# MOI agent journeys', '', f'运行范围：{cell(scope_label)}。', '',
         f"**{report['total']} 个任务：非取消类正常结束并交付 {report['completion_confirmed']}/{report['completion_eligible']}（{completion}），"
         f"按请求取消 {task['canceled']}，"
@@ -725,6 +962,20 @@ def aggregate(source, destination, workspace='all', case_ids=None):
         f"其中正常结束并交付的任务（{report['completed_task_seconds']['count']} 个）：中位数 "
         f"{cell(report['completed_task_seconds']['median'])} 秒。", '',
         '工具成功率依据公开事件中的执行状态；跳过及结果不明确的调用不计入分母。用例主动触发的错误仍计入成功率，并在错误统计中标记；该比例不代表业务正确率。', '',
+        '可观测指标（诊断，不参与通过判定）：', '',
+        f"- 计划：可观测 case {cell(observable.get('plan', {}).get('available_cases') if isinstance(observable.get('plan'), dict) else None)}；"
+        f"未观测 case {cell(observable.get('plan', {}).get('unavailable_cases') if isinstance(observable.get('plan'), dict) else None)}。",
+        f"- 工具：无效/不明确占比均值 {cell(f'{invalid_ratio_mean:.1%}' if isinstance(invalid_ratio_mean, float) else '不可计算')}；"
+        f"重试抖动占比均值 {cell(f'{jitter_ratio_mean:.1%}' if isinstance(jitter_ratio_mean, float) else '不可计算')}；"
+        f"可观测 case {cell(tool_observable.get('available_cases'))}。",
+        f"- 记忆：可观测 case {cell(observable.get('memory', {}).get('available_cases') if isinstance(observable.get('memory'), dict) else None)}；"
+        f"未观测 case {cell(observable.get('memory', {}).get('unavailable_cases') if isinstance(observable.get('memory'), dict) else None)}。",
+        f"- 执行：首个成功调用轮次中位数 {cell(execution_observable.get('first_success_tool_round_median'))}；"
+        f"空转轮次占比均值 {cell(f'{idle_ratio_mean:.1%}' if isinstance(idle_ratio_mean, float) else '不可计算')}；"
+        f"可观测 case {cell(execution_observable.get('available_cases'))}。",
+        f"- 环境：超时/阻塞 case {cell(environment_observable.get('timeout_or_blocked_cases'))}；"
+        f"基础设施错误计数 {cell(environment_observable.get('infra_error_count'))}；"
+        f"事件采集完整率 {cell(f'{capture_complete_rate:.1%}' if isinstance(capture_complete_rate, float) else '不可计算')}。", '',
         '| 工作区 | Case | 框架 | 功能验收 | 任务 | 智能体请求 | 交付 | 质量检查 | 耗时（秒） | 工具成功/已判定 |',
         '|---|---|---|---|---|---|---|---|---:|---|']
     if case_ids is not None:
