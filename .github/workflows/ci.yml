@@ -30,6 +30,18 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
   batch-artifact-smoke:
+    name: batch-artifact-smoke (${{ matrix.workspace }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: journey-2
+            cases: [J2-02, J2-06]
+          - workspace: journey-3
+            cases: [J3-01, J3-02]
+    env:
+      JOURNEY_WORKSPACE: ${{ matrix.workspace }}
+      JOURNEY_CASES: ${{ toJSON(matrix.cases) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -43,7 +55,7 @@ jobs:
         id: batch
         continue-on-error: true
         run: >-
-          python3 -m journey.batch --workspace journey-2 --cases '["J2-02", "J2-06"]'
+          python3 -m journey.batch --workspace "$JOURNEY_WORKSPACE" --cases "$JOURNEY_CASES"
           --work batch-work --out published-results
       - name: Verify both cases ran despite the first failure
         env:
@@ -54,31 +66,33 @@ jobs:
           from pathlib import Path
           assert os.environ['BATCH_OUTCOME'] == 'failure'
           rows = json.loads(Path('batch-work/batch-result.json').read_text())['cases']
-          assert [row['case_id'] for row in rows] == ['J2-02', 'J2-06']
+          assert [row['case_id'] for row in rows] == json.loads(os.environ['JOURNEY_CASES'])
           assert all(row['failed_stages'] == ['execute', 'report'] for row in rows), rows
           PYVERIFY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: case-group-smoke-attempt-${{ github.run_attempt }}
+          name: case-${{ matrix.workspace }}-group-smoke-attempt-${{ github.run_attempt }}
           path: published-results/
           if-no-files-found: error
           retention-days: 1
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: case-group-smoke-attempt-${{ github.run_attempt }}
+          name: case-${{ matrix.workspace }}-group-smoke-attempt-${{ github.run_attempt }}
           path: smoke-results
       - name: Verify independent case reports survived grouped upload and download
         run: |
           python3 - <<'PYVERIFY'
-          import json
+          import json, os
           from pathlib import Path
-          for case_id in ('J2-02', 'J2-06'):
+          for case_id in json.loads(os.environ['JOURNEY_CASES']):
               root = Path('smoke-results') / case_id
               result = json.loads((root / 'result.json').read_text())
               assert result['test_status'] == 'error'
               assert result['harness_errors'][0]['stage'] == 'configuration'
               assert (root / 'case-summary.md').is_file()
+              if os.environ['JOURNEY_WORKSPACE'] == 'journey-3':
+                  assert result['rag']['expected_answers'] == 1
               assert json.loads((root / 'publication.json').read_text())['status'] == 'complete'
           PYVERIFY
   judge-test:
