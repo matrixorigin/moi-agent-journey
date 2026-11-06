@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "id": "J5-08",
+  "workspace": "journey-5",
+  "title": "真实 CSV 附件输入与计算回传",
+  "executor": "feishu",
+  "source": {
+    "benchmark": "MOI real Feishu member journey"
+  },
+  "timeout_seconds": 300,
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "main",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "csv",
+          "prompt": "请读取我刚刚发到本群的 CSV 附件，对 item- 开头的三行金额求和，并读取 code 行的代码。回复本条请求编号，并输出 TOTAL:金额合计 和 CODE:代码。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id}",
+              "rule": "答复属于本轮"
+            },
+            {
+              "type": "contains",
+              "value": "TOTAL:{total}",
+              "rule": "附件计算正确"
+            },
+            {
+              "type": "contains",
+              "value": "CODE:{file_code}",
+              "rule": "附件末尾随机代码被读取"
+            }
+          ],
+          "media": "file"
+        }
+      ]
+    }
+  ],
+  "feishu": {}
+}

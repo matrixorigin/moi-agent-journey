@@ -12,7 +12,7 @@ STAGE_SECONDS = {'prepare': 120, 'report': 60, 'publish': 120}
 TERMINATION_GRACE = 10
 CASE_OVERHEAD_MINUTES = math.ceil((sum(STAGE_SECONDS.values()) + 4 * (TERMINATION_GRACE + 5)) / 60)
 CASE_MODULES = {'api': 'journey.functional_case', 'browser': 'journey.browser_case',
-                'knowledge': 'journey.knowledge_case'}
+                'knowledge': 'journey.knowledge_case', 'feishu': 'journey.feishu_case'}
 
 
 def plan_batches(items, count):
@@ -36,6 +36,7 @@ def plan_batches(items, count):
         result.append({'case': f'group-{index + 1:02d}', 'executor': 'batch',
             'case_ids': [item['case'] for _, item in members],
             'needs_browser': any(item['executor'] == 'browser' for _, item in members),
+            'needs_feishu': any(item['executor'] == 'feishu' for _, item in members),
             'job_timeout_minutes': timeout})
     return result
 

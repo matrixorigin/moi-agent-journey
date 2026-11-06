@@ -39,7 +39,7 @@ def case_executor(case):
 
 
 def is_functional_case(case):
-    return case_executor(case) in {'api', 'browser'}
+    return case_executor(case) in {'api', 'browser', 'feishu'}
 
 
 def step_timeout_minutes(case):
@@ -53,7 +53,7 @@ def plan_suite(suite):
     for case_id in suite['cases']:
         case = load_case(case_id)
         executor = case_executor(case)
-        if executor not in {'office', 'browser', 'api', 'knowledge'}:
+        if executor not in {'office', 'browser', 'api', 'knowledge', 'feishu'}:
             raise ValueError('invalid_case_executor:' + case_id)
         items.append({'case': case_id, 'executor': executor,
                       'step_timeout_minutes': step_timeout_minutes(case), 'job_timeout_minutes': 135})

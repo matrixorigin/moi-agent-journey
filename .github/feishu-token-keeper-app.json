@@ -1,0 +1,9 @@
+{
+  "name": "moi-journey-feishu-token-keeper",
+  "url": "https://github.com/matrixorigin/moi-agent-journey",
+  "description": "Rotate the Feishu CI member refresh token in this repository's qa Environment Secret. Install only on matrixorigin/moi-agent-journey.",
+  "public": false,
+  "default_permissions": {"environments": "write"},
+  "default_events": [],
+  "hook_attributes": {"active": false}
+}

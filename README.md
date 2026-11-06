@@ -14,7 +14,7 @@
 | journey-2 | Basic Functional End-to-End Tasks | 132 个智能体功能用例，分成 10 组 | 10 |
 | journey-3 | Knowledge Base Tasks | 57 个知识库 Q&A 用例，分成 10 组 | 10 |
 | journey-4 | — | 空 | 3 |
-| journey-5 | — | 空 | 3 |
+| journey-5 | Feishu Bidirectional End-to-End Tasks | 10 个飞书真实成员双向用例 | 1 |
 
 GitHub 手动运行的工作区下拉选项和运行分组显示为 `journey-1 (Complex Long-Horizon Tasks)`、`journey-2 (Basic Functional End-to-End Tasks)`；命令行仍可使用 `journey-1`、`journey-2` 工作区 ID。
 
@@ -295,3 +295,7 @@ python3 -m journey.publish
 J2-111 使用真实自定义业务 Skill 包，在同一个新智能体、同一会话内完成 10 个阶段、19 轮连续业务追问，并统一清理；当前共 112 条用例。该复杂场景总限时 15 分钟、单轮 5 分钟。详见[业务 Skill 场景与验收](docs/journey-2-native-skills.md)。
 
 J2-112 验证 Momo 通过自然语言创建绑定上传业务 Skill 的候选，确认发布后由新智能体实际检查员工数据源；员工来源、临时目录、Skill 和智能体绑定按本次资源身份清理。
+
+## Journey-5 飞书双向通信
+
+十个用例通过真实飞书成员与 QA 机器人收发，覆盖多轮上下文、富文本、工具、附件、话题和连续消息。共用一个 runner 串行执行，沿用每 case 报告和整组证据包。CI 启用前需配置专用成员授权及刷新凭据写回权限；配置与权限范围见 [Journey-5 文档](docs/journey-5-feishu.md)。

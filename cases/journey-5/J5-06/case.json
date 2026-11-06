@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "id": "J5-06",
+  "workspace": "journey-5",
+  "title": "工具报错后的恢复与最终回传",
+  "executor": "feishu",
+  "source": {
+    "benchmark": "MOI real Feishu member journey"
+  },
+  "timeout_seconds": 300,
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "main",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "recover",
+          "prompt": "请先实际调用 bash 执行 python3 -c \"import sys; print('J5_EXPECTED_FAILURE', file=sys.stderr); sys.exit(23)\"，这是本测试故意触发的错误。随后再次调用 bash 执行 printf RECOVERED。最后只回复 {request_id} RECOVERED。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} RECOVERED",
+              "rule": "错误后仍正常交付"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "feishu": {
+    "require_bash": true,
+    "require_tool_error": true
+  }
+}

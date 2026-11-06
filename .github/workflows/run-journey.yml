@@ -83,6 +83,24 @@ jobs:
       - name: Install evidence validators
         if: matrix.executor == 'api' || matrix.executor == 'batch'
         run: python3 -m pip install -r requirements-functional.txt
+      - name: Create repository-scoped credential writer
+        id: feishu-writer
+        if: matrix.needs_feishu == true
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ vars.MOI_J5_TOKEN_KEEPER_APP_CLIENT_ID }}
+          private-key: ${{ secrets.MOI_J5_TOKEN_KEEPER_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-environments: write
+      - name: Refresh Feishu member grant and persist successor
+        if: matrix.needs_feishu == true
+        env:
+          MOI_J5_FEISHU_TARGET: ${{ vars.MOI_J5_FEISHU_TARGET }}
+          MOI_J5_FEISHU_APP_SECRET: ${{ secrets.MOI_J5_FEISHU_APP_SECRET }}
+          MOI_J5_FEISHU_REFRESH_TOKEN: ${{ secrets.MOI_J5_FEISHU_REFRESH_TOKEN }}
+          MOI_J5_CREDENTIAL_WRITER_TOKEN: ${{ steps.feishu-writer.outputs.token }}
+        run: python3 -m journey.feishu_auth
       - name: Run functional conversation and capture QA events
         if: matrix.executor == 'api'
         timeout-minutes: ${{ matrix.step_timeout_minutes }}
@@ -109,10 +127,12 @@ jobs:
           MOI_UI_AUTH_ORIGIN: ${{ secrets.MOI_UI_AUTH_ORIGIN }}
         run: python3 -m journey.browser_case "$CASE_ID"
       - name: Run sequential cases with independent reports
-        if: matrix.executor == 'batch'
+        if: matrix.executor == 'batch' && (success() || (matrix.needs_feishu == true && !cancelled()))
         env:
           JOURNEY_WORKSPACE: ${{ inputs.workspace }}
           JOURNEY_CASES: ${{ toJSON(matrix.case_ids) }}
+          MOI_J5_FEISHU_TARGET: ${{ matrix.needs_feishu && vars.MOI_J5_FEISHU_TARGET || '' }}
+          MOI_J5_FEISHU_APP_SECRET: ${{ matrix.needs_feishu && secrets.MOI_J5_FEISHU_APP_SECRET || '' }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ secrets.MOI_PAT }}
           MOI_J2_NATIVE_SKILL_SOURCE_FILE_ID: ${{ inputs.workspace == 'journey-2' && vars.MOI_J2_NATIVE_SKILL_SOURCE_FILE_ID || '' }}

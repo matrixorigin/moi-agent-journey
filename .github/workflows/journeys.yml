@@ -11,7 +11,7 @@ on:
           - journey-2 (Basic Functional End-to-End Tasks)
           - journey-3 (Knowledge Base Tasks)
           - journey-4
-          - journey-5
+          - journey-5 (Feishu Bidirectional End-to-End Tasks)
         default: all
   schedule:
     - cron: '17 */6 * * *'

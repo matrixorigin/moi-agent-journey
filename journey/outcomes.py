@@ -1,7 +1,7 @@
 """Separate agent execution, delivery and quality without interpreting a red check as a root cause."""
 from collections import Counter
 
-from .catalog import case_executor
+from .catalog import is_functional_case
 
 
 def assess(case, result, raw_status):
@@ -25,7 +25,7 @@ def assess(case, result, raw_status):
         agent_state = 'abnormal'
     elif result.get('harness_errors') or not tasks:
         agent_state = 'unknown'
-    elif case_executor(case) in {'browser', 'api'} and all(task.get('state') == 'completed' for task in tasks):
+    elif is_functional_case(case) and all(task.get('state') == 'completed' for task in tasks):
         # A functional prerequisite can prevent later turns without an agent failure.
         agent_state = 'unknown'
     else:

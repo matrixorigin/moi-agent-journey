@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "id": "J5-01",
+  "workspace": "journey-5",
+  "title": "基本收发与最终回复",
+  "executor": "feishu",
+  "source": {
+    "benchmark": "MOI real Feishu member journey"
+  },
+  "timeout_seconds": 300,
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "main",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "hello",
+          "prompt": "请只回复 {request_id} HELLO_OK。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} HELLO_OK",
+              "rule": "最终回复包含本轮唯一标记"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "feishu": {}
+}

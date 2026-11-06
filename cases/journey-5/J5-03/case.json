@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "id": "J5-03",
+  "workspace": "journey-5",
+  "title": "富文本中的提及、中文与特殊字符",
+  "executor": "feishu",
+  "source": {
+    "benchmark": "MOI real Feishu member journey"
+  },
+  "timeout_seconds": 300,
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "main",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "post",
+          "prompt": "请只回复 {request_id} 中文✓ A&B <tag> \"quoted\"。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id}",
+              "rule": "富文本入站请求已理解"
+            },
+            {
+              "type": "contains",
+              "value": "中文✓ A&B <tag> \"quoted\"",
+              "rule": "特殊字符经过入站和卡片回传保持正确"
+            }
+          ],
+          "rich_text": true
+        }
+      ]
+    }
+  ],
+  "feishu": {}
+}
