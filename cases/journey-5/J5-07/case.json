@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "id": "J5-07",
+  "workspace": "journey-5",
+  "title": "真实图片附件输入与识别回传",
+  "executor": "feishu",
+  "source": {
+    "benchmark": "MOI real Feishu member journey"
+  },
+  "timeout_seconds": 300,
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "main",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "image",
+          "prompt": "请读取我刚刚发到本群的图片中六位数字。只回复本条请求编号、一个空格和图片里的数字；数字没有出现在本问题中。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} {image_code}",
+              "rule": "识别本轮随机图片编号"
+            }
+          ],
+          "media": "image"
+        }
+      ]
+    }
+  ],
+  "feishu": {}
+}

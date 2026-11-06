@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "id": "J5-09",
+  "workspace": "journey-5",
+  "title": "两个话题的会话隔离与上下文复用",
+  "executor": "feishu",
+  "source": {
+    "benchmark": "MOI real Feishu member journey"
+  },
+  "timeout_seconds": 300,
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "main",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "anchor_a",
+          "prompt": "请只回复 {request_id} THREAD_A。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} THREAD_A",
+              "rule": "话题 A 锚点回复"
+            }
+          ]
+        },
+        {
+          "phase": "anchor_b",
+          "prompt": "请只回复 {request_id} THREAD_B。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} THREAD_B",
+              "rule": "话题 B 锚点回复"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "thread-a",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "seed",
+          "prompt": "这个话题的私有码是 {memory}，记住它，只回复 {request_id} ACK。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} ACK",
+              "rule": "话题 A 已记录"
+            }
+          ],
+          "thread_from": "main:anchor_a"
+        },
+        {
+          "phase": "recall",
+          "prompt": "请回忆这个话题的私有码。只回复本条请求编号、一个空格和私有码。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} {memory}",
+              "rule": "话题 A 没有混入 B 的上下文"
+            }
+          ],
+          "thread_from": "thread-a:seed"
+        }
+      ]
+    },
+    {
+      "id": "thread-b",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "seed",
+          "prompt": "这个话题的私有码是 {replacement}，记住它，只回复 {request_id} ACK。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} ACK",
+              "rule": "话题 B 已记录"
+            }
+          ],
+          "thread_from": "main:anchor_b"
+        },
+        {
+          "phase": "recall",
+          "prompt": "请回忆这个话题的私有码。只回复本条请求编号、一个空格和私有码。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} {replacement}",
+              "rule": "话题 B 没有混入 A 的上下文"
+            }
+          ],
+          "thread_from": "thread-b:seed"
+        }
+      ]
+    }
+  ],
+  "feishu": {
+    "isolated_threads": true,
+    "order": [
+      "main:anchor_a",
+      "thread-a:seed",
+      "main:anchor_b",
+      "thread-b:seed",
+      "thread-a:recall",
+      "thread-b:recall"
+    ]
+  }
+}

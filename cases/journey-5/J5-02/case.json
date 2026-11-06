@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "J5-02",
+  "workspace": "journey-5",
+  "title": "连续对话记忆、纠正与再次追问",
+  "executor": "feishu",
+  "source": {
+    "benchmark": "MOI real Feishu member journey"
+  },
+  "timeout_seconds": 300,
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "main",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "remember",
+          "prompt": "本轮测试的验证码是 {memory}，请记住它。只回复 {request_id} ACK。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} ACK",
+              "rule": "已收到记忆请求"
+            }
+          ]
+        },
+        {
+          "phase": "recall",
+          "prompt": "请回忆本轮刚才告诉你的验证码，只回复本条请求编号、一个空格和验证码。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} {memory}",
+              "rule": "从上一轮上下文取回验证码"
+            }
+          ]
+        },
+        {
+          "phase": "correct",
+          "prompt": "把本轮验证码更新为 {replacement}。只回复 {request_id} UPDATED。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} UPDATED",
+              "rule": "已收到纠正请求"
+            }
+          ]
+        },
+        {
+          "phase": "recall_again",
+          "prompt": "请回忆本轮最新验证码，只回复本条请求编号、一个空格和验证码。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} {replacement}",
+              "rule": "使用纠正后的值"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "feishu": {}
+}

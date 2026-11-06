@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "id": "J5-04",
+  "workspace": "journey-5",
+  "title": "长消息的首尾内容完整传递",
+  "executor": "feishu",
+  "source": {
+    "benchmark": "MOI real Feishu member journey"
+  },
+  "timeout_seconds": 300,
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "main",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "long",
+          "prompt": "请忽略中间填充，读取本条消息最前面与填充结束后的两个 V 开头标识。只回复本条请求编号和这两个标识。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id}",
+              "rule": "答复属于本轮"
+            },
+            {
+              "type": "contains",
+              "value": "{head}",
+              "rule": "长消息开头未丢失"
+            },
+            {
+              "type": "contains",
+              "value": "{tail}",
+              "rule": "长消息尾部未丢失"
+            }
+          ],
+          "long_text": true
+        }
+      ]
+    }
+  ],
+  "feishu": {}
+}

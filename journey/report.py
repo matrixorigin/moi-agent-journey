@@ -151,6 +151,16 @@ def case_summary(result):
                              f"{item['skipped']} | {item['unknown']} | {item_rate} |")
     else:
         lines.append('- 工具：没有可用的事件数据。')
+    if result.get('channel', {}).get('provider') == 'feishu':
+        lines += ['', '## 飞书双向端到端', '',
+                  '请求由真实成员身份发送；消息身份、最终卡片与持久化 QA 用户消息分别核对。'
+                  '群会话及话题保留，以验证真实上下文复用。', '',
+                  '| 阶段 | 成员消息 ID | 机器人消息 ID | 端到端秒数（含轮询） | 最终卡片 |',
+                  '|---|---|---|---:|---|']
+        for turn in result['channel']['turns']:
+            lines.append('| ' + ' | '.join(cell(turn.get(k)) for k in (
+                'phase', 'message_id', 'reply_message_id', 'e2e_seconds', 'final_card')) + ' |')
+        lines.append('')
     if result.get('native_skill_stages'):
         lines += native_stage_summary(result['native_skill_stages'])
     if result.get('model_evaluations'):
@@ -331,7 +341,7 @@ def finish_case(case_id, directory):
         expected = Counter((session['id'] + ':' + turn['phase'], turn.get('expected_state', 'completed'))
                            for session in case['sessions'] for turn in session['turns'])
         completed = Counter((task.get('phase'), task.get('state')) for task in result.get('tasks', [])
-                            if task.get('capture_complete'))
+                            if task.get('capture_complete') and not task.get('auxiliary'))
         if expected != completed:
             result['harness_errors'].append({'stage': 'evidence', 'reason': 'functional_turns_not_fully_captured'})
     if (raw_status == 'failed' and any(item.get('reason') == 'acceptance_checks_failed'

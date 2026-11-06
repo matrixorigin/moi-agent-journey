@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "id": "J5-10",
+  "workspace": "journey-5",
+  "title": "连续三条成员消息不丢失、不重复、不串答",
+  "executor": "feishu",
+  "source": {
+    "benchmark": "MOI real Feishu member journey"
+  },
+  "timeout_seconds": 300,
+  "assets": [],
+  "oracles": [],
+  "sessions": [
+    {
+      "id": "main",
+      "delivery_kind": "answer",
+      "turns": [
+        {
+          "phase": "message_1",
+          "prompt": "请只回复 {request_id} MESSAGE_1。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} MESSAGE_1",
+              "rule": "第 1 条消息独立交付"
+            },
+            {
+              "type": "not_contains",
+              "value": "MESSAGE_2",
+              "rule": "第 1 条答复不混入第 2 条结果"
+            },
+            {
+              "type": "not_contains",
+              "value": "MESSAGE_3",
+              "rule": "第 1 条答复不混入第 3 条结果"
+            }
+          ]
+        },
+        {
+          "phase": "message_2",
+          "prompt": "请只回复 {request_id} MESSAGE_2。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} MESSAGE_2",
+              "rule": "第 2 条消息独立交付"
+            },
+            {
+              "type": "not_contains",
+              "value": "MESSAGE_1",
+              "rule": "第 2 条答复不混入第 1 条结果"
+            },
+            {
+              "type": "not_contains",
+              "value": "MESSAGE_3",
+              "rule": "第 2 条答复不混入第 3 条结果"
+            }
+          ]
+        },
+        {
+          "phase": "message_3",
+          "prompt": "请只回复 {request_id} MESSAGE_3。",
+          "assertions": [
+            {
+              "type": "contains",
+              "value": "{request_id} MESSAGE_3",
+              "rule": "第 3 条消息独立交付"
+            },
+            {
+              "type": "not_contains",
+              "value": "MESSAGE_1",
+              "rule": "第 3 条答复不混入第 1 条结果"
+            },
+            {
+              "type": "not_contains",
+              "value": "MESSAGE_2",
+              "rule": "第 3 条答复不混入第 2 条结果"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "feishu": {
+    "burst": true
+  }
+}

@@ -39,6 +39,8 @@ jobs:
             cases: [J2-02, J2-06]
           - workspace: journey-3
             cases: [J3-01, J3-02]
+          - workspace: journey-5
+            cases: [J5-01, J5-02]
     env:
       JOURNEY_WORKSPACE: ${{ matrix.workspace }}
       JOURNEY_CASES: ${{ toJSON(matrix.cases) }}
