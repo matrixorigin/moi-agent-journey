@@ -40,6 +40,9 @@ jobs:
   journeys:
     name: ${{ matrix.display_name }}
     needs: [plan, judge-image]
+    # Reusable jobs narrow this ceiling: only Journey-5's credential-renewal job writes.
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       max-parallel: 5

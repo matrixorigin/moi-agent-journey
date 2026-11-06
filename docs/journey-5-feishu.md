@@ -52,19 +52,35 @@ python3 -m journey.report aggregate --workspace journey-5 --root published-resul
 
 1. `qa` 环境变量 `MOI_J5_FEISHU_TARGET`：上述专用资源 JSON。
 2. `qa` 环境 Secret `MOI_J5_FEISHU_APP_SECRET`：现有飞书 App Secret。
-3. `qa` 环境 Secret `MOI_J5_FEISHU_REFRESH_TOKEN`：给 CI 单独授权、非本机 DPoP 绑定的 Bearer 刷新凭据。成员授权仅需 `im:message`、`im:message.send_as_user`、`im:message.group_msg:get_as_user`、`offline_access`；媒体上传准备使用同一应用的机器人身份。
-4. 一个仅安装在本仓库的专用 GitHub App：仓库级 `Environments: write`，以及隐式 Metadata read。GitHub 把环境 Secret 写入 API 归在 Environments 权限下，该权限也能更改本仓库的环境设置，无法在 App 权限层面限制为一个 Secret。配置文件见 `.github/feishu-token-keeper-app.json`。创建、安装和授权需仓库管理员确认。
-5. `qa` 环境变量 `MOI_J5_TOKEN_KEEPER_APP_CLIENT_ID` 和环境 Secret `MOI_J5_TOKEN_KEEPER_APP_PRIVATE_KEY`。
+3. `qa` 环境 Secret `MOI_J5_FEISHU_STATE_KEY`：32 字节随机 AES 密钥的标准 Base64 编码，由仓库管理员一次性保存。之后 workflow 只读取它，不修改 GitHub Secrets。不要使用密码或人写的字符串作为密钥。
+4. 给 CI 单独完成一次飞书成员授权，取得非本机 DPoP 绑定的 Bearer grant。成员授权仅需 `im:message`、`im:message.send_as_user`、`im:message.group_msg:get_as_user`、`offline_access`；媒体上传准备使用同一应用的机器人身份。
 
-Secret 必须存在于 `qa` 环境，不能只使用同名仓库 Secret：GitHub 在 workflow 排队时读取仓库 Secret，在 job 启动时才读取环境 Secret。加上现有全局 workflow 并发锁和单个 Journey-5 runner，排队运行才能取得最近一次轮换后的值。
+初始化时，把新 grant 保存在本机私有 JSON 文件，包含飞书返回的 token、scope、有效期及交换完成时间 `received_at`（Unix 秒）。在私有环境中注入上述配置和 `GITHUB_REPOSITORY`，使用管理员已有的本机 `gh` 登录执行：
 
-Job 为当前仓库生成仅有 Environments write 的安装 token，先以当前 refresh_token 验证 Secret 加密/写权限，再执行一次飞书 v3 token 交换，并立即把新 refresh_token 写回 `qa` Secret。保存成功后才把 access_token 加入当前 job 的私有环境。后续 case 逐个检查剩余凭据寿命是否足以覆盖自身预算。过期、撤销、交换结果未知或保存失败都明确报错，不反复消费一次性 token，也不把凭据放到 artifact/cache/仓库文件。授权失败时，batch 仍为十个 case 生成配置错误报告。
+```sh
+python3 -m journey.feishu_state seed /private/path/ci-member-grant.json
+```
 
-当前本机授权绑定 macOS 钥匙串，不能直接用于 Ubuntu runner。**完成 CI 专用授权和 GitHub App 配置前，不应把此分支合入定时运行。** PR 的 Offline tests 不访问 QA；涵盖无凭据失败时两个 case 均可报告并上传下载证据的实际 runner smoke。
+命令在线核对授权成员与配置一致，然后创建独立的 `ci/j5-feishu-state` 状态分支；该分支只有 `feishu-member.enc.json` 密文，不含 workflow 或业务代码。已有分支不会被自动重置。整个流程使用仓库权限，不创建 GitHub App、PAT 或组织授权。
+
+## 自动续期与权限
+
+Journey-5 的专用续期 job 使用自动生成、仅限当前仓库的 `GITHUB_TOKEN` 和 `contents: write`。其他实际 job 保持 `contents: read`。GitHub 权限本身覆盖仓库内容，不能限定到某个分支；实现固定写入上述状态分支，不请求组织或 Secrets 写权限。
+
+refresh_token 和当前运行的 access_token 均使用 AES-256-GCM 加密，带随机 12 字节 nonce；认证上下文绑定仓库、分支、文件和飞书应用。密钥只在 `qa` Secret 中。公开状态分支及其 Git 历史只包含密文；明文凭据不进入仓库、artifact 或 cache，解密后的 token 通过 `add-mask` 加入日志屏蔽。
+
+每次先读取最新状态，通过 blob SHA 比较写入 `refreshing` 占用标记，确认有写权限且没有竞争，才进行一次飞书 v3 交换。新 refresh_token 立即加密保存；同一密文还保存绑定当前 workflow run 的短期 access_token。case job 只读最新密文，确认属于当前成功续期的运行且寿命足够后，才加载到自己的私有环境。续期 job 不通过 workflow outputs 或 artifact 传递明文授权。现有全局 workflow 队列保证不同运行顺序执行，blob SHA 防止额外调用并发覆盖。
+
+GitHub 写入回执丢失时仅通过读回相同密文确认，不重复写入或重复消费飞书 token。中途崩溃、交换结果未知、密文被篡改、权限不足或状态缺失均明确失败；下一轮不会回退到历史 token。需要重新授权时，管理员先确认没有活动续期，再使用新 grant 和显式的当前 blob SHA 执行 `seed /private/path/new-grant.json CURRENT_BLOB_SHA` 恢复。密钥丢失需新建密钥并重新授权；密钥泄漏则同时撤销旧飞书授权并更换密钥。
+
+当前本机授权绑定 macOS 钥匙串，不能直接用于 Ubuntu runner。完成 CI 专用飞书授权和密文初始化后，可手动选择 Journey-5 验证实际运行。缺少配置时 batch 仍为十个 case 生成错误报告。PR 的 Offline tests 不访问 QA；涵盖无凭据失败时两个 case 均可报告并上传下载证据的实际 runner smoke。
+
+Offline tests 在本仓库 push 时运行密文状态 smoke，也提供手动 `feishu_state_smoke` 入口；PR 不执行这个写入 job。它用随机内存密钥、合成 token 和独立 `ci/j5-feishu-state-smoke` 分支，验证真实 `GITHUB_TOKEN` 的读写及过期 SHA 被拒绝；不读取 QA Secret 或调用飞书。该分支需由仓库管理员预先初始化一个占位文件。
 
 官方依据：
 
 - [飞书消息事件与群权限](https://open.feishu.cn/document/server-docs/im-v1/message/events/receive)
 - [飞书 v3 凭据刷新与一次性轮换](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/authentication-management/access-token/refresh-user-access-token-v3)
-- [GitHub Secrets 读取时机](https://docs.github.com/en/actions/reference/security/secrets#when-github-actions-reads-secrets)
-- [GitHub 环境 Secret 写权限](https://docs.github.com/en/rest/actions/secrets#create-or-update-an-environment-secret)
+- [GitHub 自动仓库 Token](https://docs.github.com/en/actions/concepts/security/github_token)
+- [GitHub 加密文件与私有解密密钥的存储方式](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets#storing-large-secrets)
+- [GitHub 文件更新与 blob SHA](https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents)
