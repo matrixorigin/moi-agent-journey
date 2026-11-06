@@ -2,9 +2,35 @@ name: Offline tests
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      feishu_state_smoke:
+        description: 'Verify encrypted state using only GITHUB_TOKEN; no QA or Feishu calls'
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
+  feishu-state-smoke:
+    if: >-
+      (github.event_name == 'push' && github.repository == 'matrixorigin/moi-agent-journey') ||
+      (github.event_name == 'workflow_dispatch' && inputs.feishu_state_smoke == true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    concurrency:
+      group: feishu-state-smoke
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: python3 -m pip install -r requirements-feishu.txt
+      - name: Verify real ciphertext persistence and stale-write rejection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -m journey.feishu_state smoke
   judge-image:
     uses: ./.github/workflows/build-judge.yml
   test:

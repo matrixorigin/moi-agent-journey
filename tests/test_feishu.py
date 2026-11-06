@@ -16,7 +16,6 @@ from journey.client import Failure
 from journey.evidence import Evidence, configured_secrets
 from journey.feishu import Feishu, reply_content
 from journey.feishu_case import FeishuExecution, number_image, group_attachment_permission, tool_checks
-from journey.feishu_auth import main as auth_main, save_refresh_token
 from journey.report import finish_case
 from journey.publish import prepare_publication
 
@@ -259,59 +258,9 @@ class RecorderTests(unittest.TestCase):
 
 
 class CredentialTests(unittest.TestCase):
-    def test_rotation_is_saved_to_environment_secret_before_access_token_is_exposed(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            env_file = Path(tmp) / 'github-env'
-            env = {'MOI_J5_FEISHU_TARGET': json.dumps(TARGET), 'MOI_J5_FEISHU_REFRESH_TOKEN': 'old-refresh',
-                   'MOI_J5_CREDENTIAL_WRITER_TOKEN': 'limited-writer', 'MOI_J5_FEISHU_APP_SECRET': 'app-secret',
-                   'GITHUB_REPOSITORY': 'owner/repo', 'GITHUB_ENV': str(env_file)}
-            value = {'refresh_token': 'next-refresh', 'access_token': 'fresh-access', 'expires_in': 7200, 'token_type': 'Bearer'}
-            seen = []
-            def save(token, *args):
-                self.assertFalse(env_file.exists())
-                seen.append(token)
-            with patch.dict(os.environ, env, clear=True), contextlib.redirect_stdout(io.StringIO()), \
-                    patch('journey.feishu_auth.save_refresh_token', side_effect=save), \
-                    patch('journey.feishu_auth.refresh_member', return_value=value):
-                self.assertEqual(auth_main(), 0)
-            self.assertEqual(seen, ['old-refresh', 'next-refresh'])
-            self.assertIn('MOI_J5_FEISHU_ACCESS_TOKEN=fresh-access', env_file.read_text())
-            self.assertNotIn('next-refresh', env_file.read_text())
-
-    def test_missing_write_permission_does_not_consume_the_refresh_token(self):
-        env = {'MOI_J5_FEISHU_TARGET': json.dumps(TARGET), 'MOI_J5_FEISHU_REFRESH_TOKEN': 'old',
-               'MOI_J5_CREDENTIAL_WRITER_TOKEN': 'writer', 'GITHUB_REPOSITORY': 'owner/repo'}
-        with patch.dict(os.environ, env, clear=True), contextlib.redirect_stdout(io.StringIO()), \
-                patch('journey.feishu_auth.save_refresh_token', side_effect=Failure('write_denied')), \
-                patch('journey.feishu_auth.refresh_member') as refresh:
-            self.assertEqual(auth_main(), 1)
-        refresh.assert_not_called()
-
-    def test_failed_successor_save_does_not_expose_access_token_or_retry_exchange(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            env_file = Path(tmp) / 'github-env'
-            env = {'MOI_J5_FEISHU_TARGET': json.dumps(TARGET), 'MOI_J5_FEISHU_REFRESH_TOKEN': 'old',
-                   'MOI_J5_CREDENTIAL_WRITER_TOKEN': 'writer', 'MOI_J5_FEISHU_APP_SECRET': 'app',
-                   'GITHUB_REPOSITORY': 'owner/repo', 'GITHUB_ENV': str(env_file)}
-            value = {'refresh_token': 'next', 'access_token': 'access', 'expires_in': 7200, 'token_type': 'Bearer'}
-            with patch.dict(os.environ, env, clear=True), contextlib.redirect_stdout(io.StringIO()), \
-                    patch('journey.feishu_auth.save_refresh_token', side_effect=[None, Failure('write_failed')]), \
-                    patch('journey.feishu_auth.refresh_member', return_value=value) as refresh:
-                self.assertEqual(auth_main(), 1)
-            self.assertFalse(env_file.exists())
-            self.assertEqual(refresh.call_count, 1)
-
-    def test_writer_uses_stdin_and_qa_environment(self):
-        with patch('journey.feishu_auth.subprocess.run', return_value=SimpleNamespace(returncode=0)) as run:
-            save_refresh_token('private-refresh', 'owner/repo', 'limited-token')
-        args = run.call_args.args[0]
-        self.assertNotIn('private-refresh', args)
-        self.assertEqual(args[-2:], ['--env', 'qa'])
-        self.assertEqual(run.call_args.kwargs['input'], 'private-refresh')
-
     def test_all_member_tokens_are_redacted_at_publication_boundaries(self):
-        env = {'MOI_J5_FEISHU_ACCESS_TOKEN': 'private-access', 'MOI_J5_FEISHU_REFRESH_TOKEN': 'private-refresh',
-               'MOI_J5_FEISHU_APP_SECRET': 'private-app', 'MOI_J5_CREDENTIAL_WRITER_TOKEN': 'private-writer'}
+        env = {'MOI_J5_FEISHU_ACCESS_TOKEN': 'private-access',
+               'MOI_J5_FEISHU_APP_SECRET': 'private-app', 'MOI_J5_FEISHU_STATE_KEY': 'private-key'}
         with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, env, clear=True):
             evidence = Evidence(tmp, configured_secrets())
             evidence.write('result.json', {'values': list(env.values())})

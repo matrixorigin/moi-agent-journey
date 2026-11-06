@@ -25,9 +25,31 @@ jobs:
         env:
           JOURNEY_WORKSPACE: ${{ inputs.workspace }}
         run: python3 -m journey.catalog plan "$JOURNEY_WORKSPACE"
+  feishu-auth:
+    name: Renew Feishu CI grant
+    needs: plan
+    if: inputs.workspace == 'journey-5'
+    environment: qa
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: python3 -m pip install -r requirements-feishu.txt
+      - name: Claim, refresh once, and persist encrypted successor
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MOI_J5_FEISHU_TARGET: ${{ vars.MOI_J5_FEISHU_TARGET }}
+          MOI_J5_FEISHU_APP_SECRET: ${{ secrets.MOI_J5_FEISHU_APP_SECRET }}
+          MOI_J5_FEISHU_STATE_KEY: ${{ secrets.MOI_J5_FEISHU_STATE_KEY }}
+        run: python3 -m journey.feishu_auth rotate
   cases:
     name: cases (${{ matrix.case }})
-    needs: plan
+    needs: [plan, feishu-auth]
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
     environment: qa
     runs-on: ubuntu-latest
     timeout-minutes: ${{ matrix.job_timeout_minutes }}
@@ -83,14 +105,19 @@ jobs:
       - name: Install evidence validators
         if: matrix.executor == 'api' || matrix.executor == 'batch'
         run: python3 -m pip install -r requirements-functional.txt
-      - name: Refresh Feishu member grant and persist successor
+      - name: Read this run's Feishu member grant
         if: matrix.needs_feishu == true
         env:
+          GH_TOKEN: ${{ github.token }}
           MOI_J5_FEISHU_TARGET: ${{ vars.MOI_J5_FEISHU_TARGET }}
-          MOI_J5_FEISHU_APP_SECRET: ${{ secrets.MOI_J5_FEISHU_APP_SECRET }}
-          MOI_J5_FEISHU_REFRESH_TOKEN: ${{ secrets.MOI_J5_FEISHU_REFRESH_TOKEN }}
-          MOI_J5_CREDENTIAL_WRITER_TOKEN: ${{ secrets.MOI_J5_CREDENTIAL_WRITER_TOKEN }}
-        run: python3 -m journey.feishu_auth
+          MOI_J5_FEISHU_STATE_KEY: ${{ secrets.MOI_J5_FEISHU_STATE_KEY }}
+          FEISHU_RENEWAL_RESULT: ${{ needs.feishu-auth.result }}
+        run: |
+          if [ "$FEISHU_RENEWAL_RESULT" != success ]; then
+            echo '::error::Feishu credential renewal failed; this run cannot use an earlier grant.'
+            exit 1
+          fi
+          python3 -m journey.feishu_auth access
       - name: Run functional conversation and capture QA events
         if: matrix.executor == 'api'
         timeout-minutes: ${{ matrix.step_timeout_minutes }}
