@@ -53,14 +53,13 @@ python3 -m journey.report aggregate --workspace journey-5 --root published-resul
 1. `qa` 环境变量 `MOI_J5_FEISHU_TARGET`：上述专用资源 JSON。
 2. `qa` 环境 Secret `MOI_J5_FEISHU_APP_SECRET`：现有飞书 App Secret。
 3. `qa` 环境 Secret `MOI_J5_FEISHU_REFRESH_TOKEN`：给 CI 单独授权、非本机 DPoP 绑定的 Bearer 刷新凭据。成员授权仅需 `im:message`、`im:message.send_as_user`、`im:message.group_msg:get_as_user`、`offline_access`；媒体上传准备使用同一应用的机器人身份。
-4. 一个仅安装在本仓库的专用 GitHub App：仓库级 `Environments: write`，以及隐式 Metadata read。GitHub 把环境 Secret 写入 API 归在 Environments 权限下，该权限也能更改本仓库的环境设置，无法在 App 权限层面限制为一个 Secret。配置文件见 `.github/feishu-token-keeper-app.json`。创建、安装和授权需仓库管理员确认。
-5. `qa` 环境变量 `MOI_J5_TOKEN_KEEPER_APP_CLIENT_ID` 和环境 Secret `MOI_J5_TOKEN_KEEPER_APP_PRIVATE_KEY`。
+4. `qa` 环境 Secret `MOI_J5_CREDENTIAL_WRITER_TOKEN`：专用 fine-grained PAT。Resource owner 选 `matrixorigin`，Repository access 选 **Only select repositories → moi-agent-journey**，仅授予仓库 `Environments: write`，以及 GitHub 隐式的 Metadata read；不申请组织或账户权限。GitHub 把环境 Secret 写入 API 归在 Environments 权限下，该权限也能更改此仓库的环境设置，无法在权限层面进一步限制为一个 Secret。PAT 到期后需要更新；若组织要求审批，必须等审批通过，不能将 pending Token 视为可用。
 
 Secret 必须存在于 `qa` 环境，不能只使用同名仓库 Secret：GitHub 在 workflow 排队时读取仓库 Secret，在 job 启动时才读取环境 Secret。加上现有全局 workflow 并发锁和单个 Journey-5 runner，排队运行才能取得最近一次轮换后的值。
 
-Job 为当前仓库生成仅有 Environments write 的安装 token，先以当前 refresh_token 验证 Secret 加密/写权限，再执行一次飞书 v3 token 交换，并立即把新 refresh_token 写回 `qa` Secret。保存成功后才把 access_token 加入当前 job 的私有环境。后续 case 逐个检查剩余凭据寿命是否足以覆盖自身预算。过期、撤销、交换结果未知或保存失败都明确报错，不反复消费一次性 token，也不把凭据放到 artifact/cache/仓库文件。授权失败时，batch 仍为十个 case 生成配置错误报告。
+Job 使用这个单仓库 PAT，先以当前 refresh_token 验证 Secret 加密/写权限，再执行一次飞书 v3 token 交换，并立即把新 refresh_token 写回 `qa` Secret。保存成功后才把 access_token 加入当前 job 的私有环境。后续 case 逐个检查剩余凭据寿命是否足以覆盖自身预算。过期、撤销、交换结果未知或保存失败都明确报错，不反复消费一次性 token，也不把凭据放到 artifact/cache/仓库文件。授权失败时，batch 仍为十个 case 生成配置错误报告。
 
-当前本机授权绑定 macOS 钥匙串，不能直接用于 Ubuntu runner。**完成 CI 专用授权和 GitHub App 配置前，不应把此分支合入定时运行。** PR 的 Offline tests 不访问 QA；涵盖无凭据失败时两个 case 均可报告并上传下载证据的实际 runner smoke。
+当前本机授权绑定 macOS 钥匙串，不能直接用于 Ubuntu runner。完成 CI 专用飞书授权及单仓库 PAT 配置后，可手动选择 Journey-5 验证实际运行。缺少配置时明确报告执行错误。PR 的 Offline tests 不访问 QA；涵盖无凭据失败时两个 case 均可报告并上传下载证据的实际 runner smoke。
 
 官方依据：
 
