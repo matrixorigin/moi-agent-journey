@@ -13,8 +13,6 @@ on:
           - journey-4
           - journey-5 (Feishu Bidirectional End-to-End Tasks)
         default: all
-  schedule:
-    - cron: '17 */6 * * *'
 permissions:
   contents: read
 concurrency:

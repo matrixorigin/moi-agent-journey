@@ -4,7 +4,7 @@
 
 ## 执行方式
 
-`Agent journeys QA` 每六小时运行一次，也支持手动运行。PR 和合入 main 不触发真实 QA；PR 只运行 `Offline tests`，验证执行框架、浏览器场景与验收器，不读取 QA 凭据。定时与手动入口需要工作流先合入 main；真实 QA 使用 GitHub `qa` environment 的 `MOI_BASE_URL` 与 `MOI_PAT` secrets。浏览器 case 还需要 `MOI_UI_BASE_URL`、`MOI_UI_AUTH_ORIGIN`、`MOI_UI_ACCOUNT` 和 `MOI_UI_PASSWORD`，并在登录前核对账号中心域名。
+`Agent journeys QA` 目前仅手动运行，原每六小时的定时执行已暂停。PR 和合入 main 不触发真实 QA；PR 只运行 `Offline tests`，验证执行框架、浏览器场景与验收器，不读取 QA 凭据。手动入口需要工作流先合入 main；真实 QA 使用 GitHub `qa` environment 的 `MOI_BASE_URL` 与 `MOI_PAT` secrets。浏览器 case 还需要 `MOI_UI_BASE_URL`、`MOI_UI_AUTH_ORIGIN`、`MOI_UI_ACCOUNT` 和 `MOI_UI_PASSWORD`，并在登录前核对账号中心域名。
 
 配置入口是 [suites.json](suites.json)：
 
@@ -18,7 +18,7 @@
 
 GitHub 手动运行的工作区下拉选项和运行分组显示为 `journey-1 (Complex Long-Horizon Tasks)`、`journey-2 (Basic Functional End-to-End Tasks)`；命令行仍可使用 `journey-1`、`journey-2` 工作区 ID。
 
-五个工作区可以同时运行；当前有 case 的工作区合计最多 29 个 case 同时调用 QA。空组显示 `empty`，不产生虚假通过结果，也不计入成功率分母。Journey-2 和 Journey-3 各使用 10 个标准 `ubuntu-latest` runner，组间最多 10 并发；组内串行执行，Journey-2 每组 13～14 个 case，Journey-3 每组 5～6 个 case；按 case 时间预算均衡分组，每组只安装一次依赖，含浏览器 case 的组才安装 Chromium。每个 case 使用独立进程、工作目录和超时，结束后立即生成并扫描独立报告及证据，最后按组上传；某个 case 出错不阻止后续 case。每组的 Job Summary 展示逐项结果、独立报告和组证据包下载链接，框架步骤异常使该组 job 失败，智能体异常及功能验收结果仍在报告中展示。Journey-1 继续每个 case 单独使用 runner。全局 concurrency group 防止整批运行相互重叠；后续批次排队等待，最多保留 100 个等待中的运行。连续提交过多可能造成积压并推迟定时回归。
+五个工作区可以同时运行；当前有 case 的工作区合计最多 29 个 case 同时调用 QA。空组显示 `empty`，不产生虚假通过结果，也不计入成功率分母。Journey-2 和 Journey-3 各使用 10 个标准 `ubuntu-latest` runner，组间最多 10 并发；组内串行执行，Journey-2 每组 13～14 个 case，Journey-3 每组 5～6 个 case；按 case 时间预算均衡分组，每组只安装一次依赖，含浏览器 case 的组才安装 Chromium。每个 case 使用独立进程、工作目录和超时，结束后立即生成并扫描独立报告及证据，最后按组上传；某个 case 出错不阻止后续 case。每组的 Job Summary 展示逐项结果、独立报告和组证据包下载链接，框架步骤异常使该组 job 失败，智能体异常及功能验收结果仍在报告中展示。Journey-1 继续每个 case 单独使用 runner。全局 concurrency group 防止整批运行相互重叠；后续批次排队等待，最多保留 100 个等待中的运行。连续触发过多可能造成积压。
 
 Journey-1 每个 case 的 **QA 总预算为 3600 秒**，Journey-2 为 **300 秒**，覆盖一个 case 的全部对话轮次；如确有特殊长耗时用例，可在该 case 中显式设置 `timeout_seconds`。主任务超时记为 timeout，未能开始任务或取证出错会另记框架错误；语义评分阶段超时或结果无效记为验收器错误。超时后会取消已知未结束任务、补采事件并归档会话；清理和最终取证不占 QA 预算。工作流为执行步骤按 QA 预算额外留出 4 分钟用于取证和清理，材料准备及上传另计。主任务耗时与语义评分耗时分开统计。长任务统一使用正式的 message/stream SSE 协议，先取得 task ID 并实时落盘；随后核对持久化任务和事件。业务请求和模型任务不自动重试，保留第一次失败证据。
 
@@ -73,7 +73,7 @@ Journey-2 另有**功能验收**：通过、不通过、前置条件不足和执
 
 知识库功能检查共享同一事件解析器：传统检索/SQL 工具事件和原生 CLI 服务端引用回执均可验证。原生文档引用必须匹配本用例独立保存的来源、文件、启用分段和标记；原生 SQL 回执必须执行本用例支持的目标聚合查询，并与独立验证的 fixture 及最终答案检查配合。普通 shell 输出不能证明检索或 SQL 执行成功。提前中断仍保留已做的检查；通道配置缺失或空白记为前置条件不足，非空无效 JSON 记为配置错误。
 
-手动运行 `Agent journeys QA` 时可以选择单个工作区；默认选择 `all`。定时运行始终执行全部已配置工作区，报告只统计本次选择范围。
+手动运行 `Agent journeys QA` 时可以选择单个工作区；默认选择 `all`。报告只统计本次选择范围。
 
 每个 Journey-2 case 记录运行前后的 QA MOI 后端版本与构建 commit；单 case 期间版本变化时标记 blocked。总报告会标出不同 case 是否观测到了不同的 MOI 构建，版本缺失时也不会假定一致。该记录只覆盖 MOI 后端，不代表 Astra、模型服务、数据库迁移或功能开关也已核验。
 
