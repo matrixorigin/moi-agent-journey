@@ -20,6 +20,14 @@ from journey.report import _missing_case, finish_case
 
 
 class OpsKnowledgeTests(unittest.TestCase):
+    def test_malformed_or_tampered_reference_tables_never_reach_the_grader(self):
+        execution = OpsKnowledgeExecution.__new__(OpsKnowledgeExecution)
+        facts = {'columns': ['count'], 'rows': [[3]]}
+        good = {'id': 'P01', **facts, 'facts_sha256': digest(facts)}
+        for probe in ({**good, 'columns': ['*']}, {**good, 'rows': [[3, 4]]}, {**good, 'rows': [[5]]}):
+            with self.subTest(probe=probe), self.assertRaisesRegex(Failure, 'independent_reference_shape_or_hash_invalid'):
+                execution.check_reference({'status': 'reviewed', 'verification': {'probes': [probe]}})
+
     def test_task_latency_excludes_setup_conversation_creation_and_grading(self):
         with tempfile.TemporaryDirectory() as tmp:
             clock = [0]

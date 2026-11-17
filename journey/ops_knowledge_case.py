@@ -7,7 +7,7 @@ from .knowledge_case import KnowledgeExecution
 from .rag_quality import citation_integrity_metric, observe_rag
 from .trajectory import task_trajectory
 from .version import start_version
-from .benchmark_store import canonical
+from .benchmark_store import canonical, digest
 
 
 class BenchmarkDependencyUnavailable(Exception):
@@ -104,6 +104,14 @@ class OpsKnowledgeExecution(KnowledgeExecution):
     def check_reference(self, config):
         if config.get('status') != 'reviewed' or not config.get('verification', {}).get('probes'):
             return {'state': 'unavailable', 'reason': 'independent_golden_not_reviewed'}
+        for probe in config['verification']['probes']:
+            columns, rows = probe.get('columns'), probe.get('rows')
+            if (not isinstance(columns, list) or not columns or
+                    any(not isinstance(name, str) or not name or name == '*' for name in columns) or
+                    not isinstance(rows, list) or
+                    any(not isinstance(row, list) or len(row) != len(columns) for row in rows) or
+                    digest({'columns': columns, 'rows': rows}) != probe.get('facts_sha256')):
+                raise Failure('independent_reference_shape_or_hash_invalid')
         from .benchmark_store import Store
         # Golden calculations use the sealed, independent offline snapshot.
         # Re-running reference SQL in QA would couple the oracle to the very
