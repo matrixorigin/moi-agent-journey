@@ -68,6 +68,19 @@ class Store:
         if len(rows)!=1:raise Failure('benchmark_snapshot_not_found')
         return {'state':rows[0][0],'manifest_sha256':rows[0][1]}
 
+    def accessed_private_evidence(self, candidates):
+        # Look up only IDs actually present in tool-call arguments, rather than
+        # loading the growing history or treating a file listing as a read.
+        values = sorted(set(candidates))
+        for offset in range(0, len(values), 500):
+            row = self.sql('SELECT COUNT(*) FROM ' + DATABASE + '.private_evidence_files WHERE file_id IN (' +
+                ','.join(literal(value) for value in values[offset:offset + 500]) + ')', 1)['rows']
+            if len(row) != 1 or len(row[0]) != 1:
+                raise Failure('private_evidence_lookup_invalid')
+            if int(row[0][0]):
+                return True
+        return False
+
     def upload(self, directory, case_id):
         # Only files inside this case, with fixed archive paths; never archive
         # the runner worktree, parent directories, symlinks or credentials.
@@ -90,7 +103,10 @@ class Store:
         file_id = file.get('file_id')
         if result.get('code') != 'OK' or not isinstance(file_id, str) or not file_id:
             raise Failure('private_evidence_upload_failed')
-        return {'file_id': file_id, 'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data)}
+        checksum = hashlib.sha256(data).hexdigest()
+        self.sql('INSERT IGNORE INTO ' + DATABASE + '.private_evidence_files(file_id,sha256) VALUES (' +
+                 literal(file_id) + ',' + literal(checksum) + ')')
+        return {'file_id': file_id, 'sha256': checksum, 'bytes': len(data)}
 
     def persist(self, result, case, directory):
         from .benchmark_metrics import history_record

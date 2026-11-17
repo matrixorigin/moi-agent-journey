@@ -8,6 +8,9 @@ CREATE TABLE IF NOT EXISTS journey3_benchmark.case_specs (
   case_id VARCHAR(32), revision VARCHAR(128), sha256 VARCHAR(64), spec_json LONGTEXT,
   PRIMARY KEY(case_id, revision)
 );
+CREATE TABLE IF NOT EXISTS journey3_benchmark.private_evidence_files (
+  file_id VARCHAR(128) PRIMARY KEY, sha256 VARCHAR(64)
+);
 CREATE TABLE IF NOT EXISTS journey3_benchmark.results (
   result_key VARCHAR(64) PRIMARY KEY,
   case_id VARCHAR(32), question LONGTEXT, agent_name VARCHAR(256),

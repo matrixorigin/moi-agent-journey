@@ -12,8 +12,8 @@
     "corpus": "ops-snapshot"
   },
   "private_spec": {
-    "revision": "ops-20261118-r3",
-    "sha256": "afe350c7ecac31986a2b3e3f8ff3874c8c9b28051d790370b374e255e91cc921"
+    "revision": "ops-20261118-r5",
+    "sha256": "04f708d87ad674c20929ea394ac8328188c31f88f789f7cba5725f1324ec1501"
   },
   "sessions": [
     {

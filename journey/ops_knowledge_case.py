@@ -1,9 +1,11 @@
 """Replay a QA-only business question against a fixed structured-KB snapshot."""
 import json
+import re
 
 from .client import Failure, segment
 from .hello import discover_workspace
 from .knowledge_case import KnowledgeExecution
+from .knowledge_sources import list_sources
 from .rag_quality import citation_integrity_metric, observe_rag
 from .trajectory import task_trajectory
 from .version import start_version
@@ -64,12 +66,14 @@ class OpsKnowledgeExecution(KnowledgeExecution):
         if (agent.get('id') != target['agent_id'] or agent.get('status') != 'active' or agent.get('workspace_id') != workspace or
                 len(bindings.get('knowledge_base_refs', [])) != len(self.allowed_model_ids) or
                 {int(row['id']) for row in bindings.get('knowledge_base_refs', [])} != self.allowed_model_ids or
+                any(row.get('workspace_id') != workspace or
+                    ('status' in row and row['status'] != 'active') for row in bindings.get('knowledge_base_refs', [])) or
                 bindings.get('channel_bindings')):
             raise Failure('operations_clone_binding_mismatch')
         self.report['benchmark_agent_name'] = agent['name']
         self.report['rag'].update(target={'agent_id': target['agent_id'], 'corpora': [self.case['rag']['corpus']]},
             evaluator={'method': 'workspace_model_json_schema', 'model': self.model, 'protocol': 3})
-        self.report['rag']['corpus_inventory_matches'] = True
+        self.report['rag']['corpus_inventory_matches'] = False
         self.evidence.write('knowledge/agent.json', agent)
         self.binding_context = []
         # Current QA returns compact binding references without names/status.
@@ -98,6 +102,18 @@ class OpsKnowledgeExecution(KnowledgeExecution):
         if snapshot['state'] != 'complete':
             self.report['benchmark']['state'] = 'blocked'
             raise BenchmarkDependencyUnavailable('benchmark_snapshot_not_ready')
+        inventory_matches = True
+        for model_id in sorted(self.allowed_model_ids):
+            sources = list_sources(self.client, model_id)
+            self.evidence.write('knowledge/sources-' + str(model_id) + '.json', sources)
+            active = {(row.get('db_name'), row.get('table_name')) for row in sources
+                      if row.get('effective_enabled') is True and row.get('ingest_status') == 'succeeded'}
+            expected = {tuple(name.split('.', 1)) for name in target['expected_enabled_tables'][str(model_id)]}
+            inventory_matches &= active == expected
+        self.report['rag']['corpus_inventory_matches'] = inventory_matches
+        if not inventory_matches:
+            self.report['benchmark']['state'] = 'blocked'
+            raise BenchmarkDependencyUnavailable('benchmark_knowledge_sources_not_ready')
         if capture_version:
             start_version(self)
 
@@ -132,6 +148,7 @@ class OpsKnowledgeExecution(KnowledgeExecution):
         efficiency = task_trajectory(path, self.tasks, answer['task_id'])
         efficiency['task_seconds'] = answer['seconds']
         answer['efficiency'] = efficiency
+        candidate_file_ids = set()
         # SQL/CLI evidence is a different modality from document chunks. Keep
         # complete tool results when observed; never turn a preview into proof.
         for line in path.read_text().splitlines():
@@ -139,9 +156,14 @@ class OpsKnowledgeExecution(KnowledgeExecution):
             payload = event.get('payload', {})
             if event.get('task_id') != answer['task_id']:
                 continue
-            if event.get('kind') == 'tool_call' and 'journey3_benchmark' in canonical(payload).casefold():
-                answer.update(evaluation_state='unavailable', evaluation_reason='benchmark_reference_access_detected')
-                return
+            if event.get('kind') == 'tool_call':
+                arguments = canonical(payload)
+                if ('journey3_benchmark' in arguments.casefold() or
+                        'j3-operations-reference' in arguments.casefold()):
+                    answer.update(evaluation_state='unavailable', evaluation_reason='benchmark_reference_access_detected')
+                    self.report['benchmark']['state'] = 'blocked'
+                    return
+                candidate_file_ids.update(re.findall(r'[A-Za-z0-9_-]{16,128}', arguments))
             if (event.get('kind') == 'tool_result' and payload.get('success') is True and
                     payload.get('tool_id') == 'query_sql' and payload.get('call_id') in observed['sql_calls'] and
                     not payload.get('result_truncated') and not payload.get('payload_truncated')):
@@ -149,6 +171,11 @@ class OpsKnowledgeExecution(KnowledgeExecution):
                     'source_task_id': answer['task_id'], 'content': canonical(payload), 'origin': 'observed_sql_tool_result'})
             # Ordinary shell stdout may be fabricated by the tested agent.
             # It stays in the trajectory, never in verified grounding evidence.
+        from .benchmark_store import Store
+        if Store(self.client, self.root).accessed_private_evidence(candidate_file_ids):
+            answer.update(evaluation_state='unavailable', evaluation_reason='benchmark_evidence_file_access_detected')
+            self.report['benchmark']['state'] = 'blocked'
+            return
         validate_sql_citations(observed, self.case['ops_target']['tables'])
         answer['metrics'] = {'citation_integrity': citation_integrity_metric(observed)}
         answer['reference_check'] = self.check_reference(turn['rag_reference'])

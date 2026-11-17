@@ -13,13 +13,57 @@ from journey.catalog import load_case
 from journey.client import Failure
 from journey.evidence import Evidence
 from journey.knowledge_case import KnowledgeExecution
-from journey.ops_knowledge_case import OpsKnowledgeExecution, validate_sql_citations
+from journey.ops_knowledge_case import BenchmarkDependencyUnavailable, OpsKnowledgeExecution, validate_sql_citations
 from journey.rag_quality import citation_integrity_metric
 from journey.rag_report import valid_rag_result
 from journey.report import _missing_case, finish_case
 
 
 class OpsKnowledgeTests(unittest.TestCase):
+    def test_reads_of_benchmark_archives_cannot_produce_a_quality_score(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            execution = OpsKnowledgeExecution.__new__(OpsKnowledgeExecution)
+            execution.evidence = Evidence(tmp)
+            execution.client = Mock()
+            execution.root = '/workspaces/fixture'
+            execution.allowed_model_ids = {5}
+            execution.tasks = []
+            execution.report = {'benchmark': {'state': 'eligible'}}
+            execution.case = {}
+            file_id = '128024a3-5333-4130-8760-9bab33b272c1'
+            (Path(tmp) / 'events.jsonl').write_text(canonical({'task_id': 'task', 'kind': 'tool_call',
+                'payload': {'tool_id': 'read_file', 'arguments': {'file_id': file_id}}}) + '\n')
+            answer = {'task_id': 'task', 'seconds': 1}
+            with patch('journey.ops_knowledge_case.observe_rag', return_value={}), \
+                    patch('journey.ops_knowledge_case.task_trajectory', return_value={}), \
+                    patch('journey.benchmark_store.Store.accessed_private_evidence', return_value=True) as lookup:
+                self.assertIsNone(execution.prepare_answer({}, {}, answer))
+            self.assertIn(file_id, lookup.call_args.args[0])
+            self.assertEqual(answer['evaluation_state'], 'unavailable')
+            self.assertEqual(execution.report['benchmark']['state'], 'blocked')
+
+    def test_declared_but_unbound_or_unexpected_sources_block_scoring(self):
+        valid = {'db_name': 'fixture', 'table_name': 'rows', 'effective_enabled': True, 'ingest_status': 'succeeded'}
+        for sources in ([{**valid, 'effective_enabled': False, 'governance_status': 'legacy_unbound'}],
+                        [valid, {**valid, 'table_name': 'unexpected'}]):
+            with self.subTest(sources=sources), tempfile.TemporaryDirectory() as tmp:
+                case = load_case('J3-88')
+                case.update(ops_target={'agent_id': 'clone', 'model_ids': [5], 'tables': ['fixture.rows'],
+                    'expected_enabled_tables': {'5': ['fixture.rows']}}, snapshot_id='s1', snapshot_manifest_sha256='expected')
+                client = Mock(requests=0)
+                client.product.return_value = {'id': 'clone', 'name': 'Private fixture', 'workspace_id': 'ws', 'status': 'active',
+                    'binding': {'knowledge_base_refs': [{'id': '5', 'workspace_id': 'ws'}]}}
+                execution = OpsKnowledgeExecution(client, case, Evidence(tmp), tmp, 'model')
+                execution.report['rag'] = {}
+                with patch('journey.ops_knowledge_case.discover_workspace', return_value='/workspaces/ws'), \
+                        patch('journey.benchmark_store.Store.dataset', return_value={'state': 'complete', 'manifest_sha256': 'expected'}), \
+                        patch('journey.ops_knowledge_case.list_sources', return_value=sources), \
+                        self.assertRaisesRegex(BenchmarkDependencyUnavailable, 'benchmark_knowledge_sources_not_ready'):
+                    execution.setup()
+                self.assertEqual(execution.report['benchmark']['state'], 'blocked')
+                self.assertFalse(execution.report['rag']['corpus_inventory_matches'])
+                client.stream_rpc.assert_not_called()
+
     def test_malformed_or_tampered_reference_tables_never_reach_the_grader(self):
         execution = OpsKnowledgeExecution.__new__(OpsKnowledgeExecution)
         facts = {'columns': ['count'], 'rows': [[3]]}
@@ -75,16 +119,19 @@ class OpsKnowledgeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             case = load_case('J3-88')
             case.update(ops_target={'agent_id': 'clone', 'model_ids': [5], 'tables': ['fixture.rows'],
-                'required_skill_refs': [{'id': 's1', 'workspace_id': 'system'}]},
+                'required_skill_refs': [{'id': 's1', 'workspace_id': 'system'}],
+                'expected_enabled_tables': {'5': ['fixture.rows']}},
                 snapshot_id='s1', snapshot_manifest_sha256='expected')
             client = Mock(requests=0)
             client.product.return_value = {'id': 'clone', 'name': 'Private fixture', 'workspace_id': 'ws',
-                'status': 'active', 'binding': {'knowledge_base_refs': [{'id': '5'}],
+                'status': 'active', 'binding': {'knowledge_base_refs': [{'id': '5', 'workspace_id': 'ws'}],
                     'skill_refs': [{'id': 's1', 'workspace_id': 'system', 'kind': 'skill'}]}}
             execution = OpsKnowledgeExecution(client, case, Evidence(tmp), tmp, 'model')
             execution.report['rag'] = {}
             with patch('journey.ops_knowledge_case.discover_workspace', return_value='/workspaces/ws'), \
                     patch('journey.benchmark_store.Store.dataset', return_value={'state': 'complete', 'manifest_sha256': 'expected'}), \
+                    patch('journey.ops_knowledge_case.list_sources', return_value=[{'db_name': 'fixture', 'table_name': 'rows',
+                          'effective_enabled': True, 'ingest_status': 'succeeded'}]), \
                     patch('journey.ops_knowledge_case.start_version'):
                 execution.setup()
             self.assertEqual(execution.report['benchmark']['state'], 'eligible')
@@ -128,7 +175,7 @@ class OpsKnowledgeTests(unittest.TestCase):
                             required_inputs_state='missing' if variant == 'attachment' else 'ready')
                 client = Mock(requests=0)
                 client.product.return_value = {'id': 'clone', 'name': 'Private fixture', 'workspace_id': 'ws',
-                    'status': 'active', 'binding': {'knowledge_base_refs': [{'id': '5'}]}}
+                    'status': 'active', 'binding': {'knowledge_base_refs': [{'id': '5', 'workspace_id': 'ws'}]}}
                 evidence = Evidence(Path(tmp) / 'results' / case['id'])
                 execution = OpsKnowledgeExecution(client, case, evidence, tmp, 'model')
                 with patch('journey.ops_knowledge_case.discover_workspace', return_value='/workspaces/ws'), \
