@@ -594,13 +594,13 @@ class JourneyTests(unittest.TestCase):
 
     def test_publication_keeps_json_and_jsonl_valid_when_code_contains_quoted_secret_assignments(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory); case = root / 'results/J3-52'; case.mkdir(parents=True)
+            root = Path(directory); case = root / 'results/J1-01'; case.mkdir(parents=True)
             code = 'MOI_API_KEY="synthetic-value"\n--client-secret "synthetic-other"\nnext'
-            result = {'case_id': 'J3-52', 'text': code}
+            result = {'case_id': 'J1-01', 'text': code}
             (case / 'result.json').write_text(json.dumps(result))
             (case / 'events.jsonl').write_text(json.dumps({'text': code}) + '\n')
             self.assertEqual(prepare_publication(root / 'results', root / 'public', []), [])
-            published = root / 'public/J3-52'
+            published = root / 'public/J1-01'
             parsed = json.loads((published / 'result.json').read_text())
             event = json.loads((published / 'events.jsonl').read_text())
             self.assertEqual(parsed['text'], event['text'])

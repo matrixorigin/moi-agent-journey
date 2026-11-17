@@ -95,7 +95,8 @@ jobs:
           assert os.environ['BATCH_OUTCOME'] == 'failure'
           rows = json.loads(Path('batch-work/batch-result.json').read_text())['cases']
           assert [row['case_id'] for row in rows] == json.loads(os.environ['JOURNEY_CASES'])
-          assert all(row['failed_stages'] == ['execute', 'report'] for row in rows), rows
+          expected = ['execute', 'report'] + (['history'] if os.environ['JOURNEY_WORKSPACE'] == 'journey-3' else [])
+          assert all(row['failed_stages'] == expected for row in rows), rows
           PYVERIFY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
@@ -117,11 +118,16 @@ jobs:
               root = Path('smoke-results') / case_id
               result = json.loads((root / 'result.json').read_text())
               assert result['test_status'] == 'error'
-              assert result['harness_errors'][0]['stage'] == 'configuration'
               assert (root / 'case-summary.md').is_file()
               if os.environ['JOURNEY_WORKSPACE'] == 'journey-3':
                   assert result['rag']['expected_answers'] == 1
-              assert json.loads((root / 'publication.json').read_text())['status'] == 'complete'
+                  assert result['privacy'] == 'metrics_only'
+                  assert result['harness_errors'][0]['stage'] == 'harness'
+                  publication = 'metrics_only'
+              else:
+                  assert result['harness_errors'][0]['stage'] == 'configuration'
+                  publication = 'complete'
+              assert json.loads((root / 'publication.json').read_text())['status'] == publication
           PYVERIFY
   judge-test:
     needs: judge-image

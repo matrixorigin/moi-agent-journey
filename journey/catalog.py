@@ -59,7 +59,7 @@ def plan_suite(suite):
                       'step_timeout_minutes': step_timeout_minutes(case), 'job_timeout_minutes': 135})
     if items and 'batch_jobs' in suite:
         from .batch import plan_batches
-        items = plan_batches(items, suite['batch_jobs'])
+        items = plan_batches(items, suite['batch_jobs'], suite.get('parallel_cases', 1))
     return {'include': items or [{'case': 'EMPTY', 'executor': 'empty',
                                  'step_timeout_minutes': 1, 'job_timeout_minutes': 5}]}
 
@@ -68,6 +68,13 @@ def load_case(case_id):
     if not re.fullmatch(r"J[1-5]-[0-9]{2,}", case_id):
         raise ValueError("invalid_case_id")
     case = json.loads((ROOT / "cases" / ("journey-" + case_id[1]) / case_id / "case.json").read_text())
+    private_path = os.environ.get('MOI_PRIVATE_CASE_SPEC')
+    if case.get('private_spec') and private_path and Path(private_path).exists():
+        from .benchmark_store import digest
+        hydrated = json.loads(Path(private_path).read_text())
+        if hydrated.get('id') != case_id or digest(hydrated) != case['private_spec']['sha256']:
+            raise ValueError('private_case_integrity_mismatch')
+        case = {**hydrated, 'private_spec': case['private_spec']}
     config = json.loads((ROOT / "suites.json").read_text())
     suite = next(s for s in config['journeys'] if s['workspace'] == case['workspace'])
     timeout = case.get('timeout_seconds', suite.get('case_timeout_seconds', config['case_timeout_seconds']))
@@ -161,6 +168,13 @@ def main():
     started_at, started = utc_now(), time.monotonic()
     evidence.write("preparation.json", {"status": "running", "started_at": started_at})
     try:
+        if case.get('private_spec'):
+            from .benchmark_store import configured_store, canonical
+            destination = Path(os.environ['MOI_PRIVATE_CASE_SPEC'])
+            spec = configured_store(90).spec(case)
+            destination.write_text(canonical(spec))
+            destination.chmod(0o600)
+            case = load_case(args.case_id)
         prepare(case, args.work)
         evidence.write("preparation.json", {"status": "completed", "assets": case["assets"],
             "oracles": case["oracles"], "fixtures": case.get('fixtures', []), "started_at": started_at, "finished_at": utc_now(),

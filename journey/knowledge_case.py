@@ -42,11 +42,15 @@ class KnowledgeExecution(Execution):
         workspace = self.root.rsplit('/', 1)[1]
         self.selector = {'agent_id': target['agent_id'], 'agent_workspace_id': workspace}
         agent = self.client.product('GET', self.root + '/agents/' + segment(target['agent_id']))
+        self.report['benchmark_agent_name'] = agent.get('name', target['agent_id'])
         bindings = agent.get('binding', {}).get('knowledge_base_refs', [])
         if (agent.get('id') != target['agent_id'] or agent.get('workspace_id') != workspace or
                 agent.get('status') != 'active' or len(bindings) != len(self.allowed_model_ids) or
                 {item.get('id') for item in bindings} != {str(mid) for mid in self.allowed_model_ids} or
-                any(item.get('workspace_id') != workspace or item.get('status') != 'active' for item in bindings)):
+                # Compact native references omit status. Source inventory and
+                # document reads below independently verify actual usability.
+                any(item.get('workspace_id') != workspace or
+                    ('status' in item and item['status'] != 'active') for item in bindings)):
             raise Failure('knowledge_agent_binding_mismatch')
         self.evidence.write('knowledge/agent.json', agent)
         self.binding_context = [{'evidence_id': 'B' + str(index + 1), 'origin': 'verified_agent_binding',
@@ -346,6 +350,8 @@ class KnowledgeExecution(Execution):
                                                       for turn in session['turns']),
                               'comparison_group': self.case['rag'].get('comparison_group')}
         self.report['validation'] = {'checks': []}
+        self.report['task_seconds'] = None
+        task_seconds = 0
         answers = []
         try:
             self.setup()
@@ -355,7 +361,13 @@ class KnowledgeExecution(Execution):
                 delivered = {'id': session['id'], 'conversation_id': cid, 'answer_delivered': False}
                 self.report['sessions'].append(delivered)
                 for turn in session['turns']:
-                    entry, task = self.send(cid, session['id'] + ':' + turn['phase'], turn['prompt'])
+                    turn_started = time.monotonic()
+                    self.report['agent_attempted'] = True
+                    try:
+                        entry, task = self.send(cid, session['id'] + ':' + turn['phase'], turn['prompt'])
+                    finally:
+                        task_seconds += time.monotonic() - turn_started
+                        self.report['task_seconds'] = round(task_seconds, 3)
                     text = final_reply(task)
                     answer = {'session': session['id'], 'phase': turn['phase'], 'question': turn['prompt'],
                               'text': text, 'conversation_id': cid, 'task_id': entry['task_id'],
@@ -368,7 +380,6 @@ class KnowledgeExecution(Execution):
                     if 'rag_reference' in turn:
                         answers.append((session, turn, answer))
                     self.checkpoint()
-            self.report['task_seconds'] = round(time.monotonic() - self.started, 3)
             self.grade_answers(answers)
         except Exception as error:
             self.record_failure(error)
@@ -394,7 +405,7 @@ class KnowledgeExecution(Execution):
             self.checkpoint()
 
 
-def main():
+def main(execution_type=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('case_id')
     parser.add_argument('--agent-id')
@@ -429,7 +440,7 @@ def main():
     try:
         client = Client(os.environ['MOI_BASE_URL'], os.environ['MOI_PAT'], timeout=case['timeout_seconds'],
                         observer=evidence.observe_transport)
-        execution = KnowledgeExecution(client, case, evidence, Path('work'), case['model'])
+        execution = (execution_type or KnowledgeExecution)(client, case, evidence, Path('work'), case['model'])
         report = execution.reevaluate(saved) if saved is not None else execution.run()
     except (KeyError, Failure) as error:
         signal.alarm(0)

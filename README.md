@@ -12,7 +12,7 @@
 |---|---|---|---:|
 | journey-1 | Complex Long-Horizon Tasks | 18 个文档与办公任务 | 9 |
 | journey-2 | Basic Functional End-to-End Tasks | 132 个智能体功能用例，分成 10 组 | 10 |
-| journey-3 | Knowledge Base Tasks | 57 个知识库 Q&A 用例，分成 10 组 | 10 |
+| journey-3 | Knowledge Base Tasks | 117 个知识库 Q&A 用例，1 个 runner 内最多 10 并发 | 1 |
 | journey-4 | — | 空 | 3 |
 | journey-5 | Feishu Bidirectional End-to-End Tasks | 10 个飞书真实成员双向用例 | 1 |
 
@@ -24,9 +24,13 @@ Journey-1 每个 case 的 **QA 总预算为 3600 秒**，Journey-2 为 **300 秒
 
 ### Journey-3：知识库任务
 
-题集与参考复核记录见 [journey-3-qa-review.md](docs/journey-3-qa-review.md)。57 个 case 分为 SAP 29、Cedar 18、MOI 7、MatrixOne 3；包含连续追问、独立新会话及重复题对照，共 61 次被测请求，其中 58 次回答需要评估，其余用于建立业务上下文。
+另增 J3-58～J3-117：两个运营智能体最近一周各耗时 Top 30 的原问题回放。题目、独立 golden、业务数据和完整证据只保存在 QA；公开仓库仅保存不含问答的 case 定义及校验值。选择范围、依赖诊断、历史表和曲线见 [运营知识库评测](docs/journey-3-operations.md)。
 
-使用 journey-3 现有的四个专用智能体及其绑定知识库，不创建或修改智能体、知识库、索引和源资料。每个 case 创建独立会话；连续追问仅在本 case 内保留上下文。任务完成后采集事件、产物并归档测试会话。
+**所有 Journey-3 case**（含原有 57 题）运行后先将完整报告与证据写入 QA `journey3_benchmark.results` 及关联文件，再发布仅含指标的 GitHub 报告。每轮 artifact 的 `history/history.html` 提供历史耗时与质量曲线，`history.csv` / `history.json` 提供指标数据。问答、引用、SQL 结果、Trace 和会话 ID 不进入公开包。
+
+原有文档题集与参考复核记录见 [journey-3-qa-review.md](docs/journey-3-qa-review.md)。这 57 个 case 分为 SAP 29、Cedar 18、MOI 7、MatrixOne 3；包含连续追问、独立新会话及重复题对照，共 61 次被测请求，其中 58 次回答需要评估，其余用于建立业务上下文。
+
+原有 57 题使用 journey-3 现有的四个专用智能体及其绑定知识库；运行时不创建或修改智能体、知识库、索引和源资料。每个 case 创建独立会话；连续追问仅在本 case 内保留上下文。任务完成后采集事件、产物并归档测试会话。
 
 报告按两个维度组织：
 

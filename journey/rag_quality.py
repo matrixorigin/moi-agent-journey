@@ -141,13 +141,18 @@ def judge_data(question, answer, reference, observed, efficiency, conversation=(
     data['unavailable_evidence'] = [omitted for _, omitted in candidates]
     data['unavailable_citations'] = [c['index'] for c in observed['citations']]
     used = len(json.dumps(data, ensure_ascii=False))
-    if used > JUDGE_TEXT_BUDGET:
+    # Structured analytics goldens can contain complete tabular aggregates.
+    # The verified case controls this fixed ceiling, not the tested answer.
+    budget = reference.get('judge_text_budget', JUDGE_TEXT_BUDGET)
+    if type(budget) is not int or not JUDGE_TEXT_BUDGET <= budget <= 240_000:
+        raise ValueError('invalid_judge_input_budget')
+    if used > budget:
         raise ValueError('judge_context_exceeds_input_budget')
     for record, omitted in candidates:
         growth = len(json.dumps(record, ensure_ascii=False)) + 2 - len(json.dumps(omitted, ensure_ascii=False))
         parent_visible = 'alias_of' not in record or any(
             item['id'] == record['alias_of'] for item in data['evidence'])
-        if parent_visible and used + growth <= JUDGE_TEXT_BUDGET:
+        if parent_visible and used + growth <= budget:
             data['evidence'].append(record)
             data['unavailable_evidence'].remove(omitted)
             used += growth
@@ -351,6 +356,11 @@ def fraction(rows, field):
             'unavailable': len(rows) - len(known), 'rate': sum(known) / len(known) if known else None}
 
 
+def citation_integrity_metric(observed):
+    value = observed['citation_integrity']
+    return {**value, 'rate': value['valid'] / value['total'] if value['total'] else None}
+
+
 def summarize_verdict(verdict, observed):
     errors = verdict.get('dimension_errors', {})
     def metric(kind, field):
@@ -365,6 +375,4 @@ def summarize_verdict(verdict, observed):
     return {'correctness': metric('criteria', 'passed'),
             'faithfulness': faithfulness,
             'citation_support': metric('citations', 'supported'),
-            'citation_integrity': {**observed['citation_integrity'],
-                'rate': observed['citation_integrity']['valid'] / observed['citation_integrity']['total']
-                if observed['citation_integrity']['total'] else None}}
+            'citation_integrity': citation_integrity_metric(observed)}

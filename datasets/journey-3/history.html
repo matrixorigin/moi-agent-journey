@@ -1,0 +1,27 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Journey-3 · Evaluation History</title>
+<style>body{font:16px system-ui;margin:40px auto;padding:0 24px;max-width:1100px;color:#172744;background:#f6f8fc}h1{font-size:30px}select{max-width:min(800px,85vw);font:inherit;padding:9px;margin:0 16px 12px 5px;border:1px solid #ccd3df;border-radius:6px}section{background:white;border:1px solid #dde2ec;border-radius:12px;padding:24px;margin:20px 0}svg{width:100%;height:auto}small,p{color:#51617c}table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;border-bottom:1px solid #e4e8f1;padding:10px}#records{overflow:auto}polyline{fill:none;stroke-width:2.5}.axis{stroke:#d7dfeb}text{fill:#51617c;font:12px system-ui}</style>
+<h1>Journey-3 · Knowledge Base Tasks</h1><p>历史指标来自 QA。完整问题、回答、引用、工具参数和错误详情保存在 QA 的评测结果表与证据文件中。</p>
+<label>Case <select id="case"></select></label><label>固定版本 <select id="revision"></select></label>
+<p id="coverage"></p><section><h2>端到端耗时 · 秒</h2><svg id="latency" viewBox="0 0 1000 270"></svg></section>
+<section><h2>回答质量 · 0–100</h2><p>分数按参考要点满足率计算；未评分显示空缺，不按零分或通过处理。仅比较同一 case、数据快照和评分版本与模型。</p><svg id="quality" viewBox="0 0 1000 270"></svg></section>
+<section><h2>运行记录</h2><div id="records"></div></section>
+<script>
+const data=/*HISTORY_DATA*/[];
+const choose=document.getElementById('case'),revision=document.getElementById('revision');
+const option=(parent,text,value=text)=>{const o=document.createElement('option');o.textContent=text;o.value=value;parent.append(o)};
+const series=r=>[r.case_revision,r.snapshot_id,r.evaluator_version,r.model_key].join(' / ');
+[...new Set(data.map(r=>r.case_id))].sort((a,b)=>Number(a.slice(3))-Number(b.slice(3))).forEach(x=>option(choose,x));
+function revisions(){revision.replaceChildren();[...new Set(data.filter(r=>r.case_id===choose.value).map(series))].forEach(x=>option(revision,x));render()}
+function draw(id,rows,key,color){const svg=document.getElementById(id);svg.replaceChildren();const node=(name,attrs,text)=>{const n=document.createElementNS('http://www.w3.org/2000/svg',name);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;svg.append(n);return n};
+ const valid=rows.filter(r=>r[key]!==null),max=key==='quality_score'?100:Math.max(1,...valid.map(r=>r[key]));const left=65,right=975,top=20,bottom=230;
+ for(let i=0;i<=4;i++){let y=bottom-(bottom-top)*i/4;node('line',{x1:left,x2:right,y1:y,y2:y,class:'axis'});node('text',{x:6,y:y+4},(max*i/4).toFixed(1))}
+ let segment=[];const flush=()=>{if(segment.length)node('polyline',{points:segment.join(' '),stroke:color});segment=[]};
+ const start=rows.length?Date.parse(rows[0].evaluated_at):0,end=rows.length?Date.parse(rows.at(-1).evaluated_at):0;
+ rows.forEach((r,i)=>{const x=left+(right-left)*(Date.parse(r.evaluated_at)-start)/Math.max(1,end-start);if(r[key]===null){flush();return}const y=bottom-(bottom-top)*r[key]/max;segment.push(`${x},${y}`);const point=node('circle',{cx:x,cy:y,r:4,fill:color});const title=document.createElementNS(svg.namespaceURI,'title');title.textContent=`${r.evaluated_at}: ${r[key]}`;point.append(title)});flush();
+ if(rows.length){node('text',{x:left,y:260},rows[0].evaluated_at);node('text',{x:right,y:260,'text-anchor':'end'},rows.at(-1).evaluated_at)}
+}
+function render(){const rows=data.filter(r=>r.case_id===choose.value&&series(r)===revision.value).sort((a,b)=>a.evaluated_at.localeCompare(b.evaluated_at));document.getElementById('coverage').textContent=`${rows.length} 次记录；正常交付 ${rows.filter(r=>r.task_state==='completed').length} 次；已评分 ${rows.filter(r=>r.quality_score!==null).length} 次。`;
+ draw('latency',rows,'duration_seconds','#356df3');draw('quality',rows,'quality_score','#159f83');const table=document.createElement('table');const tr=document.createElement('tr');['UTC 日期','耗时 / s','质量 / 100','工具调用','模型轮次','状态','评测前提'].forEach(x=>{const th=document.createElement('th');th.textContent=x;tr.append(th)});table.append(tr);rows.slice().reverse().forEach(r=>{const tr=document.createElement('tr');[r.evaluated_at,r.duration_seconds,r.quality_score,r.tool_call_count,r.model_round_count,r.task_state,r.benchmark_state].forEach(x=>{const td=document.createElement('td');td.textContent=x??'—';tr.append(td)});table.append(tr)});document.getElementById('records').replaceChildren(table)
+}choose.onchange=revisions;revision.onchange=render;revisions();
+</script></html>
