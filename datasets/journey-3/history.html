@@ -63,8 +63,12 @@ function addOption(parent, value, label = value) {
 }
 
 addOption(scope, 'all', 'All cases');
+const jobLabels = {
+  documents: 'Job-1-文档知识库问答',
+  operations: 'Job-2-运营知识库问答',
+};
 for (const name of Object.keys(jobs)) {
-  addOption(scope, 'job:' + name, 'Job · ' + name[0].toUpperCase() + name.slice(1));
+  addOption(scope, 'job:' + name, jobLabels[name] ?? 'Job · ' + name);
 }
 for (const id of cases) addOption(scope, id);
 
