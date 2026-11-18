@@ -11,15 +11,15 @@ from journey.catalog import ROOT, case_executor, load_case, load_suite, plan_sui
 
 
 class BatchPlanTests(unittest.TestCase):
-    def test_knowledge_suite_uses_one_runner_with_ten_isolated_workers(self):
+    def test_knowledge_suite_keeps_documents_and_operations_on_two_parallel_runners(self):
         suite = load_suite('journey-3')
         groups = plan_suite(suite)['include']
-        self.assertEqual(len(groups), 1)
-        self.assertEqual(suite['concurrency'], 1)
-        self.assertEqual(groups[0]['parallel_cases'], 10)
-        ids = [case_id for group in groups for case_id in group['case_ids']]
-        self.assertCountEqual(ids, suite['cases'])
-        self.assertEqual(len(ids), len(set(ids)))
+        self.assertEqual(suite['concurrency'], 2)
+        self.assertEqual([group['case'] for group in groups], ['documents', 'operations'])
+        self.assertEqual(groups[0]['case_ids'], [f'J3-{i:02d}' for i in range(1, 58)])
+        self.assertEqual(groups[1]['case_ids'], [f'J3-{i:02d}' for i in range(58, 118)])
+        self.assertEqual([group['parallel_cases'] for group in groups], [10, 10])
+        self.assertEqual([case_id for group in groups for case_id in group['case_ids']], suite['cases'])
         for group in groups:
             self.assertFalse(group['needs_browser'])
             weights=[]

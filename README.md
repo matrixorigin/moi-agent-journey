@@ -12,13 +12,13 @@
 |---|---|---|---:|
 | journey-1 | Complex Long-Horizon Tasks | 18 个文档与办公任务 | 9 |
 | journey-2 | Basic Functional End-to-End Tasks | 132 个智能体功能用例，分成 10 组 | 10 |
-| journey-3 | Knowledge Base Tasks | 117 个知识库 Q&A 用例，1 个 runner 内最多 10 并发 | 1 |
+| journey-3 | Knowledge Base Tasks | 117 个知识库 Q&A 用例，2 个 runner 各最多 10 并发 | 20 |
 | journey-4 | — | 空 | 3 |
 | journey-5 | Feishu Bidirectional End-to-End Tasks | 10 个飞书真实成员双向用例 | 1 |
 
 GitHub 手动运行的工作区下拉选项和运行分组显示为 `journey-1 (Complex Long-Horizon Tasks)`、`journey-2 (Basic Functional End-to-End Tasks)`；命令行仍可使用 `journey-1`、`journey-2` 工作区 ID。
 
-五个工作区可以同时运行；当前有 case 的工作区合计最多 29 个 case 同时调用 QA。空组显示 `empty`，不产生虚假通过结果，也不计入成功率分母。Journey-2 和 Journey-3 各使用 10 个标准 `ubuntu-latest` runner，组间最多 10 并发；组内串行执行，Journey-2 每组 13～14 个 case，Journey-3 每组 5～6 个 case；按 case 时间预算均衡分组，每组只安装一次依赖，含浏览器 case 的组才安装 Chromium。每个 case 使用独立进程、工作目录和超时，结束后立即生成并扫描独立报告及证据，最后按组上传；某个 case 出错不阻止后续 case。每组的 Job Summary 展示逐项结果、独立报告和组证据包下载链接，框架步骤异常使该组 job 失败，智能体异常及功能验收结果仍在报告中展示。Journey-1 继续每个 case 单独使用 runner。全局 concurrency group 防止整批运行相互重叠；后续批次排队等待，最多保留 100 个等待中的运行。连续触发过多可能造成积压。
+五个工作区可以同时运行；当前有 case 的工作区合计最多 40 个 case 同时执行。空组显示 `empty`，不计入成功率分母。Journey-2 按时间预算均衡分为 10 组，每组 13～14 个 case，组内串行。Journey-3 的文档题和运营题由两个 runner 同时运行，每个 runner 内最多 10 并发。每组只安装一次依赖，含浏览器 case 的组才安装 Chromium。每个 case 使用独立进程、工作目录和超时，结束后生成独立报告，最后按组上传。某个 case 出错后，该组继续运行其余 case。各组的 Job Summary 展示逐题结果，框架步骤异常会使该组 job 失败。Journey-1 每个 case 单独使用 runner。全局 concurrency group 防止整批运行相互重叠，后续批次排队等待，最多保留 100 个等待中的运行。
 
 Journey-1 每个 case 的 **QA 总预算为 3600 秒**，Journey-2 为 **300 秒**，覆盖一个 case 的全部对话轮次；如确有特殊长耗时用例，可在该 case 中显式设置 `timeout_seconds`。主任务超时记为 timeout，未能开始任务或取证出错会另记框架错误；语义评分阶段超时或结果无效记为验收器错误。超时后会取消已知未结束任务、补采事件并归档会话；清理和最终取证不占 QA 预算。工作流为执行步骤按 QA 预算额外留出 4 分钟用于取证和清理，材料准备及上传另计。主任务耗时与语义评分耗时分开统计。长任务统一使用正式的 message/stream SSE 协议，先取得 task ID 并实时落盘；随后核对持久化任务和事件。业务请求和模型任务不自动重试，保留第一次失败证据。
 
@@ -26,7 +26,7 @@ Journey-1 每个 case 的 **QA 总预算为 3600 秒**，Journey-2 为 **300 秒
 
 另增 J3-58～J3-117：两个运营智能体最近一周各耗时 Top 30 的原问题回放。题目、独立 golden、业务数据和完整证据只保存在 QA；公开仓库仅保存不含问答的 case 定义及校验值。选择范围、依赖诊断、历史表和曲线见 [运营知识库评测](docs/journey-3-operations.md)。
 
-**所有 Journey-3 case**（含原有 57 题）运行后先将完整报告与证据写入 QA `journey3_benchmark.results` 及关联文件，再发布仅含指标的 GitHub 报告。每轮 artifact 的 `history/history.html` 提供历史耗时与质量曲线，`history.csv` / `history.json` 提供指标数据。问答、引用、SQL 结果、Trace 和会话 ID 不进入公开包。
+**所有 Journey-3 case**（含原有 57 题）运行后先将完整报告与证据写入 QA `journey3_benchmark.results` 及关联文件，再发布仅含指标的 GitHub 报告。两个 job 都结束后，汇总报告生成 `history/history.html`，展示历史耗时与质量曲线，`history.csv` / `history.json` 提供指标数据。问答、引用、SQL 结果、Trace 和会话 ID 不进入公开包。
 
 原有文档题集与参考复核记录见 [journey-3-qa-review.md](docs/journey-3-qa-review.md)。这 57 个 case 分为 SAP 29、Cedar 18、MOI 7、MatrixOne 3；包含连续追问、独立新会话及重复题对照，共 61 次被测请求，其中 58 次回答需要评估，其余用于建立业务上下文。
 
@@ -200,7 +200,9 @@ J2-87～J2-102 继续覆盖损坏文件、附件引用、运行时成果大小�
 
 ## 下载与分析证据
 
-Journey-2 和 Journey-3 点开 `cases (group-01)`～`cases (group-10)` 的 Job Summary，可查看该组所有 case 的独立报告和组包下载链接；日志按 `<case-id> / prepare、execute、report、publish` 分段。其他 Journey 点开 `cases (J1-XX)` 等 job 的 `Case result and failure details` 步骤。单 case 摘要均包含结果、原因、耗时和逐轮 trace ID，也出现在运行的 Summary 中。若 runner 在生成报告前被终止或该步骤未执行，需查看出错步骤和总报告中的缺失结果。进入 Actions 本次运行底部的 **Artifacts**，下载 `journey-run-<run_id>-attempt-<n>`。Journey-2 和 Journey-3 每组上传 `case-<journey-id>-group-<组号>-attempt-<n>`，包内按 `<case-id>/` 保存各 case 的 `case-summary.md` 和详细证据；其他 Journey 每个 case 完成后上传 `case-<case-id>-attempt-<n>`，长任务尚未全部结束时可以下载已完成的证据。重跑时选择 **Re-run all jobs**；汇总只接收本次 attempt 的结果，防止旧结果覆盖新失败。证据包 **保留 1 天**；如需更久，同步修改工作流证据上传步骤的 retention-days。
+Journey-2 的 Job Summary 位于 `cases (group-01)`～`cases (group-10)`。Journey-3 使用 `cases (documents)`（J3-01～J3-57）和 `cases (operations)`（J3-58～J3-117）。每组的 Job Summary 提供独立报告和组包下载链接，组包以 case ID 为目录存放 `case-summary.md`。Journey-3 组包仅含公开指标，完整证据保存在 QA。其他 Journey 可在 `cases (J1-XX)` 等 job 的 `Case result and failure details` 步骤查看逐题结果。若 runner 在生成报告前被终止，可查看出错步骤和总报告中的缺失结果。
+
+在 Actions 本次运行底部的 **Artifacts** 下载 `journey-run-<run_id>-attempt-<n>`，查看总报告及 Journey-3 历史曲线。各组使用 `case-<journey-id>-<组名>-attempt-<n>` 上传组包，单 case job 使用 `case-<case-id>-attempt-<n>`，完成后即可下载。重跑时选择 **Re-run all jobs**，汇总只接收本次 attempt 的结果。证据包 **保留 1 天**，可通过工作流的上传步骤调整。
 
 统一包包含：
 

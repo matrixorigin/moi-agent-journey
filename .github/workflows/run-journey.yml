@@ -166,12 +166,6 @@ jobs:
           python3 -m journey.batch --workspace "$JOURNEY_WORKSPACE" --cases "$JOURNEY_CASES"
           --work batch-work --out published-results
           --parallel "$CASE_CONCURRENCY"
-      - name: Journey-3 historical metric curves
-        if: always() && inputs.workspace == 'journey-3' && matrix.executor == 'batch'
-        env:
-          MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
-          MOI_PAT: ${{ secrets.MOI_PAT }}
-        run: python3 -m journey.benchmark_history --out published-results/history
       - name: Load isolated validator
         if: matrix.executor == 'office'
         uses: ./.github/actions/load-judge

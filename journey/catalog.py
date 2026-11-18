@@ -57,7 +57,10 @@ def plan_suite(suite):
             raise ValueError('invalid_case_executor:' + case_id)
         items.append({'case': case_id, 'executor': executor,
                       'step_timeout_minutes': step_timeout_minutes(case), 'job_timeout_minutes': 135})
-    if items and 'batch_jobs' in suite:
+    if 'batch_groups' in suite:
+        from .batch import plan_named_batches
+        items = plan_named_batches(items, suite['batch_groups'], suite.get('parallel_cases', 1))
+    elif items and 'batch_jobs' in suite:
         from .batch import plan_batches
         items = plan_batches(items, suite['batch_jobs'], suite.get('parallel_cases', 1))
     return {'include': items or [{'case': 'EMPTY', 'executor': 'empty',

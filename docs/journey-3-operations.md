@@ -1,6 +1,6 @@
 # Journey-3 operations replay and history
 
-Journey-3 keeps the original 57 document cases and adds 60 production-question replays (J3-58–J3-117). All 117 cases share one standard Ubuntu runner, with at most 10 isolated case processes. Each process has its own conversation, files, event recorder, deadlines and report. One failure does not skip queued cases. The QA workflow remains manual; schedules are paused.
+Journey-3 keeps the original 57 document cases and adds 60 production-question replays (J3-58–J3-117). Two standard Ubuntu runners execute the cases concurrently. `cases (documents)` runs J3-01–J3-57. `cases (operations)` runs both operations agents’ questions, J3-58–J3-117. Each runner has up to 10 isolated case processes. Each process has its own conversation, files, event recorder, deadlines and report. One failure does not skip queued cases. The QA workflow remains manual; schedules are paused.
 
 ## Selection and replay
 
@@ -41,7 +41,7 @@ History writes are idempotent by run ID, attempt, case ID and revision. Reusing 
 
 Every Journey-3 case uses the same publication boundary, including the old synthetic cases, because they now share a workspace containing business data. Public downloads include only fixed identifiers, states and numeric metrics. Questions, business agent names, answers, citations, SQL results, tool names/arguments/errors, trace IDs, session IDs and raw files stay in QA. Child-process stdout/stderr also stays private; runner logs report opaque case IDs and framework status.
 
-`history/history.html` plots task latency and quality over UTC time, with selectors for case and a fixed case/snapshot/evaluator/model series. Unscored results leave gaps, and dependency-blocked records stay visible. `history.csv` and `history.json` contain the same metric allowlist. The consolidated artifact regenerates the chart from validated metrics rather than copying arbitrary downloaded HTML.
+`history/history.html` plots task latency and quality over UTC time, with selectors for case and a fixed case/snapshot/evaluator/model series. Unscored results leave gaps, and dependency-blocked records stay visible. `history.csv` and `history.json` contain the same metric allowlist. After both case jobs finish, the report job exports history once and regenerates the chart from validated metrics.
 
 ## Validation status
 

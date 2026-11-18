@@ -52,6 +52,21 @@ def plan_batches(items, count, parallel=1):
     return result
 
 
+def plan_named_batches(items, groups, parallel):
+    # The ordered case catalog is partitioned at each group's first case.
+    positions = {item['case']: index for index, item in enumerate(items)}
+    starts = [positions.get(group['first_case'], -1) for group in groups]
+    names = [group['name'] for group in groups]
+    if not starts or starts[0] != 0 or starts != sorted(set(starts)) or len(names) != len(set(names)):
+        raise ValueError('invalid_named_batch_groups')
+
+    result = []
+    for name, start, end in zip(names, starts, starts[1:] + [len(items)]):
+        batch, = plan_batches(items[start:end], 1, parallel)
+        result.append({**batch, 'case': name})
+    return result
+
+
 def stop_stage(process):
     # browser_case starts its worker in another session. Include descendant
     # groups so killing a stuck Python recorder cannot leave Chromium running.
