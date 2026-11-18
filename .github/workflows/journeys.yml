@@ -51,8 +51,9 @@ jobs:
       judge_image_artifact: judge-image-${{ github.run_id }}-attempt-${{ github.run_attempt }}
     secrets: inherit
   report:
-    needs: journeys
+    needs: [plan, journeys]
     if: always()
+    environment: qa
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -66,6 +67,14 @@ jobs:
           pattern: case-*-attempt-${{ github.run_attempt }}
           merge-multiple: true
           path: downloaded-results
+      - name: Export Journey-3 historical metrics after both case jobs
+        if: >-
+          ${{ !cancelled() && needs.plan.result == 'success' &&
+              contains(fromJSON(needs.plan.outputs.matrix).include.*.workspace, 'journey-3') }}
+        env:
+          MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
+          MOI_PAT: ${{ secrets.MOI_PAT }}
+        run: python3 -m journey.benchmark_history --out downloaded-results/history
       - name: Account for every configured case
         if: always()
         env:

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "id": "J3-99",
+  "workspace": "journey-3",
+  "title": "J3-99 · Operations Knowledge Q&A",
+  "executor": "knowledge",
+  "assets": [],
+  "oracles": [],
+  "timeout_seconds": 600,
+  "evaluation_timeout_seconds": 180,
+  "rag": {
+    "corpus": "ops-snapshot"
+  },
+  "private_spec": {
+    "revision": "ops-20261118-r5",
+    "sha256": "04c31359d5c7f11a2181b7a73ce09b5af5f47fe5a025d1bbf61cfeb136b57c47"
+  },
+  "sessions": [
+    {
+      "id": "qa",
+      "delivery_kind": "answer",
+      "expected_checks": 5,
+      "turns": [
+        {
+          "phase": "question",
+          "prompt": "[Question and golden stored in QA]",
+          "rag_reference": {
+            "status": "private",
+            "criteria": []
+          }
+        }
+      ]
+    }
+  ]
+}

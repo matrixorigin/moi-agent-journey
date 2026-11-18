@@ -11,25 +11,26 @@ from journey.catalog import ROOT, case_executor, load_case, load_suite, plan_sui
 
 
 class BatchPlanTests(unittest.TestCase):
-    def test_knowledge_suite_is_ten_complete_groups_with_both_evaluation_budgets(self):
+    def test_knowledge_suite_keeps_documents_and_operations_on_two_parallel_runners(self):
         suite = load_suite('journey-3')
         groups = plan_suite(suite)['include']
-        self.assertEqual(len(groups), 10)
-        self.assertEqual(suite['concurrency'], 10)
-        ids = [case_id for group in groups for case_id in group['case_ids']]
-        self.assertCountEqual(ids, suite['cases'])
-        self.assertEqual(len(ids), len(set(ids)))
+        self.assertEqual(suite['concurrency'], 2)
+        self.assertEqual([group['case'] for group in groups], ['documents', 'operations'])
+        self.assertEqual(groups[0]['case_ids'], [f'J3-{i:02d}' for i in range(1, 58)])
+        self.assertEqual(groups[1]['case_ids'], [f'J3-{i:02d}' for i in range(58, 118)])
+        self.assertEqual([group['parallel_cases'] for group in groups], [10, 10])
+        self.assertEqual([case_id for group in groups for case_id in group['case_ids']], suite['cases'])
         for group in groups:
-            self.assertIn(len(group['case_ids']), (5, 6))
             self.assertFalse(group['needs_browser'])
-            budget = 15
+            weights=[]
             for case_id in group['case_ids']:
                 case = load_case(case_id)
                 self.assertEqual(case['timeout_seconds'], 600)
                 self.assertEqual(case['evaluation_timeout_seconds'], 300 if case_id == 'J3-54' else 180)
-                budget += step_timeout_minutes(case) + CASE_OVERHEAD_MINUTES
-            self.assertEqual(group['job_timeout_minutes'], budget)
-            self.assertLessEqual(budget, 360)
+                weights.append(step_timeout_minutes(case) + CASE_OVERHEAD_MINUTES + 1)
+            import math
+            self.assertEqual(group['job_timeout_minutes'],15+math.ceil((sum(weights)+9*max(weights))/10))
+            self.assertLessEqual(group['job_timeout_minutes'], 360)
 
     def test_real_suite_is_ten_balanced_groups_with_exactly_once_coverage(self):
         suite = load_suite('journey-2')
@@ -71,7 +72,7 @@ class BatchRunnerTests(unittest.TestCase):
             directory = Path(directory)
             name = {'journey.catalog': 'prepare', 'journey.functional_case': 'execute',
                     'journey.browser_case': 'execute', 'journey.knowledge_case': 'execute', 'journey.report': 'report',
-                    'journey.publish': 'publish'}[command[2]]
+                    'journey.publish': 'publish','journey.benchmark_store':'history'}[command[2]]
             case_id = directory.name
             calls.append((case_id, name, directory, env.copy(), budget, command[2]))
             result_dir = directory / 'results' / case_id
@@ -221,14 +222,16 @@ class BatchRunnerTests(unittest.TestCase):
                 self.assertEqual(run_batch(ids, workspace, root / 'work', root / 'public', env), 1)
                 rows = json.loads((root / 'work/batch-result.json').read_text())['cases']
                 self.assertEqual([row['case_id'] for row in rows], ids)
-                self.assertTrue(all(row['failed_stages'] == ['execute', 'report'] for row in rows))
+                self.assertTrue(all(row['failed_stages'] == ['execute', 'report'] +
+                    (['history'] if workspace=='journey-3' else []) for row in rows))
                 for case_id in ids:
                     public = root / 'public' / case_id
                     result = json.loads((public / 'result.json').read_text())
                     self.assertEqual(result['test_status'], 'error')
-                    self.assertEqual(result['harness_errors'][0]['stage'], 'configuration')
+                    self.assertEqual(result['harness_errors'][0]['stage'], 'harness' if workspace=='journey-3' else 'configuration')
                     self.assertTrue((public / 'case-summary.md').is_file())
-                    self.assertEqual(json.loads((public / 'publication.json').read_text())['status'], 'complete')
+                    self.assertEqual(json.loads((public / 'publication.json').read_text())['status'],
+                                     'metrics_only' if workspace=='journey-3' else 'complete')
                     if workspace == 'journey-3':
                         self.assertEqual(result['rag']['expected_answers'], 1)
 

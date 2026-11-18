@@ -272,9 +272,10 @@ class KnowledgeDatasetTests(unittest.TestCase):
     def test_dataset_keeps_57_questions_context_and_fixed_bound_agents(self):
         config = json.loads((ROOT / 'suites.json').read_text())
         suite = next(s for s in config['journeys'] if s['workspace'] == 'journey-3')
-        self.assertEqual(len(suite['cases']), 57)
+        self.assertEqual(len(suite['cases']), 117)
         corpora = json.loads((ROOT / 'datasets/journey-3/corpora.json').read_text())
-        cases = [load_case(identity) for identity in suite['cases']]
+        cases = [load_case(identity) for identity in suite['cases'] if not load_case(identity).get('private_spec')]
+        self.assertEqual(len(cases), 57)
         self.assertEqual(sum(len(s['turns']) for c in cases for s in c['sessions']), 61)
         self.assertEqual(len({c['rag']['key'] for c in cases}), 57)
         for case in cases:
@@ -372,9 +373,9 @@ class KnowledgeDatasetTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             report = aggregate(root / 'source', root / 'bundle', 'journey-3')
-            self.assertEqual(report['total'], 57)
-            self.assertEqual(report['rag']['answers_expected'], 58)
-            self.assertEqual(report['rag']['answers_missing'], 58)
+            self.assertEqual(report['total'], 117)
+            self.assertEqual(report['rag']['answers_expected'], 118)
+            self.assertEqual(report['rag']['answers_missing'], 118)
             self.assertIsNone(report['rag']['metrics']['correctness']['rate'])
             markdown = (root / 'bundle/summary.md').read_text()
             self.assertIn('### 效率', markdown)

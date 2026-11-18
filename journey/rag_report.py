@@ -64,6 +64,8 @@ def summarize_rag(rows):
                 'phase': answer['phase'], 'seconds': answer.get('seconds'),
                 'criteria': {item['id']: item['passed'] for item in answer['verdict']['criteria']}})
     return {'answers_expected': expected, 'answers_observed': len(answers), 'answers_missing': expected - len(answers),
+            'benchmark_prerequisites': dict(Counter(row.get('benchmark', {}).get('state', 'eligible')
+                for row in rows if row.get('rag'))),
             'evaluation_states': dict(states), 'metrics': _metrics([answer for _, _, answer in answers]),
             'by_corpus': {name: {'answers': len(values), 'metrics': _metrics(values),
                 'evaluation_states': dict(Counter(value.get('evaluation_state', 'unavailable') for value in values))}
@@ -84,6 +86,19 @@ def case_lines(result, cell):
     rag = result.get('rag')
     if not isinstance(rag, dict):
         return []
+    if result.get('privacy') == 'metrics_only':
+        lines = ['', '## 知识库评测指标', '',
+                 '问题、回答、引用、Trace、会话和完整工具轨迹仅保存在 QA；此公开报告只含指标。',
+                 '未评分显示“无法评价”，不按零分或通过处理。', '',
+                 '评测前提：' + cell(result.get('benchmark', {}).get('state', 'eligible')) + '。', '',
+                 '| 回答 | 耗时（秒） | 评分状态 | 质量（0–100） |', '|---|---:|---|---:|']
+        for index, answer in enumerate(rag['answers'], 1):
+            metric = answer.get('metrics', {}).get('correctness', {})
+            score = (round(100 * metric['rate'], 2) if metric.get('rate') is not None and
+                     not metric.get('unavailable') else '无法评价')
+            lines.append(f"| {index} | {cell(answer.get('seconds'))} | "
+                         f"{cell(answer['evaluation_state'])} | {score} |")
+        return lines
     lines = ['', '## 知识库问答', '', f"知识库组：{cell(rag['corpus'])}。",
              '参考要点按语义判定，允许同义表达；标识符、数值、单位和适用范围须准确。',
              '主张支持率仅检查已观测或服务端回执确认读取的证据；未观测到检索上下文时显示无法评价。']
@@ -166,6 +181,8 @@ def aggregate_lines(report, cell):
     if not rag:
         return []
     lines = ['', '## 知识库问答质量', '',
+             '评测前提：' + cell(rag['benchmark_prerequisites']) +
+             '。blocked 为依赖未就绪；out_of_scope 为原请求依赖知识库快照之外的能力，均未评分。', '',
              f"预期 {rag['answers_expected']} 个待评估回答，已记录 {rag['answers_observed']} 个，缺失 {rag['answers_missing']} 个；"
              f"评估状态：{cell(rag['evaluation_states'])}。",
              '', '### 效率', '', f"轨迹评估：{cell(rag['efficiency'])}。",

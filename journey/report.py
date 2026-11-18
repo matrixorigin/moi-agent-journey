@@ -230,8 +230,11 @@ def case_summary(result):
             lines.append(f"| {cell(call.get('phase'))} | {cell(call.get('tool'))} | {cell(args)} | "
                          f"{cell(details)} | {cell(', '.join(map(str, call['seqs'])))} |")
         lines += ['', '表中参数和错误可能截断；原始已脱敏事件见 events.jsonl。']
-    lines += ['', '完整判词、逐轮事件与产物见本 case artifact 中的 result.json、events.jsonl 和其他证据文件；'
-              '公开包中被隔离的文件见 publication.json。', '',
+    evidence_note = ('完整问答、判词、Trace、会话和工具轨迹保存在 QA 的历史结果表及私有证据文件中。'
+                     if result.get('privacy') == 'metrics_only' else
+                     '完整判词、逐轮事件与产物见本 case artifact 中的 result.json、events.jsonl 和其他证据文件；'
+                     '公开包中被隔离的文件见 publication.json。')
+    lines += ['', evidence_note, '',
               '智能体问题和质量检查不改变测试框架状态；质量判据需结合原始证据复核。', '']
     lines.extend(rag_case_lines(result, cell))
     return '\n'.join(lines)
@@ -792,7 +795,14 @@ def aggregate(source, destination, workspace='all', case_ids=None):
             lines.append(f"- {scope} / {category} / {cell(item['tool'])} / {cell(item['code'])}：{item['records']} 条记录，"
                          f"涉及 {cell(', '.join(item['cases']))}。")
     lines.extend(rag_aggregate_lines(report, cell))
-    lines += ['', '单个 case 的报告和 result.json 包含会话 ID、trace ID、质量判词、工具参数和错误；'
+    has_private_history = (Path(source) / 'history' / 'history.json').is_file()
+    if any(suite['workspace'] == 'journey-3' for suite in suites):
+        lines += ['', 'Journey-3 的完整问答、引用、Trace、会话、工具参数与错误保存在 QA。公开包只含指标。']
+        if has_private_history:
+            from .benchmark_history import write_metrics
+            write_metrics(json.loads((Path(source) / 'history' / 'history.json').read_text()), destination / 'history')
+            lines += ['', '历史耗时与质量曲线：[下载报告内的 history/history.html](history/history.html)。']
+    lines += ['', '其他 Journey 的单个 case 报告和 result.json 包含会话 ID、trace ID、质量判词、工具参数和错误；'
               'events.jsonl 保存公开事件（凭据已脱敏）。', '',
               '智能体异常、超时、交付或质量问题不使 job 变红；执行、验收或取证错误会使 job 变红。', '',
               '下载 journey-run-* artifact 获取完整报告与证据；artifact 保留 1 天。']

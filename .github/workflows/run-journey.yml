@@ -143,11 +143,12 @@ jobs:
           MOI_UI_BASE_URL: ${{ secrets.MOI_UI_BASE_URL }}
           MOI_UI_AUTH_ORIGIN: ${{ secrets.MOI_UI_AUTH_ORIGIN }}
         run: python3 -m journey.browser_case "$CASE_ID"
-      - name: Run sequential cases with independent reports
+      - name: Run grouped cases with independent reports
         if: matrix.executor == 'batch' && (success() || (matrix.needs_feishu == true && !cancelled()))
         env:
           JOURNEY_WORKSPACE: ${{ inputs.workspace }}
           JOURNEY_CASES: ${{ toJSON(matrix.case_ids) }}
+          CASE_CONCURRENCY: ${{ matrix.parallel_cases || 1 }}
           MOI_J5_FEISHU_TARGET: ${{ matrix.needs_feishu && vars.MOI_J5_FEISHU_TARGET || '' }}
           MOI_J5_FEISHU_APP_SECRET: ${{ matrix.needs_feishu && secrets.MOI_J5_FEISHU_APP_SECRET || '' }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
@@ -164,6 +165,7 @@ jobs:
         run: >-
           python3 -m journey.batch --workspace "$JOURNEY_WORKSPACE" --cases "$JOURNEY_CASES"
           --work batch-work --out published-results
+          --parallel "$CASE_CONCURRENCY"
       - name: Load isolated validator
         if: matrix.executor == 'office'
         uses: ./.github/actions/load-judge

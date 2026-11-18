@@ -163,7 +163,9 @@ class Client:
         budget = ({'max_bytes': TASK_EVIDENCE_RESPONSE_LIMIT} if method == 'GET' and re.fullmatch(
             r'/workspaces/[^/]+/agent-runtime-tasks/[^/]+/events', path.split('?', 1)[0]) else {})
         result = self.request(method, path, body, **budget)
-        if result.get("code") != expected_code or not isinstance(result.get("data"), dict):
+        # Product uses "OK" while legacy runtime routes used numeric zero.
+        accepted = {0, 'OK'} if expected_code == 0 else {expected_code}
+        if result.get("code") not in accepted or not isinstance(result.get("data"), dict):
             raise Failure("product_error")
         return result["data"]
 

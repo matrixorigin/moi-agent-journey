@@ -31,9 +31,45 @@ def prepare_publication(source,destination,secrets):
     source,destination=Path(source),Path(destination)
     public=Evidence(destination,secrets)
     withheld=[]
+    private_cases=set()
+    from .catalog import load_case
+    from .benchmark_metrics import model_rounds, public_result
+    from .report import _valid_case_result, case_summary
+    for case in source.iterdir():
+        if not case.is_dir():continue
+        definition=load_case(case.name)
+        # The workspace now contains production business data. Even an older
+        # synthetic case may enumerate it, so every J3 runtime report uses the
+        # same metrics-only boundary.
+        if definition.get('workspace')!='journey-3':continue
+        private_cases.add(case.name)
+        result=json.loads((case/'result.json').read_text())
+        from .rag_report import valid_rag_result
+        if (result.get('case_id')!=case.name or result.get('workspace')!='journey-3' or
+                not _valid_case_result(result) or not valid_rag_result(result.get('rag'))):
+            raise ValueError('private_case_result_invalid')
+        projected=public_result(result)
+        projected['model_round_count'] = model_rounds(case/'events.jsonl', result.get('tasks', []))
+        receipt = {}
+        try:
+            receipt = json.loads((case/'history-receipt.json').read_text())
+        except (OSError, ValueError):
+            pass
+        import re
+        if (not isinstance(receipt, dict) or receipt.get('state') not in {'saved', 'already_saved'} or
+                not re.fullmatch(r'[a-f0-9]{64}', receipt.get('result_key', ''))):
+            projected['test_status']='error'
+            projected['harness_errors'].append({'stage':'history','reason':'QA_history_not_saved'})
+        if not _valid_case_result(projected) or not valid_rag_result(projected.get('rag')):
+            raise ValueError('private_public_projection_invalid')
+        safe=Evidence(destination/case.name,secrets)
+        safe.write('result.json',projected)
+        (safe.root/'case-summary.md').write_text(case_summary(projected))
+        safe.write('publication.json',{'status':'metrics_only','policy':'business_evidence_stays_in_QA'})
     for file in sorted(source.rglob('*')):
         relative=file.relative_to(source)
         parts=relative.parts
+        if parts[0] in private_cases:continue
         if file.is_symlink():
             withheld.append({'path':relative.as_posix(),'reason':'artifact_symlink_not_allowed','sha256':None})
             continue
@@ -59,6 +95,7 @@ def prepare_publication(source,destination,secrets):
     # Authentication-protected QA file IDs remain in its artifact inventory.
     for case in source.iterdir():
         if not case.is_dir():continue
+        if case.name in private_cases:continue
         rejected=[item for item in withheld if Path(item['path']).parts[0]==case.name]
         case_public=Evidence(destination/case.name,public.secrets)
         case_public.write('publication.json',{'status':'partial' if rejected else 'complete',
