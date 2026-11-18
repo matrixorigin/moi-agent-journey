@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 
 from .benchmark_store import configured_store, HISTORY, literal
+from .catalog import load_suite, plan_suite
 
 FIELDS = ['case_id','evaluated_at','duration_seconds','quality_score','tool_call_count',
           'model_round_count','task_state','case_revision','snapshot_id','evaluator_version',
@@ -87,9 +88,12 @@ def write_metrics(rows, destination):
     (destination/'history.json').write_text(json.dumps(rows, ensure_ascii=True, indent=2))
     with (destination/'history.csv').open('w', newline='') as stream:
         writer=csv.DictWriter(stream, fieldnames=FIELDS);writer.writeheader();writer.writerows(rows)
-    template=(Path(__file__).parent.parent/'datasets/journey-3/history.html').read_text()
-    (destination/'history.html').write_text(template.replace('/*HISTORY_DATA*/[]',
-        json.dumps(rows, ensure_ascii=True).replace('<','\\u003c')))
+    plan = plan_suite(load_suite('journey-3'))
+    jobs = {job['case']: job['case_ids'] for job in plan['include'] if job['executor'] == 'batch'}
+    template = (Path(__file__).parent.parent / 'datasets/journey-3/history.html').read_text()
+    html = template.replace('/*HISTORY_DATA*/[]', json.dumps(rows, ensure_ascii=True).replace('<', '\\u003c'))
+    html = html.replace('/*HISTORY_JOBS*/{}', json.dumps(jobs, ensure_ascii=True).replace('<', '\\u003c'))
+    (destination / 'history.html').write_text(html)
 
 
 def main():

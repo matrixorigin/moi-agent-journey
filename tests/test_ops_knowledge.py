@@ -231,6 +231,12 @@ class OpsKnowledgeTests(unittest.TestCase):
             self.assertIn('result_key>', store.sql.call_args.args[0])
             data = json.loads((Path(tmp) / 'history.json').read_text())
             self.assertEqual(set(data[0]), set(FIELDS))
+            html = (Path(tmp) / 'history.html').read_text()
+            jobs = json.loads(html.split('const jobs = ', 1)[1].split(';', 1)[0])
+            self.assertEqual(jobs, {
+                'documents': [f'J3-{i:02d}' for i in range(1, 58)],
+                'operations': [f'J3-{i:02d}' for i in range(58, 118)],
+            })
             with self.assertRaisesRegex(ValueError, 'invalid_exported_history_columns'):
                 write_metrics([{**metrics_row(row), 'question': 'PRIVATE'}], tmp)
 

@@ -28,6 +28,8 @@ Journey-1 每个 case 的 **QA 总预算为 3600 秒**，Journey-2 为 **300 秒
 
 **所有 Journey-3 case**（含原有 57 题）运行后先将完整报告与证据写入 QA `journey3_benchmark.results` 及关联文件，再发布仅含指标的 GitHub 报告。两个 job 都结束后，汇总报告生成 `history/history.html`，展示历史耗时与质量曲线，`history.csv` / `history.json` 提供指标数据。问答、引用、SQL 结果、Trace 和会话 ID 不进入公开包。
 
+历史页默认叠画全部 case 的曲线。Case 菜单可切换到文档 job、运营 job 或单题。图例和鼠标提示标识各条曲线，版本变化后另起一条线。
+
 原有文档题集与参考复核记录见 [journey-3-qa-review.md](docs/journey-3-qa-review.md)。这 57 个 case 分为 SAP 29、Cedar 18、MOI 7、MatrixOne 3；包含连续追问、独立新会话及重复题对照，共 61 次被测请求，其中 58 次回答需要评估，其余用于建立业务上下文。
 
 原有 57 题使用 journey-3 现有的四个专用智能体及其绑定知识库；运行时不创建或修改智能体、知识库、索引和源资料。每个 case 创建独立会话；连续追问仅在本 case 内保留上下文。任务完成后采集事件、产物并归档测试会话。

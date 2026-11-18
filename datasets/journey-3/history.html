@@ -1,27 +1,238 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
 <title>Journey-3 · Evaluation History</title>
-<style>body{font:16px system-ui;margin:40px auto;padding:0 24px;max-width:1100px;color:#172744;background:#f6f8fc}h1{font-size:30px}select{max-width:min(800px,85vw);font:inherit;padding:9px;margin:0 16px 12px 5px;border:1px solid #ccd3df;border-radius:6px}section{background:white;border:1px solid #dde2ec;border-radius:12px;padding:24px;margin:20px 0}svg{width:100%;height:auto}small,p{color:#51617c}table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;border-bottom:1px solid #e4e8f1;padding:10px}#records{overflow:auto}polyline{fill:none;stroke-width:2.5}.axis{stroke:#d7dfeb}text{fill:#51617c;font:12px system-ui}</style>
-<h1>Journey-3 · Knowledge Base Tasks</h1><p>历史指标来自 QA。完整问题、回答、引用、工具参数和错误详情保存在 QA 的评测结果表与证据文件中。</p>
-<label>Case <select id="case"></select></label><label>固定版本 <select id="revision"></select></label>
-<p id="coverage"></p><section><h2>端到端耗时 · 秒</h2><svg id="latency" viewBox="0 0 1000 270"></svg></section>
-<section><h2>回答质量 · 0–100</h2><p>分数按参考要点满足率计算；未评分显示空缺，不按零分或通过处理。仅比较同一 case、数据快照和评分版本与模型。</p><svg id="quality" viewBox="0 0 1000 270"></svg></section>
-<section><h2>运行记录</h2><div id="records"></div></section>
+<style>
+  body { font: 16px system-ui; margin: 40px auto; padding: 0 24px; max-width: 1100px; color: #172744; background: #f6f8fc; }
+  h1 { font-size: 30px; }
+  select { max-width: min(800px, 85vw); font: inherit; padding: 9px; margin: 0 16px 12px 5px; border: 1px solid #ccd3df; border-radius: 6px; }
+  section { background: white; border: 1px solid #dde2ec; border-radius: 12px; padding: 24px; margin: 20px 0; }
+  svg { width: 100%; height: auto; }
+  p { color: #51617c; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td, th { text-align: left; border-bottom: 1px solid #e4e8f1; padding: 10px; }
+  th { position: sticky; top: 0; background: white; }
+  #records { overflow: auto; max-height: 30rem; }
+  #legend:not([hidden]) { display: flex; flex-wrap: wrap; gap: 6px; max-height: 6rem; overflow: auto; }
+  #legend button { color: inherit; background: white; border: 1px solid #dde2ec; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+  .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .chart-series polyline { fill: none; stroke: currentColor; stroke-width: 2; }
+  .chart-series circle { fill: currentColor; }
+  .chart-series.muted, svg:has(.chart-series:hover) .chart-series:not(:hover) { opacity: .2; }
+  .axis { stroke: #d7dfeb; }
+  svg text { fill: #51617c; font: 12px system-ui; }
+</style>
+</head>
+<body>
+<h1>Journey-3 · Knowledge Base Tasks</h1>
+<p>历史指标来自 QA。完整问题、回答、引用、工具参数和错误详情保存在 QA 的评测结果表与证据文件中。</p>
+<label>Case <select id="case"></select></label>
+<label id="revision-label">固定版本 <select id="revision"></select></label>
+<p id="coverage" aria-live="polite"></p>
+<div id="legend" aria-label="按颜色识别 Case，点击查看单题" hidden></div>
+<section>
+  <h2>端到端耗时 · 秒</h2>
+  <svg id="latency" viewBox="0 0 1000 270" role="img" aria-label="端到端耗时"></svg>
+</section>
+<section>
+  <h2>回答质量 · 0–100</h2>
+  <p>分数按参考要点满足率计算。未评分留空。用例版本、数据快照、评分器和模型相同的记录才连线。</p>
+  <svg id="quality" viewBox="0 0 1000 270" role="img" aria-label="回答质量"></svg>
+</section>
+<section>
+  <h2>运行记录</h2>
+  <div id="records"></div>
+</section>
 <script>
-const data=/*HISTORY_DATA*/[];
-const choose=document.getElementById('case'),revision=document.getElementById('revision');
-const option=(parent,text,value=text)=>{const o=document.createElement('option');o.textContent=text;o.value=value;parent.append(o)};
-const series=r=>[r.case_revision,r.snapshot_id,r.evaluator_version,r.model_key].join(' / ');
-[...new Set(data.map(r=>r.case_id))].sort((a,b)=>Number(a.slice(3))-Number(b.slice(3))).forEach(x=>option(choose,x));
-function revisions(){revision.replaceChildren();[...new Set(data.filter(r=>r.case_id===choose.value).map(series))].forEach(x=>option(revision,x));render()}
-function draw(id,rows,key,color){const svg=document.getElementById(id);svg.replaceChildren();const node=(name,attrs,text)=>{const n=document.createElementNS('http://www.w3.org/2000/svg',name);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;svg.append(n);return n};
- const valid=rows.filter(r=>r[key]!==null),max=key==='quality_score'?100:Math.max(1,...valid.map(r=>r[key]));const left=65,right=975,top=20,bottom=230;
- for(let i=0;i<=4;i++){let y=bottom-(bottom-top)*i/4;node('line',{x1:left,x2:right,y1:y,y2:y,class:'axis'});node('text',{x:6,y:y+4},(max*i/4).toFixed(1))}
- let segment=[];const flush=()=>{if(segment.length)node('polyline',{points:segment.join(' '),stroke:color});segment=[]};
- const start=rows.length?Date.parse(rows[0].evaluated_at):0,end=rows.length?Date.parse(rows.at(-1).evaluated_at):0;
- rows.forEach((r,i)=>{const x=left+(right-left)*(Date.parse(r.evaluated_at)-start)/Math.max(1,end-start);if(r[key]===null){flush();return}const y=bottom-(bottom-top)*r[key]/max;segment.push(`${x},${y}`);const point=node('circle',{cx:x,cy:y,r:4,fill:color});const title=document.createElementNS(svg.namespaceURI,'title');title.textContent=`${r.evaluated_at}: ${r[key]}`;point.append(title)});flush();
- if(rows.length){node('text',{x:left,y:260},rows[0].evaluated_at);node('text',{x:right,y:260,'text-anchor':'end'},rows.at(-1).evaluated_at)}
+const data = /*HISTORY_DATA*/[];
+const jobs = /*HISTORY_JOBS*/{};
+const scope = document.getElementById('case');
+const revision = document.getElementById('revision');
+const legend = document.getElementById('legend');
+const cases = [...new Set(data.map(row => row.case_id))].sort((a, b) => Number(a.slice(3)) - Number(b.slice(3)));
+
+data.sort((a, b) => a.evaluated_at.localeCompare(b.evaluated_at));
+
+function addOption(parent, value, label = value) {
+  const option = document.createElement('option');
+  option.value = value;
+  option.textContent = label;
+  parent.append(option);
 }
-function render(){const rows=data.filter(r=>r.case_id===choose.value&&series(r)===revision.value).sort((a,b)=>a.evaluated_at.localeCompare(b.evaluated_at));document.getElementById('coverage').textContent=`${rows.length} 次记录；正常交付 ${rows.filter(r=>r.task_state==='completed').length} 次；已评分 ${rows.filter(r=>r.quality_score!==null).length} 次。`;
- draw('latency',rows,'duration_seconds','#356df3');draw('quality',rows,'quality_score','#159f83');const table=document.createElement('table');const tr=document.createElement('tr');['UTC 日期','耗时 / s','质量 / 100','工具调用','模型轮次','状态','评测前提'].forEach(x=>{const th=document.createElement('th');th.textContent=x;tr.append(th)});table.append(tr);rows.slice().reverse().forEach(r=>{const tr=document.createElement('tr');[r.evaluated_at,r.duration_seconds,r.quality_score,r.tool_call_count,r.model_round_count,r.task_state,r.benchmark_state].forEach(x=>{const td=document.createElement('td');td.textContent=x??'—';tr.append(td)});table.append(tr)});document.getElementById('records').replaceChildren(table)
-}choose.onchange=revisions;revision.onchange=render;revisions();
-</script></html>
+
+addOption(scope, 'all', 'All cases');
+for (const name of Object.keys(jobs)) {
+  addOption(scope, 'job:' + name, 'Job · ' + name[0].toUpperCase() + name.slice(1));
+}
+for (const id of cases) addOption(scope, id);
+
+function version(row) {
+  return [row.case_revision, row.snapshot_id, row.evaluator_version, row.model_key].map(value => value ?? '—').join(' / ');
+}
+
+function caseColor(id) {
+  const hue = cases.indexOf(id) * 137.508 % 360;
+  return 'hsl(' + hue + ' 68% 39%)';
+}
+
+function jobOrAll() {
+  return scope.value === 'all' || scope.value.startsWith('job:');
+}
+
+function rowsForScope() {
+  if (scope.value === 'all') return data;
+  if (scope.value.startsWith('job:')) {
+    const jobCases = new Set(jobs[scope.value.slice(4)]);
+    return data.filter(row => jobCases.has(row.case_id));
+  }
+  return data.filter(row => row.case_id === scope.value);
+}
+
+function selectScope() {
+  document.getElementById('revision-label').hidden = jobOrAll();
+  revision.replaceChildren();
+  if (!jobOrAll()) {
+    for (const label of new Set(rowsForScope().map(version))) addOption(revision, label);
+  }
+  render();
+}
+
+function draw(id, rows, series, metric, singleColor, overview) {
+  const svg = document.getElementById(id);
+  svg.replaceChildren();
+  function node(parent, name, attributes, label) {
+    const element = document.createElementNS('http://www.w3.org/2000/svg', name);
+    for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
+    if (label !== undefined) element.textContent = label;
+    parent.append(element);
+    return element;
+  }
+
+  const maximum = metric === 'quality_score' ? 100 : rows.reduce((max, row) => Math.max(max, row[metric] ?? 0), 1);
+  const left = 65, right = 975, top = 20, bottom = 230;
+  for (let i = 0; i <= 4; i++) {
+    const y = bottom - (bottom - top) * i / 4;
+    node(svg, 'line', {x1: left, x2: right, y1: y, y2: y, class: 'axis'});
+    node(svg, 'text', {x: 6, y: y + 4}, (maximum * i / 4).toFixed(1));
+  }
+  if (!rows.some(row => row[metric] !== null)) {
+    node(svg, 'text', {x: 520, y: 125, 'text-anchor': 'middle'}, '暂无数据');
+  }
+  if (!rows.length) return;
+
+  // Every series in the selected scope shares one UTC time axis and Y scale.
+  const start = Date.parse(rows[0].evaluated_at);
+  const end = Date.parse(rows.at(-1).evaluated_at);
+  for (const entries of series.values()) {
+    const first = entries[0];
+    const group = node(svg, 'g', {class: 'chart-series', 'data-case': first.case_id, color: overview ? caseColor(first.case_id) : singleColor});
+    node(group, 'title', {}, first.case_id + ' · ' + version(first));
+    let points = [];
+    function finishSegment() {
+      if (points.length) node(group, 'polyline', {points: points.join(' ')});
+      points = [];
+    }
+    for (const row of entries) {
+      if (row[metric] === null) {
+        finishSegment();
+        continue;
+      }
+      const x = end === start ? (left + right) / 2 : left + (right - left) * (Date.parse(row.evaluated_at) - start) / (end - start);
+      const y = bottom - (bottom - top) * row[metric] / maximum;
+      points.push(x + ',' + y);
+      const point = node(group, 'circle', {cx: x, cy: y, r: overview ? 3 : 4});
+      node(point, 'title', {}, row.case_id + ' · ' + row.evaluated_at + ' · ' + row[metric] + '\n' + version(row));
+    }
+    finishSegment();
+  }
+
+  const axisDate = time => new Date(time).toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+  if (start === end) {
+    node(svg, 'text', {x: (left + right) / 2, y: 260, 'text-anchor': 'middle'}, axisDate(start));
+  } else {
+    node(svg, 'text', {x: left, y: 260}, axisDate(start));
+    node(svg, 'text', {x: right, y: 260, 'text-anchor': 'end'}, axisDate(end));
+  }
+}
+
+function showLegend(ids, overview) {
+  legend.replaceChildren();
+  legend.hidden = !overview || !ids.size;
+  if (legend.hidden) return;
+  for (const id of cases.filter(id => ids.has(id))) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.title = '查看单题 ' + id;
+    const swatch = document.createElement('span');
+    swatch.className = 'swatch';
+    swatch.style.backgroundColor = caseColor(id);
+    button.append(swatch, id);
+    const highlight = active => {
+      for (const group of document.querySelectorAll('.chart-series')) {
+        group.classList.toggle('muted', active && group.dataset.case !== id);
+      }
+    };
+    button.onmouseenter = button.onfocus = () => highlight(true);
+    button.onmouseleave = button.onblur = () => highlight(false);
+    button.onclick = () => {
+      scope.value = id;
+      selectScope();
+      scope.focus();
+    };
+    legend.append(button);
+  }
+}
+
+function showRecords(rows, overview) {
+  const table = document.createElement('table');
+  const header = table.createTHead().insertRow();
+  const fields = ['UTC 日期', '耗时 / s', '质量 / 100', '工具调用', '模型轮次', '状态', '评测前提'];
+  for (const label of overview ? ['Case', ...fields] : fields) {
+    const th = document.createElement('th');
+    th.scope = 'col';
+    th.textContent = label;
+    header.append(th);
+  }
+  const body = table.createTBody();
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const row = rows[i];
+    const tr = body.insertRow();
+    tr.title = version(row);
+    const values = [row.evaluated_at, row.duration_seconds, row.quality_score, row.tool_call_count,
+      row.model_round_count, row.task_state, row.benchmark_state];
+    for (const value of overview ? [row.case_id, ...values] : values) tr.insertCell().textContent = value ?? '—';
+  }
+  document.getElementById('records').replaceChildren(table);
+}
+
+function render() {
+  const overview = jobOrAll();
+  const scopedRows = rowsForScope();
+  const rows = overview ? scopedRows : scopedRows.filter(row => version(row) === revision.value);
+  const series = new Map();
+  const shownCases = new Set();
+  let completed = 0, scored = 0;
+  for (const row of rows) {
+    shownCases.add(row.case_id);
+    const key = row.case_id + ' / ' + version(row);
+    if (!series.has(key)) series.set(key, []);
+    series.get(key).push(row);
+    if (row.task_state === 'completed') completed++;
+    if (row.quality_score !== null) scored++;
+  }
+  document.getElementById('coverage').textContent = shownCases.size + ' 个 Case，' + rows.length +
+    ' 次记录，正常交付 ' + completed + ' 次，已评分 ' + scored + ' 次。';
+  showLegend(shownCases, overview);
+  draw('latency', rows, series, 'duration_seconds', '#356df3', overview);
+  draw('quality', rows, series, 'quality_score', '#159f83', overview);
+  showRecords(rows, overview);
+}
+
+scope.onchange = selectScope;
+revision.onchange = render;
+selectScope();
+</script>
+</body>
+</html>
