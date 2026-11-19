@@ -8,10 +8,10 @@ from unittest.mock import Mock, patch
 from journey.benchmark_metrics import history_observations, history_record, model_rounds, quality_score
 from journey.benchmark_store import Store, canonical
 from journey.benchmark_history import metrics_row, write_metrics
-from journey.benchmark_run_report import catalog_report_path, details_for_case, publish
+from journey.benchmark_run_report import details_for_case, publish
 from journey.catalog import load_case
 from journey.publish import prepare_publication
-from journey.report import _missing_case, _valid_case_result
+from journey.report import ArtifactRejected, _missing_case, _valid_case_result
 
 
 class BenchmarkTests(unittest.TestCase):
@@ -104,7 +104,7 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(observed['completed_seconds'], 3.5)
         self.assertEqual(observed['completed_model_rounds'], 1)
 
-    def test_report_upload_includes_facts_only_in_private_html(self):
+    def test_report_reuses_qa_html_as_a_single_github_file(self):
         secret_marker = '</script><PRIVATE_FACT>'
         report = {
             'tasks': [{'task_id': 'run-qa', 'conversation_id': 'task-session', 'trace_id': 'task-trace'}],
@@ -121,15 +121,17 @@ class BenchmarkTests(unittest.TestCase):
         self.assertFalse(details['errors'])
         self.assertEqual(details['timeouts'], [['J3-01', 'task-session', 'task-trace', 60]])
         self.assertEqual(details['tools'][0][1:5], ['task-session', 'task-trace', 'bash', secret_marker])
-        store = Mock(root='/workspaces/test-workspace')
+        store = Mock()
         store.sql.return_value = {'rows': [[*row.values(), canonical(report)]]}
-        store.upload_private.return_value = {'file_id': 'private-file-id', 'volume_id': 42}
-        with patch('journey.benchmark_run_report.load_suite', return_value={'cases': ['J3-01', 'J3-02']}):
-            filename, missing, path = publish(store, [{'case_id': 'J3-01', 'run_id': '44', 'run_attempt': 2}], '44', 2)
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch('journey.benchmark_run_report.load_suite', return_value={'cases': ['J3-01', 'J3-02']}):
+            out = Path(tmp) / 'upload'
+            filename, missing = publish(store, [{'case_id': 'J3-01', 'run_id': '44', 'run_attempt': 2}], '44', 2, out)
+            self.assertEqual(list(out.iterdir()), [out / filename])
+            self.assertEqual((out / filename).read_bytes(), store.upload_private.call_args.args[1])
         self.assertEqual(missing, ['J3-02'])
         self.assertIn("run_attempt=2", store.sql.call_args.args[0])
         self.assertEqual(filename, 'journey-3-report-44-attempt-2.html')
-        self.assertEqual(path, '/test-workspace/catalog?view=volume&nodeId=42&keyword=' + filename)
         filename_arg, html, content_type = store.upload_private.call_args.args
         self.assertEqual(filename_arg, filename)
         self.assertEqual(content_type, 'text/html; charset=utf-8')
@@ -144,10 +146,16 @@ class BenchmarkTests(unittest.TestCase):
         self.assertNotIn(b'PRIVATE_FACT', public)
         self.assertNotIn(b'task-trace', public)
 
-    def test_report_link_omits_unusable_catalog_placement(self):
-        self.assertEqual(catalog_report_path('/workspaces/ws', None, 'report.html'), '')
-        self.assertEqual(catalog_report_path('/workspaces/ws', '0', 'report.html'), '')
-        self.assertEqual(catalog_report_path('/workspaces/ws?token=unexpected', 42, 'report.html'), '')
+    def test_report_with_credentials_is_not_staged_for_github(self):
+        store = Mock()
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch('journey.benchmark_run_report.run_details', return_value={}), \
+                patch('journey.benchmark_run_report.render_history', return_value='sk-uca-v1-' + 'a' * 24):
+            out = Path(tmp) / 'upload'
+            with self.assertRaises(ArtifactRejected):
+                publish(store, [], '44', 2, out)
+            self.assertFalse(out.exists())
+        store.upload_private.assert_called_once()
 
 
 if __name__=='__main__':unittest.main()

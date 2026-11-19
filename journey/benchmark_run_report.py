@@ -1,15 +1,17 @@
-"""Generate the private Journey-3 dashboard from a single saved run attempt."""
+"""Generate the Journey-3 HTML once and save the same bytes to QA and Actions."""
+import argparse
 import json
 import os
 import re
 import tempfile
-from urllib.parse import urlencode
+from pathlib import Path
 
 from .benchmark_history import RUN_ID, read_metrics, render_history
 from .benchmark_metrics import history_observations
 from .benchmark_store import HISTORY, configured_store, literal
 from .catalog import load_suite
 from .evidence import Evidence, configured_secrets
+from .report import ArtifactRejected, inspect_payload
 
 
 def evidence_text(value):
@@ -98,15 +100,7 @@ def run_details(store, run, attempt):
             return details
 
 
-def catalog_report_path(workspace_path, volume_id, filename):
-    workspace = re.fullmatch(r'/workspaces/([A-Za-z0-9][A-Za-z0-9_-]*)', workspace_path)
-    volume = str(volume_id)
-    if not workspace or not re.fullmatch(r'[1-9][0-9]{0,18}', volume):
-        return ''
-    return '/' + workspace[1] + '/catalog?' + urlencode({'view': 'volume', 'nodeId': volume, 'keyword': filename})
-
-
-def publish(store, rows, run, attempt):
+def publish(store, rows, run, attempt, artifact_dir=None):
     details = run_details(store, run, attempt)
     planned = load_suite('journey-3')['cases']
     observed = {row['case_id'] for row in rows if row['run_id'] == run and row['run_attempt'] == attempt}
@@ -115,32 +109,39 @@ def publish(store, rows, run, attempt):
     with tempfile.TemporaryDirectory() as tmp:
         details = Evidence(tmp, configured_secrets()).clean(details)
     filename = f'journey-3-report-{run}-attempt-{attempt}.html'
-    receipt = store.upload_private(filename, render_history(rows, details).encode('utf-8'), 'text/html; charset=utf-8')
-    return filename, missing, catalog_report_path(store.root, receipt.get('volume_id'), filename)
+    html = render_history(rows, details).encode('utf-8')
+    store.upload_private(filename, html, 'text/html; charset=utf-8')
+    if artifact_dir is not None:
+        inspect_payload(html, configured_secrets(), name=filename)
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        (artifact_dir / filename).write_bytes(html)
+    return filename, missing
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--artifact-dir', type=Path)
+    args = parser.parse_args()
     try:
         store = configured_store()
-        filename, missing, catalog_path = publish(store, read_metrics(store), os.environ['GITHUB_RUN_ID'],
-                                                  int(os.environ['GITHUB_RUN_ATTEMPT']))
-        print('Journey-3 private dashboard saved in the QA Catalog')
+        filename, missing = publish(store, read_metrics(store), os.environ['GITHUB_RUN_ID'],
+                                    int(os.environ['GITHUB_RUN_ATTEMPT']), args.artifact_dir)
+        print('Journey-3 HTML saved in the QA Catalog')
+        if args.artifact_dir is not None and os.environ.get('GITHUB_OUTPUT'):
+            with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as stream:
+                stream.write(f'artifact-file={args.artifact_dir / filename}\n')
         if os.environ.get('GITHUB_STEP_SUMMARY'):
             with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as stream:
                 status = '结果记录不完整' if missing else '已收齐结果'
-                stream.write(f'\n**Journey-3 HTML（{status}）**\n\n'
-                             f'在 QA 的 journey-3 工作区 Catalog 下载 `{filename}`，用浏览器打开。\n')
-        if os.environ.get('GITHUB_OUTPUT'):
-            if catalog_path:
-                with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as stream:
-                    stream.write(f'catalog-report-path={catalog_path}\n')
-            else:
-                print('::warning::Journey-3 HTML was saved, but the upload did not include a Catalog location')
+                stream.write(f'\n**Journey-3 HTML（{status}）**\n')
         if missing:
             print('::error::Journey-3 report is missing QA rows for: ' + ', '.join(missing))
             return 1
+    except ArtifactRejected:
+        print('::error::Journey-3 HTML was saved in QA and withheld from GitHub by the credential scan')
+        return 1
     except Exception:
-        print('::error::Journey-3 could not save the private dashboard to the QA Catalog')
+        print('::error::Journey-3 could not prepare the HTML report')
         return 1
     return 0
 
