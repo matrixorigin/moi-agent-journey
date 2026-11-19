@@ -35,6 +35,7 @@
   .record dt { color: #51617c; }
   .record dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
   .record ul { margin: 0; padding-left: 1.25em; }
+  #report-coverage { overflow-wrap: anywhere; }
   #details summary { padding: 10px 0; border-top: 1px solid #e4e8f1; cursor: pointer; }
   #details details .record { margin-left: .8em; }
 </style>
@@ -42,6 +43,7 @@
 <body>
 <h1>Journey-3 · Knowledge Base Tasks</h1>
 <p id="description">历史指标来自 QA。带会话和错误详情的完整报告可在 QA 工作区的 Catalog 中下载。</p>
+<p id="report-coverage" hidden></p>
 <label>Case <select id="case"></select></label>
 <label id="revision-label">固定版本 <select id="revision"></select></label>
 <p id="coverage" aria-live="polite"></p>
@@ -361,6 +363,13 @@ revision.onchange = render;
 if (currentRun) {
   document.getElementById('details').hidden = false;
   document.getElementById('description').textContent = 'QA 工作区报告 · Run ' + runKey(currentRun);
+  if (currentRun.coverage) {
+    const {recorded, planned, missing} = currentRun.coverage;
+    const coverage = document.getElementById('report-coverage');
+    coverage.textContent = '本次记录 ' + recorded + ' / ' + planned + ' 题' +
+      (missing.length ? ' · 缺少 ' + missing.join('、') : '');
+    coverage.hidden = false;
+  }
 }
 selectScope();
 </script>

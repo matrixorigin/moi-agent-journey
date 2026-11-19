@@ -200,9 +200,9 @@ def write_summary(rows, destination, env):
                      f'{row.get("task_seconds") if row.get("task_seconds") is not None else "—"} |')
     for row in rows:
         from .catalog import load_case
-        private = load_case(row['case_id'])['workspace']=='journey-3'
-        path = (Path(row.get('public_directory', '/nonexistent')) / 'case-summary.md' if private else
-                Path(row['directory']) / 'results' / row['case_id'] / 'case-summary.md')
+        if load_case(row['case_id'])['workspace'] == 'journey-3':
+            continue
+        path = Path(row['directory']) / 'results' / row['case_id'] / 'case-summary.md'
         if path.exists():
             lines += ['', f'<details><summary>{row["case_id"]} 单 case 报告</summary>', '',
                       path.read_text(), '', '</details>']

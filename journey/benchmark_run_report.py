@@ -1,14 +1,13 @@
 """Generate the private Journey-3 dashboard from a single saved run attempt."""
-import argparse
 import json
 import os
 import re
 import tempfile
-from pathlib import Path
 
-from .benchmark_history import RUN_ID, render_history
+from .benchmark_history import RUN_ID, read_metrics, render_history
 from .benchmark_metrics import history_observations
 from .benchmark_store import HISTORY, configured_store, literal
+from .catalog import load_suite
 from .evidence import Evidence, configured_secrets
 
 
@@ -100,24 +99,31 @@ def run_details(store, run, attempt):
 
 def publish(store, rows, run, attempt):
     details = run_details(store, run, attempt)
+    planned = load_suite('journey-3')['cases']
+    observed = {row['case_id'] for row in rows if row['run_id'] == run and row['run_attempt'] == attempt}
+    missing = [case_id for case_id in planned if case_id not in observed]
+    details['coverage'] = {'recorded': len(planned) - len(missing), 'planned': len(planned), 'missing': missing}
     with tempfile.TemporaryDirectory() as tmp:
         details = Evidence(tmp, configured_secrets()).clean(details)
     filename = f'journey-3-report-{run}-attempt-{attempt}.html'
     store.upload_private(filename, render_history(rows, details).encode('utf-8'), 'text/html; charset=utf-8')
-    return filename
+    return filename, missing
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--history', required=True, type=Path)
-    args = parser.parse_args()
     try:
-        rows = json.loads(args.history.read_text())
-        filename = publish(configured_store(), rows, os.environ['GITHUB_RUN_ID'], int(os.environ['GITHUB_RUN_ATTEMPT']))
+        store = configured_store()
+        filename, missing = publish(store, read_metrics(store), os.environ['GITHUB_RUN_ID'],
+                                    int(os.environ['GITHUB_RUN_ATTEMPT']))
         print('Journey-3 private dashboard saved in the QA Catalog')
         if os.environ.get('GITHUB_STEP_SUMMARY'):
             with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as stream:
-                stream.write(f'\nJourney-3 完整报告已保存到 QA 工作区 Catalog：`{filename}`。下载后用浏览器打开。\n')
+                status = '结果记录不完整' if missing else '已收齐结果'
+                stream.write(f'\n**Journey-3 HTML（{status}）**\n\n'
+                             f'在 QA 的 journey-3 工作区 Catalog 下载 `{filename}`，用浏览器打开。\n')
+        if missing:
+            print('::error::Journey-3 report is missing QA rows for: ' + ', '.join(missing))
+            return 1
     except Exception:
         print('::error::Journey-3 could not save the private dashboard to the QA Catalog')
         return 1

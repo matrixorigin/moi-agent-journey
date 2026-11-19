@@ -25,6 +25,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
+      case-bundle: ${{ steps.plan.outputs.case-bundle }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -34,10 +35,15 @@ jobs:
           JOURNEY_WORKSPACE: ${{ inputs.workspace || 'all' }}
         run: python3 -m journey.catalog plan-workspaces "$JOURNEY_WORKSPACE"
   judge-image:
+    needs: plan
+    if: needs.plan.outputs.case-bundle == 'true'
     uses: ./.github/workflows/build-judge.yml
   journeys:
     name: ${{ matrix.display_name }}
     needs: [plan, judge-image]
+    if: >-
+      ${{ !cancelled() && needs.plan.result == 'success' &&
+          (needs.judge-image.result == 'success' || needs.plan.outputs.case-bundle == 'false') }}
     # Reusable jobs narrow this ceiling: only Journey-5's credential-renewal job writes.
     permissions:
       contents: write
@@ -52,7 +58,7 @@ jobs:
     secrets: inherit
   report:
     needs: [plan, journeys]
-    if: always()
+    if: always() && !cancelled() && needs.plan.result == 'success'
     environment: qa
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -61,35 +67,26 @@ jobs:
         with:
           persist-credentials: false
       - name: Download all case evidence
-        id: download
+        if: needs.plan.outputs.case-bundle == 'true'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: case-*-attempt-${{ github.run_attempt }}
           merge-multiple: true
           path: downloaded-results
-      - name: Export Journey-3 historical metrics after both case jobs
-        id: j3-history
-        if: >-
-          ${{ !cancelled() && needs.plan.result == 'success' &&
-              contains(fromJSON(needs.plan.outputs.matrix).include.*.workspace, 'journey-3') }}
-        env:
-          MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
-          MOI_PAT: ${{ secrets.MOI_PAT }}
-        run: python3 -m journey.benchmark_history --out downloaded-results/history
       - name: Save complete Journey-3 report to the QA Catalog
-        if: ${{ !cancelled() && steps.j3-history.outcome == 'success' }}
+        if: ${{ !cancelled() && contains(fromJSON(needs.plan.outputs.matrix).include.*.workspace, 'journey-3') }}
         env:
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ secrets.MOI_PAT }}
-        run: python3 -m journey.benchmark_run_report --history downloaded-results/history/history.json
-      - name: Account for every configured case
-        if: always()
+        run: python3 -m journey.benchmark_run_report
+      - name: Account for cases with GitHub evidence bundles
+        if: always() && !cancelled() && needs.plan.outputs.case-bundle == 'true'
         env:
           JOURNEY_WORKSPACE: ${{ inputs.workspace || 'all' }}
-        run: python3 -m journey.report aggregate --workspace "$JOURNEY_WORKSPACE"
+        run: python3 -m journey.report aggregate --workspace "$JOURNEY_WORKSPACE" --exclude-journey-3
       - name: Upload consolidated results
         id: upload-report
-        if: always()
+        if: always() && !cancelled() && needs.plan.outputs.case-bundle == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: journey-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
@@ -101,9 +98,4 @@ jobs:
         if: always() && steps.upload-report.outcome == 'success'
         env:
           ARTIFACT_URL: ${{ steps.upload-report.outputs.artifact-url }}
-        run: |
-          label='下载总报告'
-          if [ -f bundle/history/history.html ]; then
-            label='下载总报告（含历史曲线）'
-          fi
-          printf '\n[%s](%s)\n' "$label" "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
+        run: printf '\n[下载报告](%s)\n' "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"

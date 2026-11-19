@@ -21,7 +21,9 @@ class WorkspaceSelectionTests(unittest.TestCase):
                     patch.dict(os.environ, {'GITHUB_OUTPUT': str(output)}), contextlib.redirect_stdout(stdout):
                 self.assertEqual(main(), 0)
             matrix = json.loads(stdout.getvalue())
-            self.assertEqual(output.read_text(), 'matrix=' + stdout.getvalue())
+            bundle = any(item['workspace'] != 'journey-3' for item in matrix['include'])
+            self.assertEqual(output.read_text(), 'matrix=' + stdout.getvalue() +
+                             'case-bundle=' + json.dumps(bundle) + '\n')
             return matrix['include']
 
     def test_display_selection_and_workspace_id_route_to_the_same_single_suite(self):
@@ -42,6 +44,18 @@ class WorkspaceSelectionTests(unittest.TestCase):
     def test_all_preserves_every_workspace_including_empty_suites(self):
         self.assertEqual([item['workspace'] for item in self.plan('all')],
                          ['journey-1', 'journey-2', 'journey-3', 'journey-4', 'journey-5'])
+
+    def test_combined_github_bundle_does_not_count_or_copy_journey_3(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            old_case = root / 'source' / 'J3-01'
+            old_case.mkdir(parents=True)
+            (old_case / 'result.json').write_text('{}')
+            report = aggregate(root / 'source', root / 'bundle', 'all', exclude_journey_3=True)
+            self.assertTrue(report['cases'])
+            self.assertNotIn('journey-3', {item['workspace'] for item in report['journeys']})
+            self.assertNotIn('J3-01', {case['case_id'] for case in report['cases']})
+            self.assertFalse((root / 'bundle' / 'cases' / 'J3-01').exists())
 
     def test_unknown_or_stale_labels_do_not_run_a_different_scope(self):
         for selection in ('journey-9', 'journey-2 (wrong subtitle)', ''):

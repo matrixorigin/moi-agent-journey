@@ -157,6 +157,7 @@ def main():
         if os.environ.get('GITHUB_OUTPUT'):
             with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
                 f.write('matrix=' + output + '\n')
+                f.write('case-bundle=' + json.dumps(any(s['workspace'] != 'journey-3' for s in suites)) + '\n')
         print(output)
         return 0
     if args.command == "plan":

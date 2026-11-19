@@ -68,7 +68,7 @@ def metrics_row(row):
     return value
 
 
-def export(store, destination):
+def read_metrics(store):
     # Historical rows written before observations existed are projected in
     # memory. No private fields from those reports enter the export.
     rows, cursor = [], None
@@ -98,6 +98,11 @@ def export(store, destination):
         following=(utc_timestamp(page[-1][2]),page[-1][0])
         if cursor is not None and following<=cursor:raise ValueError('nonprogressing_history_cursor')
         cursor=following
+    return rows
+
+
+def export(store, destination):
+    rows = read_metrics(store)
     write_metrics(rows, destination)
     return len(rows)
 

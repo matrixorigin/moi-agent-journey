@@ -123,7 +123,9 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(details['tools'][0][1:5], ['task-session', 'task-trace', 'bash', secret_marker])
         store = Mock()
         store.sql.return_value = {'rows': [[*row.values(), canonical(report)]]}
-        filename = publish(store, [], '44', 2)
+        with patch('journey.benchmark_run_report.load_suite', return_value={'cases': ['J3-01', 'J3-02']}):
+            filename, missing = publish(store, [{'case_id': 'J3-01', 'run_id': '44', 'run_attempt': 2}], '44', 2)
+        self.assertEqual(missing, ['J3-02'])
         self.assertIn("run_attempt=2", store.sql.call_args.args[0])
         self.assertEqual(filename, 'journey-3-report-44-attempt-2.html')
         filename_arg, html, content_type = store.upload_private.call_args.args
@@ -132,6 +134,7 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn(b'original error', html)
         self.assertIn(b'task-trace', html)
         self.assertNotIn(secret_marker.encode(), html)
+        self.assertIn(b'"coverage": {"recorded": 1, "planned": 2, "missing": ["J3-02"]}', html)
         with tempfile.TemporaryDirectory() as tmp:
             write_metrics([], tmp)
             public = (Path(tmp) / 'history.html').read_bytes()
