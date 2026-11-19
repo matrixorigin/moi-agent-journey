@@ -62,6 +62,8 @@ jobs:
     environment: qa
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      catalog-report-path: ${{ steps.j3-report.outputs.catalog-report-path }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -74,6 +76,7 @@ jobs:
           merge-multiple: true
           path: downloaded-results
       - name: Save complete Journey-3 report to the QA Catalog
+        id: j3-report
         if: ${{ !cancelled() && contains(fromJSON(needs.plan.outputs.matrix).include.*.workspace, 'journey-3') }}
         env:
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
@@ -99,3 +102,19 @@ jobs:
         env:
           ARTIFACT_URL: ${{ steps.upload-report.outputs.artifact-url }}
         run: printf '\n[下载报告](%s)\n' "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
+  journey-3-report-link:
+    name: Journey-3 HTML download
+    needs: report
+    if: ${{ !cancelled() && needs.report.outputs.catalog-report-path != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    # Keep the link step outside the qa environment, where the UI origin is masked.
+    steps:
+      - name: Link the report in the QA Catalog
+        env:
+          QA_CATALOG_ORIGIN: https://qa.moi.shanghai.idc.matrixorigin.cn:30443
+          CATALOG_REPORT_PATH: ${{ needs.report.outputs.catalog-report-path }}
+        run: |
+          printf '[在 QA 下载本次 Journey-3 HTML](%s%s)\n\n登录后会定位到报告，点击该行的下载按钮。\n' \
+            "$QA_CATALOG_ORIGIN" "$CATALOG_REPORT_PATH" >> "$GITHUB_STEP_SUMMARY"

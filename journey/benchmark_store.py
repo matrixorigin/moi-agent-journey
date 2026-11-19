@@ -108,7 +108,9 @@ class Store:
         checksum = hashlib.sha256(data).hexdigest()
         self.sql('INSERT IGNORE INTO ' + DATABASE + '.private_evidence_files(file_id,sha256) VALUES (' +
                  literal(file_id) + ',' + literal(checksum) + ')')
-        return {'file_id': file_id, 'sha256': checksum, 'bytes': len(data)}
+        catalog_file = file.get('catalog_file')
+        return {'file_id': file_id, 'sha256': checksum, 'bytes': len(data),
+                'volume_id': catalog_file.get('volume_id') if isinstance(catalog_file, dict) else None}
 
     def persist(self, result, case, directory):
         from .benchmark_metrics import history_observations, history_record

@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 from journey.benchmark_metrics import history_observations, history_record, model_rounds, quality_score
 from journey.benchmark_store import Store, canonical
 from journey.benchmark_history import metrics_row, write_metrics
-from journey.benchmark_run_report import details_for_case, publish
+from journey.benchmark_run_report import catalog_report_path, details_for_case, publish
 from journey.catalog import load_case
 from journey.publish import prepare_publication
 from journey.report import _missing_case, _valid_case_result
@@ -121,13 +121,15 @@ class BenchmarkTests(unittest.TestCase):
         self.assertFalse(details['errors'])
         self.assertEqual(details['timeouts'], [['J3-01', 'task-session', 'task-trace', 60]])
         self.assertEqual(details['tools'][0][1:5], ['task-session', 'task-trace', 'bash', secret_marker])
-        store = Mock()
+        store = Mock(root='/workspaces/test-workspace')
         store.sql.return_value = {'rows': [[*row.values(), canonical(report)]]}
+        store.upload_private.return_value = {'file_id': 'private-file-id', 'volume_id': 42}
         with patch('journey.benchmark_run_report.load_suite', return_value={'cases': ['J3-01', 'J3-02']}):
-            filename, missing = publish(store, [{'case_id': 'J3-01', 'run_id': '44', 'run_attempt': 2}], '44', 2)
+            filename, missing, path = publish(store, [{'case_id': 'J3-01', 'run_id': '44', 'run_attempt': 2}], '44', 2)
         self.assertEqual(missing, ['J3-02'])
         self.assertIn("run_attempt=2", store.sql.call_args.args[0])
         self.assertEqual(filename, 'journey-3-report-44-attempt-2.html')
+        self.assertEqual(path, '/test-workspace/catalog?view=volume&nodeId=42&keyword=' + filename)
         filename_arg, html, content_type = store.upload_private.call_args.args
         self.assertEqual(filename_arg, filename)
         self.assertEqual(content_type, 'text/html; charset=utf-8')
@@ -141,6 +143,11 @@ class BenchmarkTests(unittest.TestCase):
         self.assertNotIn(b'original error', public)
         self.assertNotIn(b'PRIVATE_FACT', public)
         self.assertNotIn(b'task-trace', public)
+
+    def test_report_link_omits_unusable_catalog_placement(self):
+        self.assertEqual(catalog_report_path('/workspaces/ws', None, 'report.html'), '')
+        self.assertEqual(catalog_report_path('/workspaces/ws', '0', 'report.html'), '')
+        self.assertEqual(catalog_report_path('/workspaces/ws?token=unexpected', 42, 'report.html'), '')
 
 
 if __name__=='__main__':unittest.main()

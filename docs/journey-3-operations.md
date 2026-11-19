@@ -44,8 +44,9 @@ Every Journey-3 case stores its evidence in QA, including the original document 
 
 After the two Journey-3 jobs finish, the report job saves
 `journey-3-report-<run-id>-attempt-<attempt>.html` to the CI account's private Catalog files
-in the QA `journey-3` workspace. Search for that filename and download it to open locally.
-The Actions summary lists the filename. For Journey-3, the QA HTML is the report.
+in the QA `journey-3` workspace. Open the Actions summary's QA link to locate that
+report in Catalog, then click Download on the file row and open it in a browser.
+The link uses the reader's QA session and Catalog permissions. The QA HTML is the report.
 
 The HTML shows history for all cases, documents, operations and individual cases.
 Completion and timeout rates use the eligible case outcomes of a run with all configured records.
