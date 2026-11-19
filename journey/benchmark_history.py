@@ -7,20 +7,27 @@ import math
 from pathlib import Path
 import re
 
+from .benchmark_metrics import history_observations
 from .benchmark_store import configured_store, HISTORY, literal
 from .catalog import load_suite, plan_suite
 
-FIELDS = ['case_id','evaluated_at','duration_seconds','quality_score','tool_call_count',
+BASE_FIELDS = ['case_id','evaluated_at','duration_seconds','quality_score','tool_call_count',
           'model_round_count','task_state','case_revision','snapshot_id','evaluator_version',
-          'model_key','benchmark_state']
-SELECT_FIELDS = [field if field != 'model_key' else 'MD5(model) AS model_key' for field in FIELDS]
+          'model_key','benchmark_state','run_id','run_attempt']
+OBSERVATION_FIELDS = ['qa_outcome', 'completed_seconds', 'completed_model_rounds',
+                      'tool_succeeded', 'tool_failed']
+FIELDS = BASE_FIELDS + OBSERVATION_FIELDS
+SELECT_FIELDS = [field if field != 'model_key' else 'MD5(model) AS model_key' for field in BASE_FIELDS]
+OBSERVATIONS_SQL = "JSON_EXTRACT(report_json,'$.history_observations')"
+RUN_ID = re.compile(r'[1-9][0-9]{0,23}')
 
 
 def utc_timestamp(value):
     # query/run currently formats DATETIME as Go's UTC time.String(), while
     # saved metric artifacts use ISO 8601. Accept precisely these UTC forms.
-    match = re.fullmatch(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d{1,6})?) \+0000 UTC', value)
-    timestamp = datetime.fromisoformat(match[1] + '+00:00' if match else value)
+    match = re.fullmatch(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))? \+0000 UTC', value)
+    wire = match[1] + '.' + (match[2] or '').ljust(6, '0') + '+00:00' if match else value
+    timestamp = datetime.fromisoformat(wire.replace('Z', '+00:00'))
     if timestamp.utcoffset() not in (None, timezone.utc.utcoffset(timestamp)):
         raise ValueError('history_requires_UTC')
     return timestamp.replace(tzinfo=timezone.utc)
@@ -31,7 +38,9 @@ def metrics_row(row):
         raise ValueError('invalid_history_case_identity')
     value = dict(zip(FIELDS, row))
     value['evaluated_at'] = utc_timestamp(value['evaluated_at']).isoformat(timespec='microseconds').replace('+00:00', 'Z')
-    for key in ('duration_seconds','quality_score','tool_call_count','model_round_count'):
+    numbers = ('duration_seconds','quality_score','tool_call_count','model_round_count',
+               'completed_seconds','completed_model_rounds','tool_succeeded','tool_failed','run_attempt')
+    for key in numbers:
         if type(value[key]) is bool:
             raise ValueError('invalid_history_metric')
         number = None if value[key] is None else float(value[key])
@@ -39,8 +48,10 @@ def metrics_row(row):
                 (key == 'quality_score' and number > 100)):
             raise ValueError('invalid_history_metric')
         value[key] = number
-        if number is not None and key in ('tool_call_count', 'model_round_count') and not number.is_integer():
-            raise ValueError('invalid_history_count')
+        if number is not None and key not in ('duration_seconds','quality_score','completed_seconds'):
+            if not number.is_integer():
+                raise ValueError('invalid_history_count')
+            value[key] = int(number)
     if value['task_state'] not in {'completed','abnormal','timeout','unknown','not_delivered','canceled'}:
         raise ValueError('invalid_history_task_state')
     for key in ('case_revision','snapshot_id','evaluator_version'):
@@ -50,29 +61,56 @@ def metrics_row(row):
         raise ValueError('invalid_history_model_identity')
     if value['benchmark_state'] not in {'eligible', 'blocked', 'out_of_scope'}:
         raise ValueError('invalid_history_benchmark_state')
+    if not RUN_ID.fullmatch(value['run_id'] or '') or not value['run_attempt']:
+        raise ValueError('invalid_history_run')
+    if value['qa_outcome'] not in {'completed', 'error', 'timeout', 'excluded'}:
+        raise ValueError('invalid_history_qa_outcome')
     return value
 
 
 def export(store, destination):
-    # This query deliberately has no question, agent name, answer, SQL output,
-    # error text or source excerpts. Unknown metric shapes fail publication.
+    # Historical rows written before observations existed are projected in
+    # memory. No private fields from those reports enter the export.
     rows, cursor = [], None
+    page_size = 100
     while True:
         timestamp = None if cursor is None else cursor[0].replace(tzinfo=None).isoformat(sep=' ', timespec='microseconds')
-        condition = '' if cursor is None else (' WHERE evaluated_at>'+literal(timestamp)+
-            ' OR (evaluated_at='+literal(timestamp)+' AND result_key>'+literal(cursor[1])+')')
-        response=store.sql('SELECT result_key,'+','.join(SELECT_FIELDS)+' FROM '+HISTORY+condition+
-                           ' ORDER BY evaluated_at,result_key LIMIT 2000',2000)
+        condition = '' if cursor is None else (' AND (evaluated_at>'+literal(timestamp)+
+            ' OR (evaluated_at='+literal(timestamp)+' AND result_key>'+literal(cursor[1])+'))')
+        response=store.sql('SELECT result_key,'+','.join(SELECT_FIELDS)+', '+OBSERVATIONS_SQL+
+                           ', CASE WHEN '+OBSERVATIONS_SQL+' IS NULL THEN report_json ELSE NULL END'
+                           ' FROM '+HISTORY+" WHERE run_id REGEXP '^[1-9][0-9]{0,23}$'"+condition+
+                           ' ORDER BY evaluated_at,result_key LIMIT '+str(page_size),page_size)
         page=response['rows']
         if response.get('truncated') or any(not re.fullmatch(r'[a-f0-9]{64}', row[0] or '') for row in page):
             raise ValueError('invalid_history_page')
-        rows.extend(metrics_row(row[1:]) for row in page)
-        if len(page)<2000:break
+        for row in page:
+            values = row[1:1+len(BASE_FIELDS)]
+            saved, legacy = row[-2:]
+            if saved is not None:
+                observations = json.loads(saved)
+                if not isinstance(observations, dict) or set(observations) != set(OBSERVATION_FIELDS):
+                    raise ValueError('invalid_saved_history_observations')
+            else:
+                observations = history_observations(json.loads(legacy), dict(zip(BASE_FIELDS, values)))
+            rows.append(metrics_row(values + [observations[key] for key in OBSERVATION_FIELDS]))
+        if len(page)<page_size:break
         following=(utc_timestamp(page[-1][2]),page[-1][0])
         if cursor is not None and following<=cursor:raise ValueError('nonprogressing_history_cursor')
         cursor=following
     write_metrics(rows, destination)
     return len(rows)
+
+
+def render_history(rows, current=None):
+    plan = plan_suite(load_suite('journey-3'))
+    jobs = {job['case']: job['case_ids'] for job in plan['include'] if job['executor'] == 'batch'}
+    template = (Path(__file__).parent.parent / 'datasets/journey-3/history.html').read_text()
+    values = {'/*HISTORY_DATA*/[]': rows, '/*HISTORY_JOBS*/{}': jobs, '/*RUN_DETAILS*/null': current}
+    # Replace once in the template, so a marker inside evidence remains text.
+    return re.sub('|'.join(re.escape(key) for key in values),
+                  lambda match: json.dumps(values[match[0]], ensure_ascii=True).replace('<', '\\u003c'),
+                  template)
 
 
 def write_metrics(rows, destination):
@@ -88,12 +126,7 @@ def write_metrics(rows, destination):
     (destination/'history.json').write_text(json.dumps(rows, ensure_ascii=True, indent=2))
     with (destination/'history.csv').open('w', newline='') as stream:
         writer=csv.DictWriter(stream, fieldnames=FIELDS);writer.writeheader();writer.writerows(rows)
-    plan = plan_suite(load_suite('journey-3'))
-    jobs = {job['case']: job['case_ids'] for job in plan['include'] if job['executor'] == 'batch'}
-    template = (Path(__file__).parent.parent / 'datasets/journey-3/history.html').read_text()
-    html = template.replace('/*HISTORY_DATA*/[]', json.dumps(rows, ensure_ascii=True).replace('<', '\\u003c'))
-    html = html.replace('/*HISTORY_JOBS*/{}', json.dumps(jobs, ensure_ascii=True).replace('<', '\\u003c'))
-    (destination / 'history.html').write_text(html)
+    (destination / 'history.html').write_text(render_history(rows))
 
 
 def main():

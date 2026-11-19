@@ -68,6 +68,7 @@ jobs:
           merge-multiple: true
           path: downloaded-results
       - name: Export Journey-3 historical metrics after both case jobs
+        id: j3-history
         if: >-
           ${{ !cancelled() && needs.plan.result == 'success' &&
               contains(fromJSON(needs.plan.outputs.matrix).include.*.workspace, 'journey-3') }}
@@ -75,6 +76,12 @@ jobs:
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ secrets.MOI_PAT }}
         run: python3 -m journey.benchmark_history --out downloaded-results/history
+      - name: Save complete Journey-3 report to the QA Catalog
+        if: ${{ !cancelled() && steps.j3-history.outcome == 'success' }}
+        env:
+          MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
+          MOI_PAT: ${{ secrets.MOI_PAT }}
+        run: python3 -m journey.benchmark_run_report --history downloaded-results/history/history.json
       - name: Account for every configured case
         if: always()
         env:

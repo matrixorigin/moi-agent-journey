@@ -803,7 +803,7 @@ def aggregate(source, destination, workspace='all', case_ids=None):
         if has_private_history:
             from .benchmark_history import write_metrics
             write_metrics(json.loads((Path(source) / 'history' / 'history.json').read_text()), destination / 'history')
-            lines += ['', f'下载并解压总报告，打开 {history_link} 查看历史耗时与质量曲线。']
+            lines += ['', f'下载并解压总报告，打开 {history_link} 查看 Journey-3 历史趋势。']
     lines += ['', '其他 Journey 的单个 case 报告和 result.json 包含会话 ID、trace ID、质量判词、工具参数和错误；'
               'events.jsonl 保存公开事件（凭据已脱敏）。', '',
               '智能体异常、超时、交付或质量问题不使 job 变红；执行、验收或取证错误会使 job 变红。', '',

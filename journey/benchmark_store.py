@@ -92,10 +92,12 @@ class Store:
                     raise Failure('private_evidence_symlink')
                 if path.is_file():
                     archive.add(path, arcname=path.relative_to(directory), recursive=False)
-        data = payload.getvalue()
+        return self.upload_private(case_id + '-evidence.tar.gz', payload.getvalue(), 'application/gzip')
+
+    def upload_private(self, filename, data, content_type):
         boundary = 'journey-' + uuid.uuid4().hex
         raw = (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; '
-               f'filename="{case_id}-evidence.tar.gz"\r\nContent-Type: application/gzip\r\n\r\n').encode()
+               f'filename="{filename}"\r\nContent-Type: {content_type}\r\n\r\n').encode()
         raw += data + f'\r\n--{boundary}--\r\n'.encode()
         result = self.client.request('POST', self.root + '/catalog-files/uploads', raw=raw,
             content_type='multipart/form-data; boundary=' + boundary)
@@ -109,17 +111,25 @@ class Store:
         return {'file_id': file_id, 'sha256': checksum, 'bytes': len(data)}
 
     def persist(self, result, case, directory):
-        from .benchmark_metrics import history_record
-        record = history_record(result, case, Path(directory) / 'events.jsonl')
+        from .benchmark_metrics import history_observations, history_record
+        events = Path(directory) / 'events.jsonl'
+        record = history_record(result, case, events)
+        stored = {**result, 'history_observations': history_observations(result, record, events)}
         key = digest([record['run_id'], record['run_attempt'], case['id'], record['case_revision']])
         prior = self.sql('SELECT report_json FROM ' + HISTORY + ' WHERE result_key=' + literal(key), 1)
         if prior.get('rows'):
-            if digest(json.loads(prior['rows'][0][0])) != digest(result):
+            previous = json.loads(prior['rows'][0][0])
+            if 'history_observations' not in previous:
+                # A retry can encounter a record written before observations were added.
+                comparable = result
+            else:
+                comparable = stored
+            if digest(previous) != digest(comparable):
                 raise Failure('benchmark_history_result_key_conflict')
             return {'state': 'already_saved', 'result_key': key}
         receipt = self.upload(directory, case['id'])
         record.update(result_key=key, evidence_file_id=receipt['file_id'],
-                      evidence_sha256=receipt['sha256'], report_json=canonical(result))
+                      evidence_sha256=receipt['sha256'], report_json=canonical(stored))
         names = list(record)
         self.sql('INSERT INTO ' + HISTORY + ' (' + ','.join('`'+x+'`' for x in names) + ') VALUES (' +
                  ','.join(literal(record[x]) for x in names) + ')')
