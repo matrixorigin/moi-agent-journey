@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 from journey.client import Failure
 from journey.feishu_auth import export_access, rotate
-from journey.feishu_state import RepositoryState, SMOKE_BRANCH, STATE_PATH
+from journey.feishu_state import RepositoryState, SMOKE_BRANCH, STATE_PATH, read_smoke_state
 
 
 KEY = base64.b64encode(bytes(range(32))).decode()
@@ -87,6 +87,29 @@ class StateTests(unittest.TestCase):
         observed, sha, _ = self.store.read()
         self.assertEqual(sha, current)
         self.assertEqual(observed['generation'], 1)
+
+    def test_smoke_read_waits_for_written_blob_before_decryption(self):
+        previous_key = base64.b64encode(b'x' * 32).decode()
+        previous_store = RepositoryState('owner/repo', 'app', previous_key)
+        previous = GitFixture(previous_store, {'generation': 0})
+        stale = previous('GET', self.store.path)
+        current = self.git('GET', self.store.path)
+        with patch.object(self.store, 'api', side_effect=[stale, current]), \
+                patch('journey.feishu_state.time.sleep') as sleep:
+            observed, sha, _ = read_smoke_state(self.store, self.git.sha)
+        sleep.assert_called_once_with(1)
+        self.assertEqual((observed, sha), (READY, self.git.sha))
+
+    def test_smoke_read_reports_an_unseen_write_and_rejects_bad_ciphertext(self):
+        with patch('journey.feishu_state.time.sleep') as sleep:
+            with self.assertRaisesRegex(Failure, 'feishu_state_smoke_write_not_visible'):
+                read_smoke_state(self.store, '0' * 40)
+            self.assertEqual(sleep.call_count, 5)
+            sleep.reset_mock()
+            self.git.raw = b'corrupted state'
+            with self.assertRaisesRegex(Failure, 'feishu_state_authentication_failed'):
+                read_smoke_state(self.store, self.git.sha)
+            sleep.assert_not_called()
 
     def test_lost_write_receipt_is_resolved_without_repeating_the_write(self):
         _, sha, _ = self.store.read()

@@ -73,6 +73,7 @@
 const data = /*HISTORY_DATA*/[];
 const jobs = /*HISTORY_JOBS*/{};
 const currentRun = /*RUN_DETAILS*/null;
+const runMetadata = /*RUN_METADATA*/{};
 const scope = document.getElementById('case');
 const revision = document.getElementById('revision');
 const legend = document.getElementById('legend');
@@ -83,13 +84,43 @@ const runKey = row => row.run_id + '/' + row.run_attempt;
 const runs = new Map();
 for (const row of data) {
   const key = runKey(row);
-  if (!runs.has(key)) runs.set(key, {key, date: row.evaluated_at, cases: new Set()});
+  if (!runs.has(key)) runs.set(key, {key, run_id: row.run_id, run_attempt: row.run_attempt,
+    date: row.evaluated_at, cases: new Set()});
   const run = runs.get(key);
   run.cases.add(row.case_id);
   if (row.evaluated_at < run.date) run.date = row.evaluated_at;
 }
-const timeline = [...runs.values()].sort((a, b) => a.date.localeCompare(b.date));
+const timeline = [...runs.values()].sort((a, b) => {
+  if (a.run_id === b.run_id) return a.run_attempt - b.run_attempt;
+  const aNumber = runMetadata[a.run_id]?.number;
+  const bNumber = runMetadata[b.run_id]?.number;
+  if (aNumber && bNumber && aNumber !== bNumber) return aNumber - bNumber;
+  return BigInt(a.run_id) < BigInt(b.run_id) ? -1 : 1;
+});
 const runIndex = new Map(timeline.map(({key}, index) => [key, index]));
+const tickIndexes = timeline.length <= 6 ? timeline.map((_, index) => index) :
+  Array.from({length: 6}, (_, index) => Math.round(index * (timeline.length - 1) / 5));
+const formatRunTime = new Intl.DateTimeFormat('zh-CN', {
+  timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+});
+const runTooltips = timeline.map(runTooltip);
+
+function runLabel(id, attempt) {
+  const number = runMetadata[id]?.number;
+  const label = number ? '#' + number : 'ID ' + (id.length > 6 ? '…' + id.slice(-6) : id);
+  return attempt > 1 ? label + '.' + attempt : label;
+}
+
+function runTooltip(run) {
+  const meta = runMetadata[run.run_id];
+  const started = run.run_attempt === meta?.attempt ? meta.started_at : null;
+  const created = run.run_attempt === 1 ? meta?.created_at : null;
+  const time = started || created || run.date;
+  const label = started ? 'GitHub 开始时间' : created ? 'GitHub 触发时间' : 'QA 首条记录时间';
+  return runLabel(run.run_id, run.run_attempt) + ' · ' + label + ' ' +
+    formatRunTime.format(new Date(time)) + '（北京时间）';
+}
 
 function addOption(parent, value, label = value) {
   const option = document.createElement('option');
@@ -153,10 +184,8 @@ function draw(id, series, metric, chartDomain, color, colorByCase = false) {
   const values = [...series.values()].flat().map(metric);
   const maximum = chartDomain ?? values.reduce((max, value) => Math.max(max, value ?? 0), 1);
   const left = 43, right = 454, top = 12, bottom = 137;
-  const start = Date.parse(timeline[0]?.date);
-  const end = Date.parse(timeline.at(-1)?.date);
-  const pointX = index => start === end ? (left + right) / 2 :
-    left + (right - left) * (Date.parse(timeline[index].date) - start) / (end - start);
+  const pointX = index => timeline.length <= 1 ? (left + right) / 2 :
+    left + (right - left) * index / (timeline.length - 1);
   for (let i = 0; i <= 4; i++) {
     const y = bottom - (bottom - top) * i / 4;
     node(svg, 'line', {x1: left, x2: right, y1: y, y2: y, class: 'axis'});
@@ -187,18 +216,19 @@ function draw(id, series, metric, chartDomain, color, colorByCase = false) {
       const y = bottom - (bottom - top) * value / maximum;
       points.push(x + ',' + y);
       const point = node(group, 'circle', {cx: x, cy: y, r: colorByCase ? 2.5 : 4});
-      const label = ' · Run ' + runKey(row) + ' · ' + Number(value.toFixed(2));
-      node(point, 'title', {}, row.case_id ? row.case_id + label + '\n' + version(row) : label.slice(3));
+      const label = runTooltips[index] + ' · ' + Number(value.toFixed(2));
+      node(point, 'title', {}, row.case_id ? row.case_id + ' · ' + label + '\n' + version(row) : label);
     }
     finishSegment();
   }
 
-  const axisDate = time => new Date(time).toISOString().slice(5, 16).replace('T', ' ') + ' UTC';
-  if (start === end) {
-    node(svg, 'text', {x: (left + right) / 2, y: 163, 'text-anchor': 'middle'}, axisDate(start));
-  } else {
-    node(svg, 'text', {x: left, y: 163}, axisDate(start));
-    node(svg, 'text', {x: right, y: 163, 'text-anchor': 'end'}, axisDate(end));
+  for (const index of tickIndexes) {
+    const run = timeline[index];
+    const anchor = timeline.length === 1 ? 'middle' :
+      index === 0 ? 'start' : index === timeline.length - 1 ? 'end' : 'middle';
+    const tick = node(svg, 'text', {x: pointX(index), y: 163, 'text-anchor': anchor, 'data-run-tick': run.key},
+      runLabel(run.run_id, run.run_attempt));
+    node(tick, 'title', {}, runTooltips[index]);
   }
 }
 
@@ -293,7 +323,7 @@ function showDetails() {
   host.replaceChildren();
   const count = detailTab === 'tools' ? rows.length + ' 次失败调用' :
     new Set(rows.map(row => row[0])).size + ' 个 case';
-  document.getElementById('detail-count').textContent = 'Run ' + runKey(currentRun) + ' · ' + count;
+  document.getElementById('detail-count').textContent = runLabel(currentRun.run_id, currentRun.attempt) + ' · ' + count;
   for (const button of detailTabs) button.setAttribute('aria-pressed', String(button.dataset.detail === detailTab));
   if (!rows.length) host.append(element('p', '当前范围无符合条件的记录。'));
   if (detailTab === 'tools') {
@@ -362,7 +392,7 @@ scope.onchange = selectScope;
 revision.onchange = render;
 if (currentRun) {
   document.getElementById('details').hidden = false;
-  document.getElementById('description').textContent = 'QA 工作区报告 · Run ' + runKey(currentRun);
+  document.getElementById('description').textContent = 'Journey-3 报告 · ' + runLabel(currentRun.run_id, currentRun.attempt);
   if (currentRun.coverage) {
     const {recorded, planned, missing} = currentRun.coverage;
     const coverage = document.getElementById('report-coverage');

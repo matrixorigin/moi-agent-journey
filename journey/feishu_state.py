@@ -86,16 +86,19 @@ class RepositoryState:
         except (ValueError, KeyError, TypeError, InvalidTag):
             raise Failure('feishu_state_authentication_failed') from None
 
-    def read(self):
+    def read(self, *, expected_sha=None):
         result = self.api('GET', self.path + '?ref=' + self.branch)
         try:
+            sha = result['sha']
             if (result['type'] != 'file' or result['path'] != STATE_PATH or
-                    result['encoding'] != 'base64' or not re.fullmatch(r'[0-9a-f]{40}', result['sha'])):
+                    result['encoding'] != 'base64' or not re.fullmatch(r'[0-9a-f]{40}', sha)):
                 raise ValueError()
             encoded = base64.b64decode(''.join(result['content'].split()), validate=True)
         except (KeyError, ValueError, TypeError):
             raise Failure('feishu_state_invalid_file') from None
-        return self.decrypt(encoded), result['sha'], encoded
+        if expected_sha is not None and sha != expected_sha:
+            raise Failure('feishu_state_read_not_current')
+        return self.decrypt(encoded), sha, encoded
 
     def save(self, value, expected_sha):
         """CAS on the exact current blob; never rebase or overwrite a competing rotation."""
@@ -172,6 +175,19 @@ def seed(grant_file, expected_sha=None):
         'member_identity': 'matches_configured_test_member'}))
 
 
+def read_smoke_state(store, expected_sha):
+    # A branch read can briefly return the previous run's blob, encrypted with a different key.
+    for attempt in range(6):
+        try:
+            return store.read(expected_sha=expected_sha)
+        except Failure as error:
+            if error.code != 'feishu_state_read_not_current':
+                raise
+        if attempt < 5:
+            time.sleep(1)
+    raise Failure('feishu_state_smoke_write_not_visible')
+
+
 def smoke():
     """Real GITHUB_TOKEN reads/writes, random in-memory key and synthetic grants; no QA/Feishu."""
     key = base64.b64encode(AESGCM.generate_key(bit_length=256)).decode()
@@ -181,8 +197,8 @@ def smoke():
     stale = result['sha']
     fake = {'status': 'smoke', 'synthetic_token': 'CI_TEST_ONLY_' + uuid.uuid4().hex}
     current = store.save(fake, stale)
-    observed, sha, raw = store.read()
-    if observed != fake or sha != current or fake['synthetic_token'].encode() in raw:
+    observed, _, raw = read_smoke_state(store, current)
+    if observed != fake or fake['synthetic_token'].encode() in raw:
         raise Failure('feishu_state_smoke_roundtrip_failed')
     newer = store.save({**fake, 'generation': 2}, current)
     try:
@@ -191,8 +207,8 @@ def smoke():
         pass
     else:
         raise Failure('feishu_state_smoke_conflict_not_rejected')
-    final, sha, _ = store.read()
-    if final.get('generation') != 2 or sha != newer:
+    final, _, _ = read_smoke_state(store, newer)
+    if final.get('generation') != 2:
         raise Failure('feishu_state_smoke_conflict_overwrote_state')
     print(json.dumps({'encrypted_state_roundtrip': 'passed', 'stale_write': 'rejected',
         'credential': 'automatic_repository_GITHUB_TOKEN', 'real_feishu_credentials_used': False}))

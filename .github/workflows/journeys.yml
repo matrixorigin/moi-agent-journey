@@ -60,6 +60,9 @@ jobs:
     needs: [plan, journeys]
     if: always() && !cancelled() && needs.plan.result == 'success'
     environment: qa
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -74,11 +77,27 @@ jobs:
           merge-multiple: true
           path: downloaded-results
       - name: Save complete Journey-3 report to the QA Catalog
+        id: j3-report
         if: ${{ !cancelled() && contains(fromJSON(needs.plan.outputs.matrix).include.*.workspace, 'journey-3') }}
         env:
+          GH_TOKEN: ${{ github.token }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ secrets.MOI_PAT }}
-        run: python3 -m journey.benchmark_run_report
+        run: python3 -m journey.benchmark_run_report --artifact-dir "$RUNNER_TEMP/journey-3-html"
+      - name: Upload Journey-3 HTML
+        id: j3-html
+        if: ${{ !cancelled() && steps.j3-report.outputs.artifact-file != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: ${{ steps.j3-report.outputs.artifact-file }}
+          archive: false
+          if-no-files-found: error
+          retention-days: 1
+      - name: Link Journey-3 HTML
+        if: ${{ !cancelled() && steps.j3-html.outcome == 'success' }}
+        env:
+          ARTIFACT_URL: ${{ steps.j3-html.outputs.artifact-url }}
+        run: printf '\n[下载 Journey-3 HTML 报告](%s)\n' "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
       - name: Account for cases with GitHub evidence bundles
         if: always() && !cancelled() && needs.plan.outputs.case-bundle == 'true'
         env:

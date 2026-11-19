@@ -7,11 +7,11 @@ from unittest.mock import Mock, patch
 
 from journey.benchmark_metrics import history_observations, history_record, model_rounds, quality_score
 from journey.benchmark_store import Store, canonical
-from journey.benchmark_history import metrics_row, write_metrics
+from journey.benchmark_history import metrics_row, read_run_metadata, write_metrics
 from journey.benchmark_run_report import details_for_case, publish
 from journey.catalog import load_case
 from journey.publish import prepare_publication
-from journey.report import _missing_case, _valid_case_result
+from journey.report import ArtifactRejected, _missing_case, _valid_case_result
 
 
 class BenchmarkTests(unittest.TestCase):
@@ -89,6 +89,18 @@ class BenchmarkTests(unittest.TestCase):
             bad=copy.copy(good);bad[i]=value
             with self.subTest(i=i),self.assertRaises(ValueError):metrics_row(bad)
 
+    def test_history_looks_up_run_numbers_without_copying_other_github_fields(self):
+        rows = [{'run_id': '44'}]
+        payload = {'id': 44, 'run_number': 96, 'run_attempt': 2,
+                   'created_at': '2026-11-19T14:54:14Z', 'run_started_at': '2026-11-19T15:00:00Z',
+                   'unrelated': 'ignored'}
+        with patch('journey.benchmark_history.subprocess.run',
+                   return_value=Mock(stdout=canonical(payload)+'\n'+canonical({**payload,'id':45}))) as request:
+            metadata = read_run_metadata(rows, 'owner/repo')
+        self.assertEqual(metadata, {'44': {'number': 96, 'attempt': 2,
+            'created_at': '2026-11-19T14:54:14+00:00', 'started_at': '2026-11-19T15:00:00+00:00'}})
+        self.assertIn('repos/owner/repo/actions/workflows/journeys.yml/runs?per_page=100', request.call_args.args[0])
+
     def test_body_in_earlier_turn_counts_as_completion_and_limits_completion_timing(self):
         report = {'tasks': [{'task_id': 'answered'}, {'task_id': 'timed-out'}],
                   'rag': {'answers': [{'task_id': 'answered', 'text': 'Delivered', 'seconds': 3.5},
@@ -104,7 +116,7 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(observed['completed_seconds'], 3.5)
         self.assertEqual(observed['completed_model_rounds'], 1)
 
-    def test_report_upload_includes_facts_only_in_private_html(self):
+    def test_report_reuses_qa_html_as_a_single_github_file(self):
         secret_marker = '</script><PRIVATE_FACT>'
         report = {
             'tasks': [{'task_id': 'run-qa', 'conversation_id': 'task-session', 'trace_id': 'task-trace'}],
@@ -123,8 +135,12 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(details['tools'][0][1:5], ['task-session', 'task-trace', 'bash', secret_marker])
         store = Mock()
         store.sql.return_value = {'rows': [[*row.values(), canonical(report)]]}
-        with patch('journey.benchmark_run_report.load_suite', return_value={'cases': ['J3-01', 'J3-02']}):
-            filename, missing = publish(store, [{'case_id': 'J3-01', 'run_id': '44', 'run_attempt': 2}], '44', 2)
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch('journey.benchmark_run_report.load_suite', return_value={'cases': ['J3-01', 'J3-02']}):
+            out = Path(tmp) / 'upload'
+            filename, missing = publish(store, [{'case_id': 'J3-01', 'run_id': '44', 'run_attempt': 2}], '44', 2, out)
+            self.assertEqual(list(out.iterdir()), [out / filename])
+            self.assertEqual((out / filename).read_bytes(), store.upload_private.call_args.args[1])
         self.assertEqual(missing, ['J3-02'])
         self.assertIn("run_attempt=2", store.sql.call_args.args[0])
         self.assertEqual(filename, 'journey-3-report-44-attempt-2.html')
@@ -141,6 +157,17 @@ class BenchmarkTests(unittest.TestCase):
         self.assertNotIn(b'original error', public)
         self.assertNotIn(b'PRIVATE_FACT', public)
         self.assertNotIn(b'task-trace', public)
+
+    def test_report_with_credentials_is_not_staged_for_github(self):
+        store = Mock()
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch('journey.benchmark_run_report.run_details', return_value={}), \
+                patch('journey.benchmark_run_report.render_history', return_value='sk-uca-v1-' + 'a' * 24):
+            out = Path(tmp) / 'upload'
+            with self.assertRaises(ArtifactRejected):
+                publish(store, [], '44', 2, out)
+            self.assertFalse(out.exists())
+        store.upload_private.assert_called_once()
 
 
 if __name__=='__main__':unittest.main()

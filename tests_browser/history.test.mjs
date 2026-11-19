@@ -30,27 +30,43 @@ test('history overlays the selected job or all cases while keeping case and mode
         completed_seconds: 35, quality_score: 75 },
       { ...base, run_id: '3', case_id: 'J3-58', evaluated_at: '2026-11-18T00:10:00Z',
         completed_seconds: 40, quality_score: 75 },
+      { ...base, run_id: '3', run_attempt: 2, case_id: 'J3-57', evaluated_at: '2026-11-19T00:03:00Z',
+        qa_outcome: 'excluded', completed_seconds: null, completed_model_rounds: null, quality_score: null },
     ];
     const jobs = { documents: ['J3-57'], operations: ['J3-58', 'J3-88', 'J3-89'] };
     const details = {run_id: '3', attempt: 1, errors: [], scores: [],
       coverage: {recorded: 3, planned: 4, missing: ['J3-58']},
       timeouts: [['J3-89', 'session-test', 'trace-test', 60]],
       tools: [['J3-89', 'session-test', 'trace-test', 'bash', 'test command', 'test error']]};
+    const runMetadata = {
+      1: {number: 93, attempt: 1, started_at: '2026-11-17T00:00:00Z'},
+      2: {number: 94, attempt: 1, started_at: '2026-11-17T06:00:00Z'},
+      3: {number: 95, attempt: 2, created_at: '2026-11-18T00:00:00Z', started_at: '2026-11-19T00:02:00Z'},
+      4: {number: 96, attempt: 1, started_at: '2026-11-19T00:00:00Z'},
+    };
     const page = await browser.newPage({ viewport: { width: 1200, height: 1100 } });
     page.on('pageerror', error => errors.push(error.message));
     await page.setContent(template.replace('/*HISTORY_DATA*/[]', JSON.stringify(data))
       .replace('/*HISTORY_JOBS*/{}', JSON.stringify(jobs))
-      .replace('/*RUN_DETAILS*/null', JSON.stringify(details)));
+      .replace('/*RUN_DETAILS*/null', JSON.stringify(details))
+      .replace('/*RUN_METADATA*/{}', JSON.stringify(runMetadata)));
     const latency = 'completed_seconds';
     const quality = 'quality_score';
     const casesIn = async plot => page.locator('#' + plot + ' .chart-series').evaluateAll(nodes => nodes.map(node => node.dataset.case));
     assert.equal(await page.locator('#case').inputValue(), 'all');
     assert.equal(await page.locator('#report-coverage').innerText(), '本次记录 3 / 4 题 · 缺少 J3-58');
+    const ticks = page.locator('#completed_seconds [data-run-tick]');
+    assert.deepEqual(await ticks.evaluateAll(nodes => nodes.map(node => node.firstChild.nodeValue)),
+      ['#93', '#94', '#95', '#95.2', '#96']);
+    const positions = await ticks.evaluateAll(nodes => nodes.map(node => Number(node.getAttribute('x'))));
+    assert.deepEqual(positions.slice(1).map((x, i) => x - positions[i]), [102.75, 102.75, 102.75, 102.75]);
+    assert.match(await ticks.nth(3).locator('title').textContent(), /#95\.2.*2026\/11\/19 08:02:00.*北京时间/);
     assert.deepEqual(await casesIn(latency), ['J3-88', 'J3-88', 'J3-89', 'J3-57', 'J3-58']);
     assert.deepEqual(await casesIn(quality), await casesIn(latency));
     assert.equal(await page.locator('#revision').isVisible(), false);
     assert.equal(await page.locator('#completion_rate circle').count(), 1); // Incomplete runs leave gaps.
     assert.match(await page.locator('#completion_rate circle title').textContent(), /75$/);
+    assert.match(await page.locator('#completion_rate circle title').textContent(), /#95.*2026\/11\/18 08:00:00/);
     assert.match(await page.locator('#timeout_rate circle title').textContent(), /25$/);
     const sharedDateX = await page.locator('#completed_seconds [data-case="J3-57"] circle').last().getAttribute('cx');
     assert.equal(await page.locator('#completed_seconds [data-case="J3-58"] circle').getAttribute('cx'), sharedDateX);
