@@ -22,7 +22,7 @@ Correctness, observed grounding, citation integrity and citation support remain 
 
 The dataset manifest records expected source checksums, schemas, semantics and copy receipts. The migration seals it only after final QA row-count verification. Runtime checks manifest identity and completion state; this is not a fresh checksum of every QA cell. Snapshot tables must stay fixed. Data/schema/semantic changes require a new snapshot and golden revision; the historical series must not be spliced together.
 
-Each tested case retains its 10-minute task budget. Evidence validation and grading have separate budgets. The planner accounts for private-history persistence and rejects groups exceeding the GitHub-hosted job limit. Green means the framework collected and reported the outcome. Agent failure, missing benchmark dependencies, no delivery or poor quality remain explicit report outcomes.
+Journey-3 gives every case a 30-minute task budget through its suite-wide timeout override. The planner and the runner apply the same budget to both public case definitions and verified private specs. Evidence validation and grading have separate budgets. The planner accounts for private-history persistence and rejects groups exceeding the GitHub-hosted job limit. Green means the framework collected and reported the outcome. Agent failure, missing benchmark dependencies, no delivery or poor quality remain explicit report outcomes.
 
 ## Private history and public downloads
 

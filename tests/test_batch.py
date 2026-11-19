@@ -25,7 +25,7 @@ class BatchPlanTests(unittest.TestCase):
             weights=[]
             for case_id in group['case_ids']:
                 case = load_case(case_id)
-                self.assertEqual(case['timeout_seconds'], 600)
+                self.assertEqual(case['timeout_seconds'], 1800)
                 self.assertEqual(case['evaluation_timeout_seconds'], 300 if case_id == 'J3-54' else 180)
                 weights.append(step_timeout_minutes(case) + CASE_OVERHEAD_MINUTES + 1)
             import math
@@ -135,7 +135,7 @@ class BatchRunnerTests(unittest.TestCase):
 
     def test_browser_credentials_and_exceptional_execution_budget_are_preserved(self):
         for case_id, budget, browser in (('J2-01', 540, True), ('J2-111', 1140, False),
-                                         ('J3-01', 1200, False), ('J3-54', 1440, False)):
+                                         ('J3-01', 2400, False), ('J3-54', 2640, False)):
             with self.subTest(case_id=case_id), tempfile.TemporaryDirectory() as tmp:
                 calls = []
                 self.run_single(Path(tmp).resolve(), calls, case_id)
