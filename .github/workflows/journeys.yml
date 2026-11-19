@@ -81,6 +81,7 @@ jobs:
           JOURNEY_WORKSPACE: ${{ inputs.workspace || 'all' }}
         run: python3 -m journey.report aggregate --workspace "$JOURNEY_WORKSPACE"
       - name: Upload consolidated results
+        id: upload-report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -89,3 +90,13 @@ jobs:
           if-no-files-found: error
           retention-days: 1
           compression-level: 6
+      - name: Link consolidated report
+        if: always() && steps.upload-report.outcome == 'success'
+        env:
+          ARTIFACT_URL: ${{ steps.upload-report.outputs.artifact-url }}
+        run: |
+          label='下载总报告'
+          if [ -f bundle/history/history.html ]; then
+            label='下载总报告（含历史曲线）'
+          fi
+          printf '\n[%s](%s)\n' "$label" "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"

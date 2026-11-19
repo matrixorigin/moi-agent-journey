@@ -795,13 +795,15 @@ def aggregate(source, destination, workspace='all', case_ids=None):
             lines.append(f"- {scope} / {category} / {cell(item['tool'])} / {cell(item['code'])}：{item['records']} 条记录，"
                          f"涉及 {cell(', '.join(item['cases']))}。")
     lines.extend(rag_aggregate_lines(report, cell))
+    history_file = '`history/history.html`'
+    history_link = f'[{history_file}](history/history.html)'
     has_private_history = (Path(source) / 'history' / 'history.json').is_file()
     if any(suite['workspace'] == 'journey-3' for suite in suites):
         lines += ['', 'Journey-3 的完整问答、引用、Trace、会话、工具参数与错误保存在 QA。公开包只含指标。']
         if has_private_history:
             from .benchmark_history import write_metrics
             write_metrics(json.loads((Path(source) / 'history' / 'history.json').read_text()), destination / 'history')
-            lines += ['', '历史耗时与质量曲线：[下载报告内的 history/history.html](history/history.html)。']
+            lines += ['', f'下载并解压总报告，打开 {history_link} 查看历史耗时与质量曲线。']
     lines += ['', '其他 Journey 的单个 case 报告和 result.json 包含会话 ID、trace ID、质量判词、工具参数和错误；'
               'events.jsonl 保存公开事件（凭据已脱敏）。', '',
               '智能体异常、超时、交付或质量问题不使 job 变红；执行、验收或取证错误会使 job 变红。', '',
@@ -810,7 +812,7 @@ def aggregate(source, destination, workspace='all', case_ids=None):
     (destination/'summary.md').write_text(markdown, encoding='utf-8')
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
-            output.write(markdown)
+            output.write(markdown.replace(history_link, history_file))
     for row in rows:
         case_source = Path(source) / row['case_id']
         if case_source.is_dir():
