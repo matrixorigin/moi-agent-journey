@@ -5,9 +5,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from journey.benchmark_metrics import history_record, model_rounds, quality_score
+from journey.benchmark_metrics import history_observations, history_record, model_rounds, quality_score
 from journey.benchmark_store import Store, canonical
-from journey.benchmark_history import metrics_row
+from journey.benchmark_history import metrics_row, write_metrics
+from journey.benchmark_run_report import details_for_case, publish
 from journey.catalog import load_case
 from journey.publish import prepare_publication
 from journey.report import _missing_case, _valid_case_result
@@ -81,11 +82,62 @@ class BenchmarkTests(unittest.TestCase):
         store.upload.assert_not_called()
 
     def test_history_public_metrics_reject_text_in_numeric_or_revision_columns(self):
-        good=['J3-58','2026-11-18 00:00:00','12.5','75','4','3','completed','rev1','snap1','judge1','a'*32,'eligible']
+        good=['J3-58','2026-11-18 00:00:00','12.5','75','4','3','completed','rev1','snap1','judge1',
+              'a'*32,'eligible','44','1','completed','12.5','3','3','1']
         self.assertEqual(metrics_row(good)['quality_score'],75)
         for i,value in [(3,'business secret'),(7,'<script>business</script>'),(1,'business secret')]:
             bad=copy.copy(good);bad[i]=value
             with self.subTest(i=i),self.assertRaises(ValueError):metrics_row(bad)
+
+    def test_body_in_earlier_turn_counts_as_completion_and_limits_completion_timing(self):
+        report = {'tasks': [{'task_id': 'answered'}, {'task_id': 'timed-out'}],
+                  'rag': {'answers': [{'task_id': 'answered', 'text': 'Delivered', 'seconds': 3.5},
+                                      {'task_id': 'context', 'text': 'Context', 'seconds': 8,
+                                       'evaluation_state': 'context_only'}]}}
+        row = {'task_state': 'timeout', 'benchmark_state': 'eligible', 'duration_seconds': 60, 'model_round_count': 4}
+        with tempfile.TemporaryDirectory() as tmp:
+            events = Path(tmp) / 'events.jsonl'
+            events.write_text('\n'.join(json.dumps({'task_id': i, 'seq': seq, 'kind': 'lifecycle',
+                'payload': {'type': 'llm_started'}}) for seq, i in enumerate(['answered', 'timed-out', 'timed-out'])))
+            observed = history_observations(report, row, events)
+        self.assertEqual(observed['qa_outcome'], 'completed')
+        self.assertEqual(observed['completed_seconds'], 3.5)
+        self.assertEqual(observed['completed_model_rounds'], 1)
+
+    def test_report_upload_includes_facts_only_in_private_html(self):
+        secret_marker = '</script><PRIVATE_FACT>'
+        report = {
+            'tasks': [{'task_id': 'run-qa', 'conversation_id': 'task-session', 'trace_id': 'task-trace'}],
+            'tools': {'errors': [{'outcome': 'unknown'}, {
+                'outcome': 'failed', 'task_id': 'run-qa', 'tool': 'bash',
+                'arguments': {'command': secret_marker},
+                'errors': [{'code': 'E_TIMEOUT', 'detail': 'original error'}],
+            }]},
+        }
+        row = {'case_id': 'J3-01', 'task_state': 'timeout', 'benchmark_state': 'eligible',
+               'duration_seconds': 60.0, 'model_round_count': 2, 'quality_score': None,
+               'session_id': 'case-session', 'trace_id': 'case-trace'}
+        details = details_for_case(row, report)
+        self.assertFalse(details['errors'])
+        self.assertEqual(details['timeouts'], [['J3-01', 'task-session', 'task-trace', 60]])
+        self.assertEqual(details['tools'][0][1:5], ['task-session', 'task-trace', 'bash', secret_marker])
+        store = Mock()
+        store.sql.return_value = {'rows': [[*row.values(), canonical(report)]]}
+        filename = publish(store, [], '44', 2)
+        self.assertIn("run_attempt=2", store.sql.call_args.args[0])
+        self.assertEqual(filename, 'journey-3-report-44-attempt-2.html')
+        filename_arg, html, content_type = store.upload_private.call_args.args
+        self.assertEqual(filename_arg, filename)
+        self.assertEqual(content_type, 'text/html; charset=utf-8')
+        self.assertIn(b'original error', html)
+        self.assertIn(b'task-trace', html)
+        self.assertNotIn(secret_marker.encode(), html)
+        with tempfile.TemporaryDirectory() as tmp:
+            write_metrics([], tmp)
+            public = (Path(tmp) / 'history.html').read_bytes()
+        self.assertNotIn(b'original error', public)
+        self.assertNotIn(b'PRIVATE_FACT', public)
+        self.assertNotIn(b'task-trace', public)
 
 
 if __name__=='__main__':unittest.main()

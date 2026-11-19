@@ -3,19 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>Journey-3 · Evaluation History</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>Journey-3 · Knowledge Base Tasks</title>
 <style>
   body { font: 16px system-ui; margin: 40px auto; padding: 0 24px; max-width: 1100px; color: #172744; background: #f6f8fc; }
   h1 { font-size: 30px; }
+  h2, h3, h4 { margin: 0 0 8px; }
+  h3 { font-size: 16px; }
   select { max-width: min(800px, 85vw); font: inherit; padding: 9px; margin: 0 16px 12px 5px; border: 1px solid #ccd3df; border-radius: 6px; }
   section { background: white; border: 1px solid #dde2ec; border-radius: 12px; padding: 24px; margin: 20px 0; }
-  svg { width: 100%; height: auto; }
+  .trends { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  #rates[hidden] { display: none; }
+  .trends section { margin: 0; padding: 14px; min-width: 0; }
+  @media (max-width: 640px) { .trends { grid-template-columns: minmax(0, 1fr); } body { padding: 0 12px; } }
+  svg { width: 100%; height: auto; display: block; }
   p { color: #51617c; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  td, th { text-align: left; border-bottom: 1px solid #e4e8f1; padding: 10px; }
-  th { position: sticky; top: 0; background: white; }
-  #records { overflow: auto; max-height: 30rem; }
-  #legend:not([hidden]) { display: flex; flex-wrap: wrap; gap: 6px; max-height: 6rem; overflow: auto; }
+  #legend:not([hidden]) { display: flex; flex-wrap: wrap; gap: 6px; max-height: 6rem; overflow: auto; margin: 12px 0; }
   #legend button { color: inherit; background: white; border: 1px solid #dde2ec; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
   .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
   .chart-series polyline { fill: none; stroke: currentColor; stroke-width: 2; }
@@ -23,37 +26,68 @@
   .chart-series.muted, svg:has(.chart-series:hover) .chart-series:not(:hover) { opacity: .2; }
   .axis { stroke: #d7dfeb; }
   svg text { fill: #51617c; font: 12px system-ui; }
+  #detail-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+  #detail-tabs button { border: 1px solid #ccd3df; border-radius: 6px; padding: 8px 10px; background: white; color: inherit; cursor: pointer; font: inherit; }
+  #detail-tabs button[aria-pressed="true"] { background: #203558; color: white; }
+  .record { padding: 12px 0; border-top: 1px solid #e4e8f1; }
+  .record dl { margin: 0; }
+  .record dl div { display: grid; grid-template-columns: minmax(5.8rem, auto) minmax(0, 1fr); gap: .5em; margin-top: .25em; }
+  .record dt { color: #51617c; }
+  .record dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .record ul { margin: 0; padding-left: 1.25em; }
+  #details summary { padding: 10px 0; border-top: 1px solid #e4e8f1; cursor: pointer; }
+  #details details .record { margin-left: .8em; }
 </style>
 </head>
 <body>
 <h1>Journey-3 · Knowledge Base Tasks</h1>
-<p>历史指标来自 QA。完整问题、回答、引用、工具参数和错误详情保存在 QA 的评测结果表与证据文件中。</p>
+<p id="description">历史指标来自 QA。带会话和错误详情的完整报告可在 QA 工作区的 Catalog 中下载。</p>
 <label>Case <select id="case"></select></label>
 <label id="revision-label">固定版本 <select id="revision"></select></label>
 <p id="coverage" aria-live="polite"></p>
 <div id="legend" aria-label="按颜色识别 Case，点击查看单题" hidden></div>
-<section>
-  <h2>端到端耗时 · 秒</h2>
-  <svg id="latency" viewBox="0 0 1000 270" role="img" aria-label="端到端耗时"></svg>
-</section>
-<section>
-  <h2>回答质量 · 0–100</h2>
-  <p>分数按参考要点满足率计算。未评分留空。用例版本、数据快照、评分器和模型相同的记录才连线。</p>
-  <svg id="quality" viewBox="0 0 1000 270" role="img" aria-label="回答质量"></svg>
-</section>
-<section>
-  <h2>运行记录</h2>
-  <div id="records"></div>
+<div class="trends" id="rates">
+  <section><h3>问答正常完成率</h3><svg id="completion_rate" viewBox="0 0 480 170" role="img" aria-label="问答正常完成率"></svg></section>
+  <section><h3>问答超时率</h3><svg id="timeout_rate" viewBox="0 0 480 170" role="img" aria-label="问答超时率"></svg></section>
+</div>
+<div class="trends" style="margin-top:14px">
+  <section><h3>正常完成任务耗时 · 秒</h3><svg id="completed_seconds" viewBox="0 0 480 170" role="img" aria-label="正常完成任务耗时"></svg></section>
+  <section><h3>正常完成模型轮次</h3><svg id="completed_model_rounds" viewBox="0 0 480 170" role="img" aria-label="正常完成模型轮次"></svg></section>
+  <section><h3>工具失败率</h3><svg id="tool_failure_rate" viewBox="0 0 480 170" role="img" aria-label="工具失败率"></svg></section>
+  <section><h3>正常完成得分 · 0–100</h3><svg id="quality_score" viewBox="0 0 480 170" role="img" aria-label="正常完成得分"></svg></section>
+</div>
+<section id="details" hidden>
+  <h2>最近一次运行分析</h2>
+  <div id="detail-tabs" role="group" aria-label="运行明细">
+    <button type="button" data-detail="errors" aria-pressed="true">报错未正常完成</button>
+    <button type="button" data-detail="timeouts" aria-pressed="false">超时未正常完成</button>
+    <button type="button" data-detail="tools" aria-pressed="false">失败工具调用</button>
+    <button type="button" data-detail="scores" aria-pressed="false">低于 50 分</button>
+  </div>
+  <p id="detail-count" aria-live="polite"></p>
+  <div id="detail-records"></div>
 </section>
 <script>
 const data = /*HISTORY_DATA*/[];
 const jobs = /*HISTORY_JOBS*/{};
+const currentRun = /*RUN_DETAILS*/null;
 const scope = document.getElementById('case');
 const revision = document.getElementById('revision');
 const legend = document.getElementById('legend');
-const cases = [...new Set(data.map(row => row.case_id))].sort((a, b) => Number(a.slice(3)) - Number(b.slice(3)));
-
-data.sort((a, b) => a.evaluated_at.localeCompare(b.evaluated_at));
+const planned = Object.values(jobs).flat();
+const cases = [...new Set([...planned, ...data.map(row => row.case_id)])]
+  .sort((a, b) => Number(a.slice(3)) - Number(b.slice(3)));
+const runKey = row => row.run_id + '/' + row.run_attempt;
+const runs = new Map();
+for (const row of data) {
+  const key = runKey(row);
+  if (!runs.has(key)) runs.set(key, {key, date: row.evaluated_at, cases: new Set()});
+  const run = runs.get(key);
+  run.cases.add(row.case_id);
+  if (row.evaluated_at < run.date) run.date = row.evaluated_at;
+}
+const timeline = [...runs.values()].sort((a, b) => a.date.localeCompare(b.date));
+const runIndex = new Map(timeline.map(({key}, index) => [key, index]));
 
 function addOption(parent, value, label = value) {
   const option = document.createElement('option');
@@ -62,7 +96,7 @@ function addOption(parent, value, label = value) {
   parent.append(option);
 }
 
-addOption(scope, 'all', 'All cases');
+addOption(scope, 'all', '全部');
 const jobLabels = {
   documents: 'Job-1-文档知识库问答',
   operations: 'Job-2-运营知识库问答',
@@ -103,7 +137,7 @@ function selectScope() {
   render();
 }
 
-function draw(id, rows, series, metric, singleColor, overview) {
+function draw(id, series, metric, chartDomain, color, colorByCase = false) {
   const svg = document.getElementById(id);
   svg.replaceChildren();
   function node(parent, name, attributes, label) {
@@ -114,50 +148,55 @@ function draw(id, rows, series, metric, singleColor, overview) {
     return element;
   }
 
-  const maximum = metric === 'quality_score' ? 100 : rows.reduce((max, row) => Math.max(max, row[metric] ?? 0), 1);
-  const left = 65, right = 975, top = 20, bottom = 230;
+  const values = [...series.values()].flat().map(metric);
+  const maximum = chartDomain ?? values.reduce((max, value) => Math.max(max, value ?? 0), 1);
+  const left = 43, right = 454, top = 12, bottom = 137;
+  const start = Date.parse(timeline[0]?.date);
+  const end = Date.parse(timeline.at(-1)?.date);
+  const pointX = index => start === end ? (left + right) / 2 :
+    left + (right - left) * (Date.parse(timeline[index].date) - start) / (end - start);
   for (let i = 0; i <= 4; i++) {
     const y = bottom - (bottom - top) * i / 4;
     node(svg, 'line', {x1: left, x2: right, y1: y, y2: y, class: 'axis'});
-    node(svg, 'text', {x: 6, y: y + 4}, (maximum * i / 4).toFixed(1));
+    node(svg, 'text', {x: left - 5, y: y + 4, 'text-anchor': 'end'}, Number((maximum * i / 4).toFixed(1)));
   }
-  if (!rows.some(row => row[metric] !== null)) {
-    node(svg, 'text', {x: 520, y: 125, 'text-anchor': 'middle'}, '暂无数据');
-  }
-  if (!rows.length) return;
-
-  // Every series in the selected scope shares one UTC time axis and Y scale.
-  const start = Date.parse(rows[0].evaluated_at);
-  const end = Date.parse(rows.at(-1).evaluated_at);
+  if (!values.some(Number.isFinite)) node(svg, 'text', {x: 250, y: 80, 'text-anchor': 'middle'}, '暂无数据');
+  if (!timeline.length) return;
   for (const entries of series.values()) {
     const first = entries[0];
-    const group = node(svg, 'g', {class: 'chart-series', 'data-case': first.case_id, color: overview ? caseColor(first.case_id) : singleColor});
-    node(group, 'title', {}, first.case_id + ' · ' + version(first));
+    const group = node(svg, 'g', {class: 'chart-series', 'data-case': first.case_id ?? '',
+      color: colorByCase ? caseColor(first.case_id) : color});
     let points = [];
     function finishSegment() {
-      if (points.length) node(group, 'polyline', {points: points.join(' ')});
+      if (points.length > 1) node(group, 'polyline', {points: points.join(' ')});
       points = [];
     }
-    for (const row of entries) {
-      if (row[metric] === null) {
+    let previous;
+    for (const row of [...entries].sort((a, b) => runIndex.get(runKey(a)) - runIndex.get(runKey(b)))) {
+      const value = metric(row);
+      const index = runIndex.get(runKey(row));
+      if (!Number.isFinite(value)) {
         finishSegment();
         continue;
       }
-      const x = end === start ? (left + right) / 2 : left + (right - left) * (Date.parse(row.evaluated_at) - start) / (end - start);
-      const y = bottom - (bottom - top) * row[metric] / maximum;
+      if (previous !== index - 1) finishSegment();
+      previous = index;
+      const x = pointX(index);
+      const y = bottom - (bottom - top) * value / maximum;
       points.push(x + ',' + y);
-      const point = node(group, 'circle', {cx: x, cy: y, r: overview ? 3 : 4});
-      node(point, 'title', {}, row.case_id + ' · ' + row.evaluated_at + ' · ' + row[metric] + '\n' + version(row));
+      const point = node(group, 'circle', {cx: x, cy: y, r: colorByCase ? 2.5 : 4});
+      const label = ' · Run ' + runKey(row) + ' · ' + Number(value.toFixed(2));
+      node(point, 'title', {}, row.case_id ? row.case_id + label + '\n' + version(row) : label.slice(3));
     }
     finishSegment();
   }
 
-  const axisDate = time => new Date(time).toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+  const axisDate = time => new Date(time).toISOString().slice(5, 16).replace('T', ' ') + ' UTC';
   if (start === end) {
-    node(svg, 'text', {x: (left + right) / 2, y: 260, 'text-anchor': 'middle'}, axisDate(start));
+    node(svg, 'text', {x: (left + right) / 2, y: 163, 'text-anchor': 'middle'}, axisDate(start));
   } else {
-    node(svg, 'text', {x: left, y: 260}, axisDate(start));
-    node(svg, 'text', {x: right, y: 260, 'text-anchor': 'end'}, axisDate(end));
+    node(svg, 'text', {x: left, y: 163}, axisDate(start));
+    node(svg, 'text', {x: right, y: 163, 'text-anchor': 'end'}, axisDate(end));
   }
 }
 
@@ -174,7 +213,7 @@ function showLegend(ids, overview) {
     swatch.style.backgroundColor = caseColor(id);
     button.append(swatch, id);
     const highlight = active => {
-      for (const group of document.querySelectorAll('.chart-series')) {
+      for (const group of document.querySelectorAll('.chart-series[data-case]:not([data-case=""])')) {
         group.classList.toggle('muted', active && group.dataset.case !== id);
       }
     };
@@ -189,26 +228,102 @@ function showLegend(ids, overview) {
   }
 }
 
-function showRecords(rows, overview) {
-  const table = document.createElement('table');
-  const header = table.createTHead().insertRow();
-  const fields = ['UTC 日期', '耗时 / s', '质量 / 100', '工具调用', '模型轮次', '状态', '评测前提'];
-  for (const label of overview ? ['Case', ...fields] : fields) {
-    const th = document.createElement('th');
-    th.scope = 'col';
-    th.textContent = label;
-    header.append(th);
+function drawRates(rows) {
+  const counts = new Map();
+  for (const row of rows) {
+    const key = runKey(row);
+    if (row.qa_outcome === 'excluded' || !planned.every(id => runs.get(key).cases.has(id))) continue;
+    if (!counts.has(key)) counts.set(key, {
+      run_id: row.run_id, run_attempt: row.run_attempt, total: 0, completed: 0, timeout: 0,
+    });
+    const entry = counts.get(key);
+    entry.total++;
+    if (row.qa_outcome === 'completed') entry.completed++;
+    if (row.qa_outcome === 'timeout') entry.timeout++;
   }
-  const body = table.createTBody();
-  for (let i = rows.length - 1; i >= 0; i--) {
-    const row = rows[i];
-    const tr = body.insertRow();
-    tr.title = version(row);
-    const values = [row.evaluated_at, row.duration_seconds, row.quality_score, row.tool_call_count,
-      row.model_round_count, row.task_state, row.benchmark_state];
-    for (const value of overview ? [row.case_id, ...values] : values) tr.insertCell().textContent = value ?? '—';
+  const series = new Map([['suite', [...counts.values()]]].filter(([, entries]) => entries.length));
+  draw('completion_rate', series, row => 100 * row.completed / row.total, 100, '#356df3');
+  draw('timeout_rate', series, row => 100 * row.timeout / row.total, 100, '#a96812');
+}
+
+function element(tag, text) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function record(title, session, trace, fields, heading = 'h3') {
+  const item = element('article');
+  item.className = 'record';
+  item.append(element(heading, title));
+  const values = element('dl');
+  for (const [label, value] of [['Session ID', session], ['Trace ID', trace], ...fields]) {
+    const field = element('div');
+    const detail = element('dd');
+    if (Array.isArray(value)) {
+      const list = element('ul');
+      for (const reason of value) list.append(element('li', reason));
+      detail.append(list);
+    } else {
+      detail.textContent = value ?? '未记录';
+    }
+    field.append(element('dt', label), detail);
+    values.append(field);
   }
-  document.getElementById('records').replaceChildren(table);
+  item.append(values);
+  return item;
+}
+
+let detailTab = 'errors';
+const detailTabs = [...document.querySelectorAll('[data-detail]')];
+for (const button of detailTabs) button.onclick = () => {
+  detailTab = button.dataset.detail;
+  showDetails();
+};
+
+function showDetails() {
+  if (!currentRun) return;
+  const selected = scope.value;
+  const include = selected.startsWith('job:') ? new Set(jobs[selected.slice(4)]) : new Set([selected]);
+  const rows = currentRun[detailTab].filter(row => selected === 'all' || include.has(row[0]));
+  rows.sort((a, b) => cases.indexOf(a[0]) - cases.indexOf(b[0]));
+  const host = document.getElementById('detail-records');
+  host.replaceChildren();
+  const count = detailTab === 'tools' ? rows.length + ' 次失败调用' :
+    new Set(rows.map(row => row[0])).size + ' 个 case';
+  document.getElementById('detail-count').textContent = 'Run ' + runKey(currentRun) + ' · ' + count;
+  for (const button of detailTabs) button.setAttribute('aria-pressed', String(button.dataset.detail === detailTab));
+  if (!rows.length) host.append(element('p', '当前范围无符合条件的记录。'));
+  if (detailTab === 'tools') {
+    const groups = new Map();
+    for (const row of rows) {
+      if (!groups.has(row[0])) groups.set(row[0], []);
+      groups.get(row[0]).push(row);
+    }
+    for (const [id, calls] of groups) {
+      const list = element('details');
+      list.append(element('summary', id + ' · ' + calls.length + ' 次失败'));
+      const expand = () => {
+        if (!list.open || list.childElementCount > 1) return;
+        for (const [id, session, trace, tool, command, error] of calls) {
+          list.append(record(id + ' · ' + tool, session, trace, [
+            ['命令 / 参数', command || '未记录'], ['失败信息', error || '未记录'],
+          ], 'h4'));
+        }
+      };
+      list.addEventListener('toggle', expand);
+      list.open = !jobOrAll();
+      expand();
+      host.append(list);
+    }
+    return;
+  }
+  for (const [id, session, trace, value, reasons] of rows) {
+    if (detailTab === 'errors') host.append(record(id, session, trace, [['报错信息', value]]));
+    if (detailTab === 'timeouts') host.append(record(id, session, trace,
+      [['耗时', value === null ? null : value + ' 秒']]));
+    if (detailTab === 'scores') host.append(record(id + ' · ' + value + ' 分', session, trace, [['失分原因', reasons]]));
+  }
 }
 
 function render() {
@@ -223,19 +338,30 @@ function render() {
     const key = row.case_id + ' / ' + version(row);
     if (!series.has(key)) series.set(key, []);
     series.get(key).push(row);
-    if (row.task_state === 'completed') completed++;
+    if (row.qa_outcome === 'completed') completed++;
     if (row.quality_score !== null) scored++;
   }
   document.getElementById('coverage').textContent = shownCases.size + ' 个 Case，' + rows.length +
     ' 次记录，正常交付 ' + completed + ' 次，已评分 ' + scored + ' 次。';
   showLegend(shownCases, overview);
-  draw('latency', rows, series, 'duration_seconds', '#356df3', overview);
-  draw('quality', rows, series, 'quality_score', '#159f83', overview);
-  showRecords(rows, overview);
+  document.getElementById('rates').hidden = !overview;
+  if (overview) drawRates(rows);
+  draw('completed_seconds', series, row => row.completed_seconds, null, '#356df3', overview);
+  draw('completed_model_rounds', series, row => row.completed_model_rounds, null, '#356df3', overview);
+  draw('tool_failure_rate', series, row => {
+    const total = row.tool_failed + row.tool_succeeded;
+    return row.tool_failed !== null && row.tool_succeeded !== null && total > 0 ? 100 * row.tool_failed / total : null;
+  }, 100, '#a96812', overview);
+  draw('quality_score', series, row => row.qa_outcome === 'completed' ? row.quality_score : null, 100, '#159f83', overview);
+  showDetails();
 }
 
 scope.onchange = selectScope;
 revision.onchange = render;
+if (currentRun) {
+  document.getElementById('details').hidden = false;
+  document.getElementById('description').textContent = 'QA 工作区报告 · Run ' + runKey(currentRun);
+}
 selectScope();
 </script>
 </body>

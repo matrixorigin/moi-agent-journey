@@ -225,15 +225,21 @@ class OpsKnowledgeTests(unittest.TestCase):
 
     def test_history_pagination_and_downloaded_metric_files_never_copy_unexpected_columns(self):
         row = ['J3-88', '2026-11-18 00:00:00', '1', '75', '2', '3', 'completed',
-               'r1', 's1', 'judge1', 'a' * 32, 'eligible']
+               'r1', 's1', 'judge1', 'a' * 32, 'eligible', '44', '1']
+        observations = {'qa_outcome': 'completed', 'completed_seconds': 1, 'completed_model_rounds': 3,
+                        'tool_succeeded': 1, 'tool_failed': 1}
         store = Mock()
-        store.sql.side_effect = [{'rows': [[f'{i:064x}', *row] for i in range(2000)]},
-                                {'rows': [['f' * 64, *row]]}]
+        store.sql.side_effect = [{'rows': [[f'{i:064x}', *row, json.dumps(observations), None] for i in range(100)]},
+                                {'rows': [['f' * 64, *row, None, json.dumps({
+                                    'rag': {'answers': [{'text': 'PRIVATE', 'evaluation_state': 'scored'}]},
+                                    'tools': {'metrics': {'succeeded': 1, 'failed': 1}},
+                                })]]}]
         with tempfile.TemporaryDirectory() as tmp:
-            self.assertEqual(export(store, tmp), 2001)
+            self.assertEqual(export(store, tmp), 101)
             self.assertIn('result_key>', store.sql.call_args.args[0])
             data = json.loads((Path(tmp) / 'history.json').read_text())
             self.assertEqual(set(data[0]), set(FIELDS))
+            self.assertEqual(data[0], data[-1])
             html = (Path(tmp) / 'history.html').read_text()
             jobs = json.loads(html.split('const jobs = ', 1)[1].split(';', 1)[0])
             self.assertEqual(jobs, {
@@ -241,7 +247,7 @@ class OpsKnowledgeTests(unittest.TestCase):
                 'operations': [f'J3-{i:02d}' for i in range(58, 118)],
             })
             with self.assertRaisesRegex(ValueError, 'invalid_exported_history_columns'):
-                write_metrics([{**metrics_row(row), 'question': 'PRIVATE'}], tmp)
+                write_metrics([{**data[-1], 'question': 'PRIVATE'}], tmp)
 
     def test_history_link_only_uses_a_relative_url_inside_the_report_bundle(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -260,7 +266,8 @@ class OpsKnowledgeTests(unittest.TestCase):
 
     def test_real_query_time_wire_normalizes_to_utc_and_sql_pagination_literals(self):
         row = ['J3-88', '2026-11-18 00:00:00.123456 +0000 UTC', '1', None, None, None,
-               'unknown', 'r1', 's1', 'judge1', 'a' * 32, 'blocked']
+               'unknown', 'r1', 's1', 'judge1', 'a' * 32, 'blocked', '44', '1',
+               'excluded', None, None, None, None]
         self.assertEqual(metrics_row(row)['evaluated_at'], '2026-11-18T00:00:00.123456Z')
         row[1] = '2026-11-18T08:00:00+08:00'
         with self.assertRaisesRegex(ValueError, 'history_requires_UTC'):

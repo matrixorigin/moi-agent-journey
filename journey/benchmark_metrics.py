@@ -44,6 +44,39 @@ def quality_score(result):
     return round(100 * sum(item.get('passed', 0) for item in values) / sum(item['total'] for item in values), 2)
 
 
+def delivered_answers(result):
+    return [answer for answer in result.get('rag', {}).get('answers', [])
+            if answer.get('evaluation_state') != 'context_only' and
+            isinstance(answer.get('text'), str) and answer['text'].strip()]
+
+
+def history_observations(result, row, events=None):
+    answers = delivered_answers(result)
+    state = row['task_state']
+    metrics = result.get('tools', {}).get('metrics') or {}
+    seconds, rounds = None, None
+    if row['benchmark_state'] != 'eligible':
+        outcome = 'excluded'
+    elif answers:
+        outcome = 'completed'
+        if state == 'completed':
+            seconds, rounds = row['duration_seconds'], row['model_round_count']
+        else:
+            durations = [answer.get('seconds') for answer in answers]
+            if all(type(value) in (int, float) for value in durations):
+                seconds = round(sum(durations), 3)
+            if events is not None:
+                rounds = model_rounds(events, answers)
+    elif state == 'timeout':
+        outcome = 'timeout'
+    elif result.get('tasks') or result.get('agent_attempted') or result.get('admission_failures'):
+        outcome = 'error'
+    else:
+        outcome = 'excluded'
+    return {'qa_outcome': outcome, 'completed_seconds': seconds, 'completed_model_rounds': rounds,
+            'tool_succeeded': metrics.get('succeeded'), 'tool_failed': metrics.get('failed')}
+
+
 def history_record(result, case, events):
     from .benchmark_store import canonical, digest
     tasks = [task for task in result.get('tasks', []) if not task.get('phase', '').startswith('judge:')]
