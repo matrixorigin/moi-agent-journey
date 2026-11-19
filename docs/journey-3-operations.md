@@ -40,15 +40,14 @@ The runtime schema is in [history-schema.sql](../datasets/journey-3/history-sche
 
 History writes are idempotent by run ID, attempt, case ID and revision. Reusing that key with a different report is an error. Successful tasks with no reported failure have an empty failure reason. Multi-turn cases store all task/session identifiers. Evidence archives contain only that case's files, refuse symlinks and are uploaded to the QA workspace; a missing persistence receipt causes an explicit framework error.
 
-Every Journey-3 case uses the same publication boundary, including the old synthetic cases, because they now share a workspace containing business data. Public downloads include only fixed identifiers, states and numeric metrics. Questions, business agent names, answers, citations, SQL results, tool names/arguments/errors, trace IDs, session IDs and raw files stay in QA. Child-process stdout/stderr also stays private; runner logs report opaque case IDs and framework status.
+Every Journey-3 case stores its evidence in QA, including the original document cases. Runner logs report case IDs and status. Questions, answers, citations, SQL results, tool arguments and errors, trace and session IDs, and raw files stay in QA.
 
 After the two Journey-3 jobs finish, the report job saves
 `journey-3-report-<run-id>-attempt-<attempt>.html` to the CI account's private Catalog files
 in the QA `journey-3` workspace. Search for that filename and download it to open locally.
-The Actions summary publishes the filename. Its GitHub download continues to carry the
-metrics-only `history/history.html`, `history.csv` and `history.json`.
+The Actions summary lists the filename. For Journey-3, the QA HTML is the report.
 
-Both HTML reports share the history view for all cases, documents, operations and individual cases.
+The HTML shows history for all cases, documents, operations and individual cases.
 Completion and timeout rates use the eligible case outcomes of a run with all configured records.
 Completion requires an observed final answer body. Charted completion timings, model rounds and
 scores use completed answers. Tool failure rate uses failed calls divided by succeeded plus failed calls
@@ -57,9 +56,12 @@ New runs store these observations in `report_json.history_observations` using th
 Older records use the saved report. A historical multi-turn case with an answer and a later failure
 can lack a per-answer model-round count, so that point is left blank.
 
-The private report adds the current attempt's recorded task errors, task timeouts, failed tool
+The HTML adds the current attempt's recorded task errors, task timeouts, failed tool
 calls and deductions for scores below 50. It reads the saved reports without contacting
 the model. Collection timeouts after a server-side completion do not enter the task timeout list.
+The report shows the number of recorded cases and any missing case IDs. Case groups report their
+own framework errors. The Journey-3 report step succeeds once every case record is present and
+the HTML has been saved.
 
 ## Validation status
 

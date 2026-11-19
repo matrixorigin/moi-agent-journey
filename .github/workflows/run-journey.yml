@@ -207,7 +207,9 @@ jobs:
         run: python3 -m journey.publish
       - name: Upload case or group evidence even on failure
         id: evidence-upload
-        if: always() && (matrix.executor == 'batch' || (matrix.case != 'EMPTY' && steps.scan.outcome == 'success'))
+        if: >-
+          ${{ always() && inputs.workspace != 'journey-3' &&
+              (matrix.executor == 'batch' || (matrix.case != 'EMPTY' && steps.scan.outcome == 'success')) }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: case-${{ matrix.executor == 'batch' && format('{0}-{1}', inputs.workspace, matrix.case) || matrix.case }}-attempt-${{ github.run_attempt }}

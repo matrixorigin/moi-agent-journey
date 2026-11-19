@@ -33,6 +33,7 @@ test('history overlays the selected job or all cases while keeping case and mode
     ];
     const jobs = { documents: ['J3-57'], operations: ['J3-58', 'J3-88', 'J3-89'] };
     const details = {run_id: '3', attempt: 1, errors: [], scores: [],
+      coverage: {recorded: 3, planned: 4, missing: ['J3-58']},
       timeouts: [['J3-89', 'session-test', 'trace-test', 60]],
       tools: [['J3-89', 'session-test', 'trace-test', 'bash', 'test command', 'test error']]};
     const page = await browser.newPage({ viewport: { width: 1200, height: 1100 } });
@@ -44,6 +45,7 @@ test('history overlays the selected job or all cases while keeping case and mode
     const quality = 'quality_score';
     const casesIn = async plot => page.locator('#' + plot + ' .chart-series').evaluateAll(nodes => nodes.map(node => node.dataset.case));
     assert.equal(await page.locator('#case').inputValue(), 'all');
+    assert.equal(await page.locator('#report-coverage').innerText(), '本次记录 3 / 4 题 · 缺少 J3-58');
     assert.deepEqual(await casesIn(latency), ['J3-88', 'J3-88', 'J3-89', 'J3-57', 'J3-58']);
     assert.deepEqual(await casesIn(quality), await casesIn(latency));
     assert.equal(await page.locator('#revision').isVisible(), false);

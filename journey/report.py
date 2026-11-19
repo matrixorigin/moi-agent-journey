@@ -613,11 +613,13 @@ def _valid_case_result(result):
                for key in ('tasks', 'conversations', 'failures', 'harness_errors'))
 
 
-def aggregate(source, destination, workspace='all', case_ids=None):
+def aggregate(source, destination, workspace='all', case_ids=None, *, exclude_journey_3=False):
     config = json.loads((ROOT / 'suites.json').read_text())
     suites_to_run = select_suites(config, workspace)
     if workspace != 'all':
         workspace = suites_to_run[0]['workspace']
+    if exclude_journey_3:
+        suites_to_run = [suite for suite in suites_to_run if suite['workspace'] != 'journey-3']
     if case_ids is not None:
         available = {case_id for suite in suites_to_run for case_id in suite['cases']}
         if not case_ids or len(set(case_ids)) != len(case_ids) or set(case_ids) - available:
@@ -827,6 +829,7 @@ def main():
     security=sub.add_parser('scan');security.add_argument('directory')
     summary=sub.add_parser('aggregate');summary.add_argument('--root',default='downloaded-results');summary.add_argument('--out',default='bundle');summary.add_argument('--workspace',default='all')
     summary.add_argument('--cases', nargs='+', help='Explicit subset; selected missing results still count as errors')
+    summary.add_argument('--exclude-journey-3', action='store_true')
     args=parser.parse_args()
     if args.command=='case':
         result=finish_case(args.case_id,args.root)
@@ -839,7 +842,7 @@ def main():
     if args.command=='scan':
         scan(args.directory, configured_secrets())
         return 0
-    report=aggregate(args.root,args.out,args.workspace,args.cases)
+    report=aggregate(args.root,args.out,args.workspace,args.cases,exclude_journey_3=args.exclude_journey_3)
     print(json.dumps({k: report[k] for k in ['total', 'test_errors', 'task', 'agent', 'delivery', 'quality', 'tools']}))
     return 1 if report['test_errors'] else 0
 
