@@ -16,7 +16,7 @@ from journey.knowledge_case import KnowledgeExecution
 from journey.ops_knowledge_case import BenchmarkDependencyUnavailable, OpsKnowledgeExecution, validate_sql_citations
 from journey.rag_quality import citation_integrity_metric
 from journey.rag_report import valid_rag_result
-from journey.report import _missing_case, finish_case
+from journey.report import _missing_case, aggregate, finish_case
 
 
 class OpsKnowledgeTests(unittest.TestCase):
@@ -242,6 +242,21 @@ class OpsKnowledgeTests(unittest.TestCase):
             })
             with self.assertRaisesRegex(ValueError, 'invalid_exported_history_columns'):
                 write_metrics([{**metrics_row(row), 'question': 'PRIVATE'}], tmp)
+
+    def test_history_link_only_uses_a_relative_url_inside_the_report_bundle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source, bundle = root / 'source', root / 'bundle'
+            step_summary = root / 'github-summary.md'
+            write_metrics([], source / 'history')
+            with patch.dict(os.environ, {'GITHUB_STEP_SUMMARY': str(step_summary)}):
+                result = aggregate(source, bundle, 'journey-3', case_ids=['J3-01'])
+            self.assertEqual(result['test_errors'], 1)
+            self.assertTrue((bundle / 'history/history.html').is_file())
+            self.assertIn('](history/history.html)', (bundle / 'summary.md').read_text())
+            markdown = step_summary.read_text()
+            self.assertIn('`history/history.html`', markdown)
+            self.assertNotIn('](history/history.html)', markdown)
 
     def test_real_query_time_wire_normalizes_to_utc_and_sql_pagination_literals(self):
         row = ['J3-88', '2026-11-18 00:00:00.123456 +0000 UTC', '1', None, None, None,
