@@ -25,7 +25,7 @@ class BatchPlanTests(unittest.TestCase):
             weights=[]
             for case_id in group['case_ids']:
                 case = load_case(case_id)
-                self.assertEqual(case['timeout_seconds'], 600)
+                self.assertEqual(case['timeout_seconds'], 1800)
                 self.assertEqual(case['evaluation_timeout_seconds'], 300 if case_id == 'J3-54' else 180)
                 weights.append(step_timeout_minutes(case) + CASE_OVERHEAD_MINUTES + 1)
             import math

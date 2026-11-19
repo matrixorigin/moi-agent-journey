@@ -80,7 +80,9 @@ def load_case(case_id):
         case = {**hydrated, 'private_spec': case['private_spec']}
     config = json.loads((ROOT / "suites.json").read_text())
     suite = next(s for s in config['journeys'] if s['workspace'] == case['workspace'])
-    timeout = case.get('timeout_seconds', suite.get('case_timeout_seconds', config['case_timeout_seconds']))
+    default_timeout = suite.get('case_timeout_seconds', config['case_timeout_seconds'])
+    # A suite-wide override applies both when planning and after private spec hydration.
+    timeout = suite.get('case_timeout_override_seconds', case.get('timeout_seconds', default_timeout))
     if type(timeout) is not int or timeout <= 0:
         raise ValueError('invalid_case_timeout:' + case_id)
     case['timeout_seconds'] = timeout

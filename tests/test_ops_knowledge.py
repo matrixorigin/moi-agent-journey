@@ -147,7 +147,8 @@ class OpsKnowledgeTests(unittest.TestCase):
             store.spec(case)
 
     def test_catalog_hydrates_only_the_checksum_verified_private_spec(self):
-        spec = {'id': 'J3-88', 'workspace': 'journey-3', 'assets': [], 'oracles': [], 'sessions': []}
+        spec = {'id': 'J3-88', 'workspace': 'journey-3', 'timeout_seconds': 600,
+                'assets': [], 'oracles': [], 'sessions': []}
         stub = {**spec, 'private_spec': {'revision': 'r1', 'sha256': digest(spec)}}
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -155,11 +156,13 @@ class OpsKnowledgeTests(unittest.TestCase):
             path.parent.mkdir(parents=True)
             path.write_text(canonical(stub))
             (root / 'suites.json').write_text(canonical({'model': 'test', 'case_timeout_seconds': 600,
-                'journeys': [{'workspace': 'journey-3'}]}))
+                'journeys': [{'workspace': 'journey-3', 'case_timeout_override_seconds': 1800}]}))
             private = root / 'private.json'
             private.write_text(canonical(spec))
             with patch('journey.catalog.ROOT', root), patch.dict(os.environ, {'MOI_PRIVATE_CASE_SPEC': str(private)}):
-                self.assertEqual(load_case('J3-88')['private_spec'], stub['private_spec'])
+                case = load_case('J3-88')
+                self.assertEqual(case['private_spec'], stub['private_spec'])
+                self.assertEqual(case['timeout_seconds'], 1800)
                 private.write_text(canonical({**spec, 'sessions': ['changed']}))
                 with self.assertRaisesRegex(ValueError, 'private_case_integrity_mismatch'):
                     load_case('J3-88')

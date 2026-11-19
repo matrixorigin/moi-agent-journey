@@ -36,7 +36,7 @@ class CaseTimeoutTests(unittest.TestCase):
     def test_knowledge_budget_includes_source_validation_and_model_inference(self):
         for case_id in load_suite('journey-3')['cases']:
             case = load_case(case_id)
-            self.assertEqual(case['timeout_seconds'], 600)
+            self.assertEqual(case['timeout_seconds'], 1800)
             self.assertEqual(step_timeout_minutes(case),
                 (case['timeout_seconds'] + 2 * case['evaluation_timeout_seconds'] + 59) // 60 + 4)
 
