@@ -60,6 +60,9 @@ jobs:
     needs: [plan, journeys]
     if: always() && !cancelled() && needs.plan.result == 'success'
     environment: qa
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -77,6 +80,7 @@ jobs:
         id: j3-report
         if: ${{ !cancelled() && contains(fromJSON(needs.plan.outputs.matrix).include.*.workspace, 'journey-3') }}
         env:
+          GH_TOKEN: ${{ github.token }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ secrets.MOI_PAT }}
         run: python3 -m journey.benchmark_run_report --artifact-dir "$RUNNER_TEMP/journey-3-html"

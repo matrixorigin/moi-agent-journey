@@ -6,7 +6,7 @@ import re
 import tempfile
 from pathlib import Path
 
-from .benchmark_history import RUN_ID, read_metrics, render_history
+from .benchmark_history import RUN_ID, read_metrics, read_run_metadata, render_history
 from .benchmark_metrics import history_observations
 from .benchmark_store import HISTORY, configured_store, literal
 from .catalog import load_suite
@@ -100,7 +100,7 @@ def run_details(store, run, attempt):
             return details
 
 
-def publish(store, rows, run, attempt, artifact_dir=None):
+def publish(store, rows, run, attempt, artifact_dir=None, run_metadata=None):
     details = run_details(store, run, attempt)
     planned = load_suite('journey-3')['cases']
     observed = {row['case_id'] for row in rows if row['run_id'] == run and row['run_attempt'] == attempt}
@@ -109,7 +109,7 @@ def publish(store, rows, run, attempt, artifact_dir=None):
     with tempfile.TemporaryDirectory() as tmp:
         details = Evidence(tmp, configured_secrets()).clean(details)
     filename = f'journey-3-report-{run}-attempt-{attempt}.html'
-    html = render_history(rows, details).encode('utf-8')
+    html = render_history(rows, details, run_metadata).encode('utf-8')
     store.upload_private(filename, html, 'text/html; charset=utf-8')
     if artifact_dir is not None:
         inspect_payload(html, configured_secrets(), name=filename)
@@ -124,8 +124,13 @@ def main():
     args = parser.parse_args()
     try:
         store = configured_store()
-        filename, missing = publish(store, read_metrics(store), os.environ['GITHUB_RUN_ID'],
-                                    int(os.environ['GITHUB_RUN_ATTEMPT']), args.artifact_dir)
+        run, attempt = os.environ['GITHUB_RUN_ID'], int(os.environ['GITHUB_RUN_ATTEMPT'])
+        rows = read_metrics(store)
+        metadata = read_run_metadata(rows, os.environ.get('GITHUB_REPOSITORY', ''))
+        current_number = os.environ.get('GITHUB_RUN_NUMBER', '')
+        if RUN_ID.fullmatch(current_number):
+            metadata.setdefault(run, {})['number'] = int(current_number)
+        filename, missing = publish(store, rows, run, attempt, args.artifact_dir, metadata)
         print('Journey-3 HTML saved in the QA Catalog')
         if args.artifact_dir is not None and os.environ.get('GITHUB_OUTPUT'):
             with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as stream:

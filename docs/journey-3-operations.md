@@ -49,6 +49,9 @@ same HTML to GitHub Actions as a single file with one-day retention. The Actions
 links to the HTML download. This report contains the case details shown in its four panels.
 
 The HTML shows history for all cases, documents, operations and individual cases.
+The horizontal axis spaces GitHub run numbers evenly. Reruns have an attempt suffix such as
+`#96.2`. Hover a point or tick to see its time in Asia/Shanghai. If GitHub metadata is
+unavailable, the chart uses the run ID and the earliest recorded QA timestamp.
 Completion and timeout rates use the eligible case outcomes of a run with all configured records.
 Completion requires an observed final answer body. Charted completion timings, model rounds and
 scores use completed answers. Tool failure rate uses failed calls divided by succeeded plus failed calls

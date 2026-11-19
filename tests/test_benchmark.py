@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 from journey.benchmark_metrics import history_observations, history_record, model_rounds, quality_score
 from journey.benchmark_store import Store, canonical
-from journey.benchmark_history import metrics_row, write_metrics
+from journey.benchmark_history import metrics_row, read_run_metadata, write_metrics
 from journey.benchmark_run_report import details_for_case, publish
 from journey.catalog import load_case
 from journey.publish import prepare_publication
@@ -88,6 +88,18 @@ class BenchmarkTests(unittest.TestCase):
         for i,value in [(3,'business secret'),(7,'<script>business</script>'),(1,'business secret')]:
             bad=copy.copy(good);bad[i]=value
             with self.subTest(i=i),self.assertRaises(ValueError):metrics_row(bad)
+
+    def test_history_looks_up_run_numbers_without_copying_other_github_fields(self):
+        rows = [{'run_id': '44'}]
+        payload = {'id': 44, 'run_number': 96, 'run_attempt': 2,
+                   'created_at': '2026-11-19T14:54:14Z', 'run_started_at': '2026-11-19T15:00:00Z',
+                   'unrelated': 'ignored'}
+        with patch('journey.benchmark_history.subprocess.run',
+                   return_value=Mock(stdout=canonical(payload)+'\n'+canonical({**payload,'id':45}))) as request:
+            metadata = read_run_metadata(rows, 'owner/repo')
+        self.assertEqual(metadata, {'44': {'number': 96, 'attempt': 2,
+            'created_at': '2026-11-19T14:54:14+00:00', 'started_at': '2026-11-19T15:00:00+00:00'}})
+        self.assertIn('repos/owner/repo/actions/workflows/journeys.yml/runs?per_page=100', request.call_args.args[0])
 
     def test_body_in_earlier_turn_counts_as_completion_and_limits_completion_timing(self):
         report = {'tasks': [{'task_id': 'answered'}, {'task_id': 'timed-out'}],

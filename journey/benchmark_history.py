@@ -6,6 +6,7 @@ import json
 import math
 from pathlib import Path
 import re
+import subprocess
 
 from .benchmark_metrics import history_observations
 from .benchmark_store import configured_store, HISTORY, literal
@@ -107,11 +108,39 @@ def export(store, destination):
     return len(rows)
 
 
-def render_history(rows, current=None):
+def read_run_metadata(rows, repository):
+    ids = {row['run_id'] for row in rows}
+    if not ids or not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository):
+        return {}
+    try:
+        result = subprocess.run(
+            ['gh', 'api', '--paginate', f'repos/{repository}/actions/workflows/journeys.yml/runs?per_page=100',
+             '--jq', '.workflow_runs[] | {id, run_number, run_attempt, created_at, run_started_at} | @json'],
+            check=True, capture_output=True, text=True, timeout=30)
+        metadata = {}
+        for line in result.stdout.splitlines():
+            entry = json.loads(line)
+            run_id = str(entry['id'])
+            if run_id not in ids:
+                continue
+            number, attempt = entry['run_number'], entry['run_attempt']
+            if type(number) is not int or number < 1 or type(attempt) is not int or attempt < 1:
+                continue
+            metadata[run_id] = {'number': number, 'attempt': attempt,
+                'created_at': utc_timestamp(entry['created_at']).isoformat(),
+                'started_at': utc_timestamp(entry['run_started_at']).isoformat() if entry.get('run_started_at') else None}
+        return metadata
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
+        print('::warning::GitHub run metadata was unavailable; the chart can use run IDs and QA timestamps')
+        return {}
+
+
+def render_history(rows, current=None, run_metadata=None):
     plan = plan_suite(load_suite('journey-3'))
     jobs = {job['case']: job['case_ids'] for job in plan['include'] if job['executor'] == 'batch'}
     template = (Path(__file__).parent.parent / 'datasets/journey-3/history.html').read_text()
-    values = {'/*HISTORY_DATA*/[]': rows, '/*HISTORY_JOBS*/{}': jobs, '/*RUN_DETAILS*/null': current}
+    values = {'/*HISTORY_DATA*/[]': rows, '/*HISTORY_JOBS*/{}': jobs, '/*RUN_DETAILS*/null': current,
+              '/*RUN_METADATA*/{}': run_metadata or {}}
     # Replace once in the template, so a marker inside evidence remains text.
     return re.sub('|'.join(re.escape(key) for key in values),
                   lambda match: json.dumps(values[match[0]], ensure_ascii=True).replace('<', '\\u003c'),
