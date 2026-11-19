@@ -24,7 +24,7 @@ Journey-1 每个 case 的 **QA 总预算为 3600 秒**，Journey-2 为 **300 秒
 
 ### Journey-3：知识库任务
 
-另增 J3-58～J3-117：两个运营智能体最近一周各耗时 Top 30 的原问题回放。题目、独立 golden、业务数据和完整证据只保存在 QA；公开仓库仅保存不含问答的 case 定义及校验值。选择范围、依赖诊断、历史表和曲线见 [运营知识库评测](docs/journey-3-operations.md)。
+J3-58～J3-117 是两个运营智能体各 30 道知识库题，基于真实历史问答和固定的数据快照。题目、独立 golden、业务数据和完整证据保存在 QA。公开仓库仅保存不含问答的 case 定义及校验值。见 [运营知识库评测](docs/journey-3-operations.md)。
 
 **所有 Journey-3 case**（含原有 57 题）运行后先将完整报告与证据写入 QA `journey3_benchmark.results` 及关联文件，再发布仅含指标的 GitHub 报告。两个 job 都结束后，汇总报告生成 `history/history.html`，展示历史耗时与质量曲线，`history.csv` / `history.json` 提供指标数据。问答、引用、SQL 结果、Trace 和会话 ID 不进入公开包。
 
