@@ -1,16 +1,16 @@
 # Journey-3 operations replay and history
 
-Journey-3 keeps the original 57 document cases and adds 60 production-question replays (J3-58–J3-117). Two standard Ubuntu runners execute the cases concurrently. `cases (documents)` runs J3-01–J3-57. `cases (operations)` runs both operations agents’ questions, J3-58–J3-117. Each runner has up to 10 isolated case processes. Each process has its own conversation, files, event recorder, deadlines and report. One failure does not skip queued cases. The QA workflow remains manual; schedules are paused.
+Journey-3 has 57 document cases and 60 operations cases (J3-58–J3-117). Two standard Ubuntu runners execute the cases concurrently. `cases (documents)` runs J3-01–J3-57. `cases (operations)` runs both operations agents’ questions, J3-58–J3-117. Each runner has up to 10 isolated case processes. Each process has its own conversation, files, event recorder, deadlines and report. One failure does not skip queued cases. The QA workflow remains manual; schedules are paused.
 
 ## Selection and replay
 
-Each of the two source agents contributes its 30 slowest distinct questions from the last seven days at collection time. Both had enough questions; extending to 15 days was unnecessary. Successful, failed and canceled requests share the ranking. Deduplication normalizes whitespace and bot mentions, retaining the slowest occurrence. Latency runs from the original user-message timestamp to the trace terminal timestamp; mutable task `updated_at` is not a latency source.
+The original selection used the 30 slowest distinct questions for each source agent in the seven days before collection. Successful, failed and canceled requests shared the ranking. Deduplication normalizes whitespace and bot mentions, retaining the slowest occurrence. Latency runs from the original user-message timestamp to the trace terminal timestamp; mutable task `updated_at` is not a latency source.
 
 Each replay creates a fresh conversation. Earlier user/assistant text is supplied as quoted background to resolve follow-ups, not replayed as additional agent tasks and not trusted as a reference answer. Attachment transport credentials are omitted. Relative dates use the original question's UTC/Beijing clock, not the workflow date. Queries are read-only. This is a fixed-snapshot question benchmark, not a reproduction of the original model, cache or complete IM session.
 
 The copied agents have no IM/channel bindings. Runtime preflight checks their active status, exact knowledge-base bindings, required skills/tools and the live set of enabled, successfully registered table sources. Importing table declarations alone leaves them legacy-unbound in QA; the supported backfill API registered the copied sources, and their effective active sets now match production (77/64/64/64). The three originally unbound declarations remain disabled. A missing production dependency is `blocked`, not a quality failure for the partially copied agent. The public-cloud replica binds five MCP tools and its custom skill to a Journey-3-only adapter for the QA semantic API. Read, list and validate target the copied snapshot. Create and update target an unbound scratch model. Case revision r8 records the QA bindings while preserving the reference questions and answers. See [the adapter](../tools/journey3-semantic-mcp/README.md).
 
-Seven original requests depend on monitoring, GitHub, image delivery, old-task introspection or customer business tables outside the copied knowledge bases. They remain in the selected 60 as `out_of_scope`, with no knowledge-quality score. The original 91-row uploaded list for a further identity-mapping question was recovered and checksum-verified. Its verbatim input and independently calculated account mappings stay in QA; duplicate emails and ambiguous account links remain explicit. These exclusions remain visible rather than being replaced with easier questions.
+Seven original requests depended on monitoring, GitHub, image delivery, old-task introspection or customer business tables outside the copied knowledge bases. Revision r9 replaces them in the same case slots while preserving their historical records under the old revisions. Four replacements use archived production questions from the 15-day candidate pool with explicit metric definitions. Three use answerable questions based on the same operations themes and fixed snapshots. The public-cloud agent retains 30 cases and the private-cloud agent retains 30 cases. Each replacement has its own independently computed reference and case-specific criteria. The original 91-row uploaded list for a separate identity-mapping question remains checksum-verified and stored in QA with its independently calculated account mappings.
 
 ## Golden and quality
 
@@ -26,11 +26,12 @@ Each tested case retains its 10-minute task budget. Evidence validation and grad
 
 ## Private history and public downloads
 
-The schema is in [history-schema.sql](../datasets/journey-3/history-schema.sql). QA `journey3_benchmark` contains:
+The runtime schema is in [history-schema.sql](../datasets/journey-3/history-schema.sql). QA `journey3_benchmark` contains:
 
 | Table | Contents |
 |---|---|
 | `case_specs` | Versioned private questions, context, goldens and checksums |
+| `case_goldens` | QA catalog reference answers, rubric and evidence, grouped by catalog revision |
 | `dataset_snapshots` | Snapshot manifest, hash and readiness state |
 | `private_evidence_files` | Reference/evidence archive identities used to detect answer contamination |
 | `results` | One case result per workflow run/attempt/revision, plus the full report and private evidence-file reference |
@@ -45,4 +46,4 @@ Every Journey-3 case uses the same publication boundary, including the old synth
 
 ## Validation status
 
-Selection, source export, independent reference calculations, QA metadata/spec registration and framework implementation are prepared. All 272 copied tables passed final QA row-count verification (35,470,556 rows), including the independently sealed 192-table private-cloud subset. Fifty-three selected questions now have usable independent knowledge-answer references; seven are outside the copied knowledge bases. A real private-cloud agent request reached a failed terminal state after about 82 seconds with `insufficient_credit`; its trace, session and 29 events were saved to QA, and the framework completed successfully. No successful new model-based evaluation is claimed. The MCP adapter and bindings are now verified. The four public-cloud and three private-cloud questions requiring data beyond the copied knowledge bases remain explicitly out of scope. No full QA suite or scheduled run is enabled by this change.
+All 272 copied tables passed final QA row-count verification (35,470,556 rows), including the independently sealed 192-table private-cloud subset. The MCP adapter and bindings were verified in QA. The 60 active operations cases now have independent knowledge-answer references. The r9 replacements were checked against their bound source tables and evaluated independently against the frozen data. The manual QA workflow can report model completion and answer quality separately.
