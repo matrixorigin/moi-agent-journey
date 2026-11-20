@@ -155,13 +155,14 @@ jobs:
           CASE_CONCURRENCY: ${{ matrix.parallel_cases || 1 }}
           MOI_ENVIRONMENT: ${{ inputs.target_environment }}
           MOI_J3_WORKSPACE_ID: ${{ vars.MOI_J3_WORKSPACE_ID }}
-          MOI_J3_CLIENT_ID: ${{ secrets.MOI_J3_CLIENT_ID }}
-          MOI_J3_CLIENT_SECRET: ${{ secrets.MOI_J3_CLIENT_SECRET }}
+          MOI_J3_AUTH_MODE: ${{ vars.MOI_J3_AUTH_MODE }}
+          MOI_J3_CLIENT_ID: ${{ inputs.target_environment == 'production' && vars.MOI_J3_AUTH_MODE != 'pat' && secrets.MOI_J3_CLIENT_ID || '' }}
+          MOI_J3_CLIENT_SECRET: ${{ inputs.target_environment == 'production' && vars.MOI_J3_AUTH_MODE != 'pat' && secrets.MOI_J3_CLIENT_SECRET || '' }}
           MOI_J3_BINDINGS: ${{ secrets.MOI_J3_BINDINGS }}
           MOI_J5_FEISHU_TARGET: ${{ matrix.needs_feishu && vars.MOI_J5_FEISHU_TARGET || '' }}
           MOI_J5_FEISHU_APP_SECRET: ${{ matrix.needs_feishu && secrets.MOI_J5_FEISHU_APP_SECRET || '' }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
-          MOI_PAT: ${{ secrets.MOI_PAT }}
+          MOI_PAT: ${{ (inputs.target_environment != 'production' || vars.MOI_J3_AUTH_MODE == 'pat') && secrets.MOI_PAT || '' }}
           MOI_J2_NATIVE_SKILL_SOURCE_FILE_ID: ${{ inputs.workspace == 'journey-2' && vars.MOI_J2_NATIVE_SKILL_SOURCE_FILE_ID || '' }}
           MOI_J2_CHANNEL_TARGETS: ${{ inputs.workspace == 'journey-2' && vars.MOI_J2_CHANNEL_TARGETS || '' }}
           MOI_J2_SLACK_READ_TOKEN: ${{ inputs.workspace == 'journey-2' && secrets.MOI_J2_SLACK_READ_TOKEN || '' }}

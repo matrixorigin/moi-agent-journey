@@ -63,6 +63,14 @@ def knowledge_client(timeout, observer=None):
     workspace = os.environ.get('MOI_J3_WORKSPACE_ID', '')
     if not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', workspace):
         raise Failure('production_journey3_workspace_id_invalid')
+    method = os.environ.get('MOI_J3_AUTH_MODE') or 'service-account'
+    if method == 'pat':
+        pat = os.environ.get('MOI_PAT')
+        if not pat:
+            raise Failure('production_pat_missing')
+        return Client(BASE_URL, pat, timeout=timeout, observer=observer, locked_workspace=workspace)
+    if method != 'service-account':
+        raise Failure('production_auth_mode_invalid')
     account = ServiceAccount(os.environ.get('MOI_J3_CLIENT_ID'), os.environ.get('MOI_J3_CLIENT_SECRET'))
     return Client(BASE_URL, None, timeout=timeout, observer=observer,
                   bearer=account.bearer, locked_workspace=workspace)

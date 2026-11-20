@@ -69,3 +69,18 @@ class ProductionTests(unittest.TestCase):
             with patch.dict(os.environ, {'MOI_BASE_URL': 'https://other.invalid'}), \
                     self.assertRaisesRegex(Failure, 'production_base_url_mismatch'):
                 knowledge_client(60)
+
+    def test_production_pat_mode_uses_the_same_workspace_and_never_switches_auth(self):
+        workspace = '00000000-0000-0000-0000-000000000003'
+        settings = {'MOI_ENVIRONMENT': 'production', 'MOI_BASE_URL': BASE_URL,
+                    'MOI_J3_WORKSPACE_ID': workspace, 'MOI_PAT': 'synthetic-production-pat'}
+        with patch.dict(os.environ, settings, clear=True):
+            with self.assertRaisesRegex(Failure, 'production_service_account_credentials_missing_or_invalid'):
+                knowledge_client(60)
+            with patch.dict(os.environ, {'MOI_J3_AUTH_MODE': 'pat'}):
+                client = knowledge_client(60)
+                self.assertEqual(client.headers['X-Workspace-ID'], workspace)
+                self.assertEqual(client.headers['X-API-Key'], settings['MOI_PAT'])
+                self.assertIsNone(client.bearer)
+                with patch.dict(os.environ, {'MOI_PAT': ''}), self.assertRaisesRegex(Failure, 'production_pat_missing'):
+                    knowledge_client(60)

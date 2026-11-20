@@ -89,11 +89,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
-          MOI_PAT: ${{ secrets.MOI_PAT }}
+          MOI_PAT: ${{ (inputs.target_environment != 'production' || vars.MOI_J3_AUTH_MODE == 'pat') && secrets.MOI_PAT || '' }}
           MOI_ENVIRONMENT: ${{ inputs.target_environment || 'qa' }}
           MOI_J3_WORKSPACE_ID: ${{ vars.MOI_J3_WORKSPACE_ID }}
-          MOI_J3_CLIENT_ID: ${{ secrets.MOI_J3_CLIENT_ID }}
-          MOI_J3_CLIENT_SECRET: ${{ secrets.MOI_J3_CLIENT_SECRET }}
+          MOI_J3_AUTH_MODE: ${{ vars.MOI_J3_AUTH_MODE }}
+          MOI_J3_CLIENT_ID: ${{ inputs.target_environment == 'production' && vars.MOI_J3_AUTH_MODE != 'pat' && secrets.MOI_J3_CLIENT_ID || '' }}
+          MOI_J3_CLIENT_SECRET: ${{ inputs.target_environment == 'production' && vars.MOI_J3_AUTH_MODE != 'pat' && secrets.MOI_J3_CLIENT_SECRET || '' }}
         run: python3 -m journey.benchmark_run_report --artifact-dir "$RUNNER_TEMP/journey-3-html"
       - name: Upload Journey-3 HTML
         id: j3-html
