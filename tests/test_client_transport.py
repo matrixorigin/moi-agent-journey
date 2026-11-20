@@ -14,6 +14,19 @@ from journey.client import Client, Failure, transport_details
 
 
 class ClientTransportTests(unittest.TestCase):
+    def test_non_json_response_keeps_status_and_content_type(self):
+        client = Client('https://example.invalid', 'synthetic-pat')
+        response = io.BytesIO(b'<html>unexpected gateway page</html>')
+        response.status = 200
+        response.headers = Message()
+        response.headers['Content-Type'] = 'text/html; charset=UTF-8'
+        client.opener.open = Mock(return_value=response)
+        with self.assertRaises(Failure) as raised:
+            client.request('POST', '/query/run', {'query': 'SELECT 1'})
+        self.assertEqual(raised.exception.code, 'invalid_response')
+        self.assertEqual(raised.exception.http_status, 200)
+        self.assertEqual(raised.exception.details, {'content_type': 'text/html'})
+
     def test_task_and_event_collections_exceed_ordinary_json_budget_without_truncation(self):
         content = 'journal-data-' + 'x' * 33_000_000
         client = Client('https://example.invalid', 'synthetic-pat')

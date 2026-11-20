@@ -23,8 +23,9 @@ def event(kind):
     os.write(fd,(json.dumps([kind,case])+"\\n").encode());os.close(fd)
 event('start');print('BUSINESS-DATA-MUST-STAY-IN-PRIVATE-LOG');time.sleep(.15)
 if case!='J3-02':
+    stage = {'history': {'diagnostic': {'reason': 'http_error', 'http_status': 413}}} if case=='J3-05' else {}
     (root/'batch-result.json').write_text(json.dumps({'cases':[{'case_id':case,'workspace':'journey-3',
-      'directory':str(root/case),'failed_stages':[],'test_status':'completed'}]}))
+      'directory':str(root/case),'failed_stages':list(stage),'stages':stage,'test_status':'completed'}]}))
     destination=Path(public)/case
     destination.mkdir(parents=True)
     (destination/'result.json').write_text(json.dumps({
@@ -46,29 +47,31 @@ event('end');sys.exit(7 if case=='J3-02' else 0)
             with (patch('journey.parallel_batch.subprocess.Popen', side_effect=start),
                   patch('journey.parallel_batch.PROGRESS_INTERVAL_SECONDS', .05),
                   contextlib.redirect_stdout(stdout)):
-                code=run_parallel(['J3-01','J3-02','J3-03','J3-04'],'journey-3',root/'work',root/'public',os.environ.copy(),2)
+                code=run_parallel(['J3-01','J3-02','J3-03','J3-04','J3-05'],'journey-3',root/'work',root/'public',os.environ.copy(),2)
             self.assertEqual(code,1)
             progress = stdout.getvalue()
             self.assertNotIn('BUSINESS-DATA', progress)
             self.assertNotIn('PRIVATE-REPORT-FIELD', progress)
             self.assertGreaterEqual(progress.count('Progress |'), 3)
-            self.assertIn('Progress | finished 0/4 | running 2 | queued 2', progress)
-            self.assertIn('Progress | finished 4/4 | running 0 | queued 0', progress)
+            self.assertIn('Progress | finished 0/5 | running 2 | queued 3', progress)
+            self.assertIn('Progress | finished 5/5 | running 0 | queued 0', progress)
             self.assertRegex(progress, r'Slot 01 \| running: J3-01 \(\d+s\) \| finished: —')
             self.assertRegex(progress, r'Slot 01 \| finished J3-01 \(\d+s\) \| delivered, score 80/100')
             self.assertRegex(progress, r'Slot 02 \| finished J3-02 \(\d+s\) \| framework error')
             self.assertIn('J3-03 [out of scope]', progress)
+            self.assertIn('history={"reason":"http_error","http_status":413}', progress)
             self.assertIn('J3-04 [agent timeout]', progress)
             active=peak=0;started=[]
             for kind,case in map(json.loads,events.read_text().splitlines()):
                 active+=1 if kind=='start' else -1;peak=max(peak,active)
                 if kind=='start':started.append(case)
             self.assertEqual(peak,2);self.assertEqual(active,0)
-            self.assertCountEqual(started,['J3-01','J3-02','J3-03','J3-04'])
+            self.assertCountEqual(started,['J3-01','J3-02','J3-03','J3-04','J3-05'])
             rows=json.loads((root/'work/batch-result.json').read_text())['cases']
-            self.assertEqual([r['case_id'] for r in rows],['J3-01','J3-02','J3-03','J3-04'])
+            self.assertEqual([r['case_id'] for r in rows],['J3-01','J3-02','J3-03','J3-04','J3-05'])
             self.assertEqual(rows[1]['failed_stages'],['worker_result_missing'])
-            self.assertEqual(rows[-1]['failed_stages'],[])
+            self.assertEqual(rows[-2]['failed_stages'],[])
+            self.assertEqual(rows[-1]['failed_stages'],['history'])
 
 
 if __name__=='__main__':unittest.main()

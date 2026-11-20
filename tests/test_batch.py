@@ -89,6 +89,11 @@ class BatchRunnerTests(unittest.TestCase):
                 public = directory / 'published-results' / case_id
                 public.mkdir(parents=True)
                 (public / 'result.json').write_text('{}')
+            if name == 'history' and name in fail:
+                diagnostic = Path(env['MOI_PRIVATE_STAGE_LOG']).with_suffix('.error.json')
+                diagnostic.parent.mkdir(exist_ok=True)
+                diagnostic.write_text(json.dumps({'reason': 'http_error', 'http_status': 413,
+                    'details': {'operation': 'INSERT', 'request_bytes': 32768, 'body': 'private SQL'}}))
             return {'exit_code': 1 if name in fail else 0, 'timed_out': name in timeout}
         return stage
 
@@ -145,6 +150,10 @@ class BatchRunnerTests(unittest.TestCase):
                 stages = json.loads((root/'J3-01/results/J3-01/batch-stages.json').read_text())
                 self.assertIsNone(stages['active_stage'])
                 self.assertEqual(stages['stages'][failed]['exit_code'], 1)
+                if failed == 'history':
+                    self.assertEqual(stages['stages'][failed]['diagnostic'], {
+                        'reason': 'http_error', 'http_status': 413, 'operation': 'INSERT', 'request_bytes': 32768,
+                    })
 
     def test_product_failure_does_not_turn_group_red(self):
         with tempfile.TemporaryDirectory() as tmp, patch('journey.batch.run_stage',
