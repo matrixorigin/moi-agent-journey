@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from .a2a import final_reply
+from .benchmark_metrics import ANSWER_TIMING, delivered_answer_seconds
 from .catalog import ROOT, load_case
 from .client import Failure, error_record, segment
 from .evidence import Evidence, configured_secrets, utc_now
@@ -25,6 +26,8 @@ from .version import finish_version, start_version
 
 
 class KnowledgeExecution(Execution):
+    measure_answer_delivery = True
+
     def setup(self, *, capture_version=True):
         self.root = discover_workspace(self.client, self.case['workspace'])
         self.report['rag']['evaluator'] = {'method': 'workspace_model_json_schema',
@@ -366,6 +369,7 @@ class KnowledgeExecution(Execution):
                                                       for turn in session['turns']),
                               'comparison_group': self.case['rag'].get('comparison_group')}
         self.report['validation'] = {'checks': []}
+        self.report['answer_timing'] = ANSWER_TIMING
         self.report['task_seconds'] = None
         task_seconds = 0
         answers = []
@@ -387,7 +391,7 @@ class KnowledgeExecution(Execution):
                     text = final_reply(task)
                     answer = {'session': session['id'], 'phase': turn['phase'], 'question': turn['prompt'],
                               'text': text, 'conversation_id': cid, 'task_id': entry['task_id'],
-                              'trace_id': entry.get('trace_id'), 'seconds': entry['seconds'],
+                              'trace_id': entry.get('trace_id'), 'seconds': entry.get('answer_seconds'),
                               'evaluation_state': 'pending' if 'rag_reference' in turn else 'context_only'}
                     self.report['rag']['answers'].append(answer)
                     self.evidence.write('sessions/' + session['id'] + '/' + turn['phase'] + '-reply.json', answer)
@@ -396,6 +400,7 @@ class KnowledgeExecution(Execution):
                     if 'rag_reference' in turn:
                         answers.append((session, turn, answer))
                     self.checkpoint()
+            self.report['task_seconds'] = delivered_answer_seconds(self.report['rag']['answers'])
             self.grade_answers(answers)
         except Exception as error:
             self.record_failure(error)

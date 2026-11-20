@@ -132,11 +132,13 @@ test('threshold shares use metric-specific cohorts and include exact boundaries'
       ['1', 'J3-05', 'timeout', null, 2, null, 1, 4],
       ['1', 'J3-06', 'completed', null, null, null, 0, 0],
       ['2', 'J3-01', 'timeout', null, null, null, null, null],
+      ['2', 'J3-02', 'completed', 90, null, null, null, null],
       ['3', 'J3-01', 'completed', 180, 30, 60, 0, 2],
     ].map(([run_id, case_id, qa_outcome, completed_seconds, completed_model_rounds, quality_score,
       tool_failed, tool_succeeded]) => ({
       run_id, case_id, qa_outcome, completed_seconds, completed_model_rounds, quality_score,
       tool_failed, tool_succeeded, run_attempt: 1, evaluated_at: '2026-11-19T00:00:00Z',
+      answer_timing: run_id === '2' ? 'legacy' : 'final_answer_sse',
     }));
     const jobs = {documents: ['J3-01', 'J3-02'], operations: ['J3-03', 'J3-04', 'J3-05', 'J3-06']};
     await page.setContent(template.replace('/*HISTORY_DATA*/[]', JSON.stringify(rows))
@@ -158,6 +160,7 @@ test('threshold shares use metric-specific cohorts and include exact boundaries'
       assert.equal(await chart(id).locator('polyline').count(), 0); // No samples for run 2.
     }
     assert.match(await points('tool_failure_rate', '≤20%').first().textContent(), /可计算 5 题/);
+    assert.equal(await page.locator('#completed_seconds [data-case="J3-02"] circle').count(), 1);
 
     await page.locator('#case').selectOption('job:operations');
     assert.match(await points('completed_seconds', '≤600 秒').textContent(), /1 \/ 2 题（50\.0%）/);

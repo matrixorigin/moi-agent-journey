@@ -2,6 +2,15 @@
 from .client import Failure
 
 
+def knowledge_answer_id(artifact):
+    if (artifact.get("metadata") or {}).get("matrixflow_type") != "knowledge.answer":
+        return None
+    if any(part.get("kind") == "text" and isinstance(part.get("text"), str) and part["text"].strip()
+           for part in artifact.get("parts", [])):
+        return artifact.get("artifactId")
+    return None
+
+
 def final_reply(task):
     if task["status"]["state"] != "completed":
         raise Failure("task_not_completed")

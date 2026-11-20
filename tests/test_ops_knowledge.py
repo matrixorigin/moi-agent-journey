@@ -72,36 +72,52 @@ class OpsKnowledgeTests(unittest.TestCase):
             with self.subTest(probe=probe), self.assertRaisesRegex(Failure, 'independent_reference_shape_or_hash_invalid'):
                 execution.check_reference({'status': 'reviewed', 'verification': {'probes': [probe]}})
 
-    def test_task_latency_excludes_setup_conversation_creation_and_grading(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            clock = [0]
-            case = load_case('J3-01')
-            execution = KnowledgeExecution(Mock(requests=0), case, Evidence(tmp), tmp, 'model')
-            def setup():
-                clock[0] += 100
-            def conversation(_):
-                clock[0] += 30
-                return 'session'
-            def send(*_):
-                clock[0] += 5
-                entry = {'task_id': 'task', 'conversation_id': 'session', 'seconds': 5, 'phase': 'question',
-                         'state': 'completed', 'capture_complete': True}
-                execution.tasks.append(entry)
-                return entry, {}
-            def grade(_):
-                clock[0] += 20
-                execution.report['status'] = 'passed'
-            with patch('journey.knowledge_case.time.monotonic', side_effect=lambda: clock[0]), \
-                    patch.object(execution, 'setup', side_effect=setup), \
-                    patch.object(execution, 'conversation', side_effect=conversation), \
-                    patch.object(execution, 'send', side_effect=send), \
-                    patch.object(execution, 'grade_answers', side_effect=grade), \
-                    patch.object(execution, 'finalize'), patch.object(execution, 'capture_trajectories'), \
-                    patch('journey.knowledge_case.finish_version'), \
-                    patch('journey.knowledge_case.final_reply', return_value='Answer'):
-                result = execution.run()
-            self.assertEqual(result['task_seconds'], 5)
-            self.assertEqual(clock[0], 155)
+    def test_task_latency_stops_at_verified_answer_delivery(self):
+        for observed in (True, False):
+            with self.subTest(observed=observed), tempfile.TemporaryDirectory() as tmp:
+                clock = [0]
+                client = Mock(requests=0)
+                execution = KnowledgeExecution(client, load_case('J3-01'), Evidence(tmp), tmp, 'model')
+                artifact = {'artifactId': 'real-answer', 'metadata': {'matrixflow_type': 'knowledge.answer'},
+                            'parts': [{'kind': 'text', 'text': 'Answer'}]}
+                def setup():
+                    clock[0] += 100
+                def conversation(_):
+                    clock[0] += 30
+                    execution.conversations.append({'id': 'session', 'selector': {}})
+                    return 'session'
+                def stream(*_):
+                    identity = {'taskId': 'task', 'contextId': 'session'}
+                    yield {'result': {**identity, 'kind': 'status-update', 'status': {'state': 'working'}}}
+                    clock[0] += 5
+                    emitted = artifact if observed else {**artifact, 'artifactId': 'unconfirmed-answer'}
+                    yield {'result': {**identity, 'kind': 'artifact-update', 'artifact': emitted, 'lastChunk': True}}
+                    clock[0] += 3
+                    yield {'result': {**identity, 'kind': 'status-update', 'status': {'state': 'completed'}}}
+                def retrieve(*_):
+                    clock[0] += 2
+                    return {'kind': 'task', 'id': 'task', 'contextId': 'session', 'artifacts': [artifact],
+                            'status': {'state': 'completed', 'message': {'role': 'agent',
+                                       'parts': [{'kind': 'text', 'text': 'Answer with projected citation'}]}}}
+                def capture(*_, **_kw):
+                    clock[0] += 7
+                def grade(_):
+                    clock[0] += 20
+                client.stream_rpc.side_effect = stream
+                client.rpc.side_effect = retrieve
+                with patch('journey.knowledge_case.time.monotonic', side_effect=lambda: clock[0]), \
+                        patch.object(execution, 'setup', side_effect=setup), \
+                        patch.object(execution, 'conversation', side_effect=conversation), \
+                        patch.object(execution, 'capture', side_effect=capture), \
+                        patch.object(execution, 'grade_answers', side_effect=grade), \
+                        patch.object(execution, 'finalize'), patch.object(execution, 'capture_trajectories'), \
+                        patch('journey.knowledge_case.finish_version'):
+                    result = execution.run()
+                delivery = 5 if observed else None
+                self.assertEqual(result['task_seconds'], delivery)
+                self.assertEqual(result['rag']['answers'][0]['seconds'], delivery)
+                self.assertEqual(result['tasks'][0]['seconds'], 17)
+                self.assertEqual(clock[0], 167)
 
     def test_admission_failure_keeps_request_trace_session_and_attempt_latency(self):
         from journey.benchmark_metrics import history_record

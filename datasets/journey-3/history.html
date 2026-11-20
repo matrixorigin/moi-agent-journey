@@ -246,9 +246,15 @@ function draw(id, series, metric, chartDomain, color, {byCase = false, percent =
 }
 
 const completedValue = field => row => row.qa_outcome === 'completed' ? row[field] : null;
+const answerTiming = 'final_answer_sse';
+const hasAnswerTiming = data.some(row => row.answer_timing === answerTiming);
 const metrics = [
-  {id: 'completed_seconds', name: '正常完成任务耗时', unit: '秒',
-    limits: Array.from({length: 10}, (_, index) => (index + 1) * 60), value: completedValue('completed_seconds')},
+  {id: 'completed_seconds', name: hasAnswerTiming ? '正常完成任务耗时' : '正常完成任务耗时（含取证）', unit: '秒',
+    caption: hasAnswerTiming ? '从发出问题到收到完整正文。曲线和阈值占比使用有交付事件的记录。' : undefined,
+    limits: Array.from({length: 10}, (_, index) => (index + 1) * 60), value(row) {
+      if (hasAnswerTiming && row.answer_timing !== answerTiming) return null;
+      return row.qa_outcome === 'completed' ? row.completed_seconds : null;
+    }},
   {id: 'completed_model_rounds', name: '正常完成模型轮次', unit: '轮',
     limits: [10, 20, 30, 40], value: completedValue('completed_model_rounds')},
   {id: 'tool_failure_rate', name: '工具失败率', unit: '%', maximum: 100, color: '#a96812', allCases: true,
@@ -268,9 +274,9 @@ function createMetricView(metric) {
   const section = element('section');
   const pair = element('div');
   pair.className = 'metric-pair';
-  const caption = element('p', metric.allCases ?
+  const caption = element('p', metric.caption ?? (metric.allCases ?
     '分母为当次所有已记录的 Case。悬浮查看可计算工具失败率的题数。' :
-    '分母为当次正常完成且有此指标记录的 Case。');
+    '分母为当次正常完成且有此指标记录的 Case。'));
   caption.className = 'metric-caption';
   section.append(element('h3', metric.name + ' · ' + metric.unit), caption, pair);
   metricHost.append(section);

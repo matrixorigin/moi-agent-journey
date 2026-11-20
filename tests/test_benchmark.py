@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from journey.benchmark_metrics import history_observations, history_record, model_rounds, quality_score
+from journey.benchmark_metrics import ANSWER_TIMING, history_observations, history_record, model_rounds, quality_score
 from journey.benchmark_store import Store, canonical
 from journey.benchmark_history import metrics_row, read_run_metadata, write_metrics
 from journey.benchmark_run_report import details_for_case, publish
@@ -175,6 +175,20 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(observed['qa_outcome'], 'completed')
         self.assertEqual(observed['completed_seconds'], 3.5)
         self.assertEqual(observed['completed_model_rounds'], 1)
+
+    def test_delivery_timing_keeps_multiturn_clock_and_missing_samples_distinct(self):
+        answers = [{'text': 'Context', 'seconds': 2, 'evaluation_state': 'context_only'},
+                   {'text': 'Answer', 'seconds': 5, 'evaluation_state': 'scored'}]
+        report = {'answer_timing': ANSWER_TIMING, 'rag': {'answers': answers}}
+        row = {'task_state': 'completed', 'benchmark_state': 'eligible',
+               'duration_seconds': 30, 'model_round_count': 4}
+        observed = history_observations(report, row)
+        self.assertEqual(observed['completed_seconds'], 7)
+        self.assertEqual(observed['answer_timing'], ANSWER_TIMING)
+        answers[0]['seconds'] = None
+        observed = history_observations(report, row)
+        self.assertEqual(observed['qa_outcome'], 'completed')
+        self.assertIsNone(observed['completed_seconds'])
 
     def test_report_reuses_qa_html_as_a_single_github_file(self):
         secret_marker = '</script><PRIVATE_FACT>'
