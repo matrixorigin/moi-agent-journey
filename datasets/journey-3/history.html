@@ -34,6 +34,7 @@
   .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
   .chart-series polyline { fill: none; stroke: currentColor; stroke-width: 2; }
   .chart-series circle { fill: currentColor; }
+  .chart-series .partial-point { fill: white; stroke: currentColor; stroke-width: 2; }
   .chart-series.muted, svg:has(.chart-series:hover) .chart-series:not(:hover) { opacity: .2; }
   .threshold-plot .chart-series.muted { pointer-events: none; }
   .axis { stroke: #d7dfeb; }
@@ -75,6 +76,7 @@
   <section><h3>问答正常完成率</h3><svg id="completion_rate" viewBox="0 0 480 170" role="img" aria-label="问答正常完成率"></svg></section>
   <section><h3>问答超时率</h3><svg id="timeout_rate" viewBox="0 0 480 170" role="img" aria-label="问答超时率"></svg></section>
 </div>
+<p id="rate-coverage" class="metric-caption" hidden>空心点表示该次运行的记录未收齐。悬浮查看计算题数与记录覆盖率。</p>
 <div id="metrics"></div>
 <section id="run-overview" hidden>
   <h2 id="run-overview-title">最近一次运行概况</h2>
@@ -260,12 +262,17 @@ function draw(id, series, metric, chartDomain, color, {byCase = false, percent =
         finishSegment();
         continue;
       }
-      if (previous !== index - 1) finishSegment();
-      previous = index;
+      if (row.partial || previous !== index - 1) finishSegment();
       const x = pointX(index);
       const y = pointY(value);
-      points.push(x + ',' + y);
       const point = svgNode(group, 'circle', {cx: x, cy: y, r: byCase ? 2.5 : 4});
+      if (row.partial) {
+        point.classList.add('partial-point');
+        previous = undefined;
+      } else {
+        points.push(x + ',' + y);
+        previous = index;
+      }
       const label = runTooltips[index] + ' · ' + Number(value.toFixed(2));
       const tooltip = describe ? runTooltips[index] + ' · ' + describe(row) :
         row.case_id ? row.case_id + ' · ' + label + '\n' + version(row) : label;
@@ -417,21 +424,38 @@ function showLegend(ids, overview) {
 }
 
 function drawRates(rows) {
+  const expected = scope.value === 'all' ? planned : jobs[scope.value.slice(4)];
   const counts = new Map();
   for (const row of rows) {
+    if (row.qa_outcome === 'excluded') continue;
     const key = runKey(row);
-    if (row.qa_outcome === 'excluded' || !planned.every(id => runs.get(key).cases.has(id))) continue;
-    if (!counts.has(key)) counts.set(key, {
-      run_id: row.run_id, run_attempt: row.run_attempt, total: 0, completed: 0, timeout: 0,
-    });
+    if (!counts.has(key)) {
+      const recorded = expected.filter(id => runs.get(key).cases.has(id)).length;
+      counts.set(key, {
+        run_id: row.run_id, run_attempt: row.run_attempt, total: 0, completed: 0, timeout: 0,
+        recorded, partial: recorded < expected.length,
+      });
+    }
     const entry = counts.get(key);
     entry.total++;
     if (row.qa_outcome === 'completed') entry.completed++;
     if (row.qa_outcome === 'timeout') entry.timeout++;
   }
-  const series = new Map([['suite', [...counts.values()]]].filter(([, entries]) => entries.length));
-  draw('completion_rate', series, row => 100 * row.completed / row.total, 100, '#356df3');
-  draw('timeout_rate', series, row => 100 * row.timeout / row.total, 100, '#a96812');
+  const entries = [...counts.values()];
+  const series = entries.length ? new Map([['suite', entries]]) : new Map();
+  document.getElementById('rate-coverage').hidden = !entries.some(row => row.partial);
+  for (const [id, outcome, label, color] of [
+    ['completion_rate', 'completed', '正常完成', '#356df3'],
+    ['timeout_rate', 'timeout', '超时', '#a96812'],
+  ]) {
+    const rate = row => 100 * row[outcome] / row.total;
+    draw(id, series, rate, 100, color, {
+      percent: true,
+      describe: row => label + ' ' + row[outcome] + ' / ' + row.total + ' 题（' +
+        Number(rate(row).toFixed(2)) + '%）' +
+        (expected.length ? ' · 已记录 ' + row.recorded + ' / ' + expected.length + ' 题' : ''),
+    });
+  }
 }
 
 function element(tag, text) {
@@ -558,7 +582,7 @@ function showDetails(scopeRows) {
 }
 
 function showRunOverview(rows) {
-  if (!currentRun || publicRunDetails) return;
+  if (!currentRun || pagesEnvironment) return;
   const selected = latestRunRows(rows);
   const count = outcome => selected.filter(row => row.qa_outcome === outcome).length;
   const completed = count('completed');
@@ -603,6 +627,7 @@ function render() {
   showLegend(shownCases, overview);
   document.getElementById('rates').hidden = !overview;
   if (overview) drawRates(rows);
+  else document.getElementById('rate-coverage').hidden = true;
   metricHost.classList.toggle('overview', overview);
   metricHost.classList.toggle('trends', !overview);
   for (const view of metricViews) {
@@ -634,7 +659,7 @@ if (pagesEnvironment) {
 }
 if (currentRun) {
   const label = runLabel(currentRun.run_id, currentRun.attempt);
-  document.getElementById('run-overview').hidden = publicRunDetails;
+  document.getElementById('run-overview').hidden = Boolean(pagesEnvironment);
   document.getElementById('run-overview-title').textContent = '最近一次运行概况 · ' + label;
   document.getElementById('details').hidden = Boolean(currentRun.metrics_only) && !publicRunDetails;
   document.getElementById('details-title').textContent = '最近一次运行明细 · ' + label;

@@ -79,7 +79,8 @@ def publish(store, rows, run, attempt, artifact_dir=None, run_metadata=None, *, 
     details['report_error_cases'] = len({record[0] for record in details.get('errors', [])})
     summary = {key: details[key] for key in SUMMARY_FIELDS}
     if pages_snapshot is not None:
-        write_snapshot(pages_snapshot, 'production' if production else 'qa', rows, summary, run_metadata)
+        write_snapshot(pages_snapshot, 'production' if production else 'qa', rows, summary, run_metadata,
+                       details=details)
     with tempfile.TemporaryDirectory() as tmp:
         details = Evidence(tmp, configured_secrets()).clean(details)
     filename = f'journey-3-report-{run}-attempt-{attempt}.html'
@@ -122,7 +123,7 @@ def main():
             print('::error::Journey-3 report is missing rows for: ' + ', '.join(missing))
             return 1
     except ArtifactRejected:
-        print('::error::Journey-3 HTML was saved in the target Catalog and withheld from GitHub by the credential scan')
+        print('::error::Journey-3 publication was blocked by the credential scan')
         return 1
     except Exception:
         print('::error::Journey-3 could not prepare the HTML report')
