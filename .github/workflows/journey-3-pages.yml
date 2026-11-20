@@ -1,0 +1,88 @@
+name: Journey-3 Pages
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/journey-3-pages.yml
+      - datasets/journey-3/history.html
+      - datasets/journey-3/pages-index.html
+      - journey/benchmark_history.py
+      - journey/benchmark_pages.py
+  workflow_call:
+    inputs:
+      snapshot:
+        type: string
+        required: true
+      target_environment:
+        type: string
+        required: true
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deploy:
+    if: github.repository == 'matrixorigin/moi-agent-journey' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: journey-3-pages
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      actions: read
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Check out published metrics snapshots
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: journey-3-pages-data
+          path: pages-state
+      - name: Download this run's public metrics
+        if: inputs.snapshot != ''
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ inputs.snapshot }}
+          path: incoming-pages-metrics
+      - name: Render QA and Production pages
+        env:
+          SNAPSHOT_ARTIFACT: ${{ inputs.snapshot }}
+          TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
+        run: |
+          snapshot=()
+          if [[ -n "$SNAPSHOT_ARTIFACT" ]]; then
+            snapshot=(--incoming incoming-pages-metrics/snapshot.json --environment "$TARGET_ENVIRONMENT")
+          fi
+          python3 -m journey.benchmark_pages --state pages-state --out "$RUNNER_TEMP/pages" "${snapshot[@]}"
+      - name: Save the updated metrics snapshot
+        run: |
+          git -C pages-state add --all
+          if ! git -C pages-state diff --cached --quiet; then
+            git -C pages-state -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m 'Update Journey-3 Pages metrics'
+            git -C pages-state push origin HEAD:refs/heads/journey-3-pages-data
+          fi
+      - name: Upload GitHub Pages site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          name: github-pages-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pages
+      - name: Deploy GitHub Pages site
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        with:
+          artifact_name: github-pages-attempt-${{ github.run_attempt }}
+      - name: Link the dashboards
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          printf '\nJourney-3 GitHub Pages · [QA](%s/qa/) · [Production](%s/production/)\n' \
+            "${PAGE_URL%/}" "${PAGE_URL%/}" >> "$GITHUB_STEP_SUMMARY"

@@ -34,6 +34,10 @@ J3-58～J3-117 是两个运营智能体各 30 道知识库题，基于真实历�
 
 **所有 Journey-3 case**（含原有 57 题）将定位 ID、指标和 HTML 所需明细写入对应环境的 `journey3_benchmark.results`。原始事件和完整回答仅用于 runner 内的评分与指标计算。两个 job 都结束后，汇总将 HTML 保存到工作区 Catalog，GitHub Actions 同时发布可下载的 HTML。生产的 GitHub 版保留指标和运行覆盖率。从 Actions Summary 点击「下载 Journey-3 HTML 报告」即可下载。
 
+[Journey-3 GitHub Pages](https://matrixorigin.github.io/moi-agent-journey/) 提供 [QA](https://matrixorigin.github.io/moi-agent-journey/qa/) 和 [Production](https://matrixorigin.github.io/moi-agent-journey/production/) 两个固定入口，可直接查看历史趋势、运行覆盖率和最近一次运行概况。`main` 上的 Journey-3 收到结果后自动更新对应页面，并在发布 job 的 Summary 中给出链接。公开网页只使用指标与 GitHub 运行元数据，完整报告可在对应的工作区 Catalog 查看。
+
+Pages 的发布源是 GitHub Actions。`journey-3-pages-data` 保存两个环境各自最近的公开指标快照。发布串行执行，旧运行的重跑不会覆盖较新的快照。页面模板或发布代码合入 `main` 后，`Journey-3 Pages` 用已有快照重新部署页面。也可以手动触发这项部署。
+
 历史页默认叠画全部 case 的曲线。Case 菜单可切换到文档 job、运营 job 或单题。图例和鼠标提示标识各条曲线，版本变化后另起一条线。
 
 原有文档题集与参考复核记录见 [journey-3-qa-review.md](docs/journey-3-qa-review.md)。这 57 个 case 分为 SAP 29、Cedar 18、MOI 7、MatrixOne 3；包含连续追问、独立新会话及重复题对照，共 61 次被测请求，其中 58 次回答需要评估，其余用于建立业务上下文。

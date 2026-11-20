@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .benchmark_history import RUN_ID, read_metrics, read_run_metadata, render_history
 from .benchmark_details import DETAIL_KINDS, details_for_case
+from .benchmark_pages import SUMMARY_FIELDS, write_snapshot
 from .benchmark_store import HISTORY, configured_store, literal
 from .catalog import load_suite
 from .evidence import Evidence, configured_secrets
@@ -67,14 +68,18 @@ def run_details(store, run, attempt):
             return details
 
 
-def publish(store, rows, run, attempt, artifact_dir=None, run_metadata=None, *, production=False):
+def publish(store, rows, run, attempt, artifact_dir=None, run_metadata=None, *, production=False, pages_snapshot=None):
     details = run_details(store, run, attempt)
     planned = load_suite('journey-3')['cases']
     observed = {row['case_id'] for row in rows if row['run_id'] == run and row['run_attempt'] == attempt}
     missing = [case_id for case_id in planned if case_id not in observed]
     details['coverage'] = {'recorded': len(planned) - len(missing), 'planned': len(planned), 'missing': missing}
+    details['run_id'], details['attempt'] = run, attempt
     details['environment'] = 'Production' if production else 'QA'
     details['report_error_cases'] = len({record[0] for record in details.get('errors', [])})
+    summary = {key: details[key] for key in SUMMARY_FIELDS}
+    if pages_snapshot is not None:
+        write_snapshot(pages_snapshot, 'production' if production else 'qa', rows, summary, run_metadata)
     with tempfile.TemporaryDirectory() as tmp:
         details = Evidence(tmp, configured_secrets()).clean(details)
     filename = f'journey-3-report-{run}-attempt-{attempt}.html'
@@ -82,8 +87,8 @@ def publish(store, rows, run, attempt, artifact_dir=None, run_metadata=None, *, 
     store.upload_private(filename, html, 'text/html; charset=utf-8')
     if artifact_dir is not None:
         if production:
-            summary = {key: details[key] for key in ('run_id', 'attempt', 'coverage', 'environment', 'report_error_cases')}
-            html = render_history(rows, {**summary, 'metrics_only': True}, run_metadata).encode('utf-8')
+            html = render_history(rows, {**summary, 'environment': details['environment'], 'metrics_only': True},
+                                  run_metadata).encode('utf-8')
         inspect_payload(html, configured_secrets(), name=filename)
         artifact_dir.mkdir(parents=True, exist_ok=True)
         (artifact_dir / filename).write_bytes(html)
@@ -93,6 +98,7 @@ def publish(store, rows, run, attempt, artifact_dir=None, run_metadata=None, *, 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--artifact-dir', type=Path)
+    parser.add_argument('--pages-snapshot', type=Path)
     args = parser.parse_args()
     try:
         store = configured_store()
@@ -103,7 +109,7 @@ def main():
         if RUN_ID.fullmatch(current_number):
             metadata.setdefault(run, {})['number'] = int(current_number)
         filename, missing = publish(store, rows, run, attempt, args.artifact_dir, metadata,
-                                    production=is_production())
+                                    production=is_production(), pages_snapshot=args.pages_snapshot)
         print('Journey-3 HTML saved in the target Catalog')
         if args.artifact_dir is not None and os.environ.get('GITHUB_OUTPUT'):
             with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as stream:
@@ -121,6 +127,10 @@ def main():
     except Exception:
         print('::error::Journey-3 could not prepare the HTML report')
         return 1
+    finally:
+        if args.pages_snapshot is not None and args.pages_snapshot.is_file() and os.environ.get('GITHUB_OUTPUT'):
+            with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as stream:
+                stream.write(f'pages-snapshot={args.pages_snapshot}\n')
     return 0
 
 
