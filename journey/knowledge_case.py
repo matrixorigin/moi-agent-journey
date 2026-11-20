@@ -25,6 +25,18 @@ from .trajectory import task_trajectory
 from .version import finish_version, start_version
 
 
+class BatchEvidence(Evidence):
+    """Keep only the runner files consumed by Journey-3 scoring and reporting."""
+
+    def write(self, name, value):
+        if name == 'result.json':
+            super().write(name, value)
+
+    def append(self, name, value):
+        if name == 'events.jsonl':
+            super().append(name, value)
+
+
 class KnowledgeExecution(Execution):
     measure_answer_delivery = True
 
@@ -414,6 +426,8 @@ class KnowledgeExecution(Execution):
         return self.report
 
     def capture_trajectories(self):
+        if isinstance(self.evidence, BatchEvidence):
+            return
         events = self.evidence.root / 'events.jsonl'
         if events.exists():
             try:
@@ -448,7 +462,9 @@ def main(execution_type=None):
                 prior_case != case or not saved.get('capture_complete')):
             raise Failure('invalid_saved_knowledge_execution')
         shutil.copytree(source, Path('results') / case['id'])
-    evidence = Evidence(Path('results') / case['id'], configured_secrets())
+    batch = os.environ.get('MOI_J3_COMPACT_RECORDING') == '1' and args.evaluate_existing is None
+    recorder = BatchEvidence if batch else Evidence
+    evidence = recorder(Path('results') / case['id'], configured_secrets())
     if saved is not None:
         evidence.write('evaluation-history/' + str(len(saved.get('evaluation_replays', [])) + 1) + '.json', saved)
     evidence.write('execution-config.json', case)
@@ -459,8 +475,9 @@ def main(execution_type=None):
     signal.signal(signal.SIGINT, timeout)
     signal.alarm(case['timeout_seconds'])
     try:
-        client = knowledge_client(case['timeout_seconds'], observer=evidence.observe_transport)
+        client = knowledge_client(case['timeout_seconds'], observer=None if batch else evidence.observe_transport)
         execution = (execution_type or KnowledgeExecution)(client, case, evidence, Path('work'), case['model'])
+        execution.collect_output_files = not batch
         report = execution.reevaluate(saved) if saved is not None else execution.run()
     except (KeyError, Failure) as error:
         signal.alarm(0)

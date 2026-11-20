@@ -112,7 +112,8 @@ def case_summary(result):
         lines.append('- 故障来源：' + '、'.join(
             f'{FAILURE_LABELS[name]} {count} 项' for name, count in categories.items() if count) + '。')
     if result.get('stream_interruptions'):
-        lines.append(f"- 对话流中断 {len(result['stream_interruptions'])} 次；原任务的最终状态与完整记录见证据包。")
+        source = '可按任务和 Trace ID 查原始记录' if result['workspace'] == 'journey-3' else '完整记录见证据包'
+        lines.append(f"- 对话流中断 {len(result['stream_interruptions'])} 次。{source}。")
     persistent = result.get('persistent_conversation')
     if persistent:
         continuity = {'bootstrap': '首次初始化，尚无跨运行验收', 'passed': '通过',
@@ -237,8 +238,8 @@ def case_summary(result):
             lines.append(f"| {cell(call.get('phase'))} | {cell(call.get('tool'))} | {cell(args)} | "
                          f"{cell(details)} | {cell(', '.join(map(str, call['seqs'])))} |")
         lines += ['', '表中参数和错误可能截断；原始已脱敏事件见 events.jsonl。']
-    evidence_note = ('完整问答、判词、Trace、会话和工具轨迹保存在 QA 的历史结果表及私有证据文件中。'
-                     if result.get('privacy') == 'metrics_only' else
+    evidence_note = ('用例指标、定位 ID 和报告明细保存在对应环境的 Journey-3 历史表。'
+                     if result['workspace'] == 'journey-3' else
                      '完整判词、逐轮事件与产物见本 case artifact 中的 result.json、events.jsonl 和其他证据文件；'
                      '公开包中被隔离的文件见 publication.json。')
     lines += ['', evidence_note, '',
@@ -268,7 +269,7 @@ def native_stage_summary(stages):
     return lines
 
 
-def finish_case(case_id, directory):
+def finish_case(case_id, directory, *, write_markdown=True):
     case = load_case(case_id)
     evidence = Evidence(Path(directory) / case_id, configured_secrets())
     path = evidence.root / "result.json"
@@ -278,7 +279,8 @@ def finish_case(case_id, directory):
                 result.get('workspace') == case['workspace'] and _valid_case_result(result)):
             result = evidence.clean(result)
             evidence.write('result.json', result)
-            (evidence.root / 'case-summary.md').write_text(evidence.text(case_summary(result)), encoding='utf-8')
+            if write_markdown:
+                (evidence.root / 'case-summary.md').write_text(evidence.text(case_summary(result)), encoding='utf-8')
             return result
     else:
         result = {"case_id": case_id, "workspace": case["workspace"], "title": case["title"],
@@ -415,7 +417,8 @@ def finish_case(case_id, directory):
     result.pop('status', None)
     result = evidence.clean(result)
     evidence.write("result.json", result)
-    (evidence.root / 'case-summary.md').write_text(evidence.text(case_summary(result)), encoding='utf-8')
+    if write_markdown:
+        (evidence.root / 'case-summary.md').write_text(evidence.text(case_summary(result)), encoding='utf-8')
     return result
 
 
@@ -813,7 +816,7 @@ def aggregate(source, destination, workspace='all', case_ids=None, *, exclude_jo
     history_link = f'[{history_file}](history/history.html)'
     has_private_history = (Path(source) / 'history' / 'history.json').is_file()
     if any(suite['workspace'] == 'journey-3' for suite in suites):
-        lines += ['', 'Journey-3 的完整问答、引用、Trace、会话、工具参数与错误保存在 QA。公开包只含指标。']
+        lines += ['', 'Journey-3 的历史表保留指标、定位 ID 和 HTML 所需明细。']
         if has_private_history:
             from .benchmark_history import write_metrics
             write_metrics(json.loads((Path(source) / 'history' / 'history.json').read_text()), destination / 'history')
@@ -844,12 +847,14 @@ def main():
     summary.add_argument('--exclude-journey-3', action='store_true')
     args=parser.parse_args()
     if args.command=='case':
-        result=finish_case(args.case_id,args.root)
-        markdown=(Path(args.root)/args.case_id/'case-summary.md').read_text(encoding='utf-8')
-        print(markdown)
-        if os.environ.get('GITHUB_STEP_SUMMARY'):
-            with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
-                output.write(markdown)
+        write_markdown = not (args.case_id.startswith('J3-') and os.environ.get('MOI_J3_COMPACT_RECORDING') == '1')
+        result=finish_case(args.case_id,args.root,write_markdown=write_markdown)
+        if write_markdown:
+            markdown=(Path(args.root)/args.case_id/'case-summary.md').read_text(encoding='utf-8')
+            print(markdown)
+            if os.environ.get('GITHUB_STEP_SUMMARY'):
+                with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
+                    output.write(markdown)
         return 0 if result['test_status'] == 'completed' else 1
     if args.command=='scan':
         scan(args.directory, configured_secrets())

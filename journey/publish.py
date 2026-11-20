@@ -65,7 +65,7 @@ def prepare_publication(source,destination,secrets):
         safe=Evidence(destination/case.name,secrets)
         safe.write('result.json',projected)
         (safe.root/'case-summary.md').write_text(case_summary(projected))
-        safe.write('publication.json',{'status':'metrics_only','policy':'business_evidence_stays_in_QA'})
+        safe.write('publication.json',{'status':'metrics_only','policy':'private_details_stay_in_workspace'})
     for file in sorted(source.rglob('*')):
         relative=file.relative_to(source)
         parts=relative.parts

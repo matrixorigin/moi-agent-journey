@@ -34,19 +34,19 @@ The runtime schema is in [history-schema.sql](../datasets/journey-3/history-sche
 | `case_goldens` | QA catalog reference answers, rubric and evidence, grouped by catalog revision |
 | `dataset_snapshots` | Snapshot manifest, hash and readiness state |
 | `private_evidence_files` | Reference/evidence archive identities used to detect answer contamination |
-| `results` | One case result per workflow run/attempt/revision, plus the full report and private evidence-file reference |
+| `results` | Metrics, lookup IDs and HTML report details for each workflow run/attempt/revision |
 
 `results` includes `case_id`, `question`, `agent_name`, `duration_seconds`, `quality_score`, `evaluated_at` (UTC), `tool_call_count`, `model_round_count`, `failure_reason`, `trace_id` and `session_id`. It also records case/snapshot/evaluator versions, requested model, observed QA version, workflow commit and benchmark readiness. Model rounds exclude grader calls. Unobserved counts and scores are `NULL`. A case that never started an agent task has no task-latency measurement.
 
-History writes are idempotent by run ID, attempt, case ID and revision. Reusing that key with a different report is an error. Successful tasks with no reported failure have an empty failure reason. Multi-turn cases store all task/session identifiers. Evidence archives contain only that case's files, refuse symlinks and are uploaded to the QA workspace; a missing persistence receipt causes an explicit framework error.
+History writes are idempotent by run ID, attempt, case ID and revision. Reusing that key for a different execution is an error. Successful tasks with no reported failure have an empty failure reason. Multi-turn cases keep the task, session and trace IDs needed to locate the original activity.
 
-Every Journey-3 case stores its source evidence and complete report records in QA, including the original document cases. Runner logs report case IDs and status.
+Every Journey-3 case stores its metrics and report details in the selected QA or production workspace. Answers, retrieved content, event bodies and scorer requests are used while evaluating the case. New runs keep only the data needed to locate the original task and render the report. Historical records remain readable.
 
 After the two Journey-3 jobs finish, the report job saves
 `journey-3-report-<run-id>-attempt-<attempt>.html` to the CI account's private Catalog files
-in the QA `journey-3` workspace. After the credential check, the workflow uploads the
-same HTML to GitHub Actions as a single file with one-day retention. The Actions Summary
-links to the HTML download. This report contains the case details shown in its four panels.
+in the selected `journey-3` workspace. The workflow also uploads a single HTML file to
+GitHub Actions with one-day retention. The Actions Summary links to the download. The
+production GitHub copy contains metrics and coverage. Its Catalog copy includes the four detail panels.
 
 The HTML shows history for all cases, documents, operations and individual cases.
 The horizontal axis spaces GitHub run numbers evenly. Reruns have an attempt suffix such as

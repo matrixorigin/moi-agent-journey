@@ -92,7 +92,7 @@ def history_observations(result, row, events=None):
 
 
 def history_record(result, case, events):
-    from .benchmark_store import canonical, digest
+    from .benchmark_store import canonical
     tasks = [task for task in result.get('tasks', []) if not task.get('phase', '').startswith('judge:')]
     questions = [turn['prompt'] for session in case.get('sessions', []) for turn in session['turns']
                  if 'rag_reference' in turn]
@@ -118,11 +118,12 @@ def history_record(result, case, events):
         'evaluated_at': (result.get('started_at') or utc_now()).replace('T', ' ').replace('Z', '').split('+')[0],
         'tool_call_count': (result.get('tools', {}).get('metrics') or {}).get('calls'),
         'model_round_count': model_rounds(events, tasks),
-        'failure_reason': '' if state == 'completed' and not failures else canonical(failures or [{'reason': state}]),
+        'failure_reason': '' if state == 'completed' and not failures else canonical([
+            {key: value[:512] if isinstance(value, str) else value for key, value in failure.items()
+             if key in {'stage', 'reason', 'http_status'} and isinstance(value, (str, int))}
+            for failure in failures or [{'reason': state}]]),
         'trace_id': identities('trace_id'), 'session_id': identities('conversation_id'),
-        'run_id': str(os.environ.get('GITHUB_RUN_ID') or result.get('run_id')),
-        'run_attempt': int(os.environ.get('GITHUB_RUN_ATTEMPT', '1')),
-        'case_revision': case.get('private_spec', {}).get('revision') or digest(case),
+        **history_identity(result, case),
         'benchmark_state': result.get('benchmark', {}).get('state', 'eligible'),
         'snapshot_id': case.get('snapshot_id', 'existing-document-corpus'),
         'task_state': state, 'evaluation_state': canonical([answer.get('evaluation_state')
@@ -130,6 +131,13 @@ def history_record(result, case, events):
         'harness_state': result.get('test_status', 'error'), 'model': case['model'],
         'qa_version': canonical(result.get('qa_version_start', {})),
         'workflow_commit': os.environ.get('GITHUB_SHA', ''), 'evaluator_version': 'correctness-criteria-v1'}
+
+
+def history_identity(result, case):
+    from .benchmark_store import digest
+    return {'run_id': str(os.environ.get('GITHUB_RUN_ID') or result.get('run_id')),
+            'run_attempt': int(os.environ.get('GITHUB_RUN_ATTEMPT', '1')),
+            'case_revision': case.get('private_spec', {}).get('revision') or digest(case)}
 
 
 def public_result(result):
