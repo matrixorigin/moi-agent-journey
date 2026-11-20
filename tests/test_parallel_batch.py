@@ -23,7 +23,7 @@ def event(kind):
     os.write(fd,(json.dumps([kind,case])+"\\n").encode());os.close(fd)
 event('start');print('BUSINESS-DATA-MUST-STAY-IN-PRIVATE-LOG');time.sleep(.15)
 if case!='J3-02':
-    stage = {'history': {'diagnostic': {'reason': 'http_error', 'http_status': 413}}} if case=='J3-05' else {}
+    stage = {'history': {'attempts': 3, 'diagnostic': {'reason': 'http_error', 'http_status': 413}}} if case=='J3-05' else {}
     (root/'batch-result.json').write_text(json.dumps({'cases':[{'case_id':case,'workspace':'journey-3',
       'directory':str(root/case),'failed_stages':list(stage),'stages':stage,'test_status':'completed'}]}))
     destination=Path(public)/case
@@ -59,6 +59,7 @@ event('end');sys.exit(7 if case=='J3-02' else 0)
             self.assertRegex(progress, r'Slot 01 \| finished J3-01 \(\d+s\) \| delivered, score 80/100')
             self.assertRegex(progress, r'Slot 02 \| finished J3-02 \(\d+s\) \| framework error')
             self.assertIn('J3-03 [out of scope]', progress)
+            self.assertIn('history attempts: 3', progress)
             self.assertIn('history={"reason":"http_error","http_status":413}', progress)
             self.assertIn('J3-04 [agent timeout]', progress)
             active=peak=0;started=[]

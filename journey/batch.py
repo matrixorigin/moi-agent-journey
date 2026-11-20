@@ -7,21 +7,27 @@ import os
 import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from .failure_categories import failed_stage_names, failure_counts
 
 STAGE_SECONDS = {'prepare': 120, 'report': 60, 'publish': 120}
+JOURNEY3_STAGE_SECONDS = {'prepare': 60, 'report': 60, 'history': 120, 'publish': 60, 'finalize_history': 45}
+# Each pair is the delay before the retry and its subprocess timeout.
+HISTORY_RETRIES = ((5, 25), (15, 25))
 TERMINATION_GRACE = 10
 CASE_OVERHEAD_MINUTES = math.ceil((sum(STAGE_SECONDS.values()) + 4 * (TERMINATION_GRACE + 5)) / 60)
+JOURNEY3_CASE_OVERHEAD_MINUTES = math.ceil((
+    sum(JOURNEY3_STAGE_SECONDS.values()) + sum(delay + timeout for delay, timeout in HISTORY_RETRIES)
+    + (len(JOURNEY3_STAGE_SECONDS) + len(HISTORY_RETRIES) + 1) * (TERMINATION_GRACE + 5)
+) / 60)
 CASE_MODULES = {'api': 'journey.functional_case', 'browser': 'journey.browser_case',
                 'knowledge': 'journey.knowledge_case', 'feishu': 'journey.feishu_case'}
 
 
 def case_overhead_minutes(case_id):
-    # J3 also persists history and finalizes the pipeline
-    # journal, each with its own subprocess and termination grace period.
-    return CASE_OVERHEAD_MINUTES + 2 * int(case_id.startswith('J3-'))
+    return JOURNEY3_CASE_OVERHEAD_MINUTES if case_id.startswith('J3-') else CASE_OVERHEAD_MINUTES
 
 
 def plan_batches(items, count, parallel=1):
@@ -139,20 +145,35 @@ def run_case(case, workspace, directory, public_root, repo, env):
             child_env.pop(name, None)
     evidence = Evidence(directory / 'results' / case_id, configured_secrets())
     stages = {}
+    budgets = JOURNEY3_STAGE_SECONDS if workspace == 'journey-3' else STAGE_SECONDS
 
-    def stage(name, command, timeout):
+    def stage(name, command, timeout=None):
         print(f'::group::{case_id} / {name}', flush=True)
         evidence.write('batch-stages.json', {'case_id': case_id, 'stages': stages, 'active_stage': name})
+        stage_env = dict(child_env)
+        if workspace == 'journey-3':
+            stage_env['MOI_J3_COMPACT_RECORDING'] = '1'
+        attempts = [(0, budgets[name] if timeout is None else timeout)]
+        if name == 'history':
+            attempts.extend(HISTORY_RETRIES)
         try:
-            stage_env = dict(child_env)
-            if workspace == 'journey-3':
-                stage_env['MOI_PRIVATE_STAGE_LOG'] = str(evidence.root / 'pipeline' / (name + '.log'))
-                stage_env['MOI_J3_COMPACT_RECORDING'] = '1'
-            stages[name] = run_stage(command, directory, stage_env, timeout)
-        except (OSError, ValueError) as error:
-            stages[name] = {'exit_code': None, 'timed_out': False, 'error': type(error).__name__}
+            for attempt, (delay, budget) in enumerate(attempts, start=1):
+                if delay:
+                    time.sleep(delay)
+                if workspace == 'journey-3':
+                    log_name = name if attempt == 1 else f'{name}-attempt-{attempt}'
+                    stage_env['MOI_PRIVATE_STAGE_LOG'] = str(evidence.root / 'pipeline' / (log_name + '.log'))
+                try:
+                    outcome = run_stage(command, directory, stage_env, budget)
+                except (OSError, ValueError) as error:
+                    outcome = {'exit_code': None, 'timed_out': False, 'error': type(error).__name__}
+                if outcome['exit_code'] == 0 and not outcome['timed_out']:
+                    break
         finally:
             print('::endgroup::', flush=True)
+        if attempt > 1:
+            outcome['attempts'] = attempt
+        stages[name] = outcome
         if workspace == 'journey-3' and name in {'history', 'finalize_history'}:
             from .benchmark_store import history_diagnostic
             if stages[name]['timed_out']:
@@ -164,21 +185,19 @@ def run_case(case, workspace, directory, public_root, repo, env):
         evidence.write('batch-stages.json', {'case_id': case_id, 'stages': stages, 'active_stage': None})
         return stages[name]['exit_code'] == 0 and not stages[name]['timed_out']
 
-    prepared = stage('prepare', [sys.executable, '-m', 'journey.catalog', 'prepare', case_id],
-                     60 if workspace == 'journey-3' else STAGE_SECONDS['prepare'])
+    prepared = stage('prepare', [sys.executable, '-m', 'journey.catalog', 'prepare', case_id])
     if prepared:
         stage('execute', [sys.executable, '-m', module, case_id], step_timeout_minutes(case) * 60)
-    stage('report', [sys.executable, '-m', 'journey.report', 'case', case_id], STAGE_SECONDS['report'])
+    stage('report', [sys.executable, '-m', 'journey.report', 'case', case_id])
     if workspace == 'journey-3':
-        if not stage('history', [sys.executable, '-m', 'journey.benchmark_store', 'persist', case_id], 120):
+        if not stage('history', [sys.executable, '-m', 'journey.benchmark_store', 'persist', case_id]):
             result_path=evidence.root/'result.json'
             if result_path.exists():
                 result=json.loads(result_path.read_text())
                 result.setdefault('harness_errors',[]).append({'stage':'history','reason':'QA_history_not_saved'})
                 result['test_status']='error'
                 evidence.write('result.json',result)
-    if stage('publish', [sys.executable, '-m', 'journey.publish'],
-             60 if workspace == 'journey-3' else STAGE_SECONDS['publish']):
+    if stage('publish', [sys.executable, '-m', 'journey.publish']):
         # Only expose a complete, scanned case; failed publication cannot leave
         # a plausible but incomplete result for the aggregate report to accept.
         public_root.mkdir(parents=True, exist_ok=True)
@@ -187,7 +206,7 @@ def run_case(case, workspace, directory, public_root, repo, env):
                                                                   {'case_id': case_id, 'stages': stages})
     if workspace == 'journey-3':
         stage('finalize_history', [sys.executable, '-m', 'journey.benchmark_store',
-                                  'finalize-pipeline', case_id], 45)
+                                  'finalize-pipeline', case_id])
     result_path = evidence.root / 'result.json'
     try:
         result = json.loads(result_path.read_text())
