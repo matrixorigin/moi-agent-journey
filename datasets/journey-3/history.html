@@ -33,7 +33,7 @@
   #legend button { color: inherit; background: white; border: 1px solid #dde2ec; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
   .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
   .chart-series polyline { fill: none; stroke: currentColor; stroke-width: 2; }
-  .chart-series .partial-segment { stroke: currentColor; stroke-width: 2; stroke-dasharray: 4 3; }
+  .chart-series .partial-segment, .chart-series .gap-segment { stroke: currentColor; stroke-width: 2; stroke-dasharray: 4 3; }
   .chart-series circle { fill: currentColor; }
   .chart-series .partial-point { fill: white; stroke: currentColor; stroke-width: 2; }
   .chart-series.muted, svg:has(.chart-series:hover) .chart-series:not(:hover) { opacity: .2; }
@@ -78,6 +78,7 @@
   <section><h3>问答超时率</h3><svg id="timeout_rate" viewBox="0 0 480 170" role="img" aria-label="问答超时率"></svg></section>
 </div>
 <p id="rate-coverage" class="metric-caption" hidden>空心点表示该次运行的记录未收齐，与相邻点用虚线连接。悬浮查看计算题数与记录覆盖率。</p>
+<p id="case-gaps" class="metric-caption" hidden>逐题趋势中的虚线跨过缺少可比指标的运行。</p>
 <div id="metrics"></div>
 <section id="run-overview" hidden>
   <h2 id="run-overview-title">最近一次运行概况</h2>
@@ -241,7 +242,8 @@ function chartAxes(id, maximum, percent) {
   return {svg, pointX, pointY};
 }
 
-function draw(id, series, metric, chartDomain, color, {byCase = false, percent = false, describe} = {}) {
+function draw(id, series, metric, chartDomain, color,
+    {byCase = false, percent = false, describe, bridgeGaps = false} = {}) {
   const values = [...series.values()].flat().map(metric);
   const maximum = chartDomain ?? values.reduce((max, value) => Math.max(max, value ?? 0), 1);
   const {svg, pointX, pointY} = chartAxes(id, maximum, percent);
@@ -258,20 +260,19 @@ function draw(id, series, metric, chartDomain, color, {byCase = false, percent =
     let previous;
     for (const row of [...entries].sort((a, b) => runIndex.get(runKey(a)) - runIndex.get(runKey(b)))) {
       const value = metric(row);
+      if (!Number.isFinite(value)) continue;
       const index = runIndex.get(runKey(row));
-      if (!Number.isFinite(value)) {
-        finishSegment();
-        previous = undefined;
-        continue;
-      }
       const x = pointX(index);
       const y = pointY(value);
-      if (previous?.index !== index - 1) {
+      const skippedRuns = previous ? index - previous.index - 1 : -1;
+      if (skippedRuns !== 0 || previous.partial || row.partial) {
         finishSegment();
-      } else if (previous.partial || row.partial) {
-        finishSegment();
-        group.prepend(svgNode(group, 'line', {x1: previous.x, y1: previous.y, x2: x, y2: y,
-          class: 'partial-segment'}));
+        if (skippedRuns === 0 || (bridgeGaps && skippedRuns > 0)) {
+          const line = svgNode(group, 'line', {x1: previous.x, y1: previous.y, x2: x, y2: y,
+            class: skippedRuns > 0 ? 'gap-segment' : 'partial-segment'});
+          if (skippedRuns > 0) svgNode(line, 'title', {}, '跨过 ' + skippedRuns + ' 次缺少可比数据的运行');
+          group.prepend(line);
+        }
       }
       points.push(x + ',' + y);
       previous = {index, x, y, partial: row.partial};
@@ -640,8 +641,9 @@ function render() {
     caption.hidden = !overview;
     if (overview) drawThresholds(view, rows);
     draw(metric.id, series, metric.value, metric.maximum, metric.color ?? '#356df3',
-      {byCase: overview, percent: metric.unit === '%'});
+      {byCase: overview, percent: metric.unit === '%', bridgeGaps: true});
   }
+  document.getElementById('case-gaps').hidden = !metricHost.querySelector('.gap-segment');
   showRunOverview(rows);
   showDetails(rows);
 }
