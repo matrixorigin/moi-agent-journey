@@ -8,7 +8,7 @@ from pathlib import Path
 import tarfile
 import uuid
 
-from .client import Client, Failure
+from .client import Failure
 from .hello import discover_workspace
 
 DATABASE = 'journey3_benchmark'
@@ -140,7 +140,8 @@ class Store:
 
 
 def configured_store(timeout=300):
-    return Store(Client(os.environ['MOI_BASE_URL'], os.environ['MOI_PAT'], timeout=timeout))
+    from .production import knowledge_client
+    return Store(knowledge_client(timeout))
 
 
 def main():

@@ -5,6 +5,9 @@ on:
       workspace:
         required: true
         type: string
+      target_environment:
+        type: string
+        default: qa
       judge_image_artifact:
         required: true
         type: string
@@ -24,6 +27,7 @@ jobs:
       - id: plan
         env:
           JOURNEY_WORKSPACE: ${{ inputs.workspace }}
+          MOI_ENVIRONMENT: ${{ inputs.target_environment }}
         run: python3 -m journey.catalog plan "$JOURNEY_WORKSPACE"
   feishu-auth:
     name: Renew Feishu CI grant
@@ -50,7 +54,7 @@ jobs:
     name: cases (${{ matrix.case }})
     needs: [plan, feishu-auth]
     if: ${{ !cancelled() && needs.plan.result == 'success' }}
-    environment: qa
+    environment: ${{ inputs.target_environment }}
     runs-on: ubuntu-latest
     timeout-minutes: ${{ matrix.job_timeout_minutes }}
     strategy:
@@ -149,6 +153,11 @@ jobs:
           JOURNEY_WORKSPACE: ${{ inputs.workspace }}
           JOURNEY_CASES: ${{ toJSON(matrix.case_ids) }}
           CASE_CONCURRENCY: ${{ matrix.parallel_cases || 1 }}
+          MOI_ENVIRONMENT: ${{ inputs.target_environment }}
+          MOI_J3_WORKSPACE_ID: ${{ vars.MOI_J3_WORKSPACE_ID }}
+          MOI_J3_CLIENT_ID: ${{ secrets.MOI_J3_CLIENT_ID }}
+          MOI_J3_CLIENT_SECRET: ${{ secrets.MOI_J3_CLIENT_SECRET }}
+          MOI_J3_BINDINGS: ${{ secrets.MOI_J3_BINDINGS }}
           MOI_J5_FEISHU_TARGET: ${{ matrix.needs_feishu && vars.MOI_J5_FEISHU_TARGET || '' }}
           MOI_J5_FEISHU_APP_SECRET: ${{ matrix.needs_feishu && secrets.MOI_J5_FEISHU_APP_SECRET || '' }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
@@ -162,10 +171,12 @@ jobs:
           MOI_UI_PASSWORD: ${{ matrix.needs_browser && secrets.MOI_UI_PASSWORD || '' }}
           MOI_UI_BASE_URL: ${{ matrix.needs_browser && secrets.MOI_UI_BASE_URL || '' }}
           MOI_UI_AUTH_ORIGIN: ${{ matrix.needs_browser && secrets.MOI_UI_AUTH_ORIGIN || '' }}
-        run: >-
-          python3 -m journey.batch --workspace "$JOURNEY_WORKSPACE" --cases "$JOURNEY_CASES"
-          --work batch-work --out published-results
-          --parallel "$CASE_CONCURRENCY"
+        run: |
+          if [ "$MOI_ENVIRONMENT" = production ]; then
+            python3 -m journey.production
+          fi
+          python3 -m journey.batch --workspace "$JOURNEY_WORKSPACE" --cases "$JOURNEY_CASES" \
+            --work batch-work --out published-results --parallel "$CASE_CONCURRENCY"
       - name: Load isolated validator
         if: matrix.executor == 'office'
         uses: ./.github/actions/load-judge

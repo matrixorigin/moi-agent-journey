@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .a2a import final_reply
 from .catalog import ROOT, load_case
-from .client import Client, Failure, error_record, segment
+from .client import Failure, error_record, segment
 from .evidence import Evidence, configured_secrets, utc_now
 from .hello import discover_workspace
 from .knowledge_sources import list_sources, read_document
@@ -19,6 +19,7 @@ from .knowledge_trace import attach_selected_reads
 from .rag_quality import judge_data, judge_prompt, judge_schema, observe_rag, parse_verdict, summarize_verdict
 from .run_case import Execution
 from .model_judge import evaluate_model
+from .production import binding, bindings, is_production, knowledge_client
 from .trajectory import task_trajectory
 from .version import finish_version, start_version
 
@@ -29,9 +30,13 @@ class KnowledgeExecution(Execution):
         self.report['rag']['evaluator'] = {'method': 'workspace_model_json_schema',
                                           'model': self.model, 'protocol': 3}
         catalog = json.loads((ROOT / 'datasets/journey-3/corpora.json').read_text())
-        corpus = catalog[self.case['rag']['corpus']]
-        self.corpus = corpus
-        target = self.case.get('knowledge_target', {'agent_id': corpus['agent_id'], 'corpora': [self.case['rag']['corpus']]})
+        corpus_name = self.case['rag']['corpus']
+        target = self.case.get('knowledge_target', {'agent_id': catalog[corpus_name]['agent_id'], 'corpora': [corpus_name]})
+        if is_production():
+            configuration = bindings()
+            catalog = configuration['corpora']
+            target = {**target, 'agent_id': binding(configuration['document_agents'], target['agent_id'])}
+        self.corpus = binding(catalog, corpus_name)
         names = target.get('corpora')
         if (not isinstance(target.get('agent_id'), str) or not target['agent_id'] or
                 not isinstance(names, list) or not names or len(set(names)) != len(names) or
@@ -438,8 +443,7 @@ def main(execution_type=None):
     signal.signal(signal.SIGINT, timeout)
     signal.alarm(case['timeout_seconds'])
     try:
-        client = Client(os.environ['MOI_BASE_URL'], os.environ['MOI_PAT'], timeout=case['timeout_seconds'],
-                        observer=evidence.observe_transport)
+        client = knowledge_client(case['timeout_seconds'], observer=evidence.observe_transport)
         execution = (execution_type or KnowledgeExecution)(client, case, evidence, Path('work'), case['model'])
         report = execution.reevaluate(saved) if saved is not None else execution.run()
     except (KeyError, Failure) as error:
