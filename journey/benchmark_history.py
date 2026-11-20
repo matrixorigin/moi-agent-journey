@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from .benchmark_metrics import history_observations
+from .benchmark_metrics import ANSWER_TIMING, LEGACY_TIMING, history_observations
 from .benchmark_store import configured_store, HISTORY, literal
 from .catalog import load_suite, plan_suite
 
@@ -16,7 +16,7 @@ BASE_FIELDS = ['case_id','evaluated_at','duration_seconds','quality_score','tool
           'model_round_count','task_state','case_revision','snapshot_id','evaluator_version',
           'model_key','benchmark_state','run_id','run_attempt']
 OBSERVATION_FIELDS = ['qa_outcome', 'completed_seconds', 'completed_model_rounds',
-                      'tool_succeeded', 'tool_failed']
+                      'tool_succeeded', 'tool_failed', 'answer_timing']
 FIELDS = BASE_FIELDS + OBSERVATION_FIELDS
 SELECT_FIELDS = [field if field != 'model_key' else 'MD5(model) AS model_key' for field in BASE_FIELDS]
 OBSERVATIONS_SQL = "JSON_EXTRACT(report_json,'$.history_observations')"
@@ -35,6 +35,8 @@ def utc_timestamp(value):
 
 
 def metrics_row(row):
+    if len(row) == len(FIELDS) - 1:
+        row = [*row, LEGACY_TIMING]
     if len(row) != len(FIELDS) or not re.fullmatch(r'J3-\d{2,}', row[0] or ''):
         raise ValueError('invalid_history_case_identity')
     value = dict(zip(FIELDS, row))
@@ -66,6 +68,8 @@ def metrics_row(row):
         raise ValueError('invalid_history_run')
     if value['qa_outcome'] not in {'completed', 'error', 'timeout', 'excluded'}:
         raise ValueError('invalid_history_qa_outcome')
+    if value['answer_timing'] not in {ANSWER_TIMING, LEGACY_TIMING}:
+        raise ValueError('invalid_history_answer_timing')
     return value
 
 
@@ -90,7 +94,10 @@ def read_metrics(store):
             saved, legacy = row[-2:]
             if saved is not None:
                 observations = json.loads(saved)
-                if not isinstance(observations, dict) or set(observations) != set(OBSERVATION_FIELDS):
+                if not isinstance(observations, dict):
+                    raise ValueError('invalid_saved_history_observations')
+                observations.setdefault('answer_timing', LEGACY_TIMING)
+                if set(observations) != set(OBSERVATION_FIELDS):
                     raise ValueError('invalid_saved_history_observations')
             else:
                 observations = history_observations(json.loads(legacy), dict(zip(BASE_FIELDS, values)))
@@ -151,9 +158,9 @@ def write_metrics(rows, destination):
     # Revalidate imported historical artifacts; never copy their HTML or fields.
     checked = []
     for row in rows:
-        if not isinstance(row, dict) or set(row) != set(FIELDS):
+        if not isinstance(row, dict) or set(row).union({'answer_timing'}) != set(FIELDS):
             raise ValueError('invalid_exported_history_columns')
-        checked.append(metrics_row([row[key] for key in FIELDS]))
+        checked.append(metrics_row([row[key] for key in FIELDS if key in row]))
     rows = checked
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
