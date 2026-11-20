@@ -101,6 +101,8 @@ def case_summary(result):
              f"- 语义评审耗时：{cell(result.get('semantic_judge_seconds'))} 秒；不计入端到端任务耗时。"]
     if result.get('functional'):
         lines.insert(4, f"- 功能验收：{FUNCTIONAL_LABELS[result['functional']['state']]}。")
+        if result.get('ui_path'):
+            lines.insert(5, f"- UI 路径：{cell(result['ui_path'])}。")
         before, after = result.get('qa_version_start'), result.get('qa_version_end')
         if isinstance(before, dict) and isinstance(after, dict):
             lines.append(f"- QA MOI 版本：开始 {cell(before.get('version'))} / {cell(before.get('git_commit'))}；"
@@ -350,8 +352,10 @@ def finish_case(case_id, directory, *, write_markdown=True):
             result['harness_errors'].append({'stage': 'qa_version', 'reason': 'qa_backend_version_missing'})
         elif result['qa_version_start'] != result['qa_version_end']:
             result['harness_errors'].append({'stage': 'qa_version', 'reason': 'qa_version_verdict_inconsistent'})
+        expected_turns = result.get('ui_path_expected_turns', {})
         expected = Counter((session['id'] + ':' + turn['phase'], turn.get('expected_state', 'completed'))
-                           for session in case['sessions'] for turn in session['turns'])
+                           for session in case['sessions'] for turn in session['turns']
+                           if session['id'] not in expected_turns or turn['phase'] in expected_turns[session['id']])
         completed = Counter((task.get('phase'), task.get('state')) for task in result.get('tasks', [])
                             if task.get('capture_complete') and not task.get('auxiliary'))
         if expected != completed:
@@ -362,8 +366,10 @@ def finish_case(case_id, directory, *, write_markdown=True):
         result['harness_errors'].append({'stage': 'validation', 'reason': 'quality_checks_missing'})
     checks = result.get('validation', {}).get('checks', [])
     if raw_status == 'passed' and case_executor(case) == 'api':
-        expected_checks = sum(session.get('expected_checks', sum(1 + len(turn.get('assertions', []))
-                                  for turn in session['turns'])) for session in case['sessions'])
+        expected_checks = result.get('ui_path_expected_checks')
+        if expected_checks is None:
+            expected_checks = sum(session.get('expected_checks', sum(1 + len(turn.get('assertions', []))
+                                      for turn in session['turns'])) for session in case['sessions'])
         if len(checks) != expected_checks:
             result['harness_errors'].append({'stage': 'validation', 'reason': 'functional_checks_incomplete'})
     if checks and any(not isinstance(item, dict) or type(item.get('passed')) is not bool for item in checks):

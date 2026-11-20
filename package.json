@@ -6,6 +6,7 @@
     "test:browser": "node --test tests_browser/*.test.mjs"
   },
   "devDependencies": {
+    "jsdom": "^31.0.1",
     "playwright": "1.62.1"
   }
 }
