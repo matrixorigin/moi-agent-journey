@@ -120,16 +120,33 @@ test('history overlays the selected job or all cases while keeping case and mode
     assert.deepEqual(await casesIn(latency), ['J3-88', 'J3-88', 'J3-89', 'J3-57', 'J3-58']);
     assert.deepEqual(await casesIn(quality), await casesIn(latency));
     assert.equal(await page.locator('#revision').isVisible(), false);
-    assert.equal(await page.locator('#completion_rate circle').count(), 1); // Incomplete runs leave gaps.
-    assert.match(await page.locator('#completion_rate circle title').textContent(), /75$/);
-    assert.match(await page.locator('#completion_rate circle title').textContent(), /#95.*2026\/11\/18 08:00:00/);
-    assert.match(await page.locator('#timeout_rate circle title').textContent(), /25$/);
+    assert.equal(await page.locator('#rate-coverage').isVisible(), true);
+    for (const [chart, full, partial] of [
+      ['completion_rate', '正常完成 3 / 4 题（75%）', '正常完成 2 / 2 题（100%）'],
+      ['timeout_rate', '超时 1 / 4 题（25%）', '超时 0 / 2 题（0%）'],
+    ]) {
+      const points = page.locator('#' + chart + ' circle');
+      const incomplete = points.and(page.locator('.partial-point'));
+      const fullRun = points.and(page.locator(':not(.partial-point)'));
+      assert.equal(await points.count(), 4); // The excluded-only rerun has no observed outcome.
+      assert.equal(await incomplete.count(), 3);
+      assert.equal(await page.locator('#' + chart + ' polyline').count(), 0);
+      const fullTooltip = await fullRun.locator('title').textContent();
+      assert.match(fullTooltip, /#95.*2026\/11\/18 08:00:00/);
+      assert.ok(fullTooltip.endsWith(full + ' · 已记录 4 / 4 题'));
+      const partialTooltip = await incomplete.first().locator('title').textContent();
+      assert.match(partialTooltip, /#93/);
+      assert.ok(partialTooltip.endsWith(partial + ' · 已记录 2 / 4 题'));
+    }
     const sharedDateX = await page.locator('#duration_seconds [data-case="J3-57"] circle').last().getAttribute('cx');
     assert.equal(await page.locator('#duration_seconds [data-case="J3-58"] circle').getAttribute('cx'), sharedDateX);
 
     await page.locator('#case').selectOption('job:documents');
     assert.deepEqual(await casesIn(latency), ['J3-57']);
     assert.equal(await page.locator('#quality_score circle').count(), 2);
+    assert.equal(await page.locator('#completion_rate circle').count(), 2);
+    assert.equal(await page.locator('#completion_rate .partial-point').count(), 0);
+    assert.equal(await page.locator('#rate-coverage').isHidden(), true);
     await page.locator('#case').selectOption('job:operations');
     assert.deepEqual(await casesIn(latency), ['J3-88', 'J3-88', 'J3-89', 'J3-58']);
     await page.locator('[data-detail=timeouts]').click();
@@ -146,6 +163,7 @@ test('history overlays the selected job or all cases while keeping case and mode
     assert.equal(await page.locator('#revision option').count(), 2);
     assert.match(await page.locator('#coverage').innerText(), /3 次记录.*已评分 2 次/);
     assert.equal(await page.locator('#rates').isHidden(), true);
+    assert.equal(await page.locator('#rate-coverage').isHidden(), true);
     assert.equal(await page.locator('#quality_score circle').count(), 2);
     assert.equal(await page.locator('#quality_score polyline').count(), 0); // Missing grade interrupts the curve.
     assert.equal(await page.locator('#duration_seconds circle').count(), 3);
