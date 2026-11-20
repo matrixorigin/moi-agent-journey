@@ -266,8 +266,7 @@ function draw(id, series, metric, chartDomain, color, {byCase = false, percent =
       const y = pointY(value);
       points.push(x + ',' + y);
       const point = svgNode(group, 'circle', {cx: x, cy: y, r: byCase ? 2.5 : 4});
-      const replay = id === 'completed_seconds' && showAnswerTiming && row.answer_timing_replayed ? ' 秒（由存档事件回算）' : '';
-      const label = runTooltips[index] + ' · ' + Number(value.toFixed(2)) + replay;
+      const label = runTooltips[index] + ' · ' + Number(value.toFixed(2));
       const tooltip = describe ? runTooltips[index] + ' · ' + describe(row) :
         row.case_id ? row.case_id + ' · ' + label + '\n' + version(row) : label;
       svgNode(point, 'title', {}, tooltip);
@@ -281,20 +280,10 @@ function toolFailureRate(row) {
   const calls = row.tool_failed + row.tool_succeeded;
   return row.tool_failed !== null && row.tool_succeeded !== null && calls > 0 ? 100 * row.tool_failed / calls : null;
 }
-const answerTiming = 'final_answer_sse';
-const hasAnswerTiming = data.some(row => row.answer_timing === answerTiming);
-const legacySeconds = row => row.answer_timing_replayed ? row.duration_seconds :
-  row.answer_timing !== answerTiming ? row.completed_seconds : null;
-const hasLegacyTiming = data.some(row => Number.isFinite(legacySeconds(row)));
-let showAnswerTiming = hasAnswerTiming;
-const deliveryTimingCaption = '从发出问题到收到完整正文。曲线和阈值占比使用有交付事件的记录。';
-const legacyTimingCaption = '旧记录的耗时包含终态确认和事件采集。曲线和阈值占比使用旧口径。';
 const metrics = [
-  {id: 'completed_seconds', name: hasAnswerTiming ? '正常完成任务耗时' : '正常完成任务耗时（含取证）', unit: '秒',
+  {id: 'completed_seconds', name: '正常完成任务耗时', unit: '秒', caption: '从发出问题到收到完整正文。',
     limits: Array.from({length: 10}, (_, index) => (index + 1) * 60), value(row) {
-      if (row.qa_outcome !== 'completed') return null;
-      if (!showAnswerTiming) return legacySeconds(row);
-      return row.answer_timing === answerTiming ? row.completed_seconds : null;
+      return row.qa_outcome === 'completed' && row.answer_timing === 'final_answer_sse' ? row.completed_seconds : null;
     }},
   {id: 'completed_model_rounds', name: '正常完成模型轮次', unit: '轮',
     limits: [10, 20, 30, 40], value: completedValue('completed_model_rounds')},
@@ -312,23 +301,11 @@ function createMetricView(metric) {
   const section = element('section');
   const pair = element('div');
   pair.className = 'metric-pair';
-  const caption = element('p', metric.allCases ?
+  const caption = element('p', metric.caption ?? (metric.allCases ?
     '分母为当次所有已记录的 Case。悬浮查看可计算工具失败率的题数。' :
-    '分母为当次正常完成且有此指标记录的 Case。');
+    '分母为当次正常完成且有此指标记录的 Case。'));
   caption.className = 'metric-caption';
   section.append(element('h3', metric.name + ' · ' + metric.unit), caption, pair);
-  if (metric.id === 'completed_seconds' && hasAnswerTiming && hasLegacyTiming) {
-    const label = element('label', '耗时口径 ');
-    const selector = element('select');
-    addOption(selector, 'answer', '完整正文');
-    addOption(selector, 'legacy', '历史耗时（含取证）');
-    label.append(selector);
-    section.insertBefore(label, caption);
-    selector.onchange = () => {
-      showAnswerTiming = selector.value === 'answer';
-      render();
-    };
-  }
   metricHost.append(section);
 
   const thresholdPane = element('div');
@@ -633,13 +610,7 @@ function render() {
   for (const view of metricViews) {
     const {metric, thresholdPane, caption} = view;
     thresholdPane.hidden = !overview;
-    const isLatency = metric.id === 'completed_seconds';
-    caption.hidden = !overview && !isLatency;
-    if (isLatency) {
-      const replayed = rows.filter(row => row.answer_timing_replayed).length;
-      caption.textContent = showAnswerTiming ? deliveryTimingCaption +
-        (replayed ? ' 其中 ' + replayed + ' 条由存档事件回算。' : '') : legacyTimingCaption;
-    }
+    caption.hidden = !overview && !metric.caption;
     if (overview) drawThresholds(view, rows);
     draw(metric.id, series, metric.value, metric.maximum, metric.color ?? '#356df3',
       {byCase: overview, percent: metric.unit === '%'});

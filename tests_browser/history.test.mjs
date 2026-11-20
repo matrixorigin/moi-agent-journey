@@ -67,7 +67,7 @@ test('history overlays the selected job or all cases while keeping case and mode
     await production.close();
     const base = { case_id: 'J3-88', case_revision: 'r1', snapshot_id: 's1',
       evaluator_version: 'judge1', model_key: 'a'.repeat(32), qa_outcome: 'completed', run_attempt: 1,
-      completed_model_rounds: 3, tool_failed: 0, tool_succeeded: 2 };
+      completed_model_rounds: 3, tool_failed: 0, tool_succeeded: 2, answer_timing: 'final_answer_sse' };
     const data = [
       { ...base, run_id: '1', evaluated_at: '2026-11-17T00:00:00Z', completed_seconds: 30, quality_score: 75 },
       { ...base, run_id: '2', evaluated_at: '2026-11-17T06:00:00Z', completed_seconds: 20, quality_score: null },
@@ -183,7 +183,7 @@ test('threshold shares use metric-specific cohorts and include exact boundaries'
       run_id, case_id, qa_outcome, completed_seconds, completed_model_rounds, quality_score,
       tool_failed, tool_succeeded, run_attempt: 1, evaluated_at: '2026-11-19T00:00:00Z',
       answer_timing: run_id === '2' ? 'legacy' : 'final_answer_sse',
-      ...(run_id === '3' ? {answer_timing_replayed: true, duration_seconds: 195} : {}),
+      ...(run_id === '3' ? {duration_seconds: 195} : {}),
     }));
     const jobs = {documents: ['J3-01', 'J3-02'], operations: ['J3-03', 'J3-04', 'J3-05', 'J3-06']};
     await page.setContent(template.replace('/*HISTORY_DATA*/[]', JSON.stringify(rows))
@@ -207,12 +207,9 @@ test('threshold shares use metric-specific cohorts and include exact boundaries'
     assert.match(await points('tool_failure_rate', '≤20%').first().textContent(), /可计算 5 题/);
     assert.equal(await page.locator('#completed_seconds [data-case="J3-02"] circle').count(), 1);
     assert.match(await page.locator('#completed_seconds [data-case="J3-01"] circle title').last().textContent(),
-      /存档事件回算/);
-    await page.getByLabel('耗时口径').selectOption('legacy');
-    assert.equal(await page.locator('#completed_seconds circle').count(), 2);
-    assert.match(await page.locator('#completed_seconds circle title').first().textContent(), /195/);
-    assert.match(await page.locator('#completed_seconds circle title').last().textContent(), /90/);
-    await page.getByLabel('耗时口径').selectOption('answer');
+      / · 180\n/);
+    assert.equal(await page.getByLabel('耗时口径').count(), 0);
+    assert.equal(await page.getByRole('heading', {name: '正常完成任务耗时 · 秒', exact: true}).count(), 1);
 
     await page.locator('#case').selectOption('job:operations');
     assert.match(await points('completed_seconds', '≤600 秒').textContent(), /1 \/ 2 题（50\.0%）/);
