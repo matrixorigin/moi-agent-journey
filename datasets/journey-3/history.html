@@ -45,6 +45,9 @@
   .record dt { color: #51617c; }
   .record dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
   .record ul { margin: 0; padding-left: 1.25em; }
+  #run-overview dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 12px; margin-bottom: 0; }
+  #run-overview dt { color: #51617c; }
+  #run-overview dd { margin: 4px 0 0; font-size: 20px; font-variant-numeric: tabular-nums; }
   #report-coverage { overflow-wrap: anywhere; }
   #details summary { padding: 10px 0; border-top: 1px solid #e4e8f1; cursor: pointer; }
   #details details .record { margin-left: .8em; }
@@ -63,6 +66,10 @@
   <section><h3>问答超时率</h3><svg id="timeout_rate" viewBox="0 0 480 170" role="img" aria-label="问答超时率"></svg></section>
 </div>
 <div id="metrics"></div>
+<section id="run-overview" hidden>
+  <h2 id="run-overview-title">最近一次运行概况</h2>
+  <dl id="run-overview-stats" aria-live="polite"></dl>
+</section>
 <section id="details" hidden>
   <h2>最近一次运行分析</h2>
   <div class="view-buttons" role="group" aria-label="运行明细">
@@ -236,7 +243,8 @@ function draw(id, series, metric, chartDomain, color, {byCase = false, percent =
       const y = pointY(value);
       points.push(x + ',' + y);
       const point = svgNode(group, 'circle', {cx: x, cy: y, r: byCase ? 2.5 : 4});
-      const label = runTooltips[index] + ' · ' + Number(value.toFixed(2));
+      const replay = id === 'completed_seconds' && showAnswerTiming && row.answer_timing_replayed ? ' 秒（由存档事件回算）' : '';
+      const label = runTooltips[index] + ' · ' + Number(value.toFixed(2)) + replay;
       const tooltip = describe ? runTooltips[index] + ' · ' + describe(row) :
         row.case_id ? row.case_id + ' · ' + label + '\n' + version(row) : label;
       svgNode(point, 'title', {}, tooltip);
@@ -248,12 +256,18 @@ function draw(id, series, metric, chartDomain, color, {byCase = false, percent =
 const completedValue = field => row => row.qa_outcome === 'completed' ? row[field] : null;
 const answerTiming = 'final_answer_sse';
 const hasAnswerTiming = data.some(row => row.answer_timing === answerTiming);
+const legacySeconds = row => row.answer_timing_replayed ? row.duration_seconds :
+  row.answer_timing !== answerTiming ? row.completed_seconds : null;
+const hasLegacyTiming = data.some(row => Number.isFinite(legacySeconds(row)));
+let showAnswerTiming = hasAnswerTiming;
+const deliveryTimingCaption = '从发出问题到收到完整正文。曲线和阈值占比使用有交付事件的记录。';
+const legacyTimingCaption = '旧记录的耗时包含终态确认和事件采集。曲线和阈值占比使用旧口径。';
 const metrics = [
   {id: 'completed_seconds', name: hasAnswerTiming ? '正常完成任务耗时' : '正常完成任务耗时（含取证）', unit: '秒',
-    caption: hasAnswerTiming ? '从发出问题到收到完整正文。曲线和阈值占比使用有交付事件的记录。' : undefined,
     limits: Array.from({length: 10}, (_, index) => (index + 1) * 60), value(row) {
-      if (hasAnswerTiming && row.answer_timing !== answerTiming) return null;
-      return row.qa_outcome === 'completed' ? row.completed_seconds : null;
+      if (row.qa_outcome !== 'completed') return null;
+      if (!showAnswerTiming) return legacySeconds(row);
+      return row.answer_timing === answerTiming ? row.completed_seconds : null;
     }},
   {id: 'completed_model_rounds', name: '正常完成模型轮次', unit: '轮',
     limits: [10, 20, 30, 40], value: completedValue('completed_model_rounds')},
@@ -274,11 +288,23 @@ function createMetricView(metric) {
   const section = element('section');
   const pair = element('div');
   pair.className = 'metric-pair';
-  const caption = element('p', metric.caption ?? (metric.allCases ?
+  const caption = element('p', metric.allCases ?
     '分母为当次所有已记录的 Case。悬浮查看可计算工具失败率的题数。' :
-    '分母为当次正常完成且有此指标记录的 Case。'));
+    '分母为当次正常完成且有此指标记录的 Case。');
   caption.className = 'metric-caption';
   section.append(element('h3', metric.name + ' · ' + metric.unit), caption, pair);
+  if (metric.id === 'completed_seconds' && hasAnswerTiming && hasLegacyTiming) {
+    const label = element('label', '耗时口径 ');
+    const selector = element('select');
+    addOption(selector, 'answer', '完整正文');
+    addOption(selector, 'legacy', '历史耗时（含取证）');
+    label.append(selector);
+    section.insertBefore(label, caption);
+    selector.onchange = () => {
+      showAnswerTiming = selector.value === 'answer';
+      render();
+    };
+  }
   metricHost.append(section);
 
   const thresholdPane = element('div');
@@ -489,6 +515,33 @@ function showDetails() {
   }
 }
 
+function showRunOverview(rows) {
+  if (!currentRun) return;
+  const selected = rows.filter(row => row.run_id === currentRun.run_id && row.run_attempt === currentRun.attempt);
+  const count = outcome => selected.filter(row => row.qa_outcome === outcome).length;
+  const completed = count('completed');
+  const eligible = selected.length - count('excluded');
+  const scored = selected.filter(row => row.qa_outcome === 'completed' && Number.isFinite(row.quality_score));
+  const tools = selected.filter(row => Number.isFinite(row.tool_failed));
+  const stats = [
+    ['已记录', selected.length + ' 题'],
+    ['正常完成', eligible ? completed + ' / ' + eligible : '—'],
+    ['报错未完成', selected.length ? count('error') + ' 题' : '—'],
+    ['超时未完成', selected.length ? count('timeout') + ' 题' : '—'],
+    ['失败工具调用', tools.length ? tools.reduce((sum, row) => sum + row.tool_failed, 0) + ' 次' : '—'],
+    ['已评分', completed ? scored.length + ' / ' + completed : '—'],
+    ['低于 50 分', scored.length ? scored.filter(row => row.quality_score < 50).length + ' / ' + scored.length : '—'],
+  ];
+  if (scope.value === 'all' && Number.isInteger(currentRun.report_error_cases)) {
+    stats.push(['报错记录涉及（含评分）', currentRun.report_error_cases + ' 题']);
+  }
+  document.getElementById('run-overview-stats').replaceChildren(...stats.map(([label, value]) => {
+    const item = element('div');
+    item.append(element('dt', label), element('dd', value));
+    return item;
+  }));
+}
+
 function render() {
   const overview = jobOrAll();
   const scopedRows = rowsForScope();
@@ -514,17 +567,27 @@ function render() {
   for (const view of metricViews) {
     const {metric, thresholdPane, caption} = view;
     thresholdPane.hidden = !overview;
-    caption.hidden = !overview;
+    const isLatency = metric.id === 'completed_seconds';
+    caption.hidden = !overview && !isLatency;
+    if (isLatency) {
+      const replayed = rows.filter(row => row.answer_timing_replayed).length;
+      caption.textContent = showAnswerTiming ? deliveryTimingCaption +
+        (replayed ? ' 其中 ' + replayed + ' 条由存档事件回算。' : '') : legacyTimingCaption;
+    }
     if (overview) drawThresholds(view, rows);
     draw(metric.id, series, metric.value, metric.maximum, metric.color ?? '#356df3',
       {byCase: overview, percent: metric.unit === '%'});
   }
+  showRunOverview(rows);
   showDetails();
 }
 
 scope.onchange = selectScope;
 revision.onchange = render;
 if (currentRun) {
+  document.getElementById('run-overview').hidden = false;
+  document.getElementById('run-overview-title').textContent =
+    '最近一次运行概况 · ' + runLabel(currentRun.run_id, currentRun.attempt);
   document.getElementById('details').hidden = Boolean(currentRun.metrics_only);
   if (currentRun.environment) {
     document.title += ' · ' + currentRun.environment;

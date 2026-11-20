@@ -74,6 +74,7 @@ def publish(store, rows, run, attempt, artifact_dir=None, run_metadata=None, *, 
     missing = [case_id for case_id in planned if case_id not in observed]
     details['coverage'] = {'recorded': len(planned) - len(missing), 'planned': len(planned), 'missing': missing}
     details['environment'] = 'Production' if production else 'QA'
+    details['report_error_cases'] = len({record[0] for record in details.get('errors', [])})
     with tempfile.TemporaryDirectory() as tmp:
         details = Evidence(tmp, configured_secrets()).clean(details)
     filename = f'journey-3-report-{run}-attempt-{attempt}.html'
@@ -81,7 +82,7 @@ def publish(store, rows, run, attempt, artifact_dir=None, run_metadata=None, *, 
     store.upload_private(filename, html, 'text/html; charset=utf-8')
     if artifact_dir is not None:
         if production:
-            summary = {key: details[key] for key in ('run_id', 'attempt', 'coverage', 'environment')}
+            summary = {key: details[key] for key in ('run_id', 'attempt', 'coverage', 'environment', 'report_error_cases')}
             html = render_history(rows, {**summary, 'metrics_only': True}, run_metadata).encode('utf-8')
         inspect_payload(html, configured_secrets(), name=filename)
         artifact_dir.mkdir(parents=True, exist_ok=True)
