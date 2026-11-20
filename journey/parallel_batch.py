@@ -144,6 +144,9 @@ def run_parallel(ids, workspace, directory, public_root, env, parallel):
                 elapsed = int(time.monotonic() - case.started)
                 stages = failed_stage_names(row['failed_stages'])
                 suffix = ' | failed stages: ' + ', '.join(stages) if stages else ''
+                history_attempts = row.get('stages', {}).get('history', {}).get('attempts')
+                if history_attempts:
+                    suffix += f' | history attempts: {history_attempts}'
                 for stage in ('history', 'finalize_history'):
                     diagnostic = row.get('stages', {}).get(stage, {}).get('diagnostic')
                     if diagnostic:

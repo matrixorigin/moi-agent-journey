@@ -4,9 +4,9 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
-from journey.batch import CASE_OVERHEAD_MINUTES, plan_batches, run_batch, run_case, run_stage
+from journey.batch import CASE_OVERHEAD_MINUTES, case_overhead_minutes, plan_batches, run_batch, run_case, run_stage
 from journey.catalog import ROOT, case_executor, load_case, load_suite, plan_suite, step_timeout_minutes
 
 
@@ -27,7 +27,7 @@ class BatchPlanTests(unittest.TestCase):
                 case = load_case(case_id)
                 self.assertEqual(case['timeout_seconds'], 1800)
                 self.assertEqual(case['evaluation_timeout_seconds'], 300 if case_id == 'J3-54' else 180)
-                weights.append(step_timeout_minutes(case) + CASE_OVERHEAD_MINUTES + 2)
+                weights.append(step_timeout_minutes(case) + case_overhead_minutes(case_id))
             import math
             self.assertEqual(group['job_timeout_minutes'],15+math.ceil((sum(weights)+9*max(weights))/10))
             self.assertLessEqual(group['job_timeout_minutes'], 360)
@@ -67,7 +67,7 @@ class BatchPlanTests(unittest.TestCase):
 
 
 class BatchRunnerTests(unittest.TestCase):
-    def fake_stages(self, calls, fail=(), timeout=()):
+    def fake_stages(self, calls, fail=(), timeout=(), history_failures=0):
         def stage(command, directory, env, budget):
             directory = Path(directory)
             name = {'journey.catalog': 'prepare', 'journey.functional_case': 'execute',
@@ -89,12 +89,16 @@ class BatchRunnerTests(unittest.TestCase):
                 public = directory / 'published-results' / case_id
                 public.mkdir(parents=True)
                 (public / 'result.json').write_text('{}')
-            if name == 'history' and name in fail:
+            failed = name in fail
+            if name == 'history':
+                attempt = sum(1 for entry in calls if entry[1] == 'history')
+                failed = failed or attempt <= history_failures
+            if name == 'history' and failed:
                 diagnostic = Path(env['MOI_PRIVATE_STAGE_LOG']).with_suffix('.error.json')
                 diagnostic.parent.mkdir(exist_ok=True)
                 diagnostic.write_text(json.dumps({'reason': 'http_error', 'http_status': 413,
                     'details': {'operation': 'INSERT', 'request_bytes': 32768, 'body': 'private SQL'}}))
-            return {'exit_code': 1 if name in fail else 0, 'timed_out': name in timeout}
+            return {'exit_code': 1 if failed else 0, 'timed_out': name in timeout}
         return stage
 
     def run_single(self, root, calls, case_id='J2-02', **kwargs):
@@ -138,22 +142,47 @@ class BatchRunnerTests(unittest.TestCase):
 
     def test_post_execution_failure_keeps_its_stage_and_private_logs_inside_evidence(self):
         for failed in ('history', 'publish'):
-            with self.subTest(stage=failed), tempfile.TemporaryDirectory() as tmp:
+            with (self.subTest(stage=failed), tempfile.TemporaryDirectory() as tmp,
+                  patch('journey.batch.time.sleep') as sleep):
                 root, calls = Path(tmp).resolve(), []
                 row = self.run_single(root, calls, 'J3-01', fail={failed})
                 self.assertEqual(row['task_seconds'], 12)
                 self.assertIn(failed, row['failed_stages'])
                 self.assertEqual(row['failure_categories']['pipeline'], 1)
                 for _, name, directory, env, *_ in calls:
-                    self.assertEqual(Path(env['MOI_PRIVATE_STAGE_LOG']),
-                                     directory / 'results/J3-01/pipeline' / (name + '.log'))
+                    log = Path(env['MOI_PRIVATE_STAGE_LOG'])
+                    self.assertEqual(log.parent, directory / 'results/J3-01/pipeline')
+                    self.assertRegex(log.name, '^' + name + r'(?:-attempt-[23])?\.log$')
                 stages = json.loads((root/'J3-01/results/J3-01/batch-stages.json').read_text())
                 self.assertIsNone(stages['active_stage'])
                 self.assertEqual(stages['stages'][failed]['exit_code'], 1)
                 if failed == 'history':
+                    self.assertEqual(sleep.call_args_list, [call(5), call(15)])
+                    self.assertEqual(stages['stages'][failed]['attempts'], 3)
                     self.assertEqual(stages['stages'][failed]['diagnostic'], {
                         'reason': 'http_error', 'http_status': 413, 'operation': 'INSERT', 'request_bytes': 32768,
                     })
+                else:
+                    sleep.assert_not_called()
+
+    def test_history_retry_recovers_without_rerunning_the_agent(self):
+        for failures, delays in ((1, [call(5)]), (2, [call(5), call(15)])):
+            with (self.subTest(failures=failures), tempfile.TemporaryDirectory() as tmp,
+                  patch('journey.batch.time.sleep') as sleep):
+                root, calls = Path(tmp).resolve(), []
+                row = self.run_single(root, calls, 'J3-01', history_failures=failures)
+                self.assertEqual(sleep.call_args_list, delays)
+                self.assertEqual([entry[1] for entry in calls],
+                                 ['prepare', 'execute', 'report'] + ['history'] * (failures + 1) +
+                                 ['publish', 'finalize_history'])
+                self.assertEqual(row['failed_stages'], [])
+                self.assertEqual(row['task_seconds'], 12)
+                self.assertEqual(row['stages']['history'], {
+                    'exit_code': 0, 'timed_out': False, 'attempts': failures + 1,
+                })
+                result = json.loads((root/'J3-01/results/J3-01/result.json').read_text())
+                self.assertEqual(result['harness_errors'], [])
+                self.assertTrue((root/'public/J3-01/result.json').is_file())
 
     def test_product_failure_does_not_turn_group_red(self):
         with tempfile.TemporaryDirectory() as tmp, patch('journey.batch.run_stage',
@@ -247,7 +276,8 @@ class BatchRunnerTests(unittest.TestCase):
             with self.subTest(workspace=workspace), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp).resolve()
                 env = {key: value for key, value in os.environ.items() if not key.startswith('MOI_')}
-                self.assertEqual(run_batch(ids, workspace, root / 'work', root / 'public', env), 1)
+                with patch('journey.batch.time.sleep'):
+                    self.assertEqual(run_batch(ids, workspace, root / 'work', root / 'public', env), 1)
                 rows = json.loads((root / 'work/batch-result.json').read_text())['cases']
                 self.assertEqual([row['case_id'] for row in rows], ids)
                 self.assertTrue(all(row['failed_stages'] == ['execute', 'report'] +

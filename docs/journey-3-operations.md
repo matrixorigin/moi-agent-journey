@@ -40,6 +40,8 @@ The runtime schema is in [history-schema.sql](../datasets/journey-3/history-sche
 
 History writes are idempotent by run ID, attempt, case ID and revision. Reusing that key for a different execution is an error. Successful tasks with no reported failure have an empty failure reason. Multi-turn cases keep the task, session and trace IDs needed to locate the original activity.
 
+A failed case-result write is retried after 5 seconds and, if needed, after a further 15 seconds. All attempts use the same result key and the same captured outcome. The agent runs once. If the third attempt fails, the workflow records a history persistence error.
+
 Every Journey-3 case stores its metrics and report details in the selected QA or production workspace. Answers, retrieved content, event bodies and scorer requests are used while evaluating the case. New runs keep only the data needed to locate the original task and render the report. Historical records remain readable.
 
 After the two Journey-3 jobs finish, the report job saves
