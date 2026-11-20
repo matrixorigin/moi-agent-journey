@@ -15,6 +15,14 @@
   .trends { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   #rates[hidden] { display: none; }
   .trends section { margin: 0; padding: 14px; min-width: 0; }
+  #metrics { margin-top: 14px; }
+  .overview .metric-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .metric-pair h4 { font-size: 15px; }
+  #metrics:not(.overview) .case-plot h4 { display: none; }
+  .metric-caption { margin: 8px 0 14px; font-size: 14px; }
+  .plot-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 13px; }
+  .plot-legend button { padding: 2px 4px; font-size: inherit; }
+  @media (max-width: 840px) { .overview .metric-pair { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 640px) { .trends { grid-template-columns: minmax(0, 1fr); } body { padding: 0 12px; } }
   svg { width: 100%; height: auto; display: block; }
   p { color: #51617c; }
@@ -24,11 +32,13 @@
   .chart-series polyline { fill: none; stroke: currentColor; stroke-width: 2; }
   .chart-series circle { fill: currentColor; }
   .chart-series.muted, svg:has(.chart-series:hover) .chart-series:not(:hover) { opacity: .2; }
+  .threshold-plot .chart-series.muted { pointer-events: none; }
   .axis { stroke: #d7dfeb; }
   svg text { fill: #51617c; font: 12px system-ui; }
-  #detail-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
-  #detail-tabs button { border: 1px solid #ccd3df; border-radius: 6px; padding: 8px 10px; background: white; color: inherit; cursor: pointer; font: inherit; }
-  #detail-tabs button[aria-pressed="true"] { background: #203558; color: white; }
+  .view-buttons:not([hidden]) { display: flex; flex-wrap: wrap; gap: 6px; }
+  .view-buttons button, .plot-legend button { border: 1px solid #ccd3df; border-radius: 6px; background: white; color: inherit; cursor: pointer; font-family: inherit; }
+  .view-buttons button { padding: 6px 10px; font-size: inherit; }
+  .view-buttons button[aria-pressed="true"], .plot-legend button[aria-pressed="true"] { background: #203558; color: white; }
   .record { padding: 12px 0; border-top: 1px solid #e4e8f1; }
   .record dl { margin: 0; }
   .record dl div { display: grid; grid-template-columns: minmax(5.8rem, auto) minmax(0, 1fr); gap: .5em; margin-top: .25em; }
@@ -52,15 +62,10 @@
   <section><h3>问答正常完成率</h3><svg id="completion_rate" viewBox="0 0 480 170" role="img" aria-label="问答正常完成率"></svg></section>
   <section><h3>问答超时率</h3><svg id="timeout_rate" viewBox="0 0 480 170" role="img" aria-label="问答超时率"></svg></section>
 </div>
-<div class="trends" style="margin-top:14px">
-  <section><h3>正常完成任务耗时 · 秒</h3><svg id="completed_seconds" viewBox="0 0 480 170" role="img" aria-label="正常完成任务耗时"></svg></section>
-  <section><h3>正常完成模型轮次</h3><svg id="completed_model_rounds" viewBox="0 0 480 170" role="img" aria-label="正常完成模型轮次"></svg></section>
-  <section><h3>工具失败率</h3><svg id="tool_failure_rate" viewBox="0 0 480 170" role="img" aria-label="工具失败率"></svg></section>
-  <section><h3>正常完成得分 · 0–100</h3><svg id="quality_score" viewBox="0 0 480 170" role="img" aria-label="正常完成得分"></svg></section>
-</div>
+<div id="metrics"></div>
 <section id="details" hidden>
   <h2>最近一次运行分析</h2>
-  <div id="detail-tabs" role="group" aria-label="运行明细">
+  <div class="view-buttons" role="group" aria-label="运行明细">
     <button type="button" data-detail="errors" aria-pressed="true">报错未正常完成</button>
     <button type="button" data-detail="timeouts" aria-pressed="false">超时未正常完成</button>
     <button type="button" data-detail="tools" aria-pressed="false">失败工具调用</button>
@@ -170,36 +175,51 @@ function selectScope() {
   render();
 }
 
-function draw(id, series, metric, chartDomain, color, colorByCase = false) {
+function svgNode(parent, name, attributes, label) {
+  const element = document.createElementNS('http://www.w3.org/2000/svg', name);
+  for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
+  if (label !== undefined) element.textContent = label;
+  parent.append(element);
+  return element;
+}
+
+function chartAxes(id, maximum, percent) {
   const svg = document.getElementById(id);
   svg.replaceChildren();
-  function node(parent, name, attributes, label) {
-    const element = document.createElementNS('http://www.w3.org/2000/svg', name);
-    for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
-    if (label !== undefined) element.textContent = label;
-    parent.append(element);
-    return element;
-  }
-
-  const values = [...series.values()].flat().map(metric);
-  const maximum = chartDomain ?? values.reduce((max, value) => Math.max(max, value ?? 0), 1);
   const left = 43, right = 454, top = 12, bottom = 137;
   const pointX = index => timeline.length <= 1 ? (left + right) / 2 :
     left + (right - left) * index / (timeline.length - 1);
+  const pointY = value => bottom - (bottom - top) * value / maximum;
   for (let i = 0; i <= 4; i++) {
-    const y = bottom - (bottom - top) * i / 4;
-    node(svg, 'line', {x1: left, x2: right, y1: y, y2: y, class: 'axis'});
-    node(svg, 'text', {x: left - 5, y: y + 4, 'text-anchor': 'end'}, Number((maximum * i / 4).toFixed(1)));
+    const value = maximum * i / 4;
+    const y = pointY(value);
+    svgNode(svg, 'line', {x1: left, x2: right, y1: y, y2: y, class: 'axis'});
+    svgNode(svg, 'text', {x: left - 5, y: y + 4, 'text-anchor': 'end'},
+      Number(value.toFixed(1)) + (percent ? '%' : ''));
   }
-  if (!values.some(Number.isFinite)) node(svg, 'text', {x: 250, y: 80, 'text-anchor': 'middle'}, '暂无数据');
-  if (!timeline.length) return;
-  for (const entries of series.values()) {
+  for (const index of tickIndexes) {
+    const run = timeline[index];
+    const anchor = timeline.length === 1 ? 'middle' :
+      index === 0 ? 'start' : index === timeline.length - 1 ? 'end' : 'middle';
+    const tick = svgNode(svg, 'text', {x: pointX(index), y: 163, 'text-anchor': anchor, 'data-run-tick': run.key},
+      runLabel(run.run_id, run.run_attempt));
+    svgNode(tick, 'title', {}, runTooltips[index]);
+  }
+  return {svg, pointX, pointY};
+}
+
+function draw(id, series, metric, chartDomain, color, {byCase = false, percent = false, describe} = {}) {
+  const values = [...series.values()].flat().map(metric);
+  const maximum = chartDomain ?? values.reduce((max, value) => Math.max(max, value ?? 0), 1);
+  const {svg, pointX, pointY} = chartAxes(id, maximum, percent);
+  if (!values.some(Number.isFinite)) svgNode(svg, 'text', {x: 250, y: 80, 'text-anchor': 'middle'}, '暂无数据');
+  for (const [key, entries] of series) {
     const first = entries[0];
-    const group = node(svg, 'g', {class: 'chart-series', 'data-case': first.case_id ?? '',
-      color: colorByCase ? caseColor(first.case_id) : color});
+    const group = svgNode(svg, 'g', {class: 'chart-series', 'data-case': first.case_id ?? '', 'data-series': key,
+      color: byCase ? caseColor(first.case_id) : typeof color === 'function' ? color(key) : color});
     let points = [];
     function finishSegment() {
-      if (points.length > 1) node(group, 'polyline', {points: points.join(' ')});
+      if (points.length > 1) svgNode(group, 'polyline', {points: points.join(' ')});
       points = [];
     }
     let previous;
@@ -213,23 +233,128 @@ function draw(id, series, metric, chartDomain, color, colorByCase = false) {
       if (previous !== index - 1) finishSegment();
       previous = index;
       const x = pointX(index);
-      const y = bottom - (bottom - top) * value / maximum;
+      const y = pointY(value);
       points.push(x + ',' + y);
-      const point = node(group, 'circle', {cx: x, cy: y, r: colorByCase ? 2.5 : 4});
+      const point = svgNode(group, 'circle', {cx: x, cy: y, r: byCase ? 2.5 : 4});
       const label = runTooltips[index] + ' · ' + Number(value.toFixed(2));
-      node(point, 'title', {}, row.case_id ? row.case_id + ' · ' + label + '\n' + version(row) : label);
+      const tooltip = describe ? runTooltips[index] + ' · ' + describe(row) :
+        row.case_id ? row.case_id + ' · ' + label + '\n' + version(row) : label;
+      svgNode(point, 'title', {}, tooltip);
     }
     finishSegment();
   }
+}
 
-  for (const index of tickIndexes) {
-    const run = timeline[index];
-    const anchor = timeline.length === 1 ? 'middle' :
-      index === 0 ? 'start' : index === timeline.length - 1 ? 'end' : 'middle';
-    const tick = node(svg, 'text', {x: pointX(index), y: 163, 'text-anchor': anchor, 'data-run-tick': run.key},
-      runLabel(run.run_id, run.run_attempt));
-    node(tick, 'title', {}, runTooltips[index]);
+const completedValue = field => row => row.qa_outcome === 'completed' ? row[field] : null;
+const metrics = [
+  {id: 'completed_seconds', name: '正常完成任务耗时', unit: '秒',
+    limits: Array.from({length: 10}, (_, index) => (index + 1) * 60), value: completedValue('completed_seconds')},
+  {id: 'completed_model_rounds', name: '正常完成模型轮次', unit: '轮',
+    limits: [10, 20, 30, 40], value: completedValue('completed_model_rounds')},
+  {id: 'tool_failure_rate', name: '工具失败率', unit: '%', maximum: 100, color: '#a96812', allCases: true,
+    limits: [10, 20, 30, 40], value(row) {
+      const calls = row.tool_failed + row.tool_succeeded;
+      return row.tool_failed !== null && row.tool_succeeded !== null && calls > 0 ? 100 * row.tool_failed / calls : null;
+    }},
+  {id: 'quality_score', name: '正常完成得分', unit: '分', maximum: 100, color: '#159f83',
+    limits: [20, 40, 60, 80], value: completedValue('quality_score')},
+];
+const thresholdColors = ['#2469ae', '#088aaf', '#106b66', '#37823b', '#727621', '#9a7210',
+  '#a44b14', '#a1336b', '#824ba4', '#494ead'];
+const metricHost = document.getElementById('metrics');
+const metricViews = metrics.map(createMetricView);
+
+function createMetricView(metric) {
+  const section = element('section');
+  const pair = element('div');
+  pair.className = 'metric-pair';
+  const caption = element('p', metric.allCases ?
+    '分母为当次所有已记录的 Case。悬浮查看可计算工具失败率的题数。' :
+    '分母为当次正常完成且有此指标记录的 Case。');
+  caption.className = 'metric-caption';
+  section.append(element('h3', metric.name + ' · ' + metric.unit), caption, pair);
+  metricHost.append(section);
+
+  const thresholdPane = element('div');
+  thresholdPane.className = 'threshold-plot';
+  thresholdPane.append(element('h4', '阈值占比趋势'));
+  const chart = svgNode(thresholdPane, 'svg', {id: metric.id + '-thresholds', viewBox: '0 0 480 170',
+    role: 'img', 'aria-label': metric.name + '阈值占比历史趋势'});
+  const controls = element('div');
+  controls.className = 'plot-legend';
+  controls.setAttribute('role', 'group');
+  controls.setAttribute('aria-label', metric.name + '阈值');
+  thresholdPane.append(controls);
+
+  const casePane = element('div');
+  casePane.className = 'case-plot';
+  casePane.append(element('h4', '逐题趋势'));
+  svgNode(casePane, 'svg', {id: metric.id, viewBox: '0 0 480 170', role: 'img', 'aria-label': metric.name});
+  pair.append(thresholdPane, casePane);
+
+  const suffix = metric.unit === '%' ? '%' : ' ' + metric.unit;
+  const thresholds = metric.limits.map((limit, index) => ({
+    label: '≤' + limit + suffix, matches: value => value <= limit, color: thresholdColors[index],
+  }));
+  const last = metric.limits.at(-1);
+  thresholds.push({label: '≥' + last + suffix, matches: value => value >= last, color: '#ba322b'});
+
+  const colorByLabel = new Map(thresholds.map(({label, color}) => [label, color]));
+  const view = {metric, thresholdPane, chart, caption, thresholds, colorByLabel, active: null};
+  const buttons = thresholds.map(({label, color}) => {
+    const button = element('button');
+    button.type = 'button';
+    button.setAttribute('aria-pressed', 'false');
+    const swatch = element('span');
+    swatch.className = 'swatch';
+    swatch.style.backgroundColor = color;
+    button.append(swatch, label);
+    button.onclick = () => {
+      view.active = view.active === label ? null : label;
+      for (const control of buttons) control.setAttribute('aria-pressed', String(control.textContent === view.active));
+      highlightThreshold(view);
+    };
+    controls.append(button);
+    return button;
+  });
+  return view;
+}
+
+function highlightThreshold({chart, active}) {
+  for (const group of chart.querySelectorAll('.chart-series')) {
+    group.classList.toggle('muted', active !== null && group.dataset.series !== active);
   }
+}
+
+function drawThresholds(view, rows) {
+  const {metric, chart, thresholds, colorByLabel} = view;
+  const cohorts = new Map();
+  for (const row of rows) {
+    const key = runKey(row);
+    if (!cohorts.has(key)) cohorts.set(key, []);
+    cohorts.get(key).push(metric.value(row));
+  }
+
+  const curves = new Map();
+  for (const [key, values] of cohorts) {
+    const measured = values.filter(Number.isFinite);
+    if (!measured.length) continue;
+    const {run_id, run_attempt} = runs.get(key);
+    const total = metric.allCases ? values.length : measured.length;
+    for (const {label, matches} of thresholds) {
+      if (!curves.has(label)) curves.set(label, []);
+      curves.get(label).push({run_id, run_attempt, label, total, measured: measured.length,
+        count: measured.filter(matches).length});
+    }
+  }
+
+  draw(chart.id, curves, row => 100 * row.count / row.total, 100, label => colorByLabel.get(label), {
+    percent: true,
+    describe: ({label, count, total, measured}) =>
+      label + ' · ' + count + ' / ' + total + ' 题（' + (100 * count / total).toFixed(1) + '%）' +
+      (measured < total ? ' · 可计算 ' + measured + ' 题' : ''),
+  });
+  highlightThreshold(view);
 }
 
 function showLegend(ids, overview) {
@@ -378,13 +503,16 @@ function render() {
   showLegend(shownCases, overview);
   document.getElementById('rates').hidden = !overview;
   if (overview) drawRates(rows);
-  draw('completed_seconds', series, row => row.completed_seconds, null, '#356df3', overview);
-  draw('completed_model_rounds', series, row => row.completed_model_rounds, null, '#356df3', overview);
-  draw('tool_failure_rate', series, row => {
-    const total = row.tool_failed + row.tool_succeeded;
-    return row.tool_failed !== null && row.tool_succeeded !== null && total > 0 ? 100 * row.tool_failed / total : null;
-  }, 100, '#a96812', overview);
-  draw('quality_score', series, row => row.qa_outcome === 'completed' ? row.quality_score : null, 100, '#159f83', overview);
+  metricHost.classList.toggle('overview', overview);
+  metricHost.classList.toggle('trends', !overview);
+  for (const view of metricViews) {
+    const {metric, thresholdPane, caption} = view;
+    thresholdPane.hidden = !overview;
+    caption.hidden = !overview;
+    if (overview) drawThresholds(view, rows);
+    draw(metric.id, series, metric.value, metric.maximum, metric.color ?? '#356df3',
+      {byCase: overview, percent: metric.unit === '%'});
+  }
   showDetails();
 }
 
