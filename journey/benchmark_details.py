@@ -45,6 +45,7 @@ def details_for_case(row, report):
         if name in {'history', 'publish'} and (value.get('exit_code') != 0 or value.get('timed_out'))]
     if 'report_details' in report:
         details = {name: list(report['report_details'][name]) for name in DETAIL_KINDS}
+        details['timeouts'] = [[*entry[:3], row['duration_seconds']] for entry in details['timeouts']]
         if pipeline_errors:
             message = case_errors_text(pipeline_errors)
             if details['errors']:
@@ -97,11 +98,13 @@ def retained_report(result, row, observations):
     def project(records, fields):
         return [{key: record[key] for key in fields if key in record} for record in records]
 
+    details = details_for_case(row, {**result, 'history_observations': observations})
+    details['timeouts'] = [entry[:3] for entry in details['timeouts']]
     return {
         'case_id': row['case_id'],
         'workspace': 'journey-3',
         'history_observations': observations,
-        'report_details': details_for_case(row, {**result, 'history_observations': observations}),
+        'report_details': details,
         'tasks': project(result.get('tasks', []), ('task_id', 'conversation_id', 'trace_id', 'phase', 'state')),
         'failed_tool_calls': project(
             [call for call in result.get('tools', {}).get('errors', []) if call.get('outcome') == 'failed'],

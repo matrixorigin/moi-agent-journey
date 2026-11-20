@@ -8,15 +8,14 @@ from pathlib import Path
 import re
 import subprocess
 
-from .benchmark_metrics import ANSWER_TIMING, LEGACY_TIMING, history_observations
+from .benchmark_metrics import LEGACY_TIMING_FIELDS, history_observations
 from .benchmark_store import configured_store, HISTORY, literal
 from .catalog import load_suite, plan_suite
 
 BASE_FIELDS = ['case_id','evaluated_at','duration_seconds','quality_score','tool_call_count',
           'model_round_count','task_state','case_revision','snapshot_id','evaluator_version',
           'model_key','benchmark_state','run_id','run_attempt']
-OBSERVATION_FIELDS = ['qa_outcome', 'completed_seconds', 'completed_model_rounds',
-                      'tool_succeeded', 'tool_failed', 'answer_timing']
+OBSERVATION_FIELDS = ['qa_outcome', 'completed_model_rounds', 'tool_succeeded', 'tool_failed']
 FIELDS = BASE_FIELDS + OBSERVATION_FIELDS
 SELECT_FIELDS = [field if field != 'model_key' else 'MD5(model) AS model_key' for field in BASE_FIELDS]
 OBSERVATIONS_SQL = "JSON_EXTRACT(report_json,'$.history_observations')"
@@ -35,14 +34,12 @@ def utc_timestamp(value):
 
 
 def metrics_row(row):
-    if len(row) == len(FIELDS) - 1:
-        row = [*row, LEGACY_TIMING]
     if len(row) != len(FIELDS) or not re.fullmatch(r'J3-\d{2,}', row[0] or ''):
         raise ValueError('invalid_history_case_identity')
     value = dict(zip(FIELDS, row))
     value['evaluated_at'] = utc_timestamp(value['evaluated_at']).isoformat(timespec='microseconds').replace('+00:00', 'Z')
     numbers = ('duration_seconds','quality_score','tool_call_count','model_round_count',
-               'completed_seconds','completed_model_rounds','tool_succeeded','tool_failed','run_attempt')
+               'completed_model_rounds','tool_succeeded','tool_failed','run_attempt')
     for key in numbers:
         if type(value[key]) is bool:
             raise ValueError('invalid_history_metric')
@@ -51,7 +48,7 @@ def metrics_row(row):
                 (key == 'quality_score' and number > 100)):
             raise ValueError('invalid_history_metric')
         value[key] = number
-        if number is not None and key not in ('duration_seconds','quality_score','completed_seconds'):
+        if number is not None and key not in ('duration_seconds','quality_score'):
             if not number.is_integer():
                 raise ValueError('invalid_history_count')
             value[key] = int(number)
@@ -68,8 +65,6 @@ def metrics_row(row):
         raise ValueError('invalid_history_run')
     if value['qa_outcome'] not in {'completed', 'error', 'timeout', 'excluded'}:
         raise ValueError('invalid_history_qa_outcome')
-    if value['answer_timing'] not in {ANSWER_TIMING, LEGACY_TIMING}:
-        raise ValueError('invalid_history_answer_timing')
     return value
 
 
@@ -96,8 +91,7 @@ def read_metrics(store):
                 observations = json.loads(saved)
                 if not isinstance(observations, dict):
                     raise ValueError('invalid_saved_history_observations')
-                observations.setdefault('answer_timing', LEGACY_TIMING)
-                if set(observations) != set(OBSERVATION_FIELDS):
+                if set(observations) - LEGACY_TIMING_FIELDS != set(OBSERVATION_FIELDS):
                     raise ValueError('invalid_saved_history_observations')
             else:
                 observations = history_observations(json.loads(legacy), dict(zip(BASE_FIELDS, values)))
@@ -158,9 +152,9 @@ def write_metrics(rows, destination):
     # Revalidate imported historical artifacts; never copy their HTML or fields.
     checked = []
     for row in rows:
-        if not isinstance(row, dict) or set(row).union({'answer_timing'}) != set(FIELDS):
+        if not isinstance(row, dict) or set(row) - LEGACY_TIMING_FIELDS != set(FIELDS):
             raise ValueError('invalid_exported_history_columns')
-        checked.append(metrics_row([row[key] for key in FIELDS if key in row]))
+        checked.append(metrics_row([row[key] for key in FIELDS]))
     rows = checked
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)

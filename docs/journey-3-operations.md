@@ -56,7 +56,8 @@ Completion and timeout rates use the eligible case outcomes of a run with all co
 Completion requires an observed final answer body. Charted completion timings, model rounds and
 scores use completed answers. Tool failure rate uses failed calls divided by succeeded plus failed calls
 for every outcome. Case revision, data snapshot, evaluator and model must match for case lines to connect.
-New runs store these observations in `report_json.history_observations` using the existing schema.
+The charts read the task time from `results.duration_seconds` for both new and historical runs.
+New runs write completion time to this column and keep the outcome, model and tool observations in `report_json.history_observations`.
 Older records use the saved report. A historical multi-turn case with an answer and a later failure
 can lack a per-answer model-round count, so that point is left blank.
 

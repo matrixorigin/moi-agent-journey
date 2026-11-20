@@ -54,6 +54,9 @@
   #report-coverage { overflow-wrap: anywhere; }
   #details summary { padding: 10px 0; border-top: 1px solid #e4e8f1; cursor: pointer; }
   #details details .record { margin-left: .8em; }
+  .detail-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .detail-table th, .detail-table td { padding: 9px 10px; text-align: left; border-bottom: 1px solid #e4e8f1; }
+  .detail-table th { color: #51617c; }
 </style>
 </head>
 <body>
@@ -78,7 +81,7 @@
   <dl id="run-overview-stats" aria-live="polite"></dl>
 </section>
 <section id="details" hidden>
-  <h2>最近一次运行分析</h2>
+  <h2 id="details-title">最近一次运行明细</h2>
   <div class="view-buttons" role="group" aria-label="运行明细">
     <button type="button" data-detail="errors" aria-pressed="true">报错未正常完成</button>
     <button type="button" data-detail="timeouts" aria-pressed="false">超时未正常完成</button>
@@ -86,6 +89,7 @@
     <button type="button" data-detail="scores" aria-pressed="false">低于 50 分</button>
   </div>
   <p id="detail-count" aria-live="polite"></p>
+  <p id="public-detail-caption" hidden>公开明细使用逐题指标。原始报错、调用参数、失分理由及会话定位信息保存在对应工作区的完整报告。</p>
   <div id="detail-records"></div>
 </section>
 </main>
@@ -95,6 +99,7 @@ const jobs = /*HISTORY_JOBS*/{};
 const currentRun = /*RUN_DETAILS*/null;
 const runMetadata = /*RUN_METADATA*/{};
 const pagesEnvironment = /*PAGES_ENVIRONMENT*/null;
+const publicRunDetails = Boolean(pagesEnvironment && currentRun?.metrics_only);
 const scope = document.getElementById('case');
 const revision = document.getElementById('revision');
 const legend = document.getElementById('legend');
@@ -182,6 +187,15 @@ function rowsForScope() {
   return data.filter(row => row.case_id === scope.value);
 }
 
+function visibleRows() {
+  const rows = rowsForScope();
+  return jobOrAll() ? rows : rows.filter(row => version(row) === revision.value);
+}
+
+function latestRunRows(rows) {
+  return rows.filter(row => row.run_id === currentRun.run_id && row.run_attempt === currentRun.attempt);
+}
+
 function selectScope() {
   document.getElementById('revision-label').hidden = jobOrAll();
   revision.replaceChildren();
@@ -252,8 +266,7 @@ function draw(id, series, metric, chartDomain, color, {byCase = false, percent =
       const y = pointY(value);
       points.push(x + ',' + y);
       const point = svgNode(group, 'circle', {cx: x, cy: y, r: byCase ? 2.5 : 4});
-      const replay = id === 'completed_seconds' && showAnswerTiming && row.answer_timing_replayed ? ' 秒（由存档事件回算）' : '';
-      const label = runTooltips[index] + ' · ' + Number(value.toFixed(2)) + replay;
+      const label = runTooltips[index] + ' · ' + Number(value.toFixed(2));
       const tooltip = describe ? runTooltips[index] + ' · ' + describe(row) :
         row.case_id ? row.case_id + ' · ' + label + '\n' + version(row) : label;
       svgNode(point, 'title', {}, tooltip);
@@ -263,28 +276,17 @@ function draw(id, series, metric, chartDomain, color, {byCase = false, percent =
 }
 
 const completedValue = field => row => row.qa_outcome === 'completed' ? row[field] : null;
-const answerTiming = 'final_answer_sse';
-const hasAnswerTiming = data.some(row => row.answer_timing === answerTiming);
-const legacySeconds = row => row.answer_timing_replayed ? row.duration_seconds :
-  row.answer_timing !== answerTiming ? row.completed_seconds : null;
-const hasLegacyTiming = data.some(row => Number.isFinite(legacySeconds(row)));
-let showAnswerTiming = hasAnswerTiming;
-const deliveryTimingCaption = '从发出问题到收到完整正文。曲线和阈值占比使用有交付事件的记录。';
-const legacyTimingCaption = '旧记录的耗时包含终态确认和事件采集。曲线和阈值占比使用旧口径。';
+function toolFailureRate(row) {
+  const calls = row.tool_failed + row.tool_succeeded;
+  return row.tool_failed !== null && row.tool_succeeded !== null && calls > 0 ? 100 * row.tool_failed / calls : null;
+}
 const metrics = [
-  {id: 'completed_seconds', name: hasAnswerTiming ? '正常完成任务耗时' : '正常完成任务耗时（含取证）', unit: '秒',
-    limits: Array.from({length: 10}, (_, index) => (index + 1) * 60), value(row) {
-      if (row.qa_outcome !== 'completed') return null;
-      if (!showAnswerTiming) return legacySeconds(row);
-      return row.answer_timing === answerTiming ? row.completed_seconds : null;
-    }},
+  {id: 'duration_seconds', name: '正常完成任务耗时', unit: '秒',
+    limits: Array.from({length: 10}, (_, index) => (index + 1) * 60), value: completedValue('duration_seconds')},
   {id: 'completed_model_rounds', name: '正常完成模型轮次', unit: '轮',
     limits: [10, 20, 30, 40], value: completedValue('completed_model_rounds')},
   {id: 'tool_failure_rate', name: '工具失败率', unit: '%', maximum: 100, color: '#a96812', allCases: true,
-    limits: [10, 20, 30, 40], value(row) {
-      const calls = row.tool_failed + row.tool_succeeded;
-      return row.tool_failed !== null && row.tool_succeeded !== null && calls > 0 ? 100 * row.tool_failed / calls : null;
-    }},
+    limits: [10, 20, 30, 40], value: toolFailureRate},
   {id: 'quality_score', name: '正常完成得分', unit: '分', maximum: 100, color: '#159f83',
     limits: [20, 40, 60, 80], value: completedValue('quality_score')},
 ];
@@ -302,18 +304,6 @@ function createMetricView(metric) {
     '分母为当次正常完成且有此指标记录的 Case。');
   caption.className = 'metric-caption';
   section.append(element('h3', metric.name + ' · ' + metric.unit), caption, pair);
-  if (metric.id === 'completed_seconds' && hasAnswerTiming && hasLegacyTiming) {
-    const label = element('label', '耗时口径 ');
-    const selector = element('select');
-    addOption(selector, 'answer', '完整正文');
-    addOption(selector, 'legacy', '历史耗时（含取证）');
-    label.append(selector);
-    section.insertBefore(label, caption);
-    selector.onchange = () => {
-      showAnswerTiming = selector.value === 'answer';
-      render();
-    };
-  }
   metricHost.append(section);
 
   const thresholdPane = element('div');
@@ -474,23 +464,66 @@ function record(title, session, trace, fields, heading = 'h3') {
 
 let detailTab = 'errors';
 const detailTabs = [...document.querySelectorAll('[data-detail]')];
+const detailCount = document.getElementById('detail-count');
 for (const button of detailTabs) button.onclick = () => {
   detailTab = button.dataset.detail;
-  showDetails();
+  showDetails(visibleRows());
 };
 
-function showDetails() {
-  if (!currentRun || currentRun.metrics_only) return;
-  const selected = scope.value;
-  const include = selected.startsWith('job:') ? new Set(jobs[selected.slice(4)]) : new Set([selected]);
-  const rows = currentRun[detailTab].filter(row => selected === 'all' || include.has(row[0]));
-  rows.sort((a, b) => cases.indexOf(a[0]) - cases.indexOf(b[0]));
+const numberForDetail = new Intl.NumberFormat('zh-CN', {maximumFractionDigits: 2});
+const publicDetails = {
+  errors: {headers: [], matches: row => row.qa_outcome === 'error', cells: () => []},
+  timeouts: {headers: ['耗时'], matches: row => row.qa_outcome === 'timeout', cells: row => [
+    Number.isFinite(row.duration_seconds) ? numberForDetail.format(row.duration_seconds) + ' 秒' : '未记录',
+  ]},
+  tools: {headers: ['失败调用', '工具失败率'], matches: row => row.tool_failed > 0, cells: row => {
+    const rate = toolFailureRate(row);
+    return [row.tool_failed + ' 次', rate === null ? '未记录' : numberForDetail.format(rate) + '%'];
+  }},
+  scores: {headers: ['得分'], matches: row => row.qa_outcome === 'completed' &&
+    Number.isFinite(row.quality_score) && row.quality_score < 50, cells: row => [numberForDetail.format(row.quality_score) + ' 分']},
+};
+
+function showPublicDetails(host, rows) {
+  const {headers, matches, cells} = publicDetails[detailTab];
+  const records = rows.filter(matches).sort((a, b) => cases.indexOf(a.case_id) - cases.indexOf(b.case_id));
+  detailCount.textContent = records.length + ' 个 case';
+  if (!records.length) {
+    host.append(element('p', '当前范围无符合条件的记录。'));
+    return;
+  }
+  const table = element('table');
+  table.className = 'detail-table';
+  const header = table.createTHead().insertRow();
+  for (const label of ['Case', ...headers]) {
+    const cell = element('th', label);
+    cell.scope = 'col';
+    header.append(cell);
+  }
+  const body = table.createTBody();
+  for (const row of records) {
+    const tr = body.insertRow();
+    for (const value of [row.case_id, ...cells(row)]) tr.append(element('td', value));
+  }
+  host.append(table);
+}
+
+function showDetails(scopeRows) {
+  if (!currentRun || (currentRun.metrics_only && !publicRunDetails)) return;
+  const latest = latestRunRows(scopeRows);
   const host = document.getElementById('detail-records');
   host.replaceChildren();
+  for (const button of detailTabs) button.setAttribute('aria-pressed', String(button.dataset.detail === detailTab));
+  if (publicRunDetails) {
+    showPublicDetails(host, latest);
+    return;
+  }
+  const include = new Set(latest.filter(row => detailTab !== 'errors' || row.qa_outcome === 'error').map(row => row.case_id));
+  const rows = currentRun[detailTab].filter(row => include.has(row[0]));
+  rows.sort((a, b) => cases.indexOf(a[0]) - cases.indexOf(b[0]));
   const count = detailTab === 'tools' ? rows.length + ' 次失败调用' :
     new Set(rows.map(row => row[0])).size + ' 个 case';
-  document.getElementById('detail-count').textContent = runLabel(currentRun.run_id, currentRun.attempt) + ' · ' + count;
-  for (const button of detailTabs) button.setAttribute('aria-pressed', String(button.dataset.detail === detailTab));
+  detailCount.textContent = count;
   if (!rows.length) host.append(element('p', '当前范围无符合条件的记录。'));
   if (detailTab === 'tools') {
     const groups = new Map();
@@ -525,8 +558,8 @@ function showDetails() {
 }
 
 function showRunOverview(rows) {
-  if (!currentRun) return;
-  const selected = rows.filter(row => row.run_id === currentRun.run_id && row.run_attempt === currentRun.attempt);
+  if (!currentRun || publicRunDetails) return;
+  const selected = latestRunRows(rows);
   const count = outcome => selected.filter(row => row.qa_outcome === outcome).length;
   const completed = count('completed');
   const eligible = selected.length - count('excluded');
@@ -553,8 +586,7 @@ function showRunOverview(rows) {
 
 function render() {
   const overview = jobOrAll();
-  const scopedRows = rowsForScope();
-  const rows = overview ? scopedRows : scopedRows.filter(row => version(row) === revision.value);
+  const rows = visibleRows();
   const series = new Map();
   const shownCases = new Set();
   let completed = 0, scored = 0;
@@ -576,19 +608,13 @@ function render() {
   for (const view of metricViews) {
     const {metric, thresholdPane, caption} = view;
     thresholdPane.hidden = !overview;
-    const isLatency = metric.id === 'completed_seconds';
-    caption.hidden = !overview && !isLatency;
-    if (isLatency) {
-      const replayed = rows.filter(row => row.answer_timing_replayed).length;
-      caption.textContent = showAnswerTiming ? deliveryTimingCaption +
-        (replayed ? ' 其中 ' + replayed + ' 条由存档事件回算。' : '') : legacyTimingCaption;
-    }
+    caption.hidden = !overview;
     if (overview) drawThresholds(view, rows);
     draw(metric.id, series, metric.value, metric.maximum, metric.color ?? '#356df3',
       {byCase: overview, percent: metric.unit === '%'});
   }
   showRunOverview(rows);
-  showDetails();
+  showDetails(rows);
 }
 
 scope.onchange = selectScope;
@@ -607,10 +633,12 @@ if (pagesEnvironment) {
   }
 }
 if (currentRun) {
-  document.getElementById('run-overview').hidden = false;
-  document.getElementById('run-overview-title').textContent =
-    '最近一次运行概况 · ' + runLabel(currentRun.run_id, currentRun.attempt);
-  document.getElementById('details').hidden = Boolean(currentRun.metrics_only);
+  const label = runLabel(currentRun.run_id, currentRun.attempt);
+  document.getElementById('run-overview').hidden = publicRunDetails;
+  document.getElementById('run-overview-title').textContent = '最近一次运行概况 · ' + label;
+  document.getElementById('details').hidden = Boolean(currentRun.metrics_only) && !publicRunDetails;
+  document.getElementById('details-title').textContent = '最近一次运行明细 · ' + label;
+  document.getElementById('public-detail-caption').hidden = !publicRunDetails;
   if (currentRun.environment) {
     document.title += ' · ' + currentRun.environment;
     document.querySelector('h1').textContent = document.title;

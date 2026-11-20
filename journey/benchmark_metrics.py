@@ -7,8 +7,7 @@ from .evidence import utc_now
 from .failure_categories import failure_counts
 
 
-ANSWER_TIMING = 'final_answer_sse'
-LEGACY_TIMING = 'legacy'
+LEGACY_TIMING_FIELDS = {'completed_seconds', 'answer_timing'}
 
 
 def model_rounds(path, tasks):
@@ -66,28 +65,22 @@ def history_observations(result, row, events=None):
     answers = delivered_answers(result)
     state = row['task_state']
     metrics = result.get('tools', {}).get('metrics') or {}
-    timing = result.get('answer_timing', LEGACY_TIMING)
-    seconds, rounds = None, None
+    rounds = None
     if row['benchmark_state'] != 'eligible':
         outcome = 'excluded'
     elif answers:
         outcome = 'completed'
         if state == 'completed':
-            seconds, rounds = row['duration_seconds'], row['model_round_count']
-            if timing == ANSWER_TIMING:
-                seconds = delivered_answer_seconds(result['rag']['answers'])
-        else:
-            seconds = delivered_answer_seconds(answers)
-            if events is not None:
-                rounds = model_rounds(events, answers)
+            rounds = row['model_round_count']
+        elif events is not None:
+            rounds = model_rounds(events, answers)
     elif state == 'timeout':
         outcome = 'timeout'
     elif result.get('tasks') or result.get('agent_attempted') or result.get('admission_failures'):
         outcome = 'error'
     else:
         outcome = 'excluded'
-    return {'qa_outcome': outcome, 'completed_seconds': seconds, 'completed_model_rounds': rounds,
-            'answer_timing': timing,
+    return {'qa_outcome': outcome, 'completed_model_rounds': rounds,
             'tool_succeeded': metrics.get('succeeded'), 'tool_failed': metrics.get('failed')}
 
 
@@ -99,6 +92,12 @@ def history_record(result, case, events):
     # Each new ops case is one scored question. Existing multi-turn cases retain
     # the complete question sequence in a single case-level history record.
     state = result.get('task', {}).get('state', 'unknown')
+    benchmark_state = result.get('benchmark', {}).get('state', 'eligible')
+    duration = result.get('task_seconds') if tasks or result.get('agent_attempted') else None
+    if state != 'completed' and benchmark_state == 'eligible':
+        answers = delivered_answers(result)
+        if answers:
+            duration = delivered_answer_seconds(answers)
     failures = result.get('failures', []) + result.get('harness_errors', [])
     admissions = result.get('admission_failures', [])
     def identities(field):
@@ -113,7 +112,7 @@ def history_record(result, case, events):
     return {'case_id': case['id'], 'question': case.get('original_question') or '\n\n'.join(questions),
         'agent_name': result.get('benchmark_agent_name') or case.get('agent_name') or
                       result.get('rag', {}).get('target', {}).get('agent_id', ''),
-        'duration_seconds': result.get('task_seconds') if tasks or result.get('agent_attempted') else None,
+        'duration_seconds': duration,
         'quality_score': quality_score(result),
         'evaluated_at': (result.get('started_at') or utc_now()).replace('T', ' ').replace('Z', '').split('+')[0],
         'tool_call_count': (result.get('tools', {}).get('metrics') or {}).get('calls'),
@@ -124,7 +123,7 @@ def history_record(result, case, events):
             for failure in failures or [{'reason': state}]]),
         'trace_id': identities('trace_id'), 'session_id': identities('conversation_id'),
         **history_identity(result, case),
-        'benchmark_state': result.get('benchmark', {}).get('state', 'eligible'),
+        'benchmark_state': benchmark_state,
         'snapshot_id': case.get('snapshot_id', 'existing-document-corpus'),
         'task_state': state, 'evaluation_state': canonical([answer.get('evaluation_state')
             for answer in result.get('rag', {}).get('answers', [])]),

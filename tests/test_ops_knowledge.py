@@ -283,7 +283,7 @@ class OpsKnowledgeTests(unittest.TestCase):
     def test_real_query_time_wire_normalizes_to_utc_and_sql_pagination_literals(self):
         row = ['J3-88', '2026-11-18 00:00:00.123456 +0000 UTC', '1', None, None, None,
                'unknown', 'r1', 's1', 'judge1', 'a' * 32, 'blocked', '44', '1',
-               'excluded', None, None, None, None]
+               'excluded', None, None, None]
         self.assertEqual(metrics_row(row)['evaluated_at'], '2026-11-18T00:00:00.123456Z')
         row[1] = '2026-11-18T08:00:00+08:00'
         with self.assertRaisesRegex(ValueError, 'history_requires_UTC'):
