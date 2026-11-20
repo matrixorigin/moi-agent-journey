@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 from journey.benchmark_metrics import history_observations, history_record, model_rounds, quality_score
 from journey.benchmark_store import Store, canonical
 from journey.benchmark_history import metrics_row, read_run_metadata, write_metrics
-from journey.benchmark_run_report import details_for_case, publish
+from journey.benchmark_run_report import details_for_case, publish, run_details
 from journey.catalog import load_case
 from journey.publish import prepare_publication
 from journey.report import ArtifactRejected, _missing_case, _valid_case_result
@@ -194,7 +194,8 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(details['timeouts'], [['J3-01', 'task-session', 'task-trace', 60]])
         self.assertEqual(details['tools'][0][1:5], ['task-session', 'task-trace', 'bash', secret_marker])
         store = Mock()
-        store.sql.return_value = {'rows': [[*row.values(), canonical(report)]]}
+        raw = canonical(report)
+        store.sql.return_value = {'rows': [[*row.values(), raw, len(raw)]]}
         with tempfile.TemporaryDirectory() as tmp, \
                 patch('journey.benchmark_run_report.load_suite', return_value={'cases': ['J3-01', 'J3-02']}):
             out = Path(tmp) / 'upload'
@@ -218,6 +219,25 @@ class BenchmarkTests(unittest.TestCase):
         self.assertNotIn(b'original error', public)
         self.assertNotIn(b'PRIVATE_FACT', public)
         self.assertNotIn(b'task-trace', public)
+
+    def test_report_reads_oversized_cases_in_bounded_character_chunks(self):
+        message = '超过上下文长度'
+        raw = json.dumps({'harness_errors': [{'stage': 'semantic_judge', 'reason': 'context_limit',
+                                             'details': message}]}, ensure_ascii=False)
+        oversized = ['J3-01', 'completed', 'eligible', '12', '2', None, 'session', 'trace', None, len(raw)]
+        small = ['J3-02', 'completed', 'eligible', '3', '1', None, 'session-2', 'trace-2', '{}', 2]
+        chunk_size = 20
+        chunks = [raw[offset:offset+chunk_size] for offset in range(0, len(raw), chunk_size)]
+        store = Mock()
+        store.sql.side_effect = [{'rows': [oversized, small]}, *({'rows': [[part]]} for part in chunks)]
+        with patch('journey.benchmark_run_report.REPORT_CHUNK_CHARS', chunk_size):
+            details = run_details(store, '44', 2)
+        self.assertEqual(len(details['errors']), 1)
+        self.assertEqual(details['errors'][0][:3], ['J3-01', 'session', 'trace'])
+        self.assertIn(message, details['errors'][0][3])
+        for index, call in enumerate(store.sql.call_args_list[1:]):
+            self.assertIn(f'SUBSTRING(report_json,{1+index*chunk_size},{len(chunks[index])})', call.args[0])
+            self.assertIn("run_id='44' AND run_attempt=2 AND case_id='J3-01'", call.args[0])
 
     def test_report_with_credentials_is_not_staged_for_github(self):
         store = Mock()

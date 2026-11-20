@@ -16,6 +16,12 @@ from .report import ArtifactRejected, inspect_payload
 from .failure_categories import LABELS, error_category
 
 
+# Keep a page within the API response limit even when JSON-escaping the text.
+REPORT_PAGE_SIZE = 16
+INLINE_REPORT_BYTES = 256_000
+REPORT_CHUNK_CHARS = 1_000_000
+
+
 def evidence_text(value):
     if value is None or value == '':
         return ''
@@ -78,21 +84,36 @@ def details_for_case(row, report):
     return details
 
 
+def read_large_report(store, where, length):
+    parts = []
+    for start in range(1, length + 1, REPORT_CHUNK_CHARS):
+        count = min(REPORT_CHUNK_CHARS, length - start + 1)
+        result = store.sql(f'SELECT SUBSTRING(report_json,{start},{count})' + where, 1)
+        rows = result['rows']
+        if (result.get('truncated') or len(rows) != 1 or len(rows[0]) != 1
+                or not isinstance(rows[0][0], str) or len(rows[0][0]) != count):
+            raise ValueError('truncated_private_report_chunk')
+        parts.append(rows[0][0])
+    return ''.join(parts)
+
+
 def run_details(store, run, attempt):
     if not RUN_ID.fullmatch(run) or type(attempt) is not int or attempt < 1:
         raise ValueError('invalid_report_run')
     fields = ['case_id', 'task_state', 'benchmark_state', 'duration_seconds', 'model_round_count',
               'quality_score', 'session_id', 'trace_id']
     details = {'run_id': run, 'attempt': attempt, 'errors': [], 'timeouts': [], 'tools': [], 'scores': []}
-    page_size, cursor = 16, ''
+    where = ' FROM '+HISTORY+' WHERE run_id='+literal(run)+' AND run_attempt='+literal(attempt)
+    inline_report = f'CASE WHEN LENGTH(report_json)<={INLINE_REPORT_BYTES} THEN report_json ELSE NULL END'
+    cursor = ''
     while True:
-        result = store.sql('SELECT '+','.join(fields)+',report_json FROM '+HISTORY+
-                           ' WHERE run_id='+literal(run)+' AND run_attempt='+literal(attempt)+
-                           ' AND case_id>'+literal(cursor)+' ORDER BY case_id LIMIT '+str(page_size), page_size)
+        result = store.sql('SELECT '+','.join([*fields, inline_report, 'CHAR_LENGTH(report_json)'])+where+
+                           ' AND case_id>'+literal(cursor)+' ORDER BY case_id LIMIT '+str(REPORT_PAGE_SIZE),
+                           REPORT_PAGE_SIZE)
         page = result['rows']
         if result.get('truncated'):
             raise ValueError('truncated_private_report_page')
-        for *values, raw in page:
+        for *values, raw, length in page:
             if len(values) != len(fields):
                 raise ValueError('invalid_private_report_row')
             row = dict(zip(fields, values))
@@ -101,9 +122,11 @@ def run_details(store, run, attempt):
             cursor = row['case_id']
             for field in ('quality_score', 'duration_seconds'):
                 row[field] = None if row[field] is None else float(row[field])
+            if raw is None:
+                raw = read_large_report(store, where+' AND case_id='+literal(cursor), int(length))
             for kind, records in details_for_case(row, json.loads(raw)).items():
                 details[kind].extend(records)
-        if len(page) < page_size:
+        if len(page) < REPORT_PAGE_SIZE:
             return details
 
 
