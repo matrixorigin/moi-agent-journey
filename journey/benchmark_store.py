@@ -99,7 +99,7 @@ class Store:
 
     def persist(self, result, case, directory):
         from .benchmark_details import retained_report
-        from .benchmark_metrics import history_observations, history_record
+        from .benchmark_metrics import LEGACY_TIMING_FIELDS, history_observations, history_record
         from .evidence import Evidence, configured_secrets
         events = Path(directory) / 'events.jsonl'
         record = history_record(result, case, events)
@@ -113,6 +113,9 @@ class Store:
             previous = json.loads(row[0])
             previous.pop('pipeline', None)
             if 'report_details' in previous:
+                for field in LEGACY_TIMING_FIELDS:
+                    previous['history_observations'].pop(field, None)
+                previous['report_details']['timeouts'] = [entry[:3] for entry in previous['report_details']['timeouts']]
                 return previous == stored
             previous.pop('history_observations', None)
             return digest(previous) == stored['result_sha256']

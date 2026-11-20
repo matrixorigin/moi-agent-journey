@@ -281,8 +281,8 @@ function toolFailureRate(row) {
   return row.tool_failed !== null && row.tool_succeeded !== null && calls > 0 ? 100 * row.tool_failed / calls : null;
 }
 const metrics = [
-  {id: 'completed_seconds', name: '正常完成任务耗时', unit: '秒',
-    limits: Array.from({length: 10}, (_, index) => (index + 1) * 60), value: completedValue('completed_seconds')},
+  {id: 'duration_seconds', name: '正常完成任务耗时', unit: '秒',
+    limits: Array.from({length: 10}, (_, index) => (index + 1) * 60), value: completedValue('duration_seconds')},
   {id: 'completed_model_rounds', name: '正常完成模型轮次', unit: '轮',
     limits: [10, 20, 30, 40], value: completedValue('completed_model_rounds')},
   {id: 'tool_failure_rate', name: '工具失败率', unit: '%', maximum: 100, color: '#a96812', allCases: true,

@@ -71,7 +71,8 @@ def build_site(state, output, *, incoming=None, environment=None):
         snapshot = snapshots.get(key)
         if snapshot:
             summary = {**snapshot['current'], 'environment': label, 'metrics_only': True}
-            html = render_history(snapshot['rows'], summary, snapshot['metadata'], pages_environment=label)
+            rows = [{key: row[key] for key in FIELDS} for row in snapshot['rows']]
+            html = render_history(rows, summary, snapshot['metadata'], pages_environment=label)
         else:
             html = render_history([], pages_environment=label)
         path.write_text(html, encoding='utf-8')

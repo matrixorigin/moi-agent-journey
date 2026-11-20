@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 from .a2a import final_reply
-from .benchmark_metrics import ANSWER_TIMING, delivered_answer_seconds
+from .benchmark_metrics import delivered_answer_seconds
 from .catalog import ROOT, load_case
 from .client import Failure, error_record, segment
 from .evidence import Evidence, configured_secrets, utc_now
@@ -381,7 +381,6 @@ class KnowledgeExecution(Execution):
                                                       for turn in session['turns']),
                               'comparison_group': self.case['rag'].get('comparison_group')}
         self.report['validation'] = {'checks': []}
-        self.report['answer_timing'] = ANSWER_TIMING
         self.report['task_seconds'] = None
         task_seconds = 0
         answers = []

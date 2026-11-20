@@ -20,7 +20,7 @@ class BenchmarkPagesTests(unittest.TestCase):
                 run_id = str(number + 1000)
                 row = metrics_row(['J3-01', '2026-11-18 00:00:00', 12.5, 75, 4, 3, 'completed',
                                    'rev1', 'snap1', 'judge1', 'a'*32, 'eligible', run_id, attempt,
-                                   'completed', 12.5, 3, 3, 1])
+                                   'completed', 3, 3, 1])
                 row['private_tool_output'] = 'PRIVATE ROW'
                 summary = {'run_id': run_id, 'attempt': attempt, 'report_error_cases': 1,
                            'coverage': {'recorded': 1, 'planned': 2, 'missing': ['J3-02']},

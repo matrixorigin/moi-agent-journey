@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from journey.benchmark_details import retained_report
-from journey.benchmark_metrics import ANSWER_TIMING, history_observations, history_record, model_rounds, quality_score
+from journey.benchmark_metrics import delivered_answer_seconds, history_observations, history_record, model_rounds, quality_score
 from journey.benchmark_store import Store, canonical, digest
 from journey.benchmark_history import metrics_row, read_run_metadata, write_metrics
 from journey.benchmark_run_report import details_for_case, publish, run_details
@@ -89,7 +89,7 @@ class BenchmarkTests(unittest.TestCase):
     def test_history_persists_report_facts_and_lookup_ids_without_raw_evidence(self):
         case = load_case('J3-01')
         result = _missing_case(case, 'journey-3', 'fixture')
-        result.update(task={'state': 'completed'}, tasks=[
+        result.update(task={'state': 'completed'}, task_seconds=12.5, tasks=[
             {'task_id': 'task', 'conversation_id': 'session', 'trace_id': 'trace', 'state': 'completed'}])
         result['rag']['answers'] = [{'task_id': 'task', 'text': 'PRIVATE_BODY', 'evaluation_state': 'scored',
             'metrics': {'correctness': {'passed': 0, 'total': 1}}, 'verdict': {'criteria': [
@@ -106,12 +106,17 @@ class BenchmarkTests(unittest.TestCase):
             observations = history_observations(result, row, events)
             saved = {**retained_report(result, row, observations), 'result_sha256': digest(result)}
             store.sql = Mock(side_effect=[{'rows': []}, {}, {'rows': [[canonical(saved)]]},
-                                          {'rows': [[canonical({**saved, 'pipeline': {'stages': {}}})]]}])
+                                          {'rows': [[canonical({**saved, 'pipeline': {'stages': {}},
+                                              'history_observations': {**observations, 'completed_seconds': 12.5,
+                                                                       'answer_timing': 'final_answer_sse'}})]]}])
             self.assertEqual(store.persist(result, case, tmp)['state'], 'saved')
             self.assertEqual(store.persist(result, case, tmp)['state'], 'already_saved')
         insert = store.sql.call_args_list[1].args[0]
         self.assertNotIn('PRIVATE_', insert)
         self.assertNotIn('evidence_file_id', insert)
+        self.assertNotIn('completed_seconds', insert)
+        self.assertNotIn('answer_timing', insert)
+        self.assertEqual(row['duration_seconds'], 12.5)
         self.assertIn('Missing a required fact', insert)
         self.assertIn('Invalid query', insert)
         self.assertIn('"task_id":"task"', insert)
@@ -175,7 +180,7 @@ class BenchmarkTests(unittest.TestCase):
 
     def test_history_public_metrics_reject_text_in_numeric_or_revision_columns(self):
         good=['J3-58','2026-11-18 00:00:00','12.5','75','4','3','completed','rev1','snap1','judge1',
-              'a'*32,'eligible','44','1','completed','12.5','3','3','1']
+              'a'*32,'eligible','44','1','completed','3','3','1']
         self.assertEqual(metrics_row(good)['quality_score'],75)
         for i,value in [(3,'business secret'),(7,'<script>business</script>'),(1,'business secret')]:
             bad=copy.copy(good);bad[i]=value
@@ -194,33 +199,27 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn('repos/owner/repo/actions/workflows/journeys.yml/runs?per_page=100', request.call_args.args[0])
 
     def test_body_in_earlier_turn_counts_as_completion_and_limits_completion_timing(self):
-        report = {'tasks': [{'task_id': 'answered'}, {'task_id': 'timed-out'}],
+        report = {'tasks': [{'task_id': 'answered'}, {'task_id': 'timed-out'}], 'task': {'state': 'timeout'},
+                  'task_seconds': 60,
                   'rag': {'answers': [{'task_id': 'answered', 'text': 'Delivered', 'seconds': 3.5},
                                       {'task_id': 'context', 'text': 'Context', 'seconds': 8,
                                        'evaluation_state': 'context_only'}]}}
-        row = {'task_state': 'timeout', 'benchmark_state': 'eligible', 'duration_seconds': 60, 'model_round_count': 4}
         with tempfile.TemporaryDirectory() as tmp:
             events = Path(tmp) / 'events.jsonl'
             events.write_text('\n'.join(json.dumps({'task_id': i, 'seq': seq, 'kind': 'lifecycle',
                 'payload': {'type': 'llm_started'}}) for seq, i in enumerate(['answered', 'timed-out', 'timed-out'])))
+            row = history_record(report, load_case('J3-01'), events)
             observed = history_observations(report, row, events)
         self.assertEqual(observed['qa_outcome'], 'completed')
-        self.assertEqual(observed['completed_seconds'], 3.5)
+        self.assertEqual(row['duration_seconds'], 3.5)
         self.assertEqual(observed['completed_model_rounds'], 1)
 
     def test_delivery_timing_keeps_multiturn_clock_and_missing_samples_distinct(self):
         answers = [{'text': 'Context', 'seconds': 2, 'evaluation_state': 'context_only'},
                    {'text': 'Answer', 'seconds': 5, 'evaluation_state': 'scored'}]
-        report = {'answer_timing': ANSWER_TIMING, 'rag': {'answers': answers}}
-        row = {'task_state': 'completed', 'benchmark_state': 'eligible',
-               'duration_seconds': 30, 'model_round_count': 4}
-        observed = history_observations(report, row)
-        self.assertEqual(observed['completed_seconds'], 7)
-        self.assertEqual(observed['answer_timing'], ANSWER_TIMING)
+        self.assertEqual(delivered_answer_seconds(answers), 7)
         answers[0]['seconds'] = None
-        observed = history_observations(report, row)
-        self.assertEqual(observed['qa_outcome'], 'completed')
-        self.assertIsNone(observed['completed_seconds'])
+        self.assertIsNone(delivered_answer_seconds(answers))
 
     def test_report_reuses_qa_html_as_a_single_github_file(self):
         secret_marker = '</script><PRIVATE_FACT>'
@@ -238,6 +237,9 @@ class BenchmarkTests(unittest.TestCase):
         details = details_for_case(row, report)
         self.assertFalse(details['errors'])
         self.assertEqual(details['timeouts'], [['J3-01', 'task-session', 'task-trace', 60]])
+        saved = retained_report(report, row, {'qa_outcome': 'timeout'})
+        self.assertEqual(saved['report_details']['timeouts'], [['J3-01', 'task-session', 'task-trace']])
+        self.assertEqual(details_for_case(row, saved)['timeouts'], details['timeouts'])
         self.assertEqual(details['tools'][0][1:5], ['task-session', 'task-trace', 'bash', secret_marker])
         store = Mock()
         raw = canonical(report)
