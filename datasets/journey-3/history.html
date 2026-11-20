@@ -520,8 +520,11 @@ scope.onchange = selectScope;
 revision.onchange = render;
 if (currentRun) {
   document.getElementById('details').hidden = Boolean(currentRun.metrics_only);
-  const title = currentRun.environment ? 'Journey-3 报告 · ' + currentRun.environment : 'Journey-3 报告';
-  document.getElementById('description').textContent = title + ' · ' + runLabel(currentRun.run_id, currentRun.attempt);
+  if (currentRun.environment) {
+    document.title += ' · ' + currentRun.environment;
+    document.querySelector('h1').textContent = document.title;
+  }
+  document.getElementById('description').textContent = runLabel(currentRun.run_id, currentRun.attempt);
   if (currentRun.coverage) {
     const {recorded, planned, missing} = currentRun.coverage;
     const coverage = document.getElementById('report-coverage');

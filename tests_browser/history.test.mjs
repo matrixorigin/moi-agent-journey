@@ -13,6 +13,14 @@ test('history overlays the selected job or all cases while keeping case and mode
     await empty.setContent(template);
     assert.match(await empty.locator('#coverage').innerText(), /0 次记录/);
     await empty.close();
+    const production = await browser.newPage();
+    production.on('pageerror', error => errors.push(error.message));
+    await production.setContent(template.replace('/*RUN_DETAILS*/null', JSON.stringify({
+      run_id: '1', attempt: 1, environment: 'Production', metrics_only: true,
+    })));
+    assert.equal(await production.title(), 'Journey-3 · Knowledge Base Tasks · Production');
+    assert.equal(await production.locator('h1').innerText(), await production.title());
+    await production.close();
     const base = { case_id: 'J3-88', case_revision: 'r1', snapshot_id: 's1',
       evaluator_version: 'judge1', model_key: 'a'.repeat(32), qa_outcome: 'completed', run_attempt: 1,
       completed_model_rounds: 3, tool_failed: 0, tool_succeeded: 2 };
@@ -34,7 +42,7 @@ test('history overlays the selected job or all cases while keeping case and mode
         qa_outcome: 'excluded', completed_seconds: null, completed_model_rounds: null, quality_score: null },
     ];
     const jobs = { documents: ['J3-57'], operations: ['J3-58', 'J3-88', 'J3-89'] };
-    const details = {run_id: '3', attempt: 1, errors: [], scores: [],
+    const details = {run_id: '3', attempt: 1, environment: 'QA', errors: [], scores: [],
       coverage: {recorded: 3, planned: 4, missing: ['J3-58']},
       timeouts: [['J3-89', 'session-test', 'trace-test', 60]],
       tools: [['J3-89', 'session-test', 'trace-test', 'bash', 'test command', 'test error']]};
@@ -53,6 +61,8 @@ test('history overlays the selected job or all cases while keeping case and mode
     const latency = 'completed_seconds';
     const quality = 'quality_score';
     const casesIn = async plot => page.locator('#' + plot + ' .chart-series').evaluateAll(nodes => nodes.map(node => node.dataset.case));
+    assert.equal(await page.title(), 'Journey-3 · Knowledge Base Tasks · QA');
+    assert.equal(await page.locator('h1').innerText(), await page.title());
     assert.equal(await page.locator('#case').inputValue(), 'all');
     assert.equal(await page.locator('#report-coverage').innerText(), '本次记录 3 / 4 题 · 缺少 J3-58');
     assert.equal(await page.locator('#completed_seconds-thresholds').isVisible(), true);

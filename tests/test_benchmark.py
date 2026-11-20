@@ -153,6 +153,7 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn(b'original error', html)
         self.assertIn(b'task-trace', html)
         self.assertNotIn(secret_marker.encode(), html)
+        self.assertIn(b'"environment": "QA"', html)
         self.assertIn(b'"coverage": {"recorded": 1, "planned": 2, "missing": ["J3-02"]}', html)
         with tempfile.TemporaryDirectory() as tmp:
             write_metrics([], tmp)

@@ -1,4 +1,4 @@
-"""Generate the Journey-3 HTML once and save the same bytes to QA and Actions."""
+"""Generate the Journey-3 HTML for the target Catalog and GitHub Actions."""
 import argparse
 import json
 import os
@@ -107,8 +107,7 @@ def publish(store, rows, run, attempt, artifact_dir=None, run_metadata=None, *, 
     observed = {row['case_id'] for row in rows if row['run_id'] == run and row['run_attempt'] == attempt}
     missing = [case_id for case_id in planned if case_id not in observed]
     details['coverage'] = {'recorded': len(planned) - len(missing), 'planned': len(planned), 'missing': missing}
-    if production:
-        details['environment'] = 'Production'
+    details['environment'] = 'Production' if production else 'QA'
     with tempfile.TemporaryDirectory() as tmp:
         details = Evidence(tmp, configured_secrets()).clean(details)
     filename = f'journey-3-report-{run}-attempt-{attempt}.html'
