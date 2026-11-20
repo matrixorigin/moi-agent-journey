@@ -3,6 +3,42 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { chromium } from 'playwright';
 
+test('Pages lists the four latest-run cohorts by case for the selected scope', async () => {
+  const template = await readFile(new URL('../datasets/journey-3/history.html', import.meta.url), 'utf8');
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const base = {run_id: '42', run_attempt: 2, evaluated_at: '2026-11-21T00:00:00Z', duration_seconds: 240,
+      completed_seconds: null, completed_model_rounds: null, tool_failed: 0, tool_succeeded: 0, quality_score: null};
+    const rows = [
+      {...base, case_id: 'J3-01', qa_outcome: 'error'},
+      {...base, case_id: 'J3-58', qa_outcome: 'timeout', tool_failed: 2, tool_succeeded: 6},
+      {...base, case_id: 'J3-59', qa_outcome: 'completed', quality_score: 49},
+      {...base, case_id: 'J3-60', qa_outcome: 'completed', quality_score: 50},
+      {...base, case_id: 'J3-61', qa_outcome: 'completed', quality_score: 20, run_attempt: 1},
+    ];
+    await page.setContent(template.replace('/*HISTORY_DATA*/[]', JSON.stringify(rows))
+      .replace('/*HISTORY_JOBS*/{}', JSON.stringify({documents: ['J3-01'], operations: ['J3-58','J3-59','J3-60','J3-61']}))
+      .replace('/*RUN_DETAILS*/null', JSON.stringify({run_id: '42', attempt: 2, environment: 'QA', metrics_only: true}))
+      .replace('/*RUN_METADATA*/{}', JSON.stringify({'42': {number: 102}}))
+      .replace('/*PAGES_ENVIRONMENT*/null', '"QA"'));
+    assert.equal(await page.locator('#run-overview').isHidden(), true);
+    assert.match(await page.locator('#details h2').innerText(), /最近一次运行明细 · #102\.2/);
+    const records = page.locator('#detail-records tbody td');
+    assert.deepEqual(await records.allTextContents(), ['J3-01']);
+    await page.locator('[data-detail=timeouts]').click();
+    assert.deepEqual(await records.allTextContents(), ['J3-58', '240 秒']);
+    await page.locator('[data-detail=tools]').click();
+    assert.deepEqual(await records.allTextContents(), ['J3-58', '2 次', '25%']);
+    await page.locator('[data-detail=scores]').click();
+    assert.deepEqual(await records.allTextContents(), ['J3-59', '49 分']);
+    await page.locator('#case').selectOption('job:documents');
+    assert.match(await page.locator('#detail-records').innerText(), /无符合条件/);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('history overlays the selected job or all cases while keeping case and model series separate', async () => {
   const template = await readFile(new URL('../datasets/journey-3/history.html', import.meta.url), 'utf8');
   const browser = await chromium.launch({ headless: true });
