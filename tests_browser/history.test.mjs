@@ -55,9 +55,8 @@ test('history overlays the selected job or all cases while keeping case and mode
     const casesIn = async plot => page.locator('#' + plot + ' .chart-series').evaluateAll(nodes => nodes.map(node => node.dataset.case));
     assert.equal(await page.locator('#case').inputValue(), 'all');
     assert.equal(await page.locator('#report-coverage').innerText(), '本次记录 3 / 4 题 · 缺少 J3-58');
-    assert.equal(await page.locator('#latency-distribution').isVisible(), true);
-    await page.getByRole('button', { name: '逐题趋势', exact: true }).click();
-    assert.equal(await page.locator('#latency-cases').isVisible(), true);
+    assert.equal(await page.locator('#completed_seconds-thresholds').isVisible(), true);
+    assert.equal(await page.locator('#completed_seconds').isVisible(), true);
     const ticks = page.locator('#completed_seconds [data-run-tick]');
     assert.deepEqual(await ticks.evaluateAll(nodes => nodes.map(node => node.firstChild.nodeValue)),
       ['#93', '#94', '#95', '#95.2', '#96']);
@@ -110,49 +109,58 @@ test('history overlays the selected job or all cases while keeping case and mode
   }
 });
 
-test('latency distributions count completed samples and keep exact threshold boundaries', async () => {
+test('threshold shares use metric-specific cohorts and include exact boundaries', async () => {
   const template = await readFile(new URL('../datasets/journey-3/history.html', import.meta.url), 'utf8');
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
     const rows = [
-      ['1', 'J3-01', 'completed', 60],
-      ['1', 'J3-02', 'completed', 120],
-      ['1', 'J3-03', 'completed', 600],
-      ['1', 'J3-04', 'completed', 601],
-      ['1', 'J3-05', 'timeout', null],
-      ['1', 'J3-06', 'completed', null],
-      ['2', 'J3-01', 'timeout', null],
-      ['3', 'J3-01', 'completed', 180],
-    ].map(([run_id, case_id, qa_outcome, completed_seconds]) => ({
-      run_id, case_id, qa_outcome, completed_seconds, run_attempt: 1,
-      evaluated_at: '2026-11-19T00:00:00Z', completed_model_rounds: null,
-      quality_score: null, tool_failed: null, tool_succeeded: null,
+      ['1', 'J3-01', 'completed', 60, 10, 20, 1, 9],
+      ['1', 'J3-02', 'completed', 120, 20, 40, 2, 8],
+      ['1', 'J3-03', 'completed', 600, 40, 80, 2, 3],
+      ['1', 'J3-04', 'completed', 601, 41, 81, 1, 0],
+      ['1', 'J3-05', 'timeout', null, 2, null, 1, 4],
+      ['1', 'J3-06', 'completed', null, null, null, 0, 0],
+      ['2', 'J3-01', 'timeout', null, null, null, null, null],
+      ['3', 'J3-01', 'completed', 180, 30, 60, 0, 2],
+    ].map(([run_id, case_id, qa_outcome, completed_seconds, completed_model_rounds, quality_score,
+      tool_failed, tool_succeeded]) => ({
+      run_id, case_id, qa_outcome, completed_seconds, completed_model_rounds, quality_score,
+      tool_failed, tool_succeeded, run_attempt: 1, evaluated_at: '2026-11-19T00:00:00Z',
     }));
     const jobs = {documents: ['J3-01', 'J3-02'], operations: ['J3-03', 'J3-04', 'J3-05', 'J3-06']};
     await page.setContent(template.replace('/*HISTORY_DATA*/[]', JSON.stringify(rows))
       .replace('/*HISTORY_JOBS*/{}', JSON.stringify(jobs)));
-    const chart = page.locator('#latency-thresholds');
-    const points = label => chart.locator(`[data-series="${label}"] circle title`);
-    assert.equal(await chart.locator('.chart-series').count(), 11);
-    assert.match(await points('≤60').first().textContent(), /1 \/ 4 题（25\.0%）/);
-    assert.match(await points('≤120').first().textContent(), /2 \/ 4 题（50\.0%）/);
-    assert.match(await points('≤600').first().textContent(), /3 \/ 4 题（75\.0%）/);
-    assert.match(await points('≥600').first().textContent(), /2 \/ 4 题（50\.0%）/);
-    assert.equal(await points('≤120').count(), 2);
-    assert.equal(await chart.locator('polyline').count(), 0); // No samples for run 2.
-    assert.match(await page.locator('#latency-buckets [data-bucket=">600"] title').textContent(), /1 \/ 4 题（25\.0%）/);
+    const chart = id => page.locator(`#${id}-thresholds`);
+    const points = (id, label) => chart(id).locator(`[data-series="${label}"] circle title`);
+    const fixtures = [
+      ['completed_seconds', 11, '≤120 秒', '2 / 4', '≤600 秒', '3 / 4', '≥600 秒', '2 / 4'],
+      ['completed_model_rounds', 5, '≤20 轮', '2 / 4', '≤40 轮', '3 / 4', '≥40 轮', '2 / 4'],
+      ['tool_failure_rate', 5, '≤20%', '3 / 6', '≤40%', '4 / 6', '≥40%', '2 / 6'],
+      ['quality_score', 5, '≤40 分', '2 / 4', '≤80 分', '3 / 4', '≥80 分', '2 / 4'],
+    ];
+    for (const [id, series, low, lowCount, upper, upperCount, tail, tailCount] of fixtures) {
+      assert.equal(await chart(id).locator('.chart-series').count(), series);
+      assert.match(await points(id, low).first().textContent(), new RegExp(lowCount));
+      assert.match(await points(id, upper).first().textContent(), new RegExp(upperCount));
+      assert.match(await points(id, tail).first().textContent(), new RegExp(tailCount));
+      assert.equal(await points(id, low).count(), 2);
+      assert.equal(await chart(id).locator('polyline').count(), 0); // No samples for run 2.
+    }
+    assert.match(await points('tool_failure_rate', '≤20%').first().textContent(), /可计算 5 题/);
 
     await page.locator('#case').selectOption('job:operations');
-    assert.match(await points('≤600').textContent(), /1 \/ 2 题（50\.0%）/);
-    await page.getByRole('button', {name: '≥600', exact: true}).click();
-    assert.equal(await chart.locator('.muted').count(), 10);
-    await page.getByRole('button', {name: '≥600', exact: true}).click();
-    assert.equal(await chart.locator('.muted').count(), 0);
-
+    assert.match(await points('completed_seconds', '≤600 秒').textContent(), /1 \/ 2 题（50\.0%）/);
+    assert.match(await points('tool_failure_rate', '≤20%').textContent(), /1 \/ 4 题（25\.0%）/);
+    const highScore = page.getByRole('button', {name: '≥80 分', exact: true});
+    await highScore.click();
+    assert.equal(await chart('quality_score').locator('.muted').count(), 4);
+    assert.equal(await chart('tool_failure_rate').locator('.muted').count(), 0);
+    await highScore.click();
+    assert.equal(await chart('quality_score').locator('.muted').count(), 0);
     await page.locator('#case').selectOption('J3-03');
-    assert.equal(await page.locator('#latency-views').isHidden(), true);
-    assert.equal(await page.locator('#latency-cases').isVisible(), true);
+    assert.equal(await chart('completed_seconds').isHidden(), true);
+    assert.equal(await page.locator('#completed_seconds').isVisible(), true);
   } finally {
     await browser.close();
   }
