@@ -1,7 +1,12 @@
-name: Agent journeys QA
+name: Agent journeys
 on:
   workflow_dispatch:
     inputs:
+      target_environment:
+        description: '测试环境（Production 仅支持 journey-3）'
+        type: choice
+        options: [qa, production]
+        default: qa
       workspace:
         description: '工作区（all 表示运行全部）'
         type: choice
@@ -16,7 +21,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: agent-journeys-qa
+  group: agent-journeys-${{ inputs.target_environment || 'qa' }}
   cancel-in-progress: false
   queue: max
 jobs:
@@ -33,6 +38,7 @@ jobs:
       - id: plan
         env:
           JOURNEY_WORKSPACE: ${{ inputs.workspace || 'all' }}
+          MOI_ENVIRONMENT: ${{ inputs.target_environment || 'qa' }}
         run: python3 -m journey.catalog plan-workspaces "$JOURNEY_WORKSPACE"
   judge-image:
     needs: plan
@@ -54,13 +60,14 @@ jobs:
     uses: ./.github/workflows/run-journey.yml
     with:
       workspace: ${{ matrix.workspace }}
+      target_environment: ${{ inputs.target_environment || 'qa' }}
       judge_image_artifact: judge-image-${{ github.run_id }}-attempt-${{ github.run_attempt }}
     secrets: inherit
   report:
     needs: [plan, journeys]
     # Finalize already-recorded results even after an ordinary cancellation.
     if: always() && needs.plan.result == 'success'
-    environment: qa
+    environment: ${{ inputs.target_environment || 'qa' }}
     permissions:
       contents: read
       actions: read
@@ -78,13 +85,18 @@ jobs:
           pattern: case-*-attempt-${{ github.run_attempt }}
           merge-multiple: true
           path: downloaded-results
-      - name: Save complete Journey-3 report to the QA Catalog
+      - name: Save complete Journey-3 report to the target Catalog
         id: j3-report
         if: ${{ always() && contains(fromJSON(needs.plan.outputs.matrix).include.*.workspace, 'journey-3') }}
         env:
           GH_TOKEN: ${{ github.token }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
-          MOI_PAT: ${{ secrets.MOI_PAT }}
+          MOI_PAT: ${{ (inputs.target_environment != 'production' || vars.MOI_J3_AUTH_MODE == 'pat') && secrets.MOI_PAT || '' }}
+          MOI_ENVIRONMENT: ${{ inputs.target_environment || 'qa' }}
+          MOI_J3_WORKSPACE_ID: ${{ vars.MOI_J3_WORKSPACE_ID }}
+          MOI_J3_AUTH_MODE: ${{ vars.MOI_J3_AUTH_MODE }}
+          MOI_J3_CLIENT_ID: ${{ inputs.target_environment == 'production' && vars.MOI_J3_AUTH_MODE != 'pat' && secrets.MOI_J3_CLIENT_ID || '' }}
+          MOI_J3_CLIENT_SECRET: ${{ inputs.target_environment == 'production' && vars.MOI_J3_AUTH_MODE != 'pat' && secrets.MOI_J3_CLIENT_SECRET || '' }}
         run: python3 -m journey.benchmark_run_report --artifact-dir "$RUNNER_TEMP/journey-3-html"
       - name: Upload Journey-3 HTML
         id: j3-html

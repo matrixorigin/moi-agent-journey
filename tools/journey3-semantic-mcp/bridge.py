@@ -1,4 +1,4 @@
-"""Journey-3 MCP adapter for the five QA semantic-model operations."""
+"""Journey-3 MCP adapter for five scoped semantic-model operations."""
 
 import hmac
 import json
@@ -12,6 +12,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 MAX_REQUEST_BYTES = 128 * 1024
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+PRODUCTION_BASE_URL = 'https://api.moi.matrixorigin.cn/newmoi'
 OPERATIONS = {
     'newmoi_get_semantic_models_model_id_export': ('GET', 'export', set()),
     'newmoi_get_semantic_models_model_id_entries': ('GET', 'entries', {'page_size', 'page_token', 'domain', 'kind'}),
@@ -79,10 +80,12 @@ class Bridge:
             return {'content': [{'type': 'text', 'text': str(error)}], 'isError': True}
 
 
-def qa_upstream(base_url, api_key, workspace):
+def product_upstream(base_url, api_key, workspace, environment):
+    if environment == 'production' and base_url.rstrip('/') != PRODUCTION_BASE_URL:
+        raise ValueError('production upstream must match the production product endpoint')
     parsed = urlsplit(base_url)
     if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
-        raise ValueError('QA upstream must be a fixed HTTPS product endpoint')
+        raise ValueError('upstream must be a fixed HTTPS product endpoint')
     opener = build_opener(NoRedirect())
 
     def call(method, path, body):
@@ -96,23 +99,23 @@ def qa_upstream(base_url, api_key, workspace):
                 raw = response.read(MAX_RESPONSE_BYTES + 1)
         except HTTPError as error:
             error.close()
-            raise ToolError(f'qa_semantic_http_{error.code}') from None
+            raise ToolError(f'{environment}_semantic_http_{error.code}') from None
         except (URLError, OSError):
-            raise ToolError('qa_semantic_unavailable') from None
+            raise ToolError(f'{environment}_semantic_unavailable') from None
         if len(raw) > MAX_RESPONSE_BYTES:
-            raise ToolError('qa_semantic_response_too_large')
+            raise ToolError(f'{environment}_semantic_response_too_large')
         try:
             envelope = json.loads(raw)
         except (ValueError, UnicodeError):
-            raise ToolError('qa_semantic_invalid_response') from None
+            raise ToolError(f'{environment}_semantic_invalid_response') from None
         if not isinstance(envelope, dict) or envelope.get('code') != 'OK' or not isinstance(envelope.get('data'), dict):
-            raise ToolError('qa_semantic_rejected_request')
+            raise ToolError(f'{environment}_semantic_rejected_request')
         return envelope['data']
 
     return call
 
 
-def handler_for(bridge, key):
+def handler_for(bridge, key, *, path='/mcp', environment='qa'):
     class Handler(BaseHTTPRequestHandler):
         def setup(self):
             self.request.settimeout(30)
@@ -135,7 +138,7 @@ def handler_for(bridge, key):
             self.reply(204 if self.path == '/healthz' else 405)
 
         def do_POST(self):
-            if self.path != '/mcp':
+            if self.path != path:
                 self.reply(404)
                 return
             supplied = self.headers.get('X-API-Key', '').encode()
@@ -165,7 +168,7 @@ def handler_for(bridge, key):
             if method == 'initialize':
                 result = {'protocolVersion': params.get('protocolVersion', '2025-03-26'),
                           'capabilities': {'tools': {}},
-                          'serverInfo': {'name': 'journey3-qa-semantics', 'version': '1.0.0'}}
+                          'serverInfo': {'name': f'journey3-{environment}-semantics', 'version': '1.0.0'}}
             elif method == 'tools/list':
                 result = {'tools': bridge.tools}
             elif method == 'tools/call':
@@ -181,6 +184,9 @@ def handler_for(bridge, key):
 
 
 def main():
+    environment = os.environ.get('J3_ENVIRONMENT', 'qa')
+    if environment not in {'qa', 'production'}:
+        raise ValueError('invalid Journey-3 environment')
     workspace = os.environ['J3_WORKSPACE_ID']
     read_models = {int(value) for value in os.environ['J3_READ_MODEL_IDS'].split(',')}
     scratch_model = int(os.environ['J3_SCRATCH_MODEL_ID'])
@@ -189,12 +195,15 @@ def main():
     tools = json.loads(Path(__file__).with_name('tools.json').read_text())
     if {tool['name'] for tool in tools} != set(OPERATIONS):
         raise ValueError('unexpected MCP tool catalog')
-    bridge = Bridge(workspace, read_models, scratch_model, tools,
-                    qa_upstream(os.environ['J3_QA_BASE_URL'], os.environ['J3_QA_API_KEY'], workspace))
+    variable_prefix = 'J3_PROD' if environment == 'production' else 'J3_QA'
+    upstream = product_upstream(os.environ[variable_prefix + '_BASE_URL'], os.environ[variable_prefix + '_API_KEY'],
+                                workspace, environment)
+    bridge = Bridge(workspace, read_models, scratch_model, tools, upstream)
     key = os.environ['J3_BRIDGE_KEY'].encode()
     if len(key) < 32:
         raise ValueError('MCP authentication key is too short')
-    ThreadingHTTPServer(('0.0.0.0', 8080), handler_for(bridge, key)).serve_forever()
+    path = '/journey-3-semantic-mcp' if environment == 'production' else '/mcp'
+    ThreadingHTTPServer(('0.0.0.0', 8080), handler_for(bridge, key, path=path, environment=environment)).serve_forever()
 
 
 if __name__ == '__main__':

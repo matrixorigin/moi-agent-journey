@@ -1,4 +1,4 @@
-"""Generate the Journey-3 HTML once and save the same bytes to QA and Actions."""
+"""Generate the Journey-3 HTML for the target Catalog and GitHub Actions."""
 import argparse
 import json
 import os
@@ -11,6 +11,7 @@ from .benchmark_metrics import history_observations
 from .benchmark_store import HISTORY, configured_store, literal
 from .catalog import load_suite
 from .evidence import Evidence, configured_secrets
+from .production import is_production
 from .report import ArtifactRejected, inspect_payload
 from .failure_categories import LABELS, error_category
 
@@ -106,18 +107,22 @@ def run_details(store, run, attempt):
             return details
 
 
-def publish(store, rows, run, attempt, artifact_dir=None, run_metadata=None):
+def publish(store, rows, run, attempt, artifact_dir=None, run_metadata=None, *, production=False):
     details = run_details(store, run, attempt)
     planned = load_suite('journey-3')['cases']
     observed = {row['case_id'] for row in rows if row['run_id'] == run and row['run_attempt'] == attempt}
     missing = [case_id for case_id in planned if case_id not in observed]
     details['coverage'] = {'recorded': len(planned) - len(missing), 'planned': len(planned), 'missing': missing}
+    details['environment'] = 'Production' if production else 'QA'
     with tempfile.TemporaryDirectory() as tmp:
         details = Evidence(tmp, configured_secrets()).clean(details)
     filename = f'journey-3-report-{run}-attempt-{attempt}.html'
     html = render_history(rows, details, run_metadata).encode('utf-8')
     store.upload_private(filename, html, 'text/html; charset=utf-8')
     if artifact_dir is not None:
+        if production:
+            summary = {key: details[key] for key in ('run_id', 'attempt', 'coverage', 'environment')}
+            html = render_history(rows, {**summary, 'metrics_only': True}, run_metadata).encode('utf-8')
         inspect_payload(html, configured_secrets(), name=filename)
         artifact_dir.mkdir(parents=True, exist_ok=True)
         (artifact_dir / filename).write_bytes(html)
@@ -136,8 +141,9 @@ def main():
         current_number = os.environ.get('GITHUB_RUN_NUMBER', '')
         if RUN_ID.fullmatch(current_number):
             metadata.setdefault(run, {})['number'] = int(current_number)
-        filename, missing = publish(store, rows, run, attempt, args.artifact_dir, metadata)
-        print('Journey-3 HTML saved in the QA Catalog')
+        filename, missing = publish(store, rows, run, attempt, args.artifact_dir, metadata,
+                                    production=is_production())
+        print('Journey-3 HTML saved in the target Catalog')
         if args.artifact_dir is not None and os.environ.get('GITHUB_OUTPUT'):
             with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as stream:
                 stream.write(f'artifact-file={args.artifact_dir / filename}\n')
@@ -146,10 +152,10 @@ def main():
                 status = '结果记录不完整' if missing else '已收齐结果'
                 stream.write(f'\n**Journey-3 HTML（{status}）**\n')
         if missing:
-            print('::error::Journey-3 report is missing QA rows for: ' + ', '.join(missing))
+            print('::error::Journey-3 report is missing rows for: ' + ', '.join(missing))
             return 1
     except ArtifactRejected:
-        print('::error::Journey-3 HTML was saved in QA and withheld from GitHub by the credential scan')
+        print('::error::Journey-3 HTML was saved in the target Catalog and withheld from GitHub by the credential scan')
         return 1
     except Exception:
         print('::error::Journey-3 could not prepare the HTML report')

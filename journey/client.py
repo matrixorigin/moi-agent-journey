@@ -80,25 +80,40 @@ def segment(value):
 
 
 class Client:
-    def __init__(self, base_url, pat, timeout=180, observer=None):
+    def __init__(self, base_url, pat, timeout=180, observer=None, *, bearer=None, locked_workspace=None):
         parsed = urllib.parse.urlsplit(base_url)
         if (parsed.scheme != "https" or not parsed.hostname or parsed.username
                 or parsed.password or parsed.query or parsed.fragment
-                or not pat or any(c.isspace() for c in pat)):
+                or bool(pat) == bool(bearer) or (pat and any(c.isspace() for c in pat))):
             raise Failure("invalid_configuration")
         self.base_url = base_url.rstrip("/")
-        self.headers = {"X-API-Key": pat, "Accept": "application/json"}
+        self.headers = {"Accept": "application/json"}
+        self.bearer = bearer
+        self.locked_workspace = locked_workspace
+        if pat:
+            self.headers["X-API-Key"] = pat
+        if locked_workspace:
+            self.headers["X-Workspace-ID"] = locked_workspace
         self.deadline = time.monotonic() + timeout
         self.opener = urllib.request.build_opener(NoRedirect())
         self.requests = 0
         self.observer = observer
 
-    def request(self, method, path, body=None, *, raw=None, content_type=None,
-                binary=False, max_bytes=JSON_RESPONSE_LIMIT):
+    def _request_headers(self):
         remaining = self.deadline - time.monotonic()
         if remaining <= 0:
             raise Failure("deadline_exceeded")
         headers = dict(self.headers)
+        if self.bearer:
+            headers["Authorization"] = "Bearer " + self.bearer(remaining)
+            remaining = self.deadline - time.monotonic()
+            if remaining <= 0:
+                raise Failure("deadline_exceeded")
+        return headers, remaining
+
+    def request(self, method, path, body=None, *, raw=None, content_type=None,
+                binary=False, max_bytes=JSON_RESPONSE_LIMIT):
+        headers, remaining = self._request_headers()
         data = None
         if body is not None:
             data = json.dumps(body).encode()
@@ -196,10 +211,8 @@ class Client:
         request_id = str(uuid.uuid4())
         body = {"jsonrpc": "2.0", "id": request_id, **selector,
                 "method": method, "params": params}
-        remaining = self.deadline - time.monotonic()
-        if remaining <= 0:
-            raise Failure("deadline_exceeded")
-        headers = {**self.headers, "Accept": "text/event-stream", "Content-Type": "application/json"}
+        headers, remaining = self._request_headers()
+        headers.update({"Accept": "text/event-stream", "Content-Type": "application/json"})
         request = urllib.request.Request(self.base_url + "/agents/a2a", data=json.dumps(body).encode(),
                                          headers=headers, method="POST")
         self.requests += 1

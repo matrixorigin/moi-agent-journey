@@ -27,6 +27,25 @@ def chunk(identity, content):
 
 
 class KnowledgeSourceTests(unittest.TestCase):
+    def test_production_reference_checks_use_the_migrated_source_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            client = Mock()
+            execution = KnowledgeExecution(client, {'id': 'case', 'title': 'test', 'workspace': 'journey-3',
+                'timeout_seconds': 60}, Evidence(directory), directory, 'model')
+            execution.reference_etags = {'qa-source': 'qa-etag'}
+            execution.corpus = {'model_id': 2, 'source_id_map': {'qa-source': 'prod-source'},
+                                'source_etags': {'prod-source': 'prod-etag'}}
+            client.product.return_value = {'source': {'model_id': 2, 'row_id': 'prod-source',
+                                             'effective_enabled': True}, 'etag': 'prod-etag'}
+            with patch('journey.knowledge_case.is_production', return_value=True):
+                reference = {'evidence': [{'source_id': 'qa-source', 'etag': 'qa-etag'}]}
+                self.assertEqual(execution.check_reference(reference)['state'], 'matched')
+                client.product.assert_called_once_with('GET',
+                    '/semantic-models/2/sources/prod-source/document?page_size=1', expected_code='OK')
+                reference['evidence'][0]['etag'] = 'changed'
+                self.assertEqual(execution.check_reference(reference)['state'], 'changed')
+                self.assertEqual(client.product.call_count, 1)
+
     def test_reference_drift_disabled_source_and_api_failure_are_explicitly_unscored(self):
         with tempfile.TemporaryDirectory() as directory:
             execution = KnowledgeExecution(Mock(), {'id': 'case', 'title': 'test', 'workspace': 'journey-3',

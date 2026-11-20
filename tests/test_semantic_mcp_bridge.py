@@ -47,3 +47,7 @@ class SemanticMCPBridgeTests(unittest.TestCase):
         self.assertTrue(self.call(UPDATE, 80005, entry_id='../80001', **data)['isError'])
         self.assertEqual(self.call(UPDATE, 80005, entry_id=123, **data)['structuredContent'], {'ok': True})
         self.upstream.assert_called_once_with('PUT', '/semantic-models/80005/entries/123', data)
+
+    def test_production_upstream_rejects_cross_environment_configuration(self):
+        with self.assertRaisesRegex(ValueError, 'production product endpoint'):
+            bridge.product_upstream('https://qa.example.invalid/newmoi', 'fake-token', 'journey-3', 'production')

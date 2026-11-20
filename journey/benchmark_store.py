@@ -1,4 +1,4 @@
-"""Keep business questions and complete evidence inside the QA workspace."""
+"""Keep business questions and complete evidence inside the selected workspace."""
 import argparse
 import hashlib
 import io
@@ -8,7 +8,7 @@ from pathlib import Path
 import tarfile
 import uuid
 
-from .client import Client, Failure
+from .client import Failure
 from .hello import discover_workspace
 
 DATABASE = 'journey3_benchmark'
@@ -41,9 +41,11 @@ class Store:
         self.root = root or discover_workspace(client, 'journey-3')
 
     def sql(self, statement, limit=1000):
-        result = self.client.product('POST', '/query/run',
-            {'db_name': DATABASE, 'query': statement, 'limit': limit}, expected_code='OK')
-        if result.get('status') != 'success':
+        response = self.client.request('POST', '/query/run',
+            {'db_name': DATABASE, 'query': statement, 'limit': limit})
+        result = response.get('data')
+        if (response.get('code') not in ('OK', 200) or not isinstance(result, dict)
+                or result.get('status') != 'success'):
             raise Failure('benchmark_store_query_failed')
         result['rows'] = [[cell.get('String') if cell.get('Valid') else None for cell in row]
                           for row in (result.get('result') or [])]
@@ -179,7 +181,8 @@ class Store:
 
 
 def configured_store(timeout=300):
-    return Store(Client(os.environ['MOI_BASE_URL'], os.environ['MOI_PAT'], timeout=timeout))
+    from .production import knowledge_client
+    return Store(knowledge_client(timeout))
 
 
 def main():

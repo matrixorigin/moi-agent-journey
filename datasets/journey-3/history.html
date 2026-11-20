@@ -439,7 +439,7 @@ for (const button of detailTabs) button.onclick = () => {
 };
 
 function showDetails() {
-  if (!currentRun) return;
+  if (!currentRun || currentRun.metrics_only) return;
   const selected = scope.value;
   const include = selected.startsWith('job:') ? new Set(jobs[selected.slice(4)]) : new Set([selected]);
   const rows = currentRun[detailTab].filter(row => selected === 'all' || include.has(row[0]));
@@ -519,8 +519,12 @@ function render() {
 scope.onchange = selectScope;
 revision.onchange = render;
 if (currentRun) {
-  document.getElementById('details').hidden = false;
-  document.getElementById('description').textContent = 'Journey-3 报告 · ' + runLabel(currentRun.run_id, currentRun.attempt);
+  document.getElementById('details').hidden = Boolean(currentRun.metrics_only);
+  if (currentRun.environment) {
+    document.title += ' · ' + currentRun.environment;
+    document.querySelector('h1').textContent = document.title;
+  }
+  document.getElementById('description').textContent = runLabel(currentRun.run_id, currentRun.attempt);
   if (currentRun.coverage) {
     const {recorded, planned, missing} = currentRun.coverage;
     const coverage = document.getElementById('report-coverage');

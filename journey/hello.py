@@ -27,6 +27,9 @@ def discover_workspace(client, workspace_name):
     if workspace["status"] != "ACTIVE":
         raise Failure("workspace_inactive")
     workspace_id = workspace["id"]
+    locked = getattr(client, "locked_workspace", None)
+    if locked is not None and workspace_id != locked:
+        raise Failure("production_journey3_workspace_mismatch")
     client.headers["X-Workspace-ID"] = workspace_id
     root = "/workspaces/" + segment(workspace_id)
     return root

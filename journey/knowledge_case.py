@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .a2a import final_reply
 from .catalog import ROOT, load_case
-from .client import Client, Failure, error_record, segment
+from .client import Failure, error_record, segment
 from .evidence import Evidence, configured_secrets, utc_now
 from .hello import discover_workspace
 from .knowledge_sources import list_sources, read_document
@@ -19,6 +19,7 @@ from .knowledge_trace import attach_selected_reads
 from .rag_quality import judge_data, judge_prompt, judge_schema, observe_rag, parse_verdict, summarize_verdict
 from .run_case import Execution
 from .model_judge import evaluate_model
+from .production import binding, bindings as production_bindings, is_production, knowledge_client
 from .trajectory import task_trajectory
 from .version import finish_version, start_version
 
@@ -29,9 +30,14 @@ class KnowledgeExecution(Execution):
         self.report['rag']['evaluator'] = {'method': 'workspace_model_json_schema',
                                           'model': self.model, 'protocol': 3}
         catalog = json.loads((ROOT / 'datasets/journey-3/corpora.json').read_text())
-        corpus = catalog[self.case['rag']['corpus']]
-        self.corpus = corpus
-        target = self.case.get('knowledge_target', {'agent_id': corpus['agent_id'], 'corpora': [self.case['rag']['corpus']]})
+        corpus_name = self.case['rag']['corpus']
+        target = self.case.get('knowledge_target', {'agent_id': catalog[corpus_name]['agent_id'], 'corpora': [corpus_name]})
+        self.reference_etags = catalog[corpus_name]['source_etags']
+        if is_production():
+            configuration = production_bindings(self.client, self.root, required=('corpora', 'document_agents'))
+            catalog = configuration['corpora']
+            target = {**target, 'agent_id': binding(configuration['document_agents'], target['agent_id'])}
+        self.corpus = binding(catalog, corpus_name)
         names = target.get('corpora')
         if (not isinstance(target.get('agent_id'), str) or not target['agent_id'] or
                 not isinstance(names, list) or not names or len(set(names)) != len(names) or
@@ -143,7 +149,15 @@ class KnowledgeExecution(Execution):
 
     def check_reference(self, config):
         state, records = 'matched', []
-        references = {(self.corpus['model_id'], item['source_id']): item['etag'] for item in config.get('evidence', [])}
+        references = {}
+        for item in config.get('evidence', []):
+            source_id, etag = item['source_id'], item['etag']
+            if is_production():
+                if self.reference_etags.get(source_id) != etag:
+                    return {'state': 'changed', 'sources': records}
+                source_id = binding(self.corpus['source_id_map'], source_id)
+                etag = binding(self.corpus['source_etags'], source_id)
+            references[self.corpus['model_id'], source_id] = etag
         if config.get('verify_whole_corpus'):
             for bound in self.bound_corpora:
                 references.update({(bound['model_id'], sid): etag for sid, etag in bound['source_etags'].items()})
@@ -234,6 +248,8 @@ class KnowledgeExecution(Execution):
             efficiency['review'] = verdict['efficiency']
         answer.update(evaluation_state='partial' if verdict.get('dimension_errors') else 'scored', verdict=verdict, metrics=summarize_verdict(verdict, observed))
         expected_sources = config.get('expected_source_ids', [])
+        if is_production():
+            expected_sources = [binding(self.corpus['source_id_map'], source) for source in expected_sources]
         actual = {item.get('source_row_id') for item in observed['retrieved_chunks']}
         answer['annotated_source_recall'] = {'retrieved': len(set(expected_sources) & actual), 'total': len(expected_sources),
             'rate': len(set(expected_sources) & actual) / len(expected_sources) if expected_sources else None}
@@ -438,8 +454,7 @@ def main(execution_type=None):
     signal.signal(signal.SIGINT, timeout)
     signal.alarm(case['timeout_seconds'])
     try:
-        client = Client(os.environ['MOI_BASE_URL'], os.environ['MOI_PAT'], timeout=case['timeout_seconds'],
-                        observer=evidence.observe_transport)
+        client = knowledge_client(case['timeout_seconds'], observer=evidence.observe_transport)
         execution = (execution_type or KnowledgeExecution)(client, case, evidence, Path('work'), case['model'])
         report = execution.reevaluate(saved) if saved is not None else execution.run()
     except (KeyError, Failure) as error:

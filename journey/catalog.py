@@ -152,6 +152,8 @@ def main():
     if args.command == 'plan-workspaces':
         config = json.loads((ROOT / 'suites.json').read_text())
         suites = select_suites(config, args.selection)
+        from .production import validate_selection
+        validate_selection([suite['workspace'] for suite in suites])
         output = json.dumps({'include': [
             {'workspace': suite['workspace'], 'display_name': journey_label(suite)} for suite in suites]})
         if os.environ.get('GITHUB_OUTPUT'):
@@ -162,6 +164,8 @@ def main():
         return 0
     if args.command == "plan":
         suite = load_suite(args.suite)
+        from .production import validate_selection
+        validate_selection([suite['workspace']])
         output = json.dumps(plan_suite(suite))
         if os.environ.get("GITHUB_OUTPUT"):
             with open(os.environ["GITHUB_OUTPUT"], "a") as f:

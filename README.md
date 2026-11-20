@@ -4,7 +4,7 @@
 
 ## 执行方式
 
-`Agent journeys QA` 目前仅手动运行，原每六小时的定时执行已暂停。PR 和合入 main 不触发真实 QA；PR 只运行 `Offline tests`，验证执行框架、浏览器场景与验收器，不读取 QA 凭据。手动入口需要工作流先合入 main；真实 QA 使用 GitHub `qa` environment 的 `MOI_BASE_URL` 与 `MOI_PAT` secrets。浏览器 case 还需要 `MOI_UI_BASE_URL`、`MOI_UI_AUTH_ORIGIN`、`MOI_UI_ACCOUNT` 和 `MOI_UI_PASSWORD`，并在登录前核对账号中心域名。
+`Agent journeys` 通过 GitHub Actions 手动运行，默认测试 QA。PR 执行 `Offline tests`，验证执行框架、浏览器场景与验收器。QA 使用 GitHub `qa` environment 的 `MOI_BASE_URL` 和 `MOI_PAT` secrets。浏览器 case 还使用 `MOI_UI_BASE_URL`、`MOI_UI_AUTH_ORIGIN`、`MOI_UI_ACCOUNT` 和 `MOI_UI_PASSWORD`。
 
 配置入口是 [suites.json](suites.json)：
 
@@ -85,7 +85,11 @@ Journey-2 另有**功能验收**：通过、不通过、前置条件不足和执
 
 知识库功能检查共享同一事件解析器：传统检索/SQL 工具事件和原生 CLI 服务端引用回执均可验证。原生文档引用必须匹配本用例独立保存的来源、文件、启用分段和标记；原生 SQL 回执必须执行本用例支持的目标聚合查询，并与独立验证的 fixture 及最终答案检查配合。普通 shell 输出不能证明检索或 SQL 执行成功。提前中断仍保留已做的检查；通道配置缺失或空白记为前置条件不足，非空无效 JSON 记为配置错误。
 
-手动运行 `Agent journeys QA` 时可以选择单个工作区；默认选择 `all`。报告只统计本次选择范围。
+手动运行 `Agent journeys` 时可选择测试环境和工作区。QA 默认选择 `all`。生产从 `main` 选择 `production` 和 `journey-3 (Knowledge Base Tasks)`。
+
+生产使用独立的 `production` Environment。配置 `MOI_BASE_URL` 和 `MOI_J3_BINDINGS` 为环境 secrets，`MOI_J3_WORKSPACE_ID` 为环境变量。默认使用服务账号，从环境 secrets `MOI_J3_CLIENT_ID` 和 `MOI_J3_CLIENT_SECRET` 获取并续期短效 Token。也可将环境变量 `MOI_J3_AUTH_MODE` 设为 `pat`，使用该环境的 `MOI_PAT` secret。测试身份需要生产测试工作区的智能体、知识源和模型访问权限，以及评测历史和证据的写入权限。
+
+在生产测试工作区准备与 QA 同版的文档、知识库、运营数据快照和参考答案。初始化 `journey3_benchmark`，保留私有用例的版本与校验值。将绑定配置上传到生产测试工作区的 Catalog，在 `MOI_J3_BINDINGS` 中配置其 `file_id` 和 `sha256`。配置中 `corpora` 以 `datasets/journey-3/corpora.json` 的语料键索引生产知识库，包含 `model_id`、`source_ids`、`source_etags` 和 QA 到生产的 `source_id_map`。`document_agents` 将 QA 智能体 ID 映射到生产 ID，`operations_agents` 将 QA 运营智能体 ID 映射到生产的 `ops_target`（包括语义模型、源表和工具引用）。完整生产报告保存在生产测试工作区的 Catalog，GitHub 下载版提供运行覆盖率和历史指标。
 
 每个 Journey-2 case 记录运行前后的 QA MOI 后端版本与构建 commit；单 case 期间版本变化时标记 blocked。总报告会标出不同 case 是否观测到了不同的 MOI 构建，版本缺失时也不会假定一致。该记录只覆盖 MOI 后端，不代表 Astra、模型服务、数据库迁移或功能开关也已核验。
 

@@ -73,8 +73,11 @@ class BenchmarkTests(unittest.TestCase):
 
     def test_sql_success_wire_is_decoded_and_history_replays_do_not_duplicate_evidence(self):
         store=Store.__new__(Store);store.client=Mock()
-        store.client.product.return_value={'status':'success','result':[[{'String':'42','Valid':True},{'String':'','Valid':False}]]}
-        decoded=store.sql('SELECT 42,NULL');self.assertEqual(decoded['rows'],[['42',None]])
+        data = {'status': 'success', 'result': [[{'String': '42', 'Valid': True}, {'String': '', 'Valid': False}]]}
+        for code in ('OK', 200):
+            with self.subTest(code=code):
+                store.client.request.return_value = {'code': code, 'data': data}
+                self.assertEqual(store.sql('SELECT 42,NULL')['rows'], [['42', None]])
         case=load_case('J3-01');result=_missing_case(case,'journey-3','offline')
         store.sql=Mock(return_value={'rows':[[canonical({**result,'pipeline':{'stages':{}}})]]});store.upload=Mock()
         with tempfile.TemporaryDirectory() as tmp:
@@ -207,6 +210,7 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn(b'original error', html)
         self.assertIn(b'task-trace', html)
         self.assertNotIn(secret_marker.encode(), html)
+        self.assertIn(b'"environment": "QA"', html)
         self.assertIn(b'"coverage": {"recorded": 1, "planned": 2, "missing": ["J3-02"]}', html)
         with tempfile.TemporaryDirectory() as tmp:
             write_metrics([], tmp)
@@ -225,6 +229,24 @@ class BenchmarkTests(unittest.TestCase):
                 publish(store, [], '44', 2, out)
             self.assertFalse(out.exists())
         store.upload_private.assert_called_once()
+
+    def test_production_report_publishes_metrics_without_session_details(self):
+        details = {'run_id': '44', 'attempt': 1, 'errors': [['J3-01', 'private-session', 'private-trace', 'private-fact']],
+                   'timeouts': [], 'tools': [], 'scores': []}
+        store = Mock()
+        rows = [{'case_id': 'J3-01', 'run_id': '44', 'run_attempt': 1}]
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch('journey.benchmark_run_report.run_details', return_value=details), \
+                patch('journey.benchmark_run_report.load_suite', return_value={'cases': ['J3-01']}):
+            filename, missing = publish(store, rows, '44', 1, Path(tmp), production=True)
+            published = (Path(tmp) / filename).read_bytes()
+        self.assertEqual(missing, [])
+        self.assertIn(b'private-fact', store.upload_private.call_args.args[1])
+        self.assertNotIn(b'private-fact', published)
+        self.assertNotIn(b'private-session', published)
+        self.assertNotIn(b'private-trace', published)
+        self.assertIn(b'"environment": "Production"', published)
+        self.assertIn(b'"metrics_only": true', published)
 
 
 if __name__=='__main__':unittest.main()

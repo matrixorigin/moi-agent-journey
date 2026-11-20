@@ -1,4 +1,4 @@
--- Run only in the QA journey-3 workspace. UTC timestamps; NULL means unscored.
+-- Run only in the selected journey-3 workspace. UTC timestamps; NULL means unscored.
 CREATE DATABASE IF NOT EXISTS journey3_benchmark;
 CREATE TABLE IF NOT EXISTS journey3_benchmark.dataset_snapshots (
   snapshot_id VARCHAR(128) PRIMARY KEY, state VARCHAR(32), manifest_sha256 VARCHAR(64),
