@@ -59,6 +59,8 @@ def failure_counts(result):
     for error in result.get('failures', []):
         if error.get('reason') in RUNTIME_FAILURES:
             counts['qa_runtime'] += 1
+    if result.get('stream_interruptions'):
+        counts['transport'] += len(result['stream_interruptions'])
     for name, stage in result.get('pipeline', {}).get('stages', {}).items():
         if (name in {'history', 'publish'} and (stage.get('exit_code') != 0 or stage.get('timed_out'))
                 and not any(error.get('stage') == name for error in errors)):

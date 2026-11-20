@@ -102,7 +102,17 @@ class InterruptedStreamTests(unittest.TestCase):
             incident = execution.report['stream_interruptions'][0]
             self.assertEqual(incident['observed_task_state'], 'working')
             self.assertEqual(incident['reconciled_state'], 'completed')
+            self.assertEqual(failure_counts(execution.report), {'transport': 1})
             execution.capture.assert_called_with(entry, final=True)
+
+    def test_terminal_stream_with_lagging_task_snapshot_is_not_a_stream_interruption(self):
+        with tempfile.TemporaryDirectory() as tmp, patch('journey.run_case.time.sleep'):
+            execution = self.execution(Path(tmp), ['working', 'completed'])
+            execution.client.stream_rpc.return_value = (item for item in [{'result': {
+                'kind':'task', 'id':'same-task', 'contextId':'same-context', 'status':{'state':'completed'}}}])
+            _, task = execution.send('same-context', 'qa:question', 'question')
+            self.assertEqual(task['status']['state'], 'completed')
+            self.assertFalse(execution.report.get('stream_interruptions'))
 
     def test_terminal_failure_is_never_retried(self):
         with tempfile.TemporaryDirectory() as tmp, patch('journey.run_case.time.sleep'):

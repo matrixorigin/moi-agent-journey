@@ -239,11 +239,13 @@ class Execution:
         task = self.client.rpc(selector, "tasks/get", {"id": entry["task_id"]})
         state = task_state(task, cid, entry["task_id"])
         if not cancel_after_admission and not live_resume and state in {"submitted", "working"}:
-            interruption = {'task_id': entry['task_id'], 'conversation_id': cid, 'phase': phase,
-                'reason': 'stream_closed_before_terminal', 'at': utc_now(),
-                'last_stream_state': entry['state'], 'observed_task_state': state}
-            self.report.setdefault('stream_interruptions', []).append(interruption)
-            self.checkpoint()
+            interruption = None
+            if entry['state'] not in TERMINAL:
+                interruption = {'task_id': entry['task_id'], 'conversation_id': cid, 'phase': phase,
+                    'reason': 'stream_closed_before_terminal', 'at': utc_now(),
+                    'last_stream_state': entry['state'], 'observed_task_state': state}
+                self.report.setdefault('stream_interruptions', []).append(interruption)
+                self.checkpoint()
             # Reconcile this exact admitted task. Never send the prompt again,
             # create a new task, or turn a terminal failure into a retry.
             while state in {"submitted", "working"}:
@@ -254,8 +256,9 @@ class Execution:
                 task = self.client.rpc(selector, 'tasks/get', {'id': entry['task_id']})
                 state = task_state(task, cid, entry['task_id'])
                 entry['state'] = state
-            interruption['reconciled_state'] = state
-            interruption['reconciled_at'] = utc_now()
+            if interruption is not None:
+                interruption['reconciled_state'] = state
+                interruption['reconciled_at'] = utc_now()
         while cancel_after_admission and entry.get('cancel_request') == 'accepted' and state not in TERMINAL:
             if time.monotonic() >= self.client.deadline:
                 raise Failure('deadline_exceeded')
