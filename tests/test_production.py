@@ -1,3 +1,4 @@
+import hashlib
 import io
 import json
 import os
@@ -8,10 +9,28 @@ from urllib.parse import parse_qs
 
 from journey.client import Failure
 from journey.hello import discover_workspace
-from journey.production import BASE_URL, TOKEN_URL, ServiceAccount, knowledge_client, validate_selection
+from journey.production import BASE_URL, TOKEN_URL, ServiceAccount, bindings, knowledge_client, validate_selection
 
 
 class ProductionTests(unittest.TestCase):
+    def test_production_bindings_are_read_from_scoped_catalog_and_verified(self):
+        root = '/workspaces/production-journey-3'
+        document_bindings = {'corpora': {'cedar': {'model_id': 1}},
+                             'document_agents': {'qa-agent': 'production-agent'}}
+        raw = json.dumps(document_bindings).encode()
+        pointer = {'file_id': 'fixture-id', 'sha256': hashlib.sha256(raw).hexdigest()}
+        client = Mock()
+        client.request.return_value = raw
+        with patch.dict(os.environ, {'MOI_J3_BINDINGS': json.dumps(pointer)}):
+            self.assertEqual(bindings(client, root, required=('corpora', 'document_agents')), document_bindings)
+            client.request.assert_called_once_with('GET', root + '/files/fixture-id/download',
+                                                   binary=True, max_bytes=1_000_000)
+            with self.assertRaisesRegex(Failure, 'resource_bindings_missing_or_invalid'):
+                bindings(client, root)
+            client.request.return_value = raw + b'\n'
+            with self.assertRaisesRegex(Failure, 'resource_bindings_checksum_mismatch'):
+                bindings(client, root)
+
     def test_only_main_manual_journey3_is_allowed_in_production(self):
         environment = {'MOI_ENVIRONMENT': 'production', 'GITHUB_REF': 'refs/heads/main',
                        'GITHUB_EVENT_NAME': 'workflow_dispatch'}

@@ -1,5 +1,6 @@
 """Service-account authentication and resource bindings for production Journey-3."""
 
+import hashlib
 import json
 import os
 import re
@@ -8,7 +9,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, build_opener
 
-from .client import Client, Failure, NoRedirect
+from .client import Client, Failure, NoRedirect, segment
 
 BASE_URL = 'https://api.moi.matrixorigin.cn/newmoi'
 TOKEN_URL = 'https://uc.moi.matrixorigin.cn/api/v1/uc/realms/moi/protocol/openid-connect/token'
@@ -76,13 +77,24 @@ def knowledge_client(timeout, observer=None):
                   bearer=account.bearer, locked_workspace=workspace)
 
 
-def bindings():
+def bindings(client, root, *, required=('corpora', 'document_agents', 'operations_agents')):
     try:
         value = json.loads(os.environ.get('MOI_J3_BINDINGS', ''))
     except ValueError:
         raise Failure('production_journey3_resource_bindings_missing_or_invalid') from None
-    if not isinstance(value, dict) or not all(isinstance(value.get(key), dict) and value[key]
-            for key in ('corpora', 'document_agents', 'operations_agents')):
+    if isinstance(value, dict) and set(value) == {'file_id', 'sha256'}:
+        expected = value['sha256']
+        if not isinstance(expected, str) or not re.fullmatch('[0-9a-f]{64}', expected):
+            raise Failure('production_journey3_resource_bindings_missing_or_invalid')
+        raw = client.request('GET', root + '/files/' + segment(value['file_id']) + '/download',
+                             binary=True, max_bytes=1_000_000)
+        if hashlib.sha256(raw).hexdigest() != expected:
+            raise Failure('production_journey3_resource_bindings_checksum_mismatch')
+        try:
+            value = json.loads(raw)
+        except ValueError:
+            raise Failure('production_journey3_resource_bindings_missing_or_invalid') from None
+    if not isinstance(value, dict) or not all(isinstance(value.get(key), dict) and value[key] for key in required):
         raise Failure('production_journey3_resource_bindings_missing_or_invalid')
     return value
 
@@ -106,9 +118,9 @@ def validate_selection(workspaces):
 if __name__ == '__main__':
     # Validate the configuration before the runners start any production cases.
     try:
-        bindings()
         from .hello import discover_workspace
-        discover_workspace(knowledge_client(60), 'journey-3')
+        client = knowledge_client(60)
+        bindings(client, discover_workspace(client, 'journey-3'))
     except Failure as error:
         print(f'::error::{error.code}')
         raise SystemExit(1)

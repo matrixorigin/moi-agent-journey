@@ -1,4 +1,4 @@
-"""Keep business questions and complete evidence inside the QA workspace."""
+"""Keep business questions and complete evidence inside the selected workspace."""
 import argparse
 import hashlib
 import io
@@ -41,9 +41,11 @@ class Store:
         self.root = root or discover_workspace(client, 'journey-3')
 
     def sql(self, statement, limit=1000):
-        result = self.client.product('POST', '/query/run',
-            {'db_name': DATABASE, 'query': statement, 'limit': limit}, expected_code='OK')
-        if result.get('status') != 'success':
+        response = self.client.request('POST', '/query/run',
+            {'db_name': DATABASE, 'query': statement, 'limit': limit})
+        result = response.get('data')
+        if (response.get('code') not in ('OK', 200) or not isinstance(result, dict)
+                or result.get('status') != 'success'):
             raise Failure('benchmark_store_query_failed')
         result['rows'] = [[cell.get('String') if cell.get('Valid') else None for cell in row]
                           for row in (result.get('result') or [])]

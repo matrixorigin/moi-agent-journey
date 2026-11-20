@@ -73,8 +73,11 @@ class BenchmarkTests(unittest.TestCase):
 
     def test_sql_success_wire_is_decoded_and_history_replays_do_not_duplicate_evidence(self):
         store=Store.__new__(Store);store.client=Mock()
-        store.client.product.return_value={'status':'success','result':[[{'String':'42','Valid':True},{'String':'','Valid':False}]]}
-        decoded=store.sql('SELECT 42,NULL');self.assertEqual(decoded['rows'],[['42',None]])
+        data = {'status': 'success', 'result': [[{'String': '42', 'Valid': True}, {'String': '', 'Valid': False}]]}
+        for code in ('OK', 200):
+            with self.subTest(code=code):
+                store.client.request.return_value = {'code': code, 'data': data}
+                self.assertEqual(store.sql('SELECT 42,NULL')['rows'], [['42', None]])
         case=load_case('J3-01');result=_missing_case(case,'journey-3','offline')
         store.sql=Mock(return_value={'rows':[[canonical(result)]]});store.upload=Mock()
         with tempfile.TemporaryDirectory() as tmp:

@@ -4,7 +4,7 @@ import re
 
 from .client import Failure, segment
 from .hello import discover_workspace
-from .production import binding, bindings, is_production
+from .production import binding, bindings as production_bindings, is_production
 from .knowledge_case import KnowledgeExecution
 from .knowledge_sources import list_sources
 from .rag_quality import citation_integrity_metric, observe_rag
@@ -59,7 +59,8 @@ class OpsKnowledgeExecution(KnowledgeExecution):
         self.root = discover_workspace(self.client, 'journey-3')
         target = self.case['ops_target']
         if is_production():
-            target = binding(bindings()['operations_agents'], target['agent_id'])
+            configuration = production_bindings(self.client, self.root, required=('operations_agents',))
+            target = binding(configuration['operations_agents'], target['agent_id'])
         workspace = self.root.rsplit('/', 1)[1]
         self.selector = {'agent_id': target['agent_id'], 'agent_workspace_id': workspace}
         agent = self.client.product('GET', self.root + '/agents/' + segment(target['agent_id']))
