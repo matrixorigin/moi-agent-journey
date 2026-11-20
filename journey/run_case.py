@@ -12,7 +12,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from .catalog import load_case
-from .a2a import final_reply
+from .a2a import final_reply, knowledge_answer_id
 from .client import Client, Failure, error_record, segment
 from .evidence import Evidence, configured_secrets, safe_extract, sha256, utc_now
 from .hello import TERMINAL, discover, task_state
@@ -57,6 +57,8 @@ def agent_stream(source, execution, conversation_id, phase):
 
 
 class Execution:
+    measure_answer_delivery = False
+
     def __init__(self, client, case, evidence, work, model):
         self.client, self.case, self.evidence = client, case, evidence
         self.work, self.model = Path(work), model
@@ -182,12 +184,18 @@ class Execution:
         self.pending_rejection = None
         self.checkpoint()
         started = time.monotonic()
+        answer_deliveries = {}
         entry = None
         source = (live_resume_stream(self, selector, params, cid, phase) if live_resume else
                   self.client.stream_rpc(selector, params))
         with contextlib.closing(source) as stream:
             for envelope in agent_stream(stream, self, cid, phase):
                 frame = envelope["result"]
+                if (self.measure_answer_delivery and frame.get("kind") == "artifact-update"
+                        and frame.get("lastChunk") is True):
+                    answer_id = knowledge_answer_id(frame.get("artifact") or {})
+                    if answer_id:
+                        answer_deliveries.setdefault(answer_id, time.monotonic() - started)
                 self.evidence.append("stream.jsonl", {"recorded_at": utc_now(), "phase": phase,
                                                        "conversation_id": cid, **envelope})
                 if entry is None:
@@ -205,10 +213,9 @@ class Execution:
                     self.pending_conversation = None
                     if on_admitted is not None:
                         on_admitted(entry, params)
-                    # Live-resume must disconnect promptly; draining a growing event
-                    # log here can take longer than the task itself. Its events are
-                    # captured after resubscription (or during failure cleanup).
-                    if not live_resume:
+                    # Resubscription and answer timing must read the stream promptly.
+                    # Final capture or failure cleanup fetches their events.
+                    if not live_resume and not self.measure_answer_delivery:
                         self.capture(entry)
                     if cancel_after_admission:
                         if state in TERMINAL:
@@ -268,6 +275,11 @@ class Execution:
             task = self.client.rpc(selector, 'tasks/get', {'id': entry['task_id']})
             state = task_state(task, cid, entry['task_id'])
         entry["state"] = state
+        if self.measure_answer_delivery and state == "completed":
+            answer_id = next((identity for artifact in reversed(task.get("artifacts") or [])
+                              if (identity := knowledge_answer_id(artifact))), None)
+            if answer_id in answer_deliveries:
+                entry["answer_seconds"] = round(answer_deliveries[answer_id], 3)
         self.evidence.write("tasks/" + entry["task_id"] + "/a2a.json", task)
         self.capture(entry, final=state not in {"submitted", "working"})
         if cancel_after_admission:

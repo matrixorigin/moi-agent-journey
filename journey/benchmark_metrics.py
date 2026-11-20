@@ -7,6 +7,10 @@ from .evidence import utc_now
 from .failure_categories import failure_counts
 
 
+ANSWER_TIMING = 'final_answer_sse'
+LEGACY_TIMING = 'legacy'
+
+
 def model_rounds(path, tasks):
     ids = {task['task_id'] for task in tasks if not task.get('phase', '').startswith('judge:')}
     rounds, seen, active = set(), set(), {}
@@ -51,10 +55,18 @@ def delivered_answers(result):
             isinstance(answer.get('text'), str) and answer['text'].strip()]
 
 
+def delivered_answer_seconds(answers):
+    durations = [answer.get('seconds') for answer in answers]
+    if durations and all(type(value) in (int, float) for value in durations):
+        return round(sum(durations), 3)
+    return None
+
+
 def history_observations(result, row, events=None):
     answers = delivered_answers(result)
     state = row['task_state']
     metrics = result.get('tools', {}).get('metrics') or {}
+    timing = result.get('answer_timing', LEGACY_TIMING)
     seconds, rounds = None, None
     if row['benchmark_state'] != 'eligible':
         outcome = 'excluded'
@@ -62,10 +74,10 @@ def history_observations(result, row, events=None):
         outcome = 'completed'
         if state == 'completed':
             seconds, rounds = row['duration_seconds'], row['model_round_count']
+            if timing == ANSWER_TIMING:
+                seconds = delivered_answer_seconds(result['rag']['answers'])
         else:
-            durations = [answer.get('seconds') for answer in answers]
-            if all(type(value) in (int, float) for value in durations):
-                seconds = round(sum(durations), 3)
+            seconds = delivered_answer_seconds(answers)
             if events is not None:
                 rounds = model_rounds(events, answers)
     elif state == 'timeout':
@@ -75,6 +87,7 @@ def history_observations(result, row, events=None):
     else:
         outcome = 'excluded'
     return {'qa_outcome': outcome, 'completed_seconds': seconds, 'completed_model_rounds': rounds,
+            'answer_timing': timing,
             'tool_succeeded': metrics.get('succeeded'), 'tool_failed': metrics.get('failed')}
 
 
