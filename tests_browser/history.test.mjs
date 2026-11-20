@@ -131,6 +131,11 @@ test('history overlays the selected job or all cases while keeping case and mode
       assert.equal(await points.count(), 4); // The excluded-only rerun has no observed outcome.
       assert.equal(await incomplete.count(), 3);
       assert.equal(await page.locator('#' + chart + ' polyline').count(), 0);
+      const segments = page.locator('#' + chart + ' .partial-segment');
+      const endpoints = await segments.evaluateAll(nodes => nodes.map(node => [node.x1.baseVal.value, node.x2.baseVal.value])
+        .sort((a, b) => a[0] - b[0]));
+      assert.deepEqual(endpoints, [[positions[0], positions[1]], [positions[1], positions[2]]]);
+      // The excluded-only rerun also prevents a link to the last point.
       const fullTooltip = await fullRun.locator('title').textContent();
       assert.match(fullTooltip, /#95.*2026\/11\/18 08:00:00/);
       assert.ok(fullTooltip.endsWith(full + ' · 已记录 4 / 4 题'));

@@ -55,8 +55,9 @@ The horizontal axis spaces GitHub run numbers evenly. Reruns have an attempt suf
 `#96.2`. Hover a point or tick to see its time in Asia/Shanghai. If GitHub metadata is
 unavailable, the chart uses the run ID and the earliest recorded QA timestamp.
 Completion and timeout rates use recorded answers, errors and timeouts for the selected scope.
-Hollow points show runs with missing case records. Hover to see both the rate denominator and
-record coverage. A run without any eligible outcomes has no rate point.
+Hollow points show runs with missing case records. Dashed lines connect them to neighboring
+rate points. Hover to see both the rate denominator and record coverage. A run without any
+eligible outcomes leaves a gap.
 Completion requires an observed final answer body. Charted completion timings, model rounds and
 scores use completed answers. Tool failure rate uses failed calls divided by succeeded plus failed calls
 for every outcome. Case revision, data snapshot, evaluator and model must match for case lines to connect.
