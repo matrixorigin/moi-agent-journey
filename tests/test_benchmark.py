@@ -298,16 +298,20 @@ class BenchmarkTests(unittest.TestCase):
             self.assertFalse(out.exists())
         store.upload_private.assert_called_once()
 
-    def test_production_report_publishes_metrics_without_session_details(self):
+    def test_production_report_stages_pages_details_and_a_metrics_download(self):
         details = {'run_id': '44', 'attempt': 1, 'errors': [['J3-01', 'private-session', 'private-trace', 'private-fact']],
                    'timeouts': [], 'tools': [], 'scores': []}
         store = Mock()
-        rows = [{'case_id': 'J3-01', 'run_id': '44', 'run_attempt': 1}]
+        rows = [metrics_row(['J3-01', '2026-11-18 00:00:00', 12.5, None, 4, 3, 'abnormal',
+                             'rev1', 'snap1', 'judge1', 'a' * 32, 'eligible', '44', 1, 'error', None, 3, 1])]
         with tempfile.TemporaryDirectory() as tmp, \
                 patch('journey.benchmark_run_report.run_details', return_value=details), \
                 patch('journey.benchmark_run_report.load_suite', return_value={'cases': ['J3-01']}):
-            filename, missing = publish(store, rows, '44', 1, Path(tmp), production=True)
+            snapshot = Path(tmp) / 'production.json'
+            filename, missing = publish(store, rows, '44', 1, Path(tmp), {'44': {'number': 102}},
+                                        production=True, pages_snapshot=snapshot)
             published = (Path(tmp) / filename).read_bytes()
+            self.assertEqual(json.loads(snapshot.read_text())['current']['errors'], details['errors'])
         self.assertEqual(missing, [])
         self.assertIn(b'private-fact', store.upload_private.call_args.args[1])
         self.assertNotIn(b'private-fact', published)

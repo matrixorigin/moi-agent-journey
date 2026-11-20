@@ -558,7 +558,7 @@ function showDetails(scopeRows) {
 }
 
 function showRunOverview(rows) {
-  if (!currentRun || publicRunDetails) return;
+  if (!currentRun || pagesEnvironment) return;
   const selected = latestRunRows(rows);
   const count = outcome => selected.filter(row => row.qa_outcome === outcome).length;
   const completed = count('completed');
@@ -634,7 +634,7 @@ if (pagesEnvironment) {
 }
 if (currentRun) {
   const label = runLabel(currentRun.run_id, currentRun.attempt);
-  document.getElementById('run-overview').hidden = publicRunDetails;
+  document.getElementById('run-overview').hidden = Boolean(pagesEnvironment);
   document.getElementById('run-overview-title').textContent = '最近一次运行概况 · ' + label;
   document.getElementById('details').hidden = Boolean(currentRun.metrics_only) && !publicRunDetails;
   document.getElementById('details-title').textContent = '最近一次运行明细 · ' + label;

@@ -34,9 +34,9 @@ J3-58～J3-117 是两个运营智能体各 30 道知识库题，基于真实历�
 
 **所有 Journey-3 case**（含原有 57 题）将定位 ID、指标和 HTML 所需明细写入对应环境的 `journey3_benchmark.results`。原始事件和完整回答仅用于 runner 内的评分与指标计算。两个 job 都结束后，汇总将 HTML 保存到工作区 Catalog，GitHub Actions 同时发布可下载的 HTML。生产的 GitHub 版保留指标和运行覆盖率。从 Actions Summary 点击「下载 Journey-3 HTML 报告」即可下载。
 
-[Journey-3 GitHub Pages](https://matrixorigin.github.io/moi-agent-journey/) 提供 [QA](https://matrixorigin.github.io/moi-agent-journey/qa/) 和 [Production](https://matrixorigin.github.io/moi-agent-journey/production/) 两个固定入口，可直接查看历史趋势、运行覆盖率及最近一次运行的报错、超时、失败工具调用和低分 case。`main` 上的 Journey-3 收到结果后自动更新对应页面，并在发布 job 的 Summary 中给出链接。公开网页使用逐题指标与 GitHub 运行元数据。包含原始报错、命令及失分理由的完整报告可在对应工作区的 Catalog 查看。
+[Journey-3 GitHub Pages](https://matrixorigin.github.io/moi-agent-journey/) 提供 [QA](https://matrixorigin.github.io/moi-agent-journey/qa/) 和 [Production](https://matrixorigin.github.io/moi-agent-journey/production/) 两个固定入口。页面展示历史趋势和最近一次运行的四项明细，包括会话与 Trace ID、报错信息、超时耗时、失败工具命令及失分原因。发布前清理凭据，公开快照只包含历史指标与这四项明细。`main` 上的 Journey-3 收到结果后自动更新对应页面，并在发布 job 的 Summary 中给出链接。
 
-Pages 的发布源是 GitHub Actions。`journey-3-pages-data` 保存两个环境各自最近的公开指标快照。发布串行执行，旧运行的重跑不会覆盖较新的快照。页面模板或发布代码合入 `main` 后，`Journey-3 Pages` 用已有快照重新部署页面。也可以手动触发这项部署。
+Pages 的发布源是 GitHub Actions。`journey-3-pages-data` 保存各环境的历史指标与最新一轮明细快照。发布串行执行，旧运行的重跑不会覆盖较新的快照。页面模板或发布代码合入 `main` 后，`Journey-3 Pages` 用已有快照重新部署页面。也可以手动触发这项部署。
 
 历史页默认叠画全部 case 的曲线。Case 菜单可切换到文档 job、运营 job 或单题。图例和鼠标提示标识各条曲线，版本变化后另起一条线。
 
