@@ -73,6 +73,8 @@ jobs:
       actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      pages-snapshot: ${{ steps.j3-pages.outputs.artifact-id != '' && format('journey-3-pages-metrics-attempt-{0}', github.run_attempt) || '' }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         if: always()
@@ -90,6 +92,7 @@ jobs:
         if: ${{ always() && contains(fromJSON(needs.plan.outputs.matrix).include.*.workspace, 'journey-3') }}
         env:
           GH_TOKEN: ${{ github.token }}
+          PUBLISH_PAGES: ${{ github.ref == 'refs/heads/main' && github.repository == 'matrixorigin/moi-agent-journey' }}
           MOI_BASE_URL: ${{ secrets.MOI_BASE_URL }}
           MOI_PAT: ${{ (inputs.target_environment != 'production' || vars.MOI_J3_AUTH_MODE == 'pat') && secrets.MOI_PAT || '' }}
           MOI_ENVIRONMENT: ${{ inputs.target_environment || 'qa' }}
@@ -97,7 +100,21 @@ jobs:
           MOI_J3_AUTH_MODE: ${{ vars.MOI_J3_AUTH_MODE }}
           MOI_J3_CLIENT_ID: ${{ inputs.target_environment == 'production' && vars.MOI_J3_AUTH_MODE != 'pat' && secrets.MOI_J3_CLIENT_ID || '' }}
           MOI_J3_CLIENT_SECRET: ${{ inputs.target_environment == 'production' && vars.MOI_J3_AUTH_MODE != 'pat' && secrets.MOI_J3_CLIENT_SECRET || '' }}
-        run: python3 -m journey.benchmark_run_report --artifact-dir "$RUNNER_TEMP/journey-3-html"
+        run: |
+          pages=()
+          if [[ "$PUBLISH_PAGES" == true ]]; then
+            pages=(--pages-snapshot "$RUNNER_TEMP/journey-3-pages/snapshot.json")
+          fi
+          python3 -m journey.benchmark_run_report --artifact-dir "$RUNNER_TEMP/journey-3-html" "${pages[@]}"
+      - name: Stage Journey-3 metrics for GitHub Pages
+        id: j3-pages
+        if: ${{ !cancelled() && steps.j3-report.outputs.pages-snapshot != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: journey-3-pages-metrics-attempt-${{ github.run_attempt }}
+          path: ${{ steps.j3-report.outputs.pages-snapshot }}
+          if-no-files-found: error
+          retention-days: 1
       - name: Upload Journey-3 HTML
         id: j3-html
         if: ${{ always() && steps.j3-report.outputs.artifact-file != '' }}
@@ -132,3 +149,15 @@ jobs:
         env:
           ARTIFACT_URL: ${{ steps.upload-report.outputs.artifact-url }}
         run: printf '\n[下载报告](%s)\n' "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
+  publish-journey-3-pages:
+    needs: report
+    if: ${{ !cancelled() && needs.report.outputs.pages-snapshot != '' }}
+    permissions:
+      contents: write
+      actions: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/journey-3-pages.yml
+    with:
+      snapshot: ${{ needs.report.outputs.pages-snapshot }}
+      target_environment: ${{ inputs.target_environment || 'qa' }}

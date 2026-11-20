@@ -10,6 +10,9 @@
   h1 { font-size: 30px; }
   h2, h3, h4 { margin: 0 0 8px; }
   h3 { font-size: 16px; }
+  #environments:not([hidden]) { display: flex; gap: 8px; }
+  #environments a { color: inherit; background: white; border: 1px solid #ccd3df; border-radius: 6px; padding: 6px 12px; }
+  #environments a[aria-current="page"] { color: white; background: #203558; border-color: #203558; text-decoration: none; }
   select { max-width: min(800px, 85vw); font: inherit; padding: 9px; margin: 0 16px 12px 5px; border: 1px solid #ccd3df; border-radius: 6px; }
   section { background: white; border: 1px solid #dde2ec; border-radius: 12px; padding: 24px; margin: 20px 0; }
   .trends { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
@@ -54,8 +57,12 @@
 </style>
 </head>
 <body>
+<nav id="environments" aria-label="测试环境" hidden>
+  <a href="../qa/">QA</a><a href="../production/">Production</a>
+</nav>
 <h1>Journey-3 · Knowledge Base Tasks</h1>
 <p id="description">历史指标来自 QA。带会话和错误详情的完整报告可在 QA 工作区的 Catalog 中下载。</p>
+<main id="dashboard">
 <p id="report-coverage" hidden></p>
 <label>Case <select id="case"></select></label>
 <label id="revision-label">固定版本 <select id="revision"></select></label>
@@ -81,11 +88,13 @@
   <p id="detail-count" aria-live="polite"></p>
   <div id="detail-records"></div>
 </section>
+</main>
 <script>
 const data = /*HISTORY_DATA*/[];
 const jobs = /*HISTORY_JOBS*/{};
 const currentRun = /*RUN_DETAILS*/null;
 const runMetadata = /*RUN_METADATA*/{};
+const pagesEnvironment = /*PAGES_ENVIRONMENT*/null;
 const scope = document.getElementById('case');
 const revision = document.getElementById('revision');
 const legend = document.getElementById('legend');
@@ -584,6 +593,19 @@ function render() {
 
 scope.onchange = selectScope;
 revision.onchange = render;
+if (pagesEnvironment) {
+  const nav = document.getElementById('environments');
+  nav.hidden = false;
+  for (const link of nav.querySelectorAll('a')) {
+    if (link.textContent === pagesEnvironment) link.setAttribute('aria-current', 'page');
+  }
+  if (!currentRun) {
+    document.title += ' · ' + pagesEnvironment;
+    document.querySelector('h1').textContent = document.title;
+    document.getElementById('description').textContent = '等待该环境首次发布 Journey-3 报告。';
+    document.getElementById('dashboard').hidden = true;
+  }
+}
 if (currentRun) {
   document.getElementById('run-overview').hidden = false;
   document.getElementById('run-overview-title').textContent =

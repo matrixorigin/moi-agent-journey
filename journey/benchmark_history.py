@@ -142,12 +142,12 @@ def read_run_metadata(rows, repository):
         return {}
 
 
-def render_history(rows, current=None, run_metadata=None):
+def render_history(rows, current=None, run_metadata=None, *, pages_environment=None):
     plan = plan_suite(load_suite('journey-3'))
     jobs = {job['case']: job['case_ids'] for job in plan['include'] if job['executor'] == 'batch'}
     template = (Path(__file__).parent.parent / 'datasets/journey-3/history.html').read_text()
     values = {'/*HISTORY_DATA*/[]': rows, '/*HISTORY_JOBS*/{}': jobs, '/*RUN_DETAILS*/null': current,
-              '/*RUN_METADATA*/{}': run_metadata or {}}
+              '/*RUN_METADATA*/{}': run_metadata or {}, '/*PAGES_ENVIRONMENT*/null': pages_environment}
     # Replace once in the template, so a marker inside evidence remains text.
     return re.sub('|'.join(re.escape(key) for key in values),
                   lambda match: json.dumps(values[match[0]], ensure_ascii=True).replace('<', '\\u003c'),
