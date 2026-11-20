@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 from .evidence import utc_now
+from .failure_categories import failure_counts
 
 
 def model_rounds(path, tasks):
@@ -157,6 +158,7 @@ def public_result(result):
     failed_count = len(quality.get('failed_checks', []))
     return {'case_id': result['case_id'], 'workspace': 'journey-3', 'title': result['case_id'] + ' · Knowledge Base Q&A',
         'privacy': 'metrics_only', 'test_status': result['test_status'],
+        'failure_categories': failure_counts(result),
         'benchmark': {'state': benchmark},
         'task': counts('task', ['state']), 'agent': counts('agent', ['state','completed_turns','expected_turns']),
         'delivery': counts('delivery', ['state','completed_sessions','expected_sessions']),

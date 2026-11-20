@@ -26,6 +26,11 @@ class Failure(Exception):
         self.trace_headers = trace_headers or {}
 
 
+def request_trace_headers(headers):
+    return {key: value for key, value in dict(headers or {}).items()
+            if key.lower() in {'x-trace-id', 'x-request-id', 'traceparent'}}
+
+
 def error_record(stage, error, **context):
     """Keep structured failure information when reporting an execution error."""
     if isinstance(error, Failure):
@@ -109,8 +114,7 @@ class Client:
             if self.observer:
                 self.observer({"method": method, "path": path, "request": body,
                                "status": status, "response": response,
-                               "headers": {k: v for k, v in response_headers.items()
-                                           if k.lower() in {"x-trace-id", "x-request-id", "traceparent"}},
+                               "headers": request_trace_headers(response_headers),
                                "seconds": round(time.monotonic() - started, 3)})
         try:
             with self.opener.open(req, timeout=remaining) as response:
@@ -148,10 +152,11 @@ class Client:
             return result
         except urllib.error.HTTPError as error:
             status = error.code
+            trace_headers = request_trace_headers(error.headers)
             payload = error.read(65536).decode("utf-8", errors="replace")
             observe(status, {"error_body": payload}, dict(error.headers))
             error.close()
-            raise Failure("http_error", status) from None
+            raise Failure("http_error", status, trace_headers=trace_headers) from None
         except (TimeoutError, socket.timeout) as error:
             raise Failure("deadline_exceeded", details=transport_details(error)) from None
         except (urllib.error.URLError, OSError, http.client.HTTPException) as error:
@@ -200,8 +205,7 @@ class Client:
         self.requests += 1
         try:
             with self.opener.open(request, timeout=remaining) as response:
-                trace_headers = {k: v for k, v in response.headers.items()
-                                 if k.lower() in {'x-trace-id', 'x-request-id', 'traceparent'}}
+                trace_headers = request_trace_headers(response.headers)
                 if self.observer:
                     self.observer({"method": "POST", "path": "/agents/a2a", "request": body,
                         "status": response.status, "response": {"stream": True}, "headers": trace_headers, "seconds": 0})
@@ -247,11 +251,13 @@ class Client:
                         sequence = text[3:].strip()
         except urllib.error.HTTPError as error:
             status = error.code
+            trace_headers = request_trace_headers(error.headers)
             if self.observer:
                 self.observer({"method":"POST","path":"/agents/a2a","status":status,
+                    "headers":trace_headers,
                     "response":{"error_body":error.read(65536).decode('utf-8',errors='replace')}})
             error.close()
-            raise Failure("http_error", status) from None
+            raise Failure("http_error", status, trace_headers=trace_headers) from None
         except (TimeoutError, socket.timeout) as error:
             raise Failure("deadline_exceeded", details=transport_details(error)) from None
         except (urllib.error.URLError, OSError, http.client.HTTPException) as error:

@@ -865,7 +865,7 @@ class JourneyTests(unittest.TestCase):
                     self.assertIn('数据完整：缺少数据',markdown)
                     self.assertIn('[REDACTED]',markdown)
                 if status=='timeout':self.assertIn('case_timeout',markdown)
-                if harness_error:self.assertIn('测试框架：执行、验收或取证出错',markdown)
+                if harness_error:self.assertIn('测试流程：执行、验收或取证出错',markdown)
                 published=root/'published'
                 self.assertEqual(prepare_publication(root/'results',published,[private]),[])
                 self.assertEqual((published/'J1-01/case-summary.md').read_text(),markdown)
@@ -879,7 +879,7 @@ class JourneyTests(unittest.TestCase):
             process=subprocess.run([sys.executable,'-m','journey.report','case','J1-01','--root',str(root)],
                 cwd=Path(__file__).resolve().parents[1],env=env,capture_output=True,text=True)
             self.assertEqual(process.returncode,1,process.stderr)
-            self.assertIn('测试框架：执行、验收或取证出错',process.stdout)
+            self.assertIn('测试流程：执行、验收或取证出错',process.stdout)
             self.assertIn('input_checksum_mismatch',process.stdout)
             self.assertIn('未获取会话或 trace ID',process.stdout)
             self.assertTrue((case/'case-summary.md').exists())

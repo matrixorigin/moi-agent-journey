@@ -95,7 +95,7 @@ jobs:
           assert os.environ['BATCH_OUTCOME'] == 'failure'
           rows = json.loads(Path('batch-work/batch-result.json').read_text())['cases']
           assert [row['case_id'] for row in rows] == json.loads(os.environ['JOURNEY_CASES'])
-          expected = ['execute', 'report'] + (['history'] if os.environ['JOURNEY_WORKSPACE'] == 'journey-3' else [])
+          expected = ['execute', 'report'] + (['history', 'finalize_history'] if os.environ['JOURNEY_WORKSPACE'] == 'journey-3' else [])
           assert all(row['failed_stages'] == expected for row in rows), rows
           PYVERIFY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

@@ -17,6 +17,7 @@ from .client import Client, Failure, error_record, segment
 from .evidence import Evidence, configured_secrets, safe_extract, sha256, utc_now
 from .hello import TERMINAL, discover, task_state
 from .live_resume import live_resume_stream
+from .failure_categories import ADMISSION_REASONS
 
 
 def task_outcome_failure(error):
@@ -38,9 +39,14 @@ def agent_stream(source, execution, conversation_id, phase):
         runtime_error = (error.code == 'rpc_error' and isinstance(error.details, dict) and error.details.get('code') == -32603 and
                 isinstance(data, dict) and data.get('domain') == 'moi-core.agent_runtime' and
                 data.get('reason') == 'INTERNAL')
-        if runtime_error and execution.pending_conversation == conversation_id:
+        admission_error = (error.code == 'rpc_error' and isinstance(error.details, dict)
+            and error.details.get('code') == -32007 and isinstance(data, dict)
+            and data.get('reason') in ADMISSION_REASONS
+            and data.get('contextId', conversation_id) == conversation_id)
+        if (runtime_error or admission_error) and execution.pending_conversation == conversation_id:
             execution.pending_rejection = {'conversation_id': conversation_id, 'phase': phase,
-                                           'error': error.details, 'trace_headers': error.trace_headers}
+                                           'error': error.details, 'trace_headers': error.trace_headers,
+                                           'reported_task_id': data.get('taskId')}
             raise Failure('agent_runtime_admission_error', error.http_status, error.details,
                           trace_headers=error.trace_headers) from None
         if (runtime_error and execution.pending_conversation is None and
@@ -232,6 +238,27 @@ class Execution:
         # The stream is live evidence; the persisted product task remains the result authority.
         task = self.client.rpc(selector, "tasks/get", {"id": entry["task_id"]})
         state = task_state(task, cid, entry["task_id"])
+        if not cancel_after_admission and not live_resume and state in {"submitted", "working"}:
+            interruption = None
+            if entry['state'] not in TERMINAL:
+                interruption = {'task_id': entry['task_id'], 'conversation_id': cid, 'phase': phase,
+                    'reason': 'stream_closed_before_terminal', 'at': utc_now(),
+                    'last_stream_state': entry['state'], 'observed_task_state': state}
+                self.report.setdefault('stream_interruptions', []).append(interruption)
+                self.checkpoint()
+            # Reconcile this exact admitted task. Never send the prompt again,
+            # create a new task, or turn a terminal failure into a retry.
+            while state in {"submitted", "working"}:
+                remaining = self.client.deadline - time.monotonic()
+                if remaining <= 0:
+                    raise Failure('deadline_exceeded')
+                time.sleep(min(5, remaining))
+                task = self.client.rpc(selector, 'tasks/get', {'id': entry['task_id']})
+                state = task_state(task, cid, entry['task_id'])
+                entry['state'] = state
+            if interruption is not None:
+                interruption['reconciled_state'] = state
+                interruption['reconciled_at'] = utc_now()
         while cancel_after_admission and entry.get('cancel_request') == 'accepted' and state not in TERMINAL:
             if time.monotonic() >= self.client.deadline:
                 raise Failure('deadline_exceeded')
@@ -396,8 +423,7 @@ class Execution:
                          'conversation': conversation, 'tasks': result})
                     if not confirmed:
                         raise Failure('send_outcome_unknown')
-                    self.report.setdefault('admission_failures', []).append(
-                        {**self.pending_rejection, 'confirmed_no_new_task': True})
+                    self.record_admission_rejection(confirmed=True)
                     self.pending_conversation = None
                     self.pending_rejection = None
                 elif len(candidates) != 1:
@@ -455,7 +481,19 @@ class Execution:
                 conversation["cleanup"] = "incomplete"
                 self.report["harness_errors"].append(error_record("cleanup", error, conversation_id=cid))
 
+    def record_admission_rejection(self, *, confirmed=False):
+        receipt = {**self.pending_rejection, 'confirmed_no_new_task': confirmed}
+        records = self.report.setdefault('admission_failures', [])
+        for index, previous in enumerate(records):
+            if (previous['conversation_id'], previous['phase']) == (receipt['conversation_id'], receipt['phase']):
+                records[index] = receipt
+                break
+        else:
+            records.append(receipt)
+
     def record_failure(self, error):
+        if isinstance(error, Failure) and error.code == 'agent_runtime_admission_error' and self.pending_rejection:
+            self.record_admission_rejection()
         if isinstance(error, Failure):
             failure = error_record(self.report["stage"], error)
             timeout = error.code in {"case_timeout", "deadline_exceeded"}

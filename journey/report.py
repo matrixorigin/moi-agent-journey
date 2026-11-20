@@ -17,6 +17,7 @@ from .catalog import ROOT, case_executor, is_functional_case, journey_label, loa
 from .diagnostics import analyze_events, success_rate
 from .evidence import Evidence, configured_secrets, utc_now,TOKEN_BYTES
 from .outcomes import assess
+from .failure_categories import LABELS as FAILURE_LABELS, failure_counts
 from .native_skill_stages import LABELS as NATIVE_STAGE_LABELS
 from .rag_report import (aggregate_lines as rag_aggregate_lines, case_lines as rag_case_lines,
                          summarize_rag, valid_rag_result)
@@ -91,7 +92,7 @@ def case_summary(result):
                      f"- 交付：{DELIVERY_LABELS[delivery['state']]}；完成{delivery_unit} "
                      f"{delivery['completed_sessions']}/{delivery['expected_sessions']}。")
     lines = [f"# {cell(result['case_id'])} {cell(result['title'])}", '',
-             f"**测试框架：{test_status}**", '',
+             f"**测试流程：{test_status}**", '',
              f"- 任务结果：{TASK_LABELS[result['task']['state']]}。",
              f"- 智能体：{AGENT_LABELS[agent['state']]}；完成请求轮次 {agent['completed_turns']}/{agent['expected_turns']}。",
              delivery_line,
@@ -106,6 +107,12 @@ def case_summary(result):
                          f"结束 {cell(after.get('version'))} / {cell(after.get('git_commit'))}。")
         else:
             lines.append('- QA MOI 版本：未完整获取。')
+    categories = failure_counts(result)
+    if categories:
+        lines.append('- 故障来源：' + '、'.join(
+            f'{FAILURE_LABELS[name]} {count} 项' for name, count in categories.items() if count) + '。')
+    if result.get('stream_interruptions'):
+        lines.append(f"- 对话流中断 {len(result['stream_interruptions'])} 次；原任务的最终状态与完整记录见证据包。")
     persistent = result.get('persistent_conversation')
     if persistent:
         continuity = {'bootstrap': '首次初始化，尚无跨运行验收', 'passed': '通过',
@@ -382,6 +389,7 @@ def finish_case(case_id, directory):
         result['tools'] = _unavailable_tools()
     result['task'], result['agent'], result['delivery'], result['quality'] = assess(case, result, raw_status)
     result['test_status'] = 'error' if result['harness_errors'] else 'completed'
+    result['failure_categories'] = failure_counts(result)
     if is_functional_case(case):
         if result.get('blocked'):
             functional_state = 'blocked'
@@ -500,7 +508,8 @@ def _group_summary(rows):
             'task_seconds': _time_stats(row.get('task_seconds') for row in rows),
             'completed_task_seconds': _time_stats(row.get('task_seconds') for row in rows
                                                   if row['task']['state'] == 'completed'),
-            'tools': tools}
+            'tools': tools,
+            'failure_categories': dict(sum((Counter(failure_counts(row)) for row in rows), Counter()))}
     if any(isinstance(row.get('rag'), dict) for row in rows):
         summary['rag'] = summarize_rag(rows)
     return summary
@@ -733,14 +742,17 @@ def aggregate(source, destination, workspace='all', case_ids=None, *, exclude_jo
         f"工具：{tools['calls']} 次调用、{tools['tool_rounds']} 个可识别轮次；成功 {tools['succeeded']}、"
         f"失败 {tools['failed']}、跳过 {tools['skipped']}、结果不明确 {tools['unknown']}；调用成功率 {rate}。", '',
         f"无法关联调用 ID 的工具事件：{tools['unidentified_events']} 条，不计入调用次数和成功率。", '',
-        f"测试框架错误：{report['test_errors']}；无工具事件数据的 case：{tools['cases_unavailable']}；"
+        f"执行、验收或取证异常：{report['test_errors']} 个 case；无工具事件数据的 case：{tools['cases_unavailable']}；"
         f"工具事件不完整的 case：{tools['cases_incomplete']}；隔离产物：{report['withheld_files']}。", '',
+        '故障来源（记录数）：' + ('、'.join(
+            f'{FAILURE_LABELS[name]} {count}' for name, count in report['failure_categories'].items() if count)
+            or '无') + '。任务、质量和故障来源分别统计。', '',
         f"端到端任务耗时（{report['task_seconds']['count']} 个已记录）：中位数 "
         f"{cell(report['task_seconds']['median'])} 秒，最长 {cell(report['task_seconds']['max'])} 秒。", '',
         f"其中正常结束并交付的任务（{report['completed_task_seconds']['count']} 个）：中位数 "
         f"{cell(report['completed_task_seconds']['median'])} 秒。", '',
         '工具成功率依据公开事件中的执行状态；跳过及结果不明确的调用不计入分母。用例主动触发的错误仍计入成功率，并在错误统计中标记；该比例不代表业务正确率。', '',
-        '| 工作区 | Case | 框架 | 功能验收 | 任务 | 智能体请求 | 交付 | 质量检查 | 耗时（秒） | 工具成功/已判定 |',
+        '| 工作区 | Case | 流程 | 功能验收 | 任务 | 智能体请求 | 交付 | 质量检查 | 耗时（秒） | 工具成功/已判定 |',
         '|---|---|---|---|---|---|---|---|---:|---|']
     if case_ids is not None:
         lines[4:4] = ['本次仅统计显式选择的题目：' + cell(', '.join(case_ids), 10000) + '。', '']
@@ -786,7 +798,7 @@ def aggregate(source, destination, workspace='all', case_ids=None, *, exclude_jo
             lines.append(f"| {cell(item['tool'])} | {item['calls']} | {item['succeeded']} | {item['failed']} | "
                          f"{item['skipped']} | {item['unknown']} | {item_rate} |")
     if report['task_errors']:
-        lines += ['', '## 任务和测试框架错误', '']
+        lines += ['', '## 任务和测试流程异常', '']
         for item in report['task_errors']:
             lines.append(f"- {cell(item['stage'])} / {cell(item['reason'])}：{cell(', '.join(item['cases']))}")
     if report['tool_errors']:
