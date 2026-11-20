@@ -26,13 +26,13 @@ SSE 在任务结束前关闭时，记录 `stream_interruptions`，在原 QA 预�
 
 报告的 `failure_categories` 区分 QA 服务、智能体运行时、对话传输、评分服务、验收器、取证发布流程和框架自身错误。它是故障记录的归因，不改变任务完成与质量判定。分组进度显示当前阶段和失败阶段；详细业务日志仍留在 QA。HTTP 失败在独立错误记录中保留白名单 trace 头，便于与 UC、模型网关等服务日志对应。
 
-Journey-3 的阶段日志随原始证据保存在 QA；发布结束后另写 `pipeline.stages`，使落库确认或发布失败也能出现在 HTML 中，原任务状态与评分保持独立。这两个后续阶段失败时，另存其私有日志包，记录在 `pipeline.evidence`。普通取消后仍尝试生成已落库结果的部分报告，未收齐的题目继续显示缺失。强制取消或 QA 不可用时无法保证报告生成。
+Journey-3 保存 `pipeline.stages` 的退出码和超时状态，以便定位落库或发布失败。阶段原始日志只在 runner 内使用。普通取消后仍尝试汇总已落库的结果，报告会标出缺失题目。
 
 ### Journey-3：知识库任务
 
-J3-58～J3-117 是两个运营智能体各 30 道知识库题，基于真实历史问答和固定的数据快照。题目、独立 golden、业务数据和完整证据保存在 QA。公开仓库仅保存不含问答的 case 定义及校验值。见 [运营知识库评测](docs/journey-3-operations.md)。
+J3-58～J3-117 是两个运营智能体各 30 道知识库题，基于真实历史问答和固定的数据快照。题目、独立 golden 和业务数据保存在对应环境的测试工作区。公开仓库仅保存不含问答的 case 定义及校验值。见 [运营知识库评测](docs/journey-3-operations.md)。
 
-**所有 Journey-3 case**（含原有 57 题）将结果与证据写入 QA `journey3_benchmark.results` 及关联文件。两个 job 都结束后，汇总把 HTML 保存到 QA Catalog，并把同一份 HTML 上传到 GitHub Actions。从 Actions Summary 点击「下载 Journey-3 HTML 报告」，直接下载并用浏览器打开。HTML 上方是六张历史趋势图，下方是本次报错、超时、工具失败和低分明细。
+**所有 Journey-3 case**（含原有 57 题）将定位 ID、指标和 HTML 所需明细写入对应环境的 `journey3_benchmark.results`。原始事件和完整回答仅用于 runner 内的评分与指标计算。两个 job 都结束后，汇总将 HTML 保存到工作区 Catalog，GitHub Actions 同时发布可下载的 HTML。生产的 GitHub 版保留指标和运行覆盖率。从 Actions Summary 点击「下载 Journey-3 HTML 报告」即可下载。
 
 历史页默认叠画全部 case 的曲线。Case 菜单可切换到文档 job、运营 job 或单题。图例和鼠标提示标识各条曲线，版本变化后另起一条线。
 
@@ -42,10 +42,10 @@ J3-58～J3-117 是两个运营智能体各 30 道知识库题，基于真实历�
 
 报告按两个维度组织：
 
-- **效率**：任务耗时、工具调用及轮次、完整调用参数和结果、重复调用/重复模式、连续检索没有新片段的次数。独立评估会判断是否明显绕路、发散或不收敛，结论必须引用真实调用 ID；正常分页、必要的大表处理和有理由的重试不能仅因重复就判为浪费。
+- **效率**：历史报告保留任务耗时、轮次、工具失败率及失败调用明细。评分阶段使用完整轨迹识别重复调用和过度探索，并通过真实工具调用核验判断依据。
 - **正确性**：实际最终回答、参考要点满足率、已审查主张的检索依据支持率，以及引用来源是否存在、是否属于指定知识库、是否可读取、引用内容是否支持结论。未采集到检索上下文时，主张支持率记为无法评价；不会按 100% 处理。
 
-只把问题发送给被测智能体。参考答案和资料片段通过工作区模型接口直接评分，使用同一配置模型及严格 JSON Schema，不创建评审智能体会话、不调用工具。评分显式设置 `reasoning_effort=low`、输出上限 16384 tokens（含模型推理）；模型身份、响应 ID、用量、原始请求和判词保存在 `evaluations/`。评分模型通过答案段落 ID 和证据 ID 提供依据，由代码核对身份并回填实际原文；绕路判断必须能对应真实工具调用；无效判词按评估器错误记录，不重试或补判。允许语义等价，标识符、数值、单位及适用范围应准确。
+只把问题发送给被测智能体。参考答案和资料片段通过工作区模型接口直接评分，使用同一配置模型及严格 JSON Schema。评分显式设置 `reasoning_effort=low`，输出上限为 16384 tokens（含模型推理）。历史记录保存评分模型和响应 ID，可用于定位请求。评分模型通过答案段落 ID 和证据 ID 提供依据，由代码核对身份并回填实际原文。无效判词按评估器错误记录。允许语义等价，标识符、数值、单位及适用范围应准确。
 
 参考资料以源 ID、文件 ID、完整索引内容哈希和 ETag 固定。评估时核对参考来源快照；缺失信息题还核对整个绑定知识库的源快照，资料变动后停止语义计分并报告参考漂移。引用检查读取的证据仅保存来源身份、ETag 和实际引用分段，不复制整个知识库。原始输入中 1 份未能完整读取的文档未用作必需参考，详见复核记录。
 
@@ -212,9 +212,9 @@ J2-87～J2-102 继续覆盖损坏文件、附件引用、运行时成果大小�
 
 ## 下载与分析证据
 
-Journey-2 的 Job Summary 位于 `cases (group-01)`～`cases (group-10)`。Journey-3 使用 `cases (documents)`（J3-01～J3-57）和 `cases (operations)`（J3-58～J3-117）。每组的 Job Summary 提供独立报告和组包下载链接，组包以 case ID 为目录存放 `case-summary.md`。Journey-3 组包仅含公开指标，完整证据保存在 QA。其他 Journey 可在 `cases (J1-XX)` 等 job 的 `Case result and failure details` 步骤查看逐题结果。若 runner 在生成报告前被终止，可查看出错步骤和总报告中的缺失结果。
+Journey-2 的 Job Summary 位于 `cases (group-01)`～`cases (group-10)`，组包按 case ID 存放 `case-summary.md`。Journey-3 使用 `cases (documents)`（J3-01～J3-57）和 `cases (operations)`（J3-58～J3-117）。两组的执行进度见 job 日志，最终 HTML 从本次运行的 Summary 下载。其他 Journey 可在 `cases (J1-XX)` 等 job 的 `Case result and failure details` 步骤查看逐题结果。
 
-在 Actions 本次运行底部的 **Artifacts** 下载 `journey-run-<run_id>-attempt-<n>`，查看总报告及 Journey-3 历史曲线。各组使用 `case-<journey-id>-<组名>-attempt-<n>` 上传组包，单 case job 使用 `case-<case-id>-attempt-<n>`，完成后即可下载。重跑时选择 **Re-run all jobs**，汇总只接收本次 attempt 的结果。证据包 **保留 1 天**，可通过工作流的上传步骤调整。
+其他 Journey 的总报告位于 Actions 本次运行底部的 `journey-run-<run_id>-attempt-<n>` artifact。分组用例的证据包名为 `case-<journey-id>-<组名>-attempt-<n>`，单 case 为 `case-<case-id>-attempt-<n>`。重跑时选择 **Re-run all jobs**，汇总只接收本次 attempt 的结果。证据包保留 1 天。
 
 统一包包含：
 

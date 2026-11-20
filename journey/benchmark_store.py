@@ -1,11 +1,9 @@
-"""Keep business questions and complete evidence inside the selected workspace."""
+"""Store Journey-3 metrics and diagnostic metadata in the selected workspace."""
 import argparse
 import hashlib
-import io
 import json
 import os
 from pathlib import Path
-import tarfile
 import uuid
 
 from .client import Failure
@@ -83,19 +81,6 @@ class Store:
                 return True
         return False
 
-    def upload(self, directory, case_id):
-        # Only files inside this case, with fixed archive paths; never archive
-        # the runner worktree, parent directories, symlinks or credentials.
-        directory = Path(directory)
-        payload = io.BytesIO()
-        with tarfile.open(fileobj=payload, mode='w:gz') as archive:
-            for path in sorted(directory.rglob('*')):
-                if path.is_symlink():
-                    raise Failure('private_evidence_symlink')
-                if path.is_file():
-                    archive.add(path, arcname=path.relative_to(directory), recursive=False)
-        return self.upload_private(case_id + '-evidence.tar.gz', payload.getvalue(), 'application/gzip')
-
     def upload_private(self, filename, data, content_type):
         boundary = 'journey-' + uuid.uuid4().hex
         raw = (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; '
@@ -113,45 +98,48 @@ class Store:
         return {'file_id': file_id, 'sha256': checksum, 'bytes': len(data)}
 
     def persist(self, result, case, directory):
+        from .benchmark_details import retained_report
         from .benchmark_metrics import history_observations, history_record
+        from .evidence import Evidence, configured_secrets
         events = Path(directory) / 'events.jsonl'
         record = history_record(result, case, events)
-        stored = {**result, 'history_observations': history_observations(result, record, events)}
+        stored = Evidence(directory, configured_secrets()).clean(
+            retained_report(result, record, history_observations(result, record, events)))
+        stored['result_sha256'] = digest(result)
         key = digest([record['run_id'], record['run_attempt'], case['id'], record['case_revision']])
-        prior = self.sql('SELECT report_json FROM ' + HISTORY + ' WHERE result_key=' + literal(key), 1)
-        if prior.get('rows'):
-            previous = json.loads(prior['rows'][0][0])
-            # Pipeline completion is written after the immutable execution
-            # snapshot; it is not part of the execution's idempotency key.
+        readback = 'SELECT report_json FROM ' + HISTORY + ' WHERE result_key=' + literal(key)
+
+        def matches(row):
+            previous = json.loads(row[0])
             previous.pop('pipeline', None)
-            if 'history_observations' not in previous:
-                # A retry can encounter a record written before observations were added.
-                comparable = result
-            else:
-                comparable = stored
-            if digest(previous) != digest(comparable):
+            if 'report_details' in previous:
+                return previous == stored
+            previous.pop('history_observations', None)
+            return digest(previous) == stored['result_sha256']
+
+        prior = self.sql(readback, 1)
+        if prior.get('rows'):
+            if not matches(prior['rows'][0]):
                 raise Failure('benchmark_history_result_key_conflict')
             return {'state': 'already_saved', 'result_key': key}
-        receipt = self.upload(directory, case['id'])
-        record.update(result_key=key, evidence_file_id=receipt['file_id'],
-                      evidence_sha256=receipt['sha256'], report_json=canonical(stored))
+        record.update(result_key=key, report_json=canonical(stored))
         names = list(record)
-        self.sql('INSERT INTO ' + HISTORY + ' (' + ','.join('`'+x+'`' for x in names) + ') VALUES (' +
+        self.sql('INSERT IGNORE INTO ' + HISTORY + ' (' + ','.join('`'+x+'`' for x in names) + ') VALUES (' +
                  ','.join(literal(record[x]) for x in names) + ')')
-        verify = self.sql('SELECT evidence_file_id FROM ' + HISTORY + ' WHERE result_key=' + literal(key), 1)
-        if verify.get('rows') != [[receipt['file_id']]]:
+        rows = self.sql(readback, 1)['rows']
+        if len(rows) != 1 or not matches(rows[0]):
             raise Failure('benchmark_history_receipt_mismatch')
         return {'state': 'saved', 'result_key': key}
 
-    def finalize_pipeline(self, result, case, directory, stages):
-        from .benchmark_metrics import history_record
+    def finalize_pipeline(self, result, case, stages):
+        from .benchmark_metrics import history_identity
         from .failure_categories import STAGES
         if (not isinstance(stages, dict) or set(stages) - STAGES or any(
                 not isinstance(value, dict) or type(value.get('timed_out')) is not bool or
                 (value.get('exit_code') is not None and type(value['exit_code']) is not int)
                 for value in stages.values())):
             raise Failure('invalid_pipeline_stages')
-        record = history_record(result, case, Path(directory) / 'events.jsonl')
+        record = history_identity(result, case)
         key = digest([record['run_id'], record['run_attempt'], case['id'], record['case_revision']])
         condition = ' WHERE result_key=' + literal(key)
         rows = self.sql('SELECT report_json FROM ' + HISTORY + condition, 1)['rows']
@@ -160,19 +148,12 @@ class Store:
         stored = json.loads(rows[0][0])
         if stored.get('case_id') != case['id'] or stored.get('workspace') != 'journey-3':
             raise Failure('pipeline_history_identity_mismatch')
-        pipeline = {'stages': {name: {key: value.get(key) for key in ('exit_code', 'timed_out')}
-                               for name, value in stages.items()}}
+        pipeline = {**stored.get('pipeline', {}), 'stages': {
+            name: {key: value.get(key) for key in ('exit_code', 'timed_out')} for name, value in stages.items()}}
         if (stored.get('pipeline') or {}).get('stages') == pipeline['stages']:
             return
-        # History/publication run after the original archive was captured.
-        # Preserve their failure logs separately without replacing that archive.
-        logs = Path(directory) / 'pipeline'
-        if logs.is_dir() and any(name in {'history', 'publish'} and
-                (value['exit_code'] != 0 or value['timed_out']) for name, value in stages.items()):
-            pipeline['evidence'] = self.upload(logs, case['id'] + '-pipeline')
         updated = {**stored, 'pipeline': pipeline}
-        # Preserve task state, quality, observations and original evidence. Only
-        # the post-execution journal is added, guarded by the snapshot we read.
+        # Add the stage outcomes without modifying the execution observations.
         self.sql('UPDATE ' + HISTORY + ' SET report_json=' + literal(canonical(updated)) + condition +
                  ' AND report_json=' + literal(rows[0][0]))
         verified = self.sql('SELECT report_json FROM ' + HISTORY + condition, 1)['rows']
@@ -199,7 +180,7 @@ def main():
         stages = json.loads((directory / 'batch-stages.json').read_text())
         if stages.get('case_id') != case['id']:
             raise Failure('pipeline_case_identity_mismatch')
-        store.finalize_pipeline(result, case, directory, stages['stages'])
+        store.finalize_pipeline(result, case, stages['stages'])
         print(json.dumps({'case_id': case['id'], 'pipeline': 'saved'}))
         return
     receipt = store.persist(result, case, directory)

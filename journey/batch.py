@@ -19,7 +19,7 @@ CASE_MODULES = {'api': 'journey.functional_case', 'browser': 'journey.browser_ca
 
 
 def case_overhead_minutes(case_id):
-    # J3 also persists private evidence/history and finalizes the pipeline
+    # J3 also persists history and finalizes the pipeline
     # journal, each with its own subprocess and termination grace period.
     return CASE_OVERHEAD_MINUTES + 2 * int(case_id.startswith('J3-'))
 
@@ -147,6 +147,7 @@ def run_case(case, workspace, directory, public_root, repo, env):
             stage_env = dict(child_env)
             if workspace == 'journey-3':
                 stage_env['MOI_PRIVATE_STAGE_LOG'] = str(evidence.root / 'pipeline' / (name + '.log'))
+                stage_env['MOI_J3_COMPACT_RECORDING'] = '1'
             stages[name] = run_stage(command, directory, stage_env, timeout)
         except (OSError, ValueError) as error:
             stages[name] = {'exit_code': None, 'timed_out': False, 'error': type(error).__name__}
@@ -164,12 +165,10 @@ def run_case(case, workspace, directory, public_root, repo, env):
         if not stage('history', [sys.executable, '-m', 'journey.benchmark_store', 'persist', case_id], 120):
             result_path=evidence.root/'result.json'
             if result_path.exists():
-                from .report import case_summary
                 result=json.loads(result_path.read_text())
                 result.setdefault('harness_errors',[]).append({'stage':'history','reason':'QA_history_not_saved'})
                 result['test_status']='error'
                 evidence.write('result.json',result)
-                (evidence.root/'case-summary.md').write_text(case_summary(result))
     if stage('publish', [sys.executable, '-m', 'journey.publish'],
              60 if workspace == 'journey-3' else STAGE_SECONDS['publish']):
         # Only expose a complete, scanned case; failed publication cannot leave

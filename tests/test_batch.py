@@ -253,6 +253,10 @@ class BatchRunnerTests(unittest.TestCase):
                                      'metrics_only' if workspace=='journey-3' else 'complete')
                     if workspace == 'journey-3':
                         self.assertEqual(result['rag']['expected_answers'], 1)
+                        private = root / 'work' / case_id / 'results' / case_id
+                        self.assertTrue((private / 'result.json').is_file())
+                        self.assertFalse((private / 'execution-config.json').exists())
+                        self.assertFalse((private / 'case-summary.md').exists())
 
 
 if __name__ == '__main__':
