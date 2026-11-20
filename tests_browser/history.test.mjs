@@ -55,6 +55,9 @@ test('history overlays the selected job or all cases while keeping case and mode
     const casesIn = async plot => page.locator('#' + plot + ' .chart-series').evaluateAll(nodes => nodes.map(node => node.dataset.case));
     assert.equal(await page.locator('#case').inputValue(), 'all');
     assert.equal(await page.locator('#report-coverage').innerText(), '本次记录 3 / 4 题 · 缺少 J3-58');
+    assert.equal(await page.locator('#latency-distribution').isVisible(), true);
+    await page.getByRole('button', { name: '逐题趋势', exact: true }).click();
+    assert.equal(await page.locator('#latency-cases').isVisible(), true);
     const ticks = page.locator('#completed_seconds [data-run-tick]');
     assert.deepEqual(await ticks.evaluateAll(nodes => nodes.map(node => node.firstChild.nodeValue)),
       ['#93', '#94', '#95', '#95.2', '#96']);
@@ -102,6 +105,54 @@ test('history overlays the selected job or all cases while keeping case and mode
     assert.equal(await page.locator('#tool_failure_rate circle').count(), 1);
     assert.deepEqual(await casesIn(latency), ['J3-89']);
     assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('latency distributions count completed samples and keep exact threshold boundaries', async () => {
+  const template = await readFile(new URL('../datasets/journey-3/history.html', import.meta.url), 'utf8');
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const rows = [
+      ['1', 'J3-01', 'completed', 60],
+      ['1', 'J3-02', 'completed', 120],
+      ['1', 'J3-03', 'completed', 600],
+      ['1', 'J3-04', 'completed', 601],
+      ['1', 'J3-05', 'timeout', null],
+      ['1', 'J3-06', 'completed', null],
+      ['2', 'J3-01', 'timeout', null],
+      ['3', 'J3-01', 'completed', 180],
+    ].map(([run_id, case_id, qa_outcome, completed_seconds]) => ({
+      run_id, case_id, qa_outcome, completed_seconds, run_attempt: 1,
+      evaluated_at: '2026-11-19T00:00:00Z', completed_model_rounds: null,
+      quality_score: null, tool_failed: null, tool_succeeded: null,
+    }));
+    const jobs = {documents: ['J3-01', 'J3-02'], operations: ['J3-03', 'J3-04', 'J3-05', 'J3-06']};
+    await page.setContent(template.replace('/*HISTORY_DATA*/[]', JSON.stringify(rows))
+      .replace('/*HISTORY_JOBS*/{}', JSON.stringify(jobs)));
+    const chart = page.locator('#latency-thresholds');
+    const points = label => chart.locator(`[data-series="${label}"] circle title`);
+    assert.equal(await chart.locator('.chart-series').count(), 11);
+    assert.match(await points('≤60').first().textContent(), /1 \/ 4 题（25\.0%）/);
+    assert.match(await points('≤120').first().textContent(), /2 \/ 4 题（50\.0%）/);
+    assert.match(await points('≤600').first().textContent(), /3 \/ 4 题（75\.0%）/);
+    assert.match(await points('≥600').first().textContent(), /2 \/ 4 题（50\.0%）/);
+    assert.equal(await points('≤120').count(), 2);
+    assert.equal(await chart.locator('polyline').count(), 0); // No samples for run 2.
+    assert.match(await page.locator('#latency-buckets [data-bucket=">600"] title').textContent(), /1 \/ 4 题（25\.0%）/);
+
+    await page.locator('#case').selectOption('job:operations');
+    assert.match(await points('≤600').textContent(), /1 \/ 2 题（50\.0%）/);
+    await page.getByRole('button', {name: '≥600', exact: true}).click();
+    assert.equal(await chart.locator('.muted').count(), 10);
+    await page.getByRole('button', {name: '≥600', exact: true}).click();
+    assert.equal(await chart.locator('.muted').count(), 0);
+
+    await page.locator('#case').selectOption('J3-03');
+    assert.equal(await page.locator('#latency-views').isHidden(), true);
+    assert.equal(await page.locator('#latency-cases').isVisible(), true);
   } finally {
     await browser.close();
   }

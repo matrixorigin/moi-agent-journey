@@ -15,6 +15,14 @@
   .trends { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   #rates[hidden] { display: none; }
   .trends section { margin: 0; padding: 14px; min-width: 0; }
+  #latency:has(#latency-distribution:not([hidden])) { grid-column: 1 / -1; }
+  .latency-plots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .latency-plots h4 { font-size: 15px; }
+  .latency-caption { margin: 8px 0 14px; font-size: 14px; }
+  .plot-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 13px; }
+  .plot-legend span { white-space: nowrap; }
+  .plot-legend button { padding: 2px 4px; font-size: inherit; }
+  @media (max-width: 840px) { .latency-plots { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 640px) { .trends { grid-template-columns: minmax(0, 1fr); } body { padding: 0 12px; } }
   svg { width: 100%; height: auto; display: block; }
   p { color: #51617c; }
@@ -24,11 +32,13 @@
   .chart-series polyline { fill: none; stroke: currentColor; stroke-width: 2; }
   .chart-series circle { fill: currentColor; }
   .chart-series.muted, svg:has(.chart-series:hover) .chart-series:not(:hover) { opacity: .2; }
+  #latency-thresholds .chart-series.muted { pointer-events: none; }
   .axis { stroke: #d7dfeb; }
   svg text { fill: #51617c; font: 12px system-ui; }
-  #detail-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
-  #detail-tabs button { border: 1px solid #ccd3df; border-radius: 6px; padding: 8px 10px; background: white; color: inherit; cursor: pointer; font: inherit; }
-  #detail-tabs button[aria-pressed="true"] { background: #203558; color: white; }
+  .view-buttons:not([hidden]) { display: flex; flex-wrap: wrap; gap: 6px; }
+  .view-buttons button, .plot-legend button { border: 1px solid #ccd3df; border-radius: 6px; background: white; color: inherit; cursor: pointer; font-family: inherit; }
+  .view-buttons button { padding: 6px 10px; font-size: inherit; }
+  .view-buttons button[aria-pressed="true"], .plot-legend button[aria-pressed="true"] { background: #203558; color: white; }
   .record { padding: 12px 0; border-top: 1px solid #e4e8f1; }
   .record dl { margin: 0; }
   .record dl div { display: grid; grid-template-columns: minmax(5.8rem, auto) minmax(0, 1fr); gap: .5em; margin-top: .25em; }
@@ -53,14 +63,39 @@
   <section><h3>问答超时率</h3><svg id="timeout_rate" viewBox="0 0 480 170" role="img" aria-label="问答超时率"></svg></section>
 </div>
 <div class="trends" style="margin-top:14px">
-  <section><h3>正常完成任务耗时 · 秒</h3><svg id="completed_seconds" viewBox="0 0 480 170" role="img" aria-label="正常完成任务耗时"></svg></section>
+  <section id="latency">
+    <h3>正常完成任务耗时</h3>
+    <div id="latency-views" class="view-buttons" role="group" aria-label="耗时视图" hidden>
+      <button type="button" data-latency-view="distribution" aria-controls="latency-distribution" aria-pressed="true">耗时分布</button>
+      <button type="button" data-latency-view="cases" aria-controls="latency-cases" aria-pressed="false">逐题趋势</button>
+    </div>
+    <div id="latency-distribution" hidden>
+      <p class="latency-caption">占比以当次正常完成且有耗时记录的 Case 为分母。</p>
+      <div class="latency-plots">
+        <div>
+          <h4>分档占比 · 秒</h4>
+          <svg id="latency-buckets" viewBox="0 0 480 170" role="img" aria-label="正常完成任务耗时分档占比"></svg>
+          <div id="latency-bucket-legend" class="plot-legend"></div>
+        </div>
+        <div>
+          <h4>阈值占比趋势 · 秒</h4>
+          <svg id="latency-thresholds" viewBox="0 0 480 170" role="img" aria-label="正常完成任务耗时阈值占比历史趋势"></svg>
+          <div id="latency-threshold-legend" class="plot-legend" role="group" aria-label="选择高亮的耗时阈值"></div>
+        </div>
+      </div>
+    </div>
+    <div id="latency-cases" hidden>
+      <p class="latency-caption">单位：秒</p>
+      <svg id="completed_seconds" viewBox="0 0 480 170" role="img" aria-label="正常完成任务耗时"></svg>
+    </div>
+  </section>
   <section><h3>正常完成模型轮次</h3><svg id="completed_model_rounds" viewBox="0 0 480 170" role="img" aria-label="正常完成模型轮次"></svg></section>
   <section><h3>工具失败率</h3><svg id="tool_failure_rate" viewBox="0 0 480 170" role="img" aria-label="工具失败率"></svg></section>
   <section><h3>正常完成得分 · 0–100</h3><svg id="quality_score" viewBox="0 0 480 170" role="img" aria-label="正常完成得分"></svg></section>
 </div>
 <section id="details" hidden>
   <h2>最近一次运行分析</h2>
-  <div id="detail-tabs" role="group" aria-label="运行明细">
+  <div class="view-buttons" role="group" aria-label="运行明细">
     <button type="button" data-detail="errors" aria-pressed="true">报错未正常完成</button>
     <button type="button" data-detail="timeouts" aria-pressed="false">超时未正常完成</button>
     <button type="button" data-detail="tools" aria-pressed="false">失败工具调用</button>
@@ -170,36 +205,51 @@ function selectScope() {
   render();
 }
 
-function draw(id, series, metric, chartDomain, color, colorByCase = false) {
+function svgNode(parent, name, attributes, label) {
+  const element = document.createElementNS('http://www.w3.org/2000/svg', name);
+  for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
+  if (label !== undefined) element.textContent = label;
+  parent.append(element);
+  return element;
+}
+
+function chartAxes(id, maximum, percent) {
   const svg = document.getElementById(id);
   svg.replaceChildren();
-  function node(parent, name, attributes, label) {
-    const element = document.createElementNS('http://www.w3.org/2000/svg', name);
-    for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
-    if (label !== undefined) element.textContent = label;
-    parent.append(element);
-    return element;
-  }
-
-  const values = [...series.values()].flat().map(metric);
-  const maximum = chartDomain ?? values.reduce((max, value) => Math.max(max, value ?? 0), 1);
   const left = 43, right = 454, top = 12, bottom = 137;
   const pointX = index => timeline.length <= 1 ? (left + right) / 2 :
     left + (right - left) * index / (timeline.length - 1);
+  const pointY = value => bottom - (bottom - top) * value / maximum;
   for (let i = 0; i <= 4; i++) {
-    const y = bottom - (bottom - top) * i / 4;
-    node(svg, 'line', {x1: left, x2: right, y1: y, y2: y, class: 'axis'});
-    node(svg, 'text', {x: left - 5, y: y + 4, 'text-anchor': 'end'}, Number((maximum * i / 4).toFixed(1)));
+    const value = maximum * i / 4;
+    const y = pointY(value);
+    svgNode(svg, 'line', {x1: left, x2: right, y1: y, y2: y, class: 'axis'});
+    svgNode(svg, 'text', {x: left - 5, y: y + 4, 'text-anchor': 'end'},
+      Number(value.toFixed(1)) + (percent ? '%' : ''));
   }
-  if (!values.some(Number.isFinite)) node(svg, 'text', {x: 250, y: 80, 'text-anchor': 'middle'}, '暂无数据');
-  if (!timeline.length) return;
-  for (const entries of series.values()) {
+  for (const index of tickIndexes) {
+    const run = timeline[index];
+    const anchor = timeline.length === 1 ? 'middle' :
+      index === 0 ? 'start' : index === timeline.length - 1 ? 'end' : 'middle';
+    const tick = svgNode(svg, 'text', {x: pointX(index), y: 163, 'text-anchor': anchor, 'data-run-tick': run.key},
+      runLabel(run.run_id, run.run_attempt));
+    svgNode(tick, 'title', {}, runTooltips[index]);
+  }
+  return {svg, pointX, pointY, spacing: (right - left) / Math.max(1, timeline.length - 1)};
+}
+
+function draw(id, series, metric, chartDomain, color, {byCase = false, percent = false, describe} = {}) {
+  const values = [...series.values()].flat().map(metric);
+  const maximum = chartDomain ?? values.reduce((max, value) => Math.max(max, value ?? 0), 1);
+  const {svg, pointX, pointY} = chartAxes(id, maximum, percent);
+  if (!values.some(Number.isFinite)) svgNode(svg, 'text', {x: 250, y: 80, 'text-anchor': 'middle'}, '暂无数据');
+  for (const [key, entries] of series) {
     const first = entries[0];
-    const group = node(svg, 'g', {class: 'chart-series', 'data-case': first.case_id ?? '',
-      color: colorByCase ? caseColor(first.case_id) : color});
+    const group = svgNode(svg, 'g', {class: 'chart-series', 'data-case': first.case_id ?? '', 'data-series': key,
+      color: byCase ? caseColor(first.case_id) : typeof color === 'function' ? color(key) : color});
     let points = [];
     function finishSegment() {
-      if (points.length > 1) node(group, 'polyline', {points: points.join(' ')});
+      if (points.length > 1) svgNode(group, 'polyline', {points: points.join(' ')});
       points = [];
     }
     let previous;
@@ -213,23 +263,130 @@ function draw(id, series, metric, chartDomain, color, colorByCase = false) {
       if (previous !== index - 1) finishSegment();
       previous = index;
       const x = pointX(index);
-      const y = bottom - (bottom - top) * value / maximum;
+      const y = pointY(value);
       points.push(x + ',' + y);
-      const point = node(group, 'circle', {cx: x, cy: y, r: colorByCase ? 2.5 : 4});
+      const point = svgNode(group, 'circle', {cx: x, cy: y, r: byCase ? 2.5 : 4});
       const label = runTooltips[index] + ' · ' + Number(value.toFixed(2));
-      node(point, 'title', {}, row.case_id ? row.case_id + ' · ' + label + '\n' + version(row) : label);
+      const tooltip = describe ? runTooltips[index] + ' · ' + describe(row) :
+        row.case_id ? row.case_id + ' · ' + label + '\n' + version(row) : label;
+      svgNode(point, 'title', {}, tooltip);
     }
     finishSegment();
   }
 
-  for (const index of tickIndexes) {
-    const run = timeline[index];
-    const anchor = timeline.length === 1 ? 'middle' :
-      index === 0 ? 'start' : index === timeline.length - 1 ? 'end' : 'middle';
-    const tick = node(svg, 'text', {x: pointX(index), y: 163, 'text-anchor': anchor, 'data-run-tick': run.key},
-      runLabel(run.run_id, run.run_attempt));
-    node(tick, 'title', {}, runTooltips[index]);
+}
+
+const latencyLimits = Array.from({length: 10}, (_, index) => (index + 1) * 60);
+const lastLatencyLimit = latencyLimits.at(-1);
+const bucketLabels = latencyLimits.map((limit, index) => index === 0 ? '≤' + limit :
+  '(' + latencyLimits[index - 1] + ', ' + limit + ']').concat('>' + lastLatencyLimit);
+const thresholdLabels = latencyLimits.map(limit => '≤' + limit).concat('≥' + lastLatencyLimit);
+const latencyColors = ['#2469ae', '#088aaf', '#106b66', '#37823b', '#727621', '#9a7210',
+  '#a44b14', '#a1336b', '#824ba4', '#494ead', '#ba322b'];
+const latencyViews = document.getElementById('latency-views');
+const latencyViewButtons = [...latencyViews.querySelectorAll('button')];
+let latencyView = 'distribution';
+let activeThreshold = null;
+
+function showLatencyView() {
+  const overview = jobOrAll();
+  const distribution = overview && latencyView === 'distribution';
+  latencyViews.hidden = !overview;
+  document.getElementById('latency-distribution').hidden = !distribution;
+  document.getElementById('latency-cases').hidden = distribution;
+  for (const button of latencyViewButtons) {
+    button.setAttribute('aria-pressed', String(button.dataset.latencyView === latencyView));
   }
+}
+
+for (const button of latencyViewButtons) button.onclick = () => {
+  latencyView = button.dataset.latencyView;
+  showLatencyView();
+};
+
+function legendSwatch(label, index) {
+  const swatch = element('span');
+  swatch.className = 'swatch';
+  swatch.style.backgroundColor = latencyColors[index];
+  return [swatch, document.createTextNode(label)];
+}
+
+const thresholdButtons = thresholdLabels.map((label, index) => {
+  const bucket = element('span');
+  bucket.append(...legendSwatch(bucketLabels[index], index));
+  document.getElementById('latency-bucket-legend').append(bucket);
+
+  const button = element('button');
+  button.type = 'button';
+  button.append(...legendSwatch(label, index));
+  button.setAttribute('aria-pressed', 'false');
+  button.onclick = () => {
+    activeThreshold = activeThreshold === label ? null : label;
+    for (const [i, control] of thresholdButtons.entries()) {
+      control.setAttribute('aria-pressed', String(thresholdLabels[i] === activeThreshold));
+    }
+    highlightThreshold();
+  };
+  document.getElementById('latency-threshold-legend').append(button);
+  return button;
+});
+
+function highlightThreshold() {
+  for (const group of document.querySelectorAll('#latency-thresholds .chart-series')) {
+    group.classList.toggle('muted', activeThreshold !== null && group.dataset.series !== activeThreshold);
+  }
+}
+
+function latencyCounts(rows) {
+  const counts = new Map();
+  for (const row of rows) {
+    const seconds = row.completed_seconds;
+    if (row.qa_outcome !== 'completed' || !Number.isFinite(seconds)) continue;
+    const key = runKey(row);
+    if (!counts.has(key)) counts.set(key, {total: 0, buckets: bucketLabels.map(() => 0), slow: 0});
+    const count = counts.get(key);
+    const index = latencyLimits.findIndex(limit => seconds <= limit);
+    count.buckets[index === -1 ? latencyLimits.length : index]++;
+    count.total++;
+    if (seconds >= lastLatencyLimit) count.slow++;
+  }
+  return counts;
+}
+
+function latencyShare(label, count, total) {
+  return label + ' 秒 · ' + count + ' / ' + total + ' 题（' + (100 * count / total).toFixed(1) + '%）';
+}
+
+function drawLatencyDistribution(rows) {
+  const counts = latencyCounts(rows);
+  const {svg, pointX, pointY, spacing} = chartAxes('latency-buckets', 100, true);
+  if (!counts.size) svgNode(svg, 'text', {x: 250, y: 80, 'text-anchor': 'middle'}, '暂无数据');
+  const width = Math.min(32, spacing * .72);
+  const curves = new Map();
+  for (const [key, {total, buckets, slow}] of counts) {
+    const index = runIndex.get(key);
+    const run = runs.get(key);
+    let cumulative = 0;
+    for (const [part, count] of buckets.entries()) {
+      const lower = pointY(100 * cumulative / total);
+      cumulative += count;
+      const upper = pointY(100 * cumulative / total);
+      if (count) {
+        const segment = svgNode(svg, 'rect', {x: pointX(index) - width / 2, y: upper,
+          width, height: lower - upper, fill: latencyColors[part], 'data-bucket': bucketLabels[part]});
+        svgNode(segment, 'title', {}, runTooltips[index] + ' · ' + latencyShare(bucketLabels[part], count, total));
+      }
+      const label = thresholdLabels[part];
+      if (!curves.has(label)) curves.set(label, []);
+      curves.get(label).push({run_id: run.run_id, run_attempt: run.run_attempt, label, total,
+        count: part === latencyLimits.length ? slow : cumulative});
+    }
+  }
+  draw('latency-thresholds', curves, row => 100 * row.count / row.total, 100,
+    label => latencyColors[thresholdLabels.indexOf(label)], {
+      percent: true, describe: row => latencyShare(row.label, row.count, row.total),
+    });
+  highlightThreshold();
 }
 
 function showLegend(ids, overview) {
@@ -377,14 +534,19 @@ function render() {
     ' 次记录，正常交付 ' + completed + ' 次，已评分 ' + scored + ' 次。';
   showLegend(shownCases, overview);
   document.getElementById('rates').hidden = !overview;
-  if (overview) drawRates(rows);
-  draw('completed_seconds', series, row => row.completed_seconds, null, '#356df3', overview);
-  draw('completed_model_rounds', series, row => row.completed_model_rounds, null, '#356df3', overview);
+  if (overview) {
+    drawRates(rows);
+    drawLatencyDistribution(rows);
+  }
+  showLatencyView();
+  draw('completed_seconds', series, row => row.completed_seconds, null, '#356df3', {byCase: overview});
+  draw('completed_model_rounds', series, row => row.completed_model_rounds, null, '#356df3', {byCase: overview});
   draw('tool_failure_rate', series, row => {
     const total = row.tool_failed + row.tool_succeeded;
     return row.tool_failed !== null && row.tool_succeeded !== null && total > 0 ? 100 * row.tool_failed / total : null;
-  }, 100, '#a96812', overview);
-  draw('quality_score', series, row => row.qa_outcome === 'completed' ? row.quality_score : null, 100, '#159f83', overview);
+  }, 100, '#a96812', {byCase: overview});
+  draw('quality_score', series, row => row.qa_outcome === 'completed' ? row.quality_score : null, 100, '#159f83',
+    {byCase: overview});
   showDetails();
 }
 
