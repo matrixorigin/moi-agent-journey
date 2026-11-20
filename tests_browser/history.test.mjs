@@ -201,11 +201,14 @@ test('threshold shares use metric-specific cohorts and include exact boundaries'
       assert.match(await points(id, low).first().textContent(), new RegExp(lowCount));
       assert.match(await points(id, upper).first().textContent(), new RegExp(upperCount));
       assert.match(await points(id, tail).first().textContent(), new RegExp(tailCount));
-      assert.equal(await points(id, low).count(), 2);
-      assert.equal(await chart(id).locator('polyline').count(), 0); // No samples for run 2.
+      const hasRecordedLegacySample = id === 'completed_seconds';
+      assert.equal(await points(id, low).count(), hasRecordedLegacySample ? 3 : 2);
+      assert.equal(await chart(id).locator('polyline').count(), hasRecordedLegacySample ? series : 0);
     }
     assert.match(await points('tool_failure_rate', '≤20%').first().textContent(), /可计算 5 题/);
-    assert.equal(await page.locator('#completed_seconds [data-case="J3-02"] circle').count(), 1);
+    assert.equal(await page.locator('#completed_seconds [data-case="J3-02"] circle').count(), 2);
+    assert.match(await page.locator('#completed_seconds [data-case="J3-02"] circle title').last().textContent(),
+      / · 90\n/);
     assert.match(await page.locator('#completed_seconds [data-case="J3-01"] circle title').last().textContent(),
       / · 180\n/);
     assert.equal(await page.getByLabel('耗时口径').count(), 0);
