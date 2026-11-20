@@ -153,6 +153,14 @@ def run_case(case, workspace, directory, public_root, repo, env):
             stages[name] = {'exit_code': None, 'timed_out': False, 'error': type(error).__name__}
         finally:
             print('::endgroup::', flush=True)
+        if workspace == 'journey-3' and name in {'history', 'finalize_history'}:
+            from .benchmark_store import history_diagnostic
+            if stages[name]['timed_out']:
+                stages[name]['diagnostic'] = {'reason': 'stage_timeout'}
+            elif stages[name]['exit_code'] != 0:
+                diagnostic = history_diagnostic(Path(stage_env['MOI_PRIVATE_STAGE_LOG']))
+                if diagnostic:
+                    stages[name]['diagnostic'] = diagnostic
         evidence.write('batch-stages.json', {'case_id': case_id, 'stages': stages, 'active_stage': None})
         return stages[name]['exit_code'] == 0 and not stages[name]['timed_out']
 

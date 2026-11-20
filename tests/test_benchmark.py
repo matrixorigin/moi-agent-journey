@@ -7,15 +7,32 @@ from unittest.mock import Mock, patch
 
 from journey.benchmark_details import retained_report
 from journey.benchmark_metrics import delivered_answer_seconds, history_observations, history_record, model_rounds, quality_score
-from journey.benchmark_store import Store, canonical, digest
+from journey.benchmark_store import Store, canonical, digest, history_diagnostic
 from journey.benchmark_history import metrics_row, read_run_metadata, write_metrics
 from journey.benchmark_run_report import details_for_case, publish, run_details
 from journey.catalog import load_case
+from journey.client import Failure, error_record
 from journey.publish import prepare_publication
 from journey.report import ArtifactRejected, _missing_case, _valid_case_result
 
 
 class BenchmarkTests(unittest.TestCase):
+    def test_history_diagnostic_keeps_transport_facts_without_query_or_response_text(self):
+        client = Mock()
+        client.request.side_effect = Failure('invalid_response', 200,
+            details={'content_type': 'text/html', 'body': 'PRIVATE RESPONSE'},
+            trace_headers={'x-request-id': 'PRIVATE ID'})
+        with self.assertRaises(Failure) as error:
+            Store(client, '/fixture').sql("INSERT INTO results VALUES ('PRIVATE QUERY')")
+        body = client.request.call_args.args[2]
+        with tempfile.TemporaryDirectory() as tmp:
+            log_path = Path(tmp) / 'history.log'
+            log_path.with_suffix('.error.json').write_text(canonical(error_record('history', error.exception)))
+            self.assertEqual(history_diagnostic(log_path), {
+                'reason': 'invalid_response', 'http_status': 200, 'content_type': 'text/html',
+                'operation': 'INSERT', 'request_bytes': len(json.dumps(body).encode()),
+            })
+
     def test_private_business_data_cannot_escape_via_reports_traces_paths_or_outputs(self):
         marker='PRIVATE_BUSINESS_e4f9'
         case=load_case('J3-01');case.update(id='J3-58',private_spec={'revision':'test'})

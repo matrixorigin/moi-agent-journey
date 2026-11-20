@@ -131,6 +131,8 @@ class Client:
                                "status": status, "response": response,
                                "headers": request_trace_headers(response_headers),
                                "seconds": round(time.monotonic() - started, 3)})
+        status = None
+        response_headers = {}
         try:
             with self.opener.open(req, timeout=remaining) as response:
                 response_headers = dict(response.headers)
@@ -177,7 +179,10 @@ class Client:
         except (urllib.error.URLError, OSError, http.client.HTTPException) as error:
             raise Failure("transport_error", details=transport_details(error)) from None
         except (ValueError, UnicodeError):
-            raise Failure("invalid_response") from None
+            content_type = next((value.split(';', 1)[0].strip().lower() for key, value in response_headers.items()
+                                 if key.lower() == 'content-type'), None)
+            raise Failure('invalid_response', status, details={'content_type': content_type},
+                          trace_headers=request_trace_headers(response_headers)) from None
 
     def product(self, method, path, body=None, *, expected_code=0):
         budget = ({'max_bytes': TASK_EVIDENCE_RESPONSE_LIMIT} if method == 'GET' and re.fullmatch(

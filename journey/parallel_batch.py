@@ -144,6 +144,10 @@ def run_parallel(ids, workspace, directory, public_root, env, parallel):
                 elapsed = int(time.monotonic() - case.started)
                 stages = failed_stage_names(row['failed_stages'])
                 suffix = ' | failed stages: ' + ', '.join(stages) if stages else ''
+                for stage in ('history', 'finalize_history'):
+                    diagnostic = row.get('stages', {}).get(stage, {}).get('diagnostic')
+                    if diagnostic:
+                        suffix += ' | ' + stage + '=' + json.dumps(diagnostic, separators=(',', ':'))
                 print(f'Slot {slot:02d} | finished {case_id} ({elapsed}s) | {outcome}{suffix}', flush=True)
                 write_summary([rows[key] for key in ids if key in rows], directory,
                               {**env, 'GITHUB_STEP_SUMMARY': ''})

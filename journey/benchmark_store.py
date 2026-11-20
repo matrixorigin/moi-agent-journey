@@ -12,6 +12,42 @@ from .hello import discover_workspace
 DATABASE = 'journey3_benchmark'
 HISTORY = DATABASE + '.results'
 SPECS = DATABASE + '.case_specs'
+HISTORY_FAILURE_REASONS = {
+    'http_error', 'transport_error', 'deadline_exceeded', 'invalid_response', 'response_too_large',
+    'benchmark_store_query_failed', 'benchmark_history_result_key_conflict',
+    'benchmark_history_receipt_mismatch', 'pipeline_history_not_found',
+    'pipeline_history_identity_mismatch', 'pipeline_history_confirmation_failed',
+    'FileNotFoundError', 'OSError', 'ValueError', 'TypeError', 'KeyError', 'JSONDecodeError',
+}
+TRANSPORT_CATEGORIES = {'dns', 'tls_certificate', 'tls', 'connection_refused', 'connection_closed',
+                        'connection_reset', 'timeout', 'http_protocol', 'network'}
+
+
+def history_diagnostic(log_path):
+    """Keep fixed codes and numbers from a private stage error for the Actions log."""
+    try:
+        error = json.loads(log_path.with_suffix('.error.json').read_text())
+    except (OSError, ValueError):
+        return None
+    if not isinstance(error, dict) or not isinstance(error.get('reason'), str):
+        return None
+    reason = error['reason'].split(':', 1)[0]
+    summary = {'reason': reason if reason in HISTORY_FAILURE_REASONS else 'other_error'}
+    status = error.get('http_status')
+    if type(status) is int and 100 <= status <= 599:
+        summary['http_status'] = status
+    details = error.get('details')
+    if isinstance(details, dict):
+        for field, allowed in [('operation', {'SELECT', 'INSERT', 'UPDATE'}),
+                               ('category', TRANSPORT_CATEGORIES),
+                               ('content_type', {'text/html', 'text/plain', 'application/json'})]:
+            value = details.get(field)
+            if isinstance(value, str) and value in allowed:
+                summary[field] = value
+        size = details.get('request_bytes')
+        if type(size) is int and size > 0:
+            summary['request_bytes'] = size
+    return summary
 
 
 def canonical(value):
@@ -39,12 +75,18 @@ class Store:
         self.root = root or discover_workspace(client, 'journey-3')
 
     def sql(self, statement, limit=1000):
-        response = self.client.request('POST', '/query/run',
-            {'db_name': DATABASE, 'query': statement, 'limit': limit})
-        result = response.get('data')
-        if (response.get('code') not in ('OK', 200) or not isinstance(result, dict)
-                or result.get('status') != 'success'):
-            raise Failure('benchmark_store_query_failed')
+        body = {'db_name': DATABASE, 'query': statement, 'limit': limit}
+        try:
+            response = self.client.request('POST', '/query/run', body)
+            result = response.get('data')
+            if (response.get('code') not in ('OK', 200) or not isinstance(result, dict)
+                    or result.get('status') != 'success'):
+                raise Failure('benchmark_store_query_failed')
+        except Failure as error:
+            details = error.details if isinstance(error.details, dict) else {}
+            error.details = {**details, 'operation': statement.split(None, 1)[0].upper() if statement.strip() else '',
+                             'request_bytes': len(json.dumps(body).encode())}
+            raise
         result['rows'] = [[cell.get('String') if cell.get('Valid') else None for cell in row]
                           for row in (result.get('result') or [])]
         return result
