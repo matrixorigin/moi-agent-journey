@@ -9,6 +9,7 @@ from typing import BinaryIO
 
 from .batch import stop_stage, write_summary, CASE_OVERHEAD_MINUTES
 from .catalog import ROOT, load_case, load_suite, step_timeout_minutes
+from .failure_categories import STAGES, failed_stage_names, failure_counts, failure_label
 
 
 PROGRESS_INTERVAL_SECONDS = 30
@@ -32,18 +33,21 @@ class RunningCase:
     deadline: float
 
 
-def case_outcome(public_root, case_id, failed_stages):
-    if failed_stages:
-        return 'framework error'
+def case_outcome(public_root, case_id, failed_stages, row=None):
     try:
         result = json.loads((public_root / case_id / 'result.json').read_text(encoding='utf-8'))
     except (OSError, ValueError):
+        result = {}
+    try:
+        counts = failure_counts({'privacy': 'metrics_only', 'failure_categories':
+            (row or {}).get('failure_categories', result.get('failure_categories', {}))})
+    except (ValueError, TypeError, AttributeError):
         return 'report unavailable'
+    if failed_stages or result.get('test_status') == 'error':
+        return failure_label(counts) or 'framework error'
     # Print only fixed labels and numeric scores from the published projection.
     if not isinstance(result, dict) or result.get('case_id') != case_id:
         return 'report unavailable'
-    if result.get('test_status') == 'error':
-        return 'framework error'
     if result.get('privacy') != 'metrics_only':
         return 'report collected'
     benchmark = result.get('benchmark')
@@ -64,6 +68,16 @@ def case_outcome(public_root, case_id, failed_stages):
     return outcome
 
 
+def active_stage(case):
+    path = case.work / case.case_id / 'results' / case.case_id / 'batch-stages.json'
+    try:
+        value = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return 'starting'
+    name = value.get('active_stage') if isinstance(value, dict) else None
+    return name if isinstance(name, str) and name in STAGES else 'collecting'
+
+
 def print_progress(queue, active, finished, total, now):
     done = sum(len(history) for history in finished.values())
     lines = [f'Progress | finished {done}/{total} | running {len(active)} | queued {len(queue)}']
@@ -71,7 +85,8 @@ def print_progress(queue, active, finished, total, now):
         case = active.get(slot)
         running = f'{case.case_id} ({int(now - case.started)}s)' if case else 'idle'
         completed = ', '.join(history) or '—'
-        lines.append(f'Slot {slot:02d} | running: {running} | finished: {completed}')
+        stage = f' | stage: {active_stage(case)}' if case else ''
+        lines.append(f'Slot {slot:02d} | running: {running} | finished: {completed}{stage}')
     print('\n'.join(lines), flush=True)
 
 
@@ -124,10 +139,12 @@ def run_parallel(ids, workspace, directory, public_root, env, parallel):
                            'failed_stages': ['worker_timeout' if expired else 'worker_result_missing']}
                 rows[case_id] = row
                 del active[slot]
-                outcome = case_outcome(public_root, case_id, row['failed_stages'])
+                outcome = case_outcome(public_root, case_id, row['failed_stages'], row)
                 finished[slot].append(f'{case_id} [{outcome}]')
                 elapsed = int(time.monotonic() - case.started)
-                print(f'Slot {slot:02d} | finished {case_id} ({elapsed}s) | {outcome}', flush=True)
+                stages = failed_stage_names(row['failed_stages'])
+                suffix = ' | failed stages: ' + ', '.join(stages) if stages else ''
+                print(f'Slot {slot:02d} | finished {case_id} ({elapsed}s) | {outcome}{suffix}', flush=True)
                 write_summary([rows[key] for key in ids if key in rows], directory,
                               {**env, 'GITHUB_STEP_SUMMARY': ''})
             if active:

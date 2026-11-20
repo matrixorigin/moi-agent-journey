@@ -121,5 +121,25 @@ class ClientTransportTests(unittest.TestCase):
             self.assertEqual(raised.exception.details, {'category': 'dns', 'exception': 'gaierror', 'errno': -2})
 
 
+    def test_http_failure_keeps_request_trace_on_both_transports_without_cookies_or_body(self):
+        for stream in (False, True):
+            client = Client('https://example.invalid', 'synthetic-pat')
+            headers = Message()
+            headers['X-Trace-Id'] = '503-trace'
+            headers['X-Request-Id'] = '503-request'
+            headers['Set-Cookie'] = 'private-cookie'
+            client.opener.open = Mock(side_effect=urllib.error.HTTPError(
+                'https://example.invalid', 503, 'Unavailable', headers, io.BytesIO(b'private-response-body')))
+            with self.subTest(stream=stream), self.assertRaises(Failure) as raised:
+                if stream:
+                    list(client.stream_rpc({'agent_id': 'a'}, {}))
+                else:
+                    client.request('GET', '/endpoint')
+            self.assertEqual(raised.exception.trace_headers,
+                             {'X-Trace-Id':'503-trace', 'X-Request-Id':'503-request'})
+            self.assertIsNone(raised.exception.details)
+            self.assertNotIn('private-', str(raised.exception))
+
+
 if __name__ == '__main__':
     unittest.main()

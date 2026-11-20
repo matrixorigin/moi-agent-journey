@@ -12,6 +12,7 @@ from .benchmark_store import HISTORY, configured_store, literal
 from .catalog import load_suite
 from .evidence import Evidence, configured_secrets
 from .report import ArtifactRejected, inspect_payload
+from .failure_categories import LABELS, error_category
 
 
 def evidence_text(value):
@@ -41,10 +42,15 @@ def details_for_case(row, report):
     details = {'errors': [], 'timeouts': [], 'tools': [], 'scores': []}
     outcome = history_observations(report, row)['qa_outcome']
     last_task = tasks[-1] if tasks else {}
-    if outcome == 'error':
+    pipeline_errors = [{'stage': name, 'reason': 'pipeline_stage_failed', **value}
+        for name, value in report.get('pipeline', {}).get('stages', {}).items()
+        if name in {'history', 'publish'} and (value.get('exit_code') != 0 or value.get('timed_out'))]
+    if outcome == 'error' or report.get('harness_errors') or pipeline_errors:
         failures = [error for error in report.get('failures', []) + report.get('harness_errors', [])
                     if error.get('reason') not in {'case_timeout', 'deadline_exceeded'}]
-        message = errors_text(failures, ('stage', 'reason', 'http_status', 'exit_code'))
+        message = errors_text([{**error, 'category': LABELS[error_category(error)]}
+                              for error in failures + pipeline_errors],
+                              ('category', 'stage', 'reason', 'http_status', 'exit_code'))
         runtime_error = last_task.get('runtime_error')
         if runtime_error:
             message = '\n\n'.join(filter(None, (message, evidence_text(runtime_error))))

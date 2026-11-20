@@ -119,6 +119,9 @@ class Store:
         prior = self.sql('SELECT report_json FROM ' + HISTORY + ' WHERE result_key=' + literal(key), 1)
         if prior.get('rows'):
             previous = json.loads(prior['rows'][0][0])
+            # Pipeline completion is written after the immutable execution
+            # snapshot; it is not part of the execution's idempotency key.
+            previous.pop('pipeline', None)
             if 'history_observations' not in previous:
                 # A retry can encounter a record written before observations were added.
                 comparable = result
@@ -138,6 +141,42 @@ class Store:
             raise Failure('benchmark_history_receipt_mismatch')
         return {'state': 'saved', 'result_key': key}
 
+    def finalize_pipeline(self, result, case, directory, stages):
+        from .benchmark_metrics import history_record
+        from .failure_categories import STAGES
+        if (not isinstance(stages, dict) or set(stages) - STAGES or any(
+                not isinstance(value, dict) or type(value.get('timed_out')) is not bool or
+                (value.get('exit_code') is not None and type(value['exit_code']) is not int)
+                for value in stages.values())):
+            raise Failure('invalid_pipeline_stages')
+        record = history_record(result, case, Path(directory) / 'events.jsonl')
+        key = digest([record['run_id'], record['run_attempt'], case['id'], record['case_revision']])
+        condition = ' WHERE result_key=' + literal(key)
+        rows = self.sql('SELECT report_json FROM ' + HISTORY + condition, 1)['rows']
+        if len(rows) != 1:
+            raise Failure('pipeline_history_not_found')
+        stored = json.loads(rows[0][0])
+        if stored.get('case_id') != case['id'] or stored.get('workspace') != 'journey-3':
+            raise Failure('pipeline_history_identity_mismatch')
+        pipeline = {'stages': {name: {key: value.get(key) for key in ('exit_code', 'timed_out')}
+                               for name, value in stages.items()}}
+        if (stored.get('pipeline') or {}).get('stages') == pipeline['stages']:
+            return
+        # History/publication run after the original archive was captured.
+        # Preserve their failure logs separately without replacing that archive.
+        logs = Path(directory) / 'pipeline'
+        if logs.is_dir() and any(name in {'history', 'publish'} and
+                (value['exit_code'] != 0 or value['timed_out']) for name, value in stages.items()):
+            pipeline['evidence'] = self.upload(logs, case['id'] + '-pipeline')
+        updated = {**stored, 'pipeline': pipeline}
+        # Preserve task state, quality, observations and original evidence. Only
+        # the post-execution journal is added, guarded by the snapshot we read.
+        self.sql('UPDATE ' + HISTORY + ' SET report_json=' + literal(canonical(updated)) + condition +
+                 ' AND report_json=' + literal(rows[0][0]))
+        verified = self.sql('SELECT report_json FROM ' + HISTORY + condition, 1)['rows']
+        if len(verified) != 1 or json.loads(verified[0][0]) != updated:
+            raise Failure('pipeline_history_confirmation_failed')
+
 
 def configured_store(timeout=300):
     return Store(Client(os.environ['MOI_BASE_URL'], os.environ['MOI_PAT'], timeout=timeout))
@@ -145,14 +184,22 @@ def configured_store(timeout=300):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['persist'])
+    parser.add_argument('action', choices=['persist', 'finalize-pipeline'])
     parser.add_argument('case_id')
     args = parser.parse_args()
     from .catalog import load_case
     case = load_case(args.case_id)
     directory = Path('results') / case['id']
     result = json.loads((directory / 'result.json').read_text())
-    receipt = configured_store().persist(result, case, directory)
+    store = configured_store()
+    if args.action == 'finalize-pipeline':
+        stages = json.loads((directory / 'batch-stages.json').read_text())
+        if stages.get('case_id') != case['id']:
+            raise Failure('pipeline_case_identity_mismatch')
+        store.finalize_pipeline(result, case, directory, stages['stages'])
+        print(json.dumps({'case_id': case['id'], 'pipeline': 'saved'}))
+        return
+    receipt = store.persist(result, case, directory)
     (directory / 'history-receipt.json').write_text(canonical(receipt))
     print(json.dumps({'case_id': case['id'], 'history': receipt['state']}))
 
@@ -164,6 +211,8 @@ if __name__ == '__main__':
         # Remote errors may contain SQL or business data. The full diagnostic
         # stays in the runner's private work area, never in Actions stdout.
         from .client import error_record
-        Path('history-error.json').write_text(canonical(error_record('history',error)))
+        log = os.environ.get('MOI_PRIVATE_STAGE_LOG')
+        destination = Path(log).with_suffix('.error.json') if log else Path('history-error.json')
+        destination.write_text(canonical(error_record('history',error)))
         print('::error::QA benchmark history persistence failed')
         raise SystemExit(1)

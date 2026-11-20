@@ -9,6 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .failure_categories import failed_stage_names, failure_counts
+
 STAGE_SECONDS = {'prepare': 120, 'report': 60, 'publish': 120}
 TERMINATION_GRACE = 10
 CASE_OVERHEAD_MINUTES = math.ceil((sum(STAGE_SECONDS.values()) + 4 * (TERMINATION_GRACE + 5)) / 60)
@@ -17,9 +19,9 @@ CASE_MODULES = {'api': 'journey.functional_case', 'browser': 'journey.browser_ca
 
 
 def case_overhead_minutes(case_id):
-    # J3 also persists its private evidence/history before publication, adding
-    # one more subprocess and termination grace period.
-    return CASE_OVERHEAD_MINUTES + int(case_id.startswith('J3-'))
+    # J3 also persists private evidence/history and finalizes the pipeline
+    # journal, each with its own subprocess and termination grace period.
+    return CASE_OVERHEAD_MINUTES + 2 * int(case_id.startswith('J3-'))
 
 
 def plan_batches(items, count, parallel=1):
@@ -140,16 +142,17 @@ def run_case(case, workspace, directory, public_root, repo, env):
 
     def stage(name, command, timeout):
         print(f'::group::{case_id} / {name}', flush=True)
+        evidence.write('batch-stages.json', {'case_id': case_id, 'stages': stages, 'active_stage': name})
         try:
             stage_env = dict(child_env)
             if workspace == 'journey-3':
-                stage_env['MOI_PRIVATE_STAGE_LOG'] = str(directory / 'stage-logs' / (name + '.log'))
+                stage_env['MOI_PRIVATE_STAGE_LOG'] = str(evidence.root / 'pipeline' / (name + '.log'))
             stages[name] = run_stage(command, directory, stage_env, timeout)
         except (OSError, ValueError) as error:
             stages[name] = {'exit_code': None, 'timed_out': False, 'error': type(error).__name__}
         finally:
             print('::endgroup::', flush=True)
-        evidence.write('batch-stages.json', {'case_id': case_id, 'stages': stages})
+        evidence.write('batch-stages.json', {'case_id': case_id, 'stages': stages, 'active_stage': None})
         return stages[name]['exit_code'] == 0 and not stages[name]['timed_out']
 
     prepared = stage('prepare', [sys.executable, '-m', 'journey.catalog', 'prepare', case_id],
@@ -175,6 +178,9 @@ def run_case(case, workspace, directory, public_root, repo, env):
         (directory / 'published-results' / case_id).rename(public_root / case_id)
         Evidence(public_root / case_id, configured_secrets()).write('batch-stages.json',
                                                                   {'case_id': case_id, 'stages': stages})
+    if workspace == 'journey-3':
+        stage('finalize_history', [sys.executable, '-m', 'journey.benchmark_store',
+                                  'finalize-pipeline', case_id], 45)
     result_path = evidence.root / 'result.json'
     try:
         result = json.loads(result_path.read_text())
@@ -182,7 +188,11 @@ def run_case(case, workspace, directory, public_root, repo, env):
         result = {}
     failed = [name for name, value in stages.items() if value['exit_code'] != 0 or
               value['timed_out'] or value.get('error')]
+    categories = failure_counts(result)
+    if any(name in {'history', 'publish', 'finalize_history'} for name in failed):
+        categories['pipeline'] = max(1, categories.get('pipeline', 0))
     return {'case_id': case_id, 'workspace': workspace, 'failed_stages': failed,
+            'failure_categories': categories,
             'test_status': result.get('test_status'), 'functional': result.get('functional'),
             'task': result.get('task'), 'task_seconds': result.get('task_seconds'),
             'stages': stages, 'directory': str(directory), 'public_directory': str(public_root / case_id)}
@@ -195,7 +205,7 @@ def write_summary(rows, destination, env):
              '| Case | 框架步骤异常 | 功能验收 | 任务耗时（秒） |',
              '|---|---|---|---:|']
     for row in rows:
-        lines.append(f'| {row["case_id"]} | {", ".join(row["failed_stages"]) or "无"} | '
+        lines.append(f'| {row["case_id"]} | {", ".join(failed_stage_names(row["failed_stages"])) or "无"} | '
                      f'{(row.get("functional") or {}).get("state", "—")} | '
                      f'{row.get("task_seconds") if row.get("task_seconds") is not None else "—"} |')
     for row in rows:

@@ -76,10 +76,67 @@ class BenchmarkTests(unittest.TestCase):
         store.client.product.return_value={'status':'success','result':[[{'String':'42','Valid':True},{'String':'','Valid':False}]]}
         decoded=store.sql('SELECT 42,NULL');self.assertEqual(decoded['rows'],[['42',None]])
         case=load_case('J3-01');result=_missing_case(case,'journey-3','offline')
-        store.sql=Mock(return_value={'rows':[[canonical(result)]]});store.upload=Mock()
+        store.sql=Mock(return_value={'rows':[[canonical({**result,'pipeline':{'stages':{}}})]]});store.upload=Mock()
         with tempfile.TemporaryDirectory() as tmp:
             self.assertEqual(store.persist(result,case,tmp)['state'],'already_saved')
         store.upload.assert_not_called()
+
+    def test_pipeline_finalization_preserves_execution_and_records_late_failure(self):
+        case = load_case('J3-01')
+        result = _missing_case(case, 'journey-3', 'fixture')
+        result.update(test_status='completed', task={'state':'completed'}, harness_errors=[])
+        stored = {**result, 'history_observations': {'qa_outcome':'completed'}}
+        stages = {'history': {'exit_code':1,'timed_out':False},
+                  'publish': {'exit_code':0,'timed_out':False}}
+        updated = {**stored, 'pipeline': {'stages':stages}}
+        store = Store.__new__(Store)
+        store.sql = Mock(side_effect=[{'rows':[[canonical(stored)]]}, {},
+                                      {'rows':[[canonical(updated)]]}])
+        with tempfile.TemporaryDirectory() as tmp:
+            store.finalize_pipeline(result, case, tmp, stages)
+        statement = store.sql.call_args_list[1].args[0]
+        self.assertIn('UPDATE journey3_benchmark.results SET report_json=', statement)
+        self.assertIn(' AND report_json=', statement)
+        self.assertEqual(updated['task'], stored['task'])
+        self.assertEqual(updated['quality'], stored['quality'])
+        self.assertEqual(updated['history_observations'], stored['history_observations'])
+        row = {'case_id':'J3-01','task_state':'completed','benchmark_state':'eligible',
+               'duration_seconds':10,'model_round_count':1,'quality_score':None,'session_id':None,'trace_id':None}
+        details = details_for_case(row, updated)
+        self.assertIn('history', details['errors'][0][-1])
+        self.assertIn('取证发布流程', details['errors'][0][-1])
+
+    def test_pipeline_finalization_requires_a_verified_compare_and_swap(self):
+        from journey.client import Failure
+        case = load_case('J3-01')
+        result = _missing_case(case, 'journey-3', 'fixture')
+        store = Store.__new__(Store)
+        store.sql = Mock(side_effect=[{'rows':[[canonical(result)]]}, {},
+                                      {'rows':[[canonical(result)]]}])
+        with tempfile.TemporaryDirectory() as tmp, self.assertRaises(Failure) as raised:
+            store.finalize_pipeline(result, case, tmp, {'publish':{'exit_code':1,'timed_out':False}})
+        self.assertEqual(raised.exception.code, 'pipeline_history_confirmation_failed')
+
+    def test_late_failure_logs_are_saved_once_without_replacing_original_evidence(self):
+        case = load_case('J3-01')
+        result = _missing_case(case, 'journey-3', 'fixture')
+        stages = {'publish': {'exit_code':1, 'timed_out':False}}
+        receipt = {'file_id':'private-pipeline-file', 'sha256':'a'*64, 'bytes':123}
+        updated = {**result, 'pipeline': {'stages':stages, 'evidence':receipt}}
+        store = Store.__new__(Store)
+        store.upload = Mock(return_value=receipt)
+        store.sql = Mock(side_effect=[{'rows':[[canonical(result)]]}, {},
+                                      {'rows':[[canonical(updated)]]}, {'rows':[[canonical(updated)]]}])
+        with tempfile.TemporaryDirectory() as tmp:
+            logs = Path(tmp) / 'pipeline'
+            logs.mkdir()
+            (logs / 'publish.log').write_text('private late-stage failure')
+            store.finalize_pipeline(result, case, tmp, stages)
+            store.finalize_pipeline(result, case, tmp, stages)
+            store.upload.assert_called_once_with(logs, 'J3-01-pipeline')
+        statement = store.sql.call_args_list[1].args[0]
+        self.assertNotIn('evidence_file_id=', statement)
+        self.assertIn('private-pipeline-file', statement)
 
     def test_history_public_metrics_reject_text_in_numeric_or_revision_columns(self):
         good=['J3-58','2026-11-18 00:00:00','12.5','75','4','3','completed','rev1','snap1','judge1',
