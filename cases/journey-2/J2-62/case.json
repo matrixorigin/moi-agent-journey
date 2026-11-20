@@ -2,6 +2,11 @@
   "schema_version": 1,
   "id": "J2-62",
   "workspace": "journey-2",
+  "ui_contract": {
+    "allowed_paths": ["a2ui", "mcp_app"],
+    "selection": "first_valid_evidence",
+    "mixed_path": "fail"
+  },
   "executor": "api",
   "title": "生成结构化表格并核对记录",
   "source": {

@@ -2,6 +2,11 @@
   "schema_version": 1,
   "id": "J2-75",
   "workspace": "journey-2",
+  "ui_contract": {
+    "allowed_paths": ["a2ui", "mcp_app"],
+    "selection": "first_valid_evidence",
+    "mixed_path": "fail"
+  },
   "title": "文本问题提交与原组件反馈",
   "executor": "api",
   "source": {

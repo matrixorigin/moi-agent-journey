@@ -1,6 +1,11 @@
 {
   "schema_version": 1,
   "workspace": "journey-2",
+  "ui_contract": {
+    "allowed_paths": ["a2ui", "mcp_app"],
+    "selection": "first_valid_evidence",
+    "mixed_path": "fail"
+  },
   "executor": "api",
   "source": {
     "benchmark": "MOI product journey"

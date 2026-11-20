@@ -59,6 +59,9 @@ from .tool_failure_checks import evaluate_tool_failure
 from .sql_checks import evaluate_sql, evaluate_sql_failure
 from .version import finish_version, start_version
 from .web_open_checks import evaluate_open
+from .ui_contract import (A2UI, MCP_APP, MIXED_PATH, UNSUPPORTED_PATH,
+                          detect_ui_path, validate_ui_contract)
+from .mcp_app_checks import evaluate_mcp_app, expected_mcp_check_count
 
 
 def case_variables(case):
@@ -209,6 +212,7 @@ class FunctionalExecution(Execution):
             self.report['failures'].append({'stage': session_id + ':' + phase, 'reason': blocked})
 
     def run(self):
+        validate_ui_contract(self.case)
         current_search = None
         current_search_tool = None
         current_open = None
@@ -302,6 +306,7 @@ class FunctionalExecution(Execution):
             uploaded = {}
             session_ids = set()
             for session in self.case['sessions']:
+                session_path = None
                 if (not isinstance(session.get('id'), str) or
                         not re.fullmatch(r'[a-z][a-z0-9_-]*', session['id']) or session['id'] in session_ids):
                     raise Failure('invalid_session_id')
@@ -420,7 +425,36 @@ class FunctionalExecution(Execution):
                         operation = resolve_values(turn['channel_evidence'], variables)
                         prompt += '\n工具：' + operation['tool'] + '\n参数：' + json.dumps(operation['arguments'], ensure_ascii=False)
                     action_data, prior_surface_task = None, None
-                    if turn.get('a2ui_form_submit') is not None:
+                    if session_path is None and final_entry is not None:
+                        session_path = detect_ui_path(self.evidence.root / 'events.jsonl', {final_entry['task_id']})
+                        self.report['ui_path'] = session_path
+                        self.checkpoint()
+                    if session_path == MIXED_PATH:
+                        checks.append({'session': session['id'], 'rule': 'UI 路径混用', 'passed': False,
+                                       'detail': 'mixed_path'})
+                        self.report['validation'] = {'checks': checks}
+                        self.checkpoint()
+                        continue
+                    if session_path == MCP_APP and turn.get('a2ui_submit') is not None:
+                        checks.extend(evaluate_mcp_app(self, final_entry, session['id'], turn, variables,
+                                                      submission_turn=turn))
+                        self.report.setdefault('ui_path_expected_turns', {})[session['id']] = ['ask']
+                        session_report.update({'final_task_id': final_entry['task_id'],
+                                               'answer_delivered': all(check['passed'] for check in checks)})
+                        self.report['validation'] = {'checks': checks}
+                        self.checkpoint()
+                        continue
+                    if session_path == MCP_APP and turn.get('a2ui_form_submit') is not None:
+                        config = turn['a2ui_form_submit']
+                        values = []
+                        for label, value in config['fields'].items():
+                            value = value.format_map(variables) if isinstance(value, str) else value
+                            if isinstance(value, list):
+                                value = '/'.join(value)
+                            values.append(str(label) + '=' + str(value))
+                        prompt = ('已提交：' + '，'.join(values) +
+                                  '。请只回复 JSON，project 为项目输入值，kind 为选择的类型值（字符串）。')
+                    if session_path != MCP_APP and turn.get('a2ui_form_submit') is not None:
                         if final_entry is None or turn.get('a2ui_submit') is not None:
                             raise Failure('invalid_form_submit_case')
                         config = turn['a2ui_form_submit']
@@ -431,7 +465,7 @@ class FunctionalExecution(Execution):
                             'passed': action_data is not None, 'detail': '' if action_data else 'form_not_submittable'})
                         if action_data is None:
                             raise ProductCaseFailure('form_not_submittable')
-                    if turn.get('a2ui_submit') is not None:
+                    if session_path != MCP_APP and turn.get('a2ui_submit') is not None:
                         config = turn['a2ui_submit']
                         if final_entry is None or 'a2ui_evidence' not in turn:
                             raise Failure('invalid_a2ui_submit_case')
@@ -495,6 +529,47 @@ class FunctionalExecution(Execution):
                             self.report['blocked'] = True
                             self.report['failures'].append({'stage': session['id'] + ':' + turn['phase'],
                                                             'reason': 'task_finished_before_cancel_observed'})
+                        self.report['validation'] = {'checks': checks}
+                        self.checkpoint()
+                        continue
+                    if 'a2ui_evidence' in turn and self.case.get('ui_contract'):
+                        current_path = detect_ui_path(self.evidence.root / 'events.jsonl', {final_entry['task_id']})
+                        if current_path != UNSUPPORTED_PATH:
+                            self.report['ui_path'] = current_path
+                        if current_path != UNSUPPORTED_PATH:
+                            if session_path and session_path != current_path:
+                                session_path = MIXED_PATH
+                            else:
+                                session_path = current_path
+                        elif session_path is None:
+                            session_path = UNSUPPORTED_PATH
+                        if session_path == MIXED_PATH:
+                            checks.append({'session': session['id'], 'rule': 'UI 路径混用', 'passed': False,
+                                           'detail': 'mixed_path'})
+                        elif session_path == UNSUPPORTED_PATH:
+                            checks.append({'session': session['id'], 'rule': '未形成有效 A2UI 或 MCP App 路径',
+                                           'passed': False, 'detail': 'unsupported_path'})
+                        elif session_path == MCP_APP:
+                            if any(candidate.get('a2ui_submit') is not None for candidate in session['turns']):
+                                session_report.update({'final_task_id': final_entry['task_id'], 'answer_delivered': False})
+                            else:
+                                submission_turn = next((candidate for candidate in session['turns']
+                                                        if candidate.get('a2ui_form_submit') is not None), None)
+                                checks.extend(evaluate_mcp_app(self, final_entry, session['id'], turn, variables,
+                                                              submission_turn=submission_turn))
+                                session_report.update({'final_task_id': final_entry['task_id'],
+                                                       'answer_delivered': all(check['passed'] for check in checks)})
+                        else:
+                            expected_surface = turn['a2ui_evidence']
+                            if action_data:
+                                expected_surface = {**expected_surface, 'fields': {**expected_surface['fields'],
+                                                    'id': action_data['action']['sourceComponentId']}}
+                            surface_checks, delivered = evaluate_a2ui(self.evidence.root / 'events.jsonl',
+                                final_entry['task_id'], session['id'], expected_surface, prior_task_id=prior_surface_task)
+                            checks.extend(surface_checks)
+                            session_report.update({'final_task_id': final_entry['task_id'], 'answer_delivered': delivered})
+                            if action_data is None:
+                                self.check_skill('a2ui', final_entry['task_id'], session['id'], turn['phase'], checks)
                         self.report['validation'] = {'checks': checks}
                         self.checkpoint()
                         continue
@@ -843,6 +918,8 @@ class FunctionalExecution(Execution):
                 self.checkpoint()
             if not checks:
                 raise Failure('quality_checks_missing')
+            self.report['ui_path'] = session_path or UNSUPPORTED_PATH
+            self.report['ui_path_expected_checks'] = len(checks)
             if all(check['passed'] for check in checks):
                 self.report['status'] = 'passed'
             else:
@@ -870,7 +947,27 @@ class FunctionalExecution(Execution):
             self.report['failures'].append({'stage': self.report['stage'], 'reason': 'acceptance_checks_failed',
                                             'details': str(error)})
         except Exception as error:
+            if self.case.get('ui_contract') and session_path is None and self.tasks:
+                session_path = detect_ui_path(self.evidence.root / 'events.jsonl', {self.tasks[-1]['task_id']})
+                self.report['ui_path'] = session_path
             self.record_failure(error)
+            if (self.case.get('ui_contract') and self.report['status'] == 'timeout' and
+                    session_path == MCP_APP and self.tasks and not checks):
+                final_entry = final_entry or self.tasks[-1]
+                submission_turn = next((candidate for candidate in session['turns']
+                                        if candidate.get('a2ui_submit') or candidate.get('a2ui_form_submit')), None)
+                evaluated_turn = submission_turn or turn
+                checks.extend(evaluate_mcp_app(self, final_entry, session['id'], evaluated_turn, variables,
+                                               submission_turn=submission_turn))
+                required = expected_mcp_check_count(evaluated_turn)
+                while len(checks) < required:
+                    checks.append({'session': session['id'], 'rule': '未完成预期检查点',
+                                   'passed': False, 'detail': 'checkpoint_not_reached_or_unavailable'})
+                if submission_turn and submission_turn.get('a2ui_submit'):
+                    self.report.setdefault('ui_path_expected_turns', {})[session['id']] = ['ask']
+                self.report['ui_path_expected_checks'] = len(checks)
+                self.report['validation'] = {'checks': checks}
+                self.checkpoint()
             if current_search and self.tasks and (self.evidence.root / 'events.jsonl').exists():
                 try:
                     _, blocked = evaluate_search(self.evidence.root / 'events.jsonl', self.tasks[-1]['task_id'], '',
@@ -891,6 +988,9 @@ class FunctionalExecution(Execution):
                     self.report['harness_errors'].append({'stage': 'evidence', 'reason': type(evidence_error).__name__})
         finally:
             signal.alarm(0)
+            if self.case.get('ui_contract') and session_path is None and self.tasks:
+                session_path = detect_ui_path(self.evidence.root / 'events.jsonl', {self.tasks[-1]['task_id']})
+                self.report['ui_path'] = session_path
             finish_version(self)
             self.finalize()
             if self.native_skill:
@@ -946,9 +1046,9 @@ def main():
                         observer=evidence.observe_transport)
         if case.get('persistent_conversation') is not None:
             from .persistent_case import PersistentExecution
-            execution = PersistentExecution(client, case, evidence, args.work, case['model'])
+            execution = PersistentExecution(client, case, evidence, args.work, case['model'], args.workspace_id)
         else:
-            execution = FunctionalExecution(client, case, evidence, args.work, case['model'])
+            execution = FunctionalExecution(client, case, evidence, args.work, case['model'], args.workspace_id)
         report = execution.run()
     except (KeyError, Failure) as error:
         evidence.write('result.json', {'case_id': case['id'], 'workspace': case['workspace'], 'title': case['title'],
