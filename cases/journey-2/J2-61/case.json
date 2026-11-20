@@ -8,6 +8,7 @@
     "mixed_path": "fail"
   },
   "executor": "api",
+  "timeout_seconds": 600,
   "title": "生成结构化柱状图并核对数据",
   "source": {
     "benchmark": "MOI product journey"

@@ -61,7 +61,7 @@ from .version import finish_version, start_version
 from .web_open_checks import evaluate_open
 from .ui_contract import (A2UI, MCP_APP, MIXED_PATH, UNSUPPORTED_PATH,
                           detect_ui_path, validate_ui_contract)
-from .mcp_app_checks import evaluate_mcp_app, expected_mcp_check_count
+from .mcp_app_checks import evaluate_mcp_app, expected_mcp_session_check_count, mcp_evaluation_turn
 
 
 def case_variables(case):
@@ -956,10 +956,10 @@ class FunctionalExecution(Execution):
                 final_entry = final_entry or self.tasks[-1]
                 submission_turn = next((candidate for candidate in session['turns']
                                         if candidate.get('a2ui_submit') or candidate.get('a2ui_form_submit')), None)
-                evaluated_turn = submission_turn or turn
+                evaluated_turn = mcp_evaluation_turn(session, submission_turn)
                 checks.extend(evaluate_mcp_app(self, final_entry, session['id'], evaluated_turn, variables,
                                                submission_turn=submission_turn))
-                required = expected_mcp_check_count(evaluated_turn)
+                required = expected_mcp_session_check_count(session)
                 while len(checks) < required:
                     checks.append({'session': session['id'], 'rule': '未完成预期检查点',
                                    'passed': False, 'detail': 'checkpoint_not_reached_or_unavailable'})
@@ -1046,9 +1046,9 @@ def main():
                         observer=evidence.observe_transport)
         if case.get('persistent_conversation') is not None:
             from .persistent_case import PersistentExecution
-            execution = PersistentExecution(client, case, evidence, args.work, case['model'], args.workspace_id)
+            execution = PersistentExecution(client, case, evidence, args.work, case['model'])
         else:
-            execution = FunctionalExecution(client, case, evidence, args.work, case['model'], args.workspace_id)
+            execution = FunctionalExecution(client, case, evidence, args.work, case['model'])
         report = execution.run()
     except (KeyError, Failure) as error:
         evidence.write('result.json', {'case_id': case['id'], 'workspace': case['workspace'], 'title': case['title'],

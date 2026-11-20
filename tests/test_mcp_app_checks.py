@@ -5,7 +5,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from journey.evidence import Evidence
-from journey.mcp_app_checks import evaluate_mcp_app, self_contained_errors
+from journey.catalog import load_case
+from journey.mcp_app_checks import evaluate_mcp_app, expected_mcp_session_check_count, self_contained_errors
 
 
 HTML = """<!doctype html><html><body>
@@ -88,12 +89,28 @@ class MCPAppChecksTests(unittest.TestCase):
         checks = self.evaluate(expected, submission)
         self.assertTrue(all(check["passed"] for check in checks), checks)
 
+    def test_form_radio_options_are_clicked_and_verified(self):
+        self.execution.client.html = """<!doctype html><html><body><form>
+            <input id="project" type="text">
+            <input type="radio" name="kind" value="exact"><input type="radio" name="kind" value="all">
+            <button type="submit">提交</button></form></body></html>"""
+        checks = self.evaluate({"component": "Form", "fields": {}},
+                               {"a2ui_form_submit": {"fields": {"项目": "{code}", "类型": ["exact"]}}})
+        self.assertTrue(all(check["passed"] for check in checks), checks)
+
     def test_external_dependencies_and_duplicate_resources_fail(self):
         self.assertTrue(self_contained_errors("<html><script src='https://example.invalid/a.js'></script></html>"))
         self.events(2)
         checks = evaluate_mcp_app(self.execution, self.task, "surface", {"component": "Chart", "fields": {"type": "bar"}}, {})
         self.assertFalse(checks[-1]["passed"])
         self.assertEqual(checks[-1]["detail"], "duplicate_mcp_app_resources:2")
+
+    def test_expected_counts_include_form_reply_but_not_local_question_turn(self):
+        for case_id, expected in (("J2-61", 6), ("J2-62", 6), ("J2-69", 9),
+                                  ("J2-74", 9), ("J2-75", 9), ("J2-94", 12)):
+            with self.subTest(case_id=case_id):
+                case = load_case(case_id)
+                self.assertEqual(expected_mcp_session_check_count(case["sessions"][0]), expected)
 
 
 if __name__ == "__main__":

@@ -80,9 +80,16 @@ function checkComponent() {
     const expectedFields = config.fields || {};
     add("MCP App 包含项目和类型输入", Boolean(document.querySelector("input,textarea,select")), "form_fields_missing");
     const typeField = [...document.querySelectorAll("select")].find(select => [...select.options].some(option => option.value === "exact"));
+    const exactInput = document.querySelector('input[type=radio][value="exact"],input[type=checkbox][value="exact"]');
+    const allInput = document.querySelector('input[type=radio][value="all"],input[type=checkbox][value="all"]');
+    const inputGroup = exactInput?.name
+      ? [...document.querySelectorAll("input")].filter(input => input.name === exactInput.name && ["radio", "checkbox"].includes(input.type))
+      : [exactInput, allInput].filter(Boolean);
+    const exactInputGroup = Boolean(exactInput && allInput && inputGroup.length === 2 &&
+      inputGroup.includes(exactInput) && inputGroup.includes(allInput));
     const exactButton = buttons().find(item => /精确|^exact$/i.test(visibleText(item)));
     const allButton = buttons().find(item => /全部|^all$/i.test(visibleText(item)));
-    add("MCP App 类型选项精确包含 exact 和 all", Boolean((typeField && [...typeField.options].length === 2 && [...typeField.options].every(option => ["exact", "all"].includes(option.value))) || (exactButton && allButton)), "form_options_mismatch");
+    add("MCP App 类型选项精确包含 exact 和 all", Boolean((typeField && [...typeField.options].length === 2 && [...typeField.options].every(option => ["exact", "all"].includes(option.value))) || exactInputGroup || (exactButton && allButton)), "form_options_mismatch");
     const button = buttons().find(item => /提交|submit/i.test(visibleText(item)));
     add("MCP App 提交按钮绑定两个字段", Boolean(button && Object.keys(expectedFields).length === 2), "form_button_binding_missing");
     for (const [label, rawValue] of Object.entries(expectedFields)) {
@@ -97,13 +104,17 @@ function checkComponent() {
       } else if (label === "类型" && typeField) {
         typeField.value = value;
         typeField.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+      } else if (label === "类型" && exactInput) {
+        exactInput.click();
+        exactInput.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
       }
     }
     if (button) button.click();
     const form = document.querySelector("form");
     if (form) form.dispatchEvent(new dom.window.Event("submit", { bubbles: true, cancelable: true }));
     const projectInput = document.querySelector("input[type=text],input:not([type]),textarea");
-    add("MCP App 表单提交值正确", Boolean(projectInput && projectInput.value === variables.code && ((typeField && typeField.value === "exact") || exactButton)), "form_submission_values_mismatch");
+    add("MCP App 表单提交值正确", Boolean(projectInput && projectInput.value === variables.code &&
+      ((typeField && typeField.value === "exact") || (exactInput && exactInput.checked) || exactButton)), "form_submission_values_mismatch");
   } else {
     add("MCP App 组件类型受支持", false, "unsupported_component:" + component);
   }

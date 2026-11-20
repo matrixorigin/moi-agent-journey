@@ -29,6 +29,8 @@ Single, multiple-choice and text questions may complete their judgment inside th
 
 ## Timeout behavior
 
+These six cases use a 600-second execution budget because building a self-contained MCP App may take more than five minutes. Other Journey-2 cases retain their existing budgets.
+
 Timeout retains its execution status. The runner detects the UI path from available evidence and evaluates the MCP resource when it exists. Missing resources or unreachable checkpoints fail instead of being synthesized as passes. MCP checks are never merged with A2UI checks, and `ui_path_expected_checks` records the path-specific denominator.
 
 ## DOM execution

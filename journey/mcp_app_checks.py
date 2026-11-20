@@ -25,6 +25,25 @@ def expected_mcp_check_count(turn):
     raise Failure("invalid_mcp_app_case")
 
 
+def mcp_evaluation_turn(session, submission_turn=None):
+    """Use the submitted question surface, or the original form surface."""
+    if submission_turn is not None and submission_turn.get("a2ui_evidence") is not None:
+        return submission_turn
+    for turn in reversed(session["turns"]):
+        if turn.get("a2ui_evidence") is not None:
+            return turn
+    raise Failure("mcp_app_surface_turn_missing")
+
+
+def expected_mcp_session_check_count(session):
+    submission_turn = next((turn for turn in session["turns"]
+                            if turn.get("a2ui_submit") or turn.get("a2ui_form_submit")), None)
+    turn = mcp_evaluation_turn(session, submission_turn)
+    if submission_turn is not None and submission_turn.get("a2ui_form_submit"):
+        turn = {**turn, "a2ui_form_submit": submission_turn["a2ui_form_submit"]}
+    return expected_mcp_check_count(turn)
+
+
 class ExternalDependencies(HTMLParser):
     def __init__(self):
         super().__init__()

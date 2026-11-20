@@ -8,6 +8,7 @@
     "mixed_path": "fail"
   },
   "executor": "api",
+  "timeout_seconds": 600,
   "title": "生成结构化表格并核对记录",
   "source": {
     "benchmark": "MOI product journey"

@@ -9,6 +9,7 @@
   },
   "title": "多选问题提交与原组件反馈",
   "executor": "api",
+  "timeout_seconds": 600,
   "source": {
     "benchmark": "MOI product journey"
   },
