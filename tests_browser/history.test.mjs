@@ -15,11 +15,19 @@ test('history overlays the selected job or all cases while keeping case and mode
     await empty.close();
     const production = await browser.newPage();
     production.on('pageerror', error => errors.push(error.message));
-    await production.setContent(template.replace('/*RUN_DETAILS*/null', JSON.stringify({
-      run_id: '1', attempt: 1, environment: 'Production', metrics_only: true,
+    const publicRow = {case_id: 'J3-01', run_id: '1', run_attempt: 1, qa_outcome: 'completed',
+      evaluated_at: '2026-11-17T00:00:00Z', quality_score: 25, completed_seconds: 10, tool_failed: 2, tool_succeeded: 1};
+    await production.setContent(template.replace('/*HISTORY_DATA*/[]', JSON.stringify([
+      publicRow, {...publicRow, run_attempt: 2, tool_failed: 15},
+    ])).replace('/*RUN_DETAILS*/null', JSON.stringify({
+      run_id: '1', attempt: 1, environment: 'Production', metrics_only: true, report_error_cases: 1,
     })));
     assert.equal(await production.title(), 'Journey-3 · Knowledge Base Tasks · Production');
     assert.equal(await production.locator('h1').innerText(), await production.title());
+    assert.equal(await production.locator('#run-overview').isVisible(), true);
+    assert.equal(await production.locator('#details').isHidden(), true);
+    assert.deepEqual(await production.locator('#run-overview dd').allTextContents(),
+      ['1 题', '1 / 1', '0 题', '0 题', '2 次', '1 / 1', '1 / 1', '1 题']);
     await production.close();
     const base = { case_id: 'J3-88', case_revision: 'r1', snapshot_id: 's1',
       evaluator_version: 'judge1', model_key: 'a'.repeat(32), qa_outcome: 'completed', run_attempt: 1,
@@ -139,6 +147,7 @@ test('threshold shares use metric-specific cohorts and include exact boundaries'
       run_id, case_id, qa_outcome, completed_seconds, completed_model_rounds, quality_score,
       tool_failed, tool_succeeded, run_attempt: 1, evaluated_at: '2026-11-19T00:00:00Z',
       answer_timing: run_id === '2' ? 'legacy' : 'final_answer_sse',
+      ...(run_id === '3' ? {answer_timing_replayed: true, duration_seconds: 195} : {}),
     }));
     const jobs = {documents: ['J3-01', 'J3-02'], operations: ['J3-03', 'J3-04', 'J3-05', 'J3-06']};
     await page.setContent(template.replace('/*HISTORY_DATA*/[]', JSON.stringify(rows))
@@ -161,6 +170,13 @@ test('threshold shares use metric-specific cohorts and include exact boundaries'
     }
     assert.match(await points('tool_failure_rate', '≤20%').first().textContent(), /可计算 5 题/);
     assert.equal(await page.locator('#completed_seconds [data-case="J3-02"] circle').count(), 1);
+    assert.match(await page.locator('#completed_seconds [data-case="J3-01"] circle title').last().textContent(),
+      /存档事件回算/);
+    await page.getByLabel('耗时口径').selectOption('legacy');
+    assert.equal(await page.locator('#completed_seconds circle').count(), 2);
+    assert.match(await page.locator('#completed_seconds circle title').first().textContent(), /195/);
+    assert.match(await page.locator('#completed_seconds circle title').last().textContent(), /90/);
+    await page.getByLabel('耗时口径').selectOption('answer');
 
     await page.locator('#case').selectOption('job:operations');
     assert.match(await points('completed_seconds', '≤600 秒').textContent(), /1 \/ 2 题（50\.0%）/);

@@ -312,6 +312,7 @@ class BenchmarkTests(unittest.TestCase):
         self.assertNotIn(b'private-session', published)
         self.assertNotIn(b'private-trace', published)
         self.assertIn(b'"environment": "Production"', published)
+        self.assertIn(b'"report_error_cases": 1', published)
         self.assertIn(b'"metrics_only": true', published)
 
 
