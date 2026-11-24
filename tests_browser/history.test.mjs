@@ -57,11 +57,14 @@ test('history overlays the selected job or all cases while keeping case and mode
       publicRow, {...publicRow, run_attempt: 2, tool_failed: 15},
     ])).replace('/*RUN_DETAILS*/null', JSON.stringify({
       run_id: '1', attempt: 1, environment: 'Production', metrics_only: true, report_error_cases: 1,
+      locations: {errors: [], timeouts: [], tools: [], scores: [['J3-01', 'score-session', 'score-trace']]},
     })));
     assert.equal(await production.title(), 'Journey-3 · Knowledge Base Tasks · Production');
     assert.equal(await production.locator('h1').innerText(), await production.title());
     assert.equal(await production.locator('#run-overview').isVisible(), true);
-    assert.equal(await production.locator('#details').isHidden(), true);
+    await production.locator('[data-detail=scores]').click();
+    assert.deepEqual(await production.locator('#detail-records th').allTextContents(), ['Case', 'Session ID', 'Trace ID', '得分']);
+    assert.deepEqual(await production.locator('#detail-records td').allTextContents(), ['J3-01', 'score-session', 'score-trace', '25 分']);
     assert.deepEqual(await production.locator('#run-overview dd').allTextContents(),
       ['1 题', '1 / 1', '0 题', '0 题', '2 次', '1 / 1', '1 / 1', '1 题']);
     await production.close();
@@ -207,12 +210,17 @@ test('the single-case score chart opens on a version with a recorded score', asy
       {...base, run_id: '1', evaluator_version: 'correctness-criteria-v1', quality_score: null},
       {...base, run_id: '2', evaluator_version: 'correctness-facts-v2', quality_score: 0},
     ];
-    await page.setContent(template.replace('/*HISTORY_DATA*/[]', JSON.stringify(rows)));
+    await page.setContent(template.replace('/*HISTORY_DATA*/[]', JSON.stringify(rows))
+      .replace('/*RUN_DETAILS*/null', JSON.stringify({run_id: '2', attempt: 1, errors: [], timeouts: [], tools: [],
+        scores: [['J3-01', 'latest-session', 'latest-trace', 0, ['missing fact']]],
+      })));
     await page.locator('#case').selectOption('J3-01');
     assert.match(await page.locator('#revision').inputValue(), /correctness-facts-v2/);
     assert.equal(await page.locator('#quality_score circle').count(), 1);
     await page.locator('#revision').selectOption({index: 0});
     assert.equal(await page.locator('#quality_score circle').count(), 0);
+    await page.locator('[data-detail=scores]').click();
+    assert.match(await page.locator('#detail-records').innerText(), /latest-session[\s\S]*latest-trace/);
   } finally {
     await browser.close();
   }

@@ -88,8 +88,10 @@ def publish(store, rows, run, attempt, artifact_dir=None, run_metadata=None, *, 
     store.upload_private(filename, html, 'text/html; charset=utf-8')
     if artifact_dir is not None:
         if production:
-            html = render_history(rows, {**summary, 'environment': details['environment'], 'metrics_only': True},
-                                  run_metadata).encode('utf-8')
+            locations = {kind: list(dict.fromkeys(tuple(record[:3]) for record in details[kind]
+                                                  if any(record[1:3]))) for kind in DETAIL_KINDS}
+            public = {**summary, 'environment': details['environment'], 'metrics_only': True, 'locations': locations}
+            html = render_history(rows, public, run_metadata).encode('utf-8')
         inspect_payload(html, configured_secrets(), name=filename)
         artifact_dir.mkdir(parents=True, exist_ok=True)
         (artifact_dir / filename).write_bytes(html)

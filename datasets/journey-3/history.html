@@ -59,6 +59,7 @@
   .detail-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
   .detail-table th, .detail-table td { padding: 9px 10px; text-align: left; border-bottom: 1px solid #e4e8f1; }
   .detail-table th { color: #51617c; }
+  .detail-table td { white-space: pre-line; overflow-wrap: anywhere; }
 </style>
 </head>
 <body>
@@ -93,7 +94,7 @@
     <button type="button" data-detail="scores" aria-pressed="false">低于 50 分</button>
   </div>
   <p id="detail-count" aria-live="polite"></p>
-  <p id="public-detail-caption" hidden>公开明细使用逐题指标。原始报错、调用参数、失分理由及会话定位信息保存在对应工作区的完整报告。</p>
+  <p id="public-detail-caption" hidden>原始报错、调用参数和失分理由保存在对应工作区的完整报告。</p>
   <div id="detail-records"></div>
 </section>
 </main>
@@ -103,7 +104,7 @@ const jobs = /*HISTORY_JOBS*/{};
 const currentRun = /*RUN_DETAILS*/null;
 const runMetadata = /*RUN_METADATA*/{};
 const pagesEnvironment = /*PAGES_ENVIRONMENT*/null;
-const publicRunDetails = Boolean(pagesEnvironment && currentRun?.metrics_only);
+const publicRunDetails = Boolean(currentRun?.metrics_only && (pagesEnvironment || currentRun.locations));
 const scope = document.getElementById('case');
 const revision = document.getElementById('revision');
 const legend = document.getElementById('legend');
@@ -499,7 +500,7 @@ const detailTabs = [...document.querySelectorAll('[data-detail]')];
 const detailCount = document.getElementById('detail-count');
 for (const button of detailTabs) button.onclick = () => {
   detailTab = button.dataset.detail;
-  showDetails(visibleRows());
+  showDetails();
 };
 
 const numberForDetail = new Intl.NumberFormat('zh-CN', {maximumFractionDigits: 2});
@@ -518,6 +519,7 @@ const publicDetails = {
 
 function showPublicDetails(host, rows) {
   const {headers, matches, cells} = publicDetails[detailTab];
+  const locations = currentRun.locations?.[detailTab];
   const records = rows.filter(matches).sort((a, b) => cases.indexOf(a.case_id) - cases.indexOf(b.case_id));
   detailCount.textContent = records.length + ' 个 case';
   if (!records.length) {
@@ -527,7 +529,7 @@ function showPublicDetails(host, rows) {
   const table = element('table');
   table.className = 'detail-table';
   const header = table.createTHead().insertRow();
-  for (const label of ['Case', ...headers]) {
+  for (const label of ['Case', ...(locations ? ['Session ID', 'Trace ID'] : []), ...headers]) {
     const cell = element('th', label);
     cell.scope = 'col';
     header.append(cell);
@@ -535,14 +537,16 @@ function showPublicDetails(host, rows) {
   const body = table.createTBody();
   for (const row of records) {
     const tr = body.insertRow();
-    for (const value of [row.case_id, ...cells(row)]) tr.append(element('td', value));
+    const matching = locations?.filter(([caseId]) => caseId === row.case_id) ?? [];
+    const ids = locations ? [1, 2].map(index => matching.map(item => item[index] ?? '未记录').join('\n') || '未记录') : [];
+    for (const value of [row.case_id, ...ids, ...cells(row)]) tr.append(element('td', value));
   }
   host.append(table);
 }
 
-function showDetails(scopeRows) {
+function showDetails() {
   if (!currentRun || (currentRun.metrics_only && !publicRunDetails)) return;
-  const latest = latestRunRows(scopeRows);
+  const latest = latestRunRows(rowsForScope());
   const host = document.getElementById('detail-records');
   host.replaceChildren();
   for (const button of detailTabs) button.setAttribute('aria-pressed', String(button.dataset.detail === detailTab));
@@ -648,7 +652,7 @@ function render() {
   }
   document.getElementById('case-gaps').hidden = !metricHost.querySelector('.gap-segment');
   showRunOverview(rows);
-  showDetails(rows);
+  showDetails();
 }
 
 scope.onchange = selectScope;
