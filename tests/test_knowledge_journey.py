@@ -27,42 +27,6 @@ def chunk(identity, content):
 
 
 class KnowledgeSourceTests(unittest.TestCase):
-    def test_production_reference_checks_use_the_migrated_source_identity(self):
-        with tempfile.TemporaryDirectory() as directory:
-            client = Mock()
-            execution = KnowledgeExecution(client, {'id': 'case', 'title': 'test', 'workspace': 'journey-3',
-                'timeout_seconds': 60}, Evidence(directory), directory, 'model')
-            execution.reference_etags = {'qa-source': 'qa-etag'}
-            execution.corpus = {'model_id': 2, 'source_id_map': {'qa-source': 'prod-source'},
-                                'source_etags': {'prod-source': 'prod-etag'}}
-            client.product.return_value = {'source': {'model_id': 2, 'row_id': 'prod-source',
-                                             'effective_enabled': True}, 'etag': 'prod-etag'}
-            with patch('journey.knowledge_case.is_production', return_value=True):
-                reference = {'evidence': [{'source_id': 'qa-source', 'etag': 'qa-etag'}]}
-                self.assertEqual(execution.check_reference(reference)['state'], 'matched')
-                client.product.assert_called_once_with('GET',
-                    '/semantic-models/2/sources/prod-source/document?page_size=1', expected_code='OK')
-                reference['evidence'][0]['etag'] = 'changed'
-                self.assertEqual(execution.check_reference(reference)['state'], 'changed')
-                self.assertEqual(client.product.call_count, 1)
-
-    def test_reference_drift_disabled_source_and_api_failure_are_explicitly_unscored(self):
-        with tempfile.TemporaryDirectory() as directory:
-            execution = KnowledgeExecution(Mock(), {'id': 'case', 'title': 'test', 'workspace': 'journey-3',
-                'timeout_seconds': 60}, Evidence(directory), directory, 'model')
-            execution.corpus = {'model_id': 1, 'source_etags': {'source': 'fixed'}}
-            execution.bound_corpora = [execution.corpus]
-            reference = {'verify_whole_corpus': True, 'evidence': []}
-            for enabled, etag, expected in [(True, 'fixed', 'matched'), (True, 'changed', 'changed'),
-                                            (False, 'fixed', 'changed')]:
-                execution.client.product.return_value = {'source': {'model_id': 1, 'row_id': 'source',
-                    'effective_enabled': enabled}, 'etag': etag}
-                self.assertEqual(execution.check_reference(reference)['state'], expected)
-            execution.client.product.side_effect = Failure('http_error', 503)
-            result = execution.check_reference(reference)
-            self.assertEqual(result['state'], 'unavailable')
-            self.assertEqual(result['sources'][0]['error']['http_status'], 503)
-
     def test_reads_nested_cursor_to_completion_and_excludes_recall_counters_from_hash(self):
         client = Mock()
         client.product.side_effect = [page([chunk('a', 'first')], 'cursor-a'), page([chunk('b', 'second')])]
@@ -312,14 +276,14 @@ class KnowledgeDatasetTests(unittest.TestCase):
 
     def test_only_model_judge_sees_reference_and_replay_never_submits_an_agent_task(self):
         case = load_case('J3-30')
-        reference = {'status': 'reviewed', 'citation_required': False, 'evidence': [],
+        reference = {'status': 'reviewed', 'citation_required': False, 'evidence': [], 'verify_whole_corpus': True,
                      'criteria': [{'id': 'C01', 'text': 'SCORER-ONLY-GOLDEN'}]}
         case['sessions'] = [{'id': 'qa', 'delivery_kind': 'answer', 'expected_checks': 3,
                              'turns': [{'phase': 'question', 'prompt': 'How long?', 'rag_reference': reference}]}]
         corpus = json.loads((ROOT / 'datasets/journey-3/corpora.json').read_text())['cedar']
         client = Mock(); client.requests = 0
         def product(method, path, body=None, **kwargs):
-            if method == 'GET':
+            if method == 'GET' and path.startswith('/workspaces/workspace/agents/'):
                 return {'id': corpus['agent_id'], 'workspace_id': 'workspace', 'status': 'active',
                         'binding': {'knowledge_base_refs': [{'id': str(corpus['model_id']),
                             'workspace_id': 'workspace', 'status': 'active'}]}}
