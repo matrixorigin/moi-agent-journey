@@ -204,7 +204,10 @@ function selectScope() {
   document.getElementById('revision-label').hidden = jobOrAll();
   revision.replaceChildren();
   if (!jobOrAll()) {
-    for (const label of new Set(rowsForScope().map(version))) addOption(revision, label);
+    const rows = rowsForScope();
+    for (const label of new Set(rows.map(version))) addOption(revision, label);
+    const scored = rows.find(row => row.qa_outcome === 'completed' && Number.isFinite(row.quality_score));
+    if (scored) revision.value = version(scored);
   }
   render();
 }

@@ -195,6 +195,29 @@ test('history overlays the selected job or all cases while keeping case and mode
   }
 });
 
+test('the single-case score chart opens on a version with a recorded score', async () => {
+  const template = await readFile(new URL('../datasets/journey-3/history.html', import.meta.url), 'utf8');
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const base = {case_id: 'J3-01', run_attempt: 1, evaluated_at: '2026-11-21T00:00:00Z',
+      qa_outcome: 'completed', duration_seconds: 30, completed_model_rounds: 3,
+      tool_failed: 0, tool_succeeded: 1};
+    const rows = [
+      {...base, run_id: '1', evaluator_version: 'correctness-criteria-v1', quality_score: null},
+      {...base, run_id: '2', evaluator_version: 'correctness-facts-v2', quality_score: 0},
+    ];
+    await page.setContent(template.replace('/*HISTORY_DATA*/[]', JSON.stringify(rows)));
+    await page.locator('#case').selectOption('J3-01');
+    assert.match(await page.locator('#revision').inputValue(), /correctness-facts-v2/);
+    assert.equal(await page.locator('#quality_score circle').count(), 1);
+    await page.locator('#revision').selectOption({index: 0});
+    assert.equal(await page.locator('#quality_score circle').count(), 0);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('threshold shares use metric-specific cohorts and include exact boundaries', async () => {
   const template = await readFile(new URL('../datasets/journey-3/history.html', import.meta.url), 'utf8');
   const browser = await chromium.launch({ headless: true });
