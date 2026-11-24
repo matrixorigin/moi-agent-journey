@@ -255,7 +255,6 @@ test('threshold shares use metric-specific cohorts and include exact boundaries'
       ['duration_seconds', 11, '≤120 秒', '2 / 4', '≤600 秒', '3 / 4', '≥600 秒', '2 / 4'],
       ['completed_model_rounds', 5, '≤20 轮', '2 / 4', '≤40 轮', '3 / 4', '≥40 轮', '2 / 4'],
       ['tool_failure_rate', 5, '≤20%', '3 / 6', '≤40%', '4 / 6', '≥40%', '2 / 6'],
-      ['quality_score', 5, '≤40 分', '2 / 4', '≤80 分', '3 / 4', '≥80 分', '2 / 4'],
     ];
     for (const [id, series, low, lowCount, upper, upperCount, tail, tailCount] of fixtures) {
       assert.equal(await chart(id).locator('.chart-series').count(), series);
@@ -278,15 +277,52 @@ test('threshold shares use metric-specific cohorts and include exact boundaries'
     await page.locator('#case').selectOption('job:operations');
     assert.match(await points('duration_seconds', '≤600 秒').textContent(), /1 \/ 2 题（50\.0%）/);
     assert.match(await points('tool_failure_rate', '≤20%').textContent(), /1 \/ 4 题（25\.0%）/);
-    const highScore = page.getByRole('button', {name: '≥80 分', exact: true});
-    await highScore.click();
-    assert.equal(await chart('quality_score').locator('.muted').count(), 4);
-    assert.equal(await chart('tool_failure_rate').locator('.muted').count(), 0);
-    await highScore.click();
-    assert.equal(await chart('quality_score').locator('.muted').count(), 0);
     await page.locator('#case').selectOption('J3-03');
     assert.equal(await chart('duration_seconds').isHidden(), true);
     assert.equal(await page.locator('#duration_seconds').isVisible(), true);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('score trends use the specified bands and plot the mean of the same completed scores', async () => {
+  const template = await readFile(new URL('../datasets/journey-3/history.html', import.meta.url), 'utf8');
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const base = {run_id: '1', run_attempt: 1, evaluated_at: '2026-11-19T00:00:00Z',
+      qa_outcome: 'completed', duration_seconds: null, completed_model_rounds: null, tool_failed: 0, tool_succeeded: 0};
+    const scores = [0, 20, 49, 50, 79, 80, 89, 90, 99, 100, null];
+    const rows = scores.map((quality_score, index) => ({
+      ...base, case_id: 'J3-' + String(index + 1).padStart(2, '0'), quality_score,
+    }));
+    rows.push(
+      {...base, case_id: 'J3-12', qa_outcome: 'timeout', quality_score: 100},
+      {...base, case_id: 'J3-01', run_id: '2', quality_score: null},
+      {...base, case_id: 'J3-01', run_id: '3', quality_score: 0},
+    );
+    await page.setContent(template.replace('/*HISTORY_DATA*/[]', JSON.stringify(rows))
+      .replace('/*HISTORY_JOBS*/{}', JSON.stringify({documents: ['J3-01', 'J3-02']})));
+    const chart = page.locator('#quality_score-thresholds');
+    const points = label => chart.locator('[data-series="' + label + '"] circle title');
+    const expected = [['0 分', 1], ['[0,50)', 3], ['[50,80)', 2], ['[80,90)', 2], ['[90,100]', 3], ['100 分', 1]];
+    assert.equal(await chart.locator('.chart-series').count(), expected.length + 1);
+    for (const [label, count] of expected) {
+      assert.equal(await points(label).count(), 2);
+      assert.ok((await points(label).first().textContent()).includes(count + ' / 10 题'));
+    }
+    assert.match(await points('平均分').first().textContent(), /65\.6 分 · 10 题/);
+    assert.match(await points('平均分').last().textContent(), /平均分 0 分 · 1 题/);
+    assert.equal(await chart.getByText('100 分', {exact: true}).count(), 1);
+
+    await page.locator('#case').selectOption('job:documents');
+    assert.match(await points('平均分').first().textContent(), /10 分 · 2 题/);
+    const average = page.getByRole('button', {name: '平均分', exact: true});
+    await average.click();
+    assert.equal(await chart.locator('.muted').count(), 6);
+    assert.equal(await page.locator('#tool_failure_rate-thresholds .muted').count(), 0);
+    await average.click();
+    assert.equal(await chart.locator('.muted').count(), 0);
   } finally {
     await browser.close();
   }
