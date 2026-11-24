@@ -17,7 +17,7 @@ from .evidence import Evidence, configured_secrets, utc_now
 from .hello import discover_workspace
 from .knowledge_sources import list_sources, read_document
 from .knowledge_trace import attach_selected_reads
-from .rag_quality import judge_data, judge_prompt, judge_schema, observe_rag, parse_verdict, summarize_verdict
+from .rag_quality import JUDGE_PROTOCOL, judge_data, judge_prompt, judge_schema, observe_rag, parse_verdict, summarize_verdict
 from .run_case import Execution
 from .model_judge import evaluate_model
 from .production import binding, bindings as production_bindings, is_production, knowledge_client
@@ -43,7 +43,7 @@ class KnowledgeExecution(Execution):
     def setup(self, *, capture_version=True):
         self.root = discover_workspace(self.client, self.case['workspace'])
         self.report['rag']['evaluator'] = {'method': 'workspace_model_json_schema',
-                                          'model': self.model, 'protocol': 3}
+                                          'model': self.model, 'protocol': JUDGE_PROTOCOL}
         catalog = json.loads((ROOT / 'datasets/journey-3/corpora.json').read_text())
         corpus_name = self.case['rag']['corpus']
         target = self.case.get('knowledge_target', {'agent_id': catalog[corpus_name]['agent_id'], 'corpora': [corpus_name]})
@@ -192,7 +192,7 @@ class KnowledgeExecution(Execution):
         return True
 
     def judge_answer(self, session, turn, answer):
-        config, observed, efficiency = turn['rag_reference'], answer['observations'], answer['efficiency']
+        config, observed = turn['rag_reference'], answer['observations']
         conversation = []
         for prior in self.report['rag']['answers']:
             if prior['task_id'] == answer['task_id']:
@@ -200,12 +200,12 @@ class KnowledgeExecution(Execution):
             if prior['conversation_id'] == answer['conversation_id']:
                 conversation.append(prior)
         answer['evaluation_context_task_ids'] = [item['task_id'] for item in conversation]
-        plan = judge_data(turn['prompt'], answer['text'], config, observed, efficiency, conversation)
+        plan = judge_data(turn['prompt'], answer['text'], config, observed, conversation)
         answer['judge_coverage'] = {key: plan[key] for key in ('protocol', 'grounding_scope',
             'unavailable_evidence', 'unavailable_citations')}
-        prompt = judge_prompt(turn['prompt'], answer['text'], config, observed, efficiency, conversation)
+        prompt = judge_prompt(turn['prompt'], answer['text'], config, observed, conversation)
         text = evaluate_model(self, answer['task_id'], prompt, judge_schema(plan, observed))
-        verdict = parse_verdict(text, answer['text'], config, observed, efficiency, conversation,
+        verdict = parse_verdict(text, answer['text'], config, observed, conversation,
                                 question=turn['prompt'], allow_partial=True)
         self.evidence.write('evaluations/' + segment(answer['task_id']) + '/verdict.json', verdict)
         for dimension, error in verdict.get('dimension_errors', {}).items():
@@ -215,10 +215,8 @@ class KnowledgeExecution(Execution):
 
     def apply_verdict(self, session, turn, answer, verdict):
         """Use the same accounting for live verdicts and revalidated saved verdicts."""
-        config, observed, efficiency = turn['rag_reference'], answer['observations'], answer['efficiency']
+        config, observed = turn['rag_reference'], answer['observations']
         checks = self.report['validation']['checks']
-        if verdict['efficiency']:
-            efficiency['review'] = verdict['efficiency']
         answer.update(evaluation_state='partial' if verdict.get('dimension_errors') else 'scored', verdict=verdict, metrics=summarize_verdict(verdict, observed))
         expected_sources = config.get('expected_source_ids', [])
         if is_production():

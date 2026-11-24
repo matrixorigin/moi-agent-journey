@@ -20,6 +20,9 @@ Complete SQL, calculated values, criteria and limitations stay in QA. Only the t
 
 Correctness, observed grounding, citation integrity and citation support remain separate. Native SQL selection receipts plus the fixed table catalog attest source identity; they do not prove answer correctness. Without the source body, citation support and grounding can remain unavailable. SQL found in a citation is never executed by the validator. Document cases retain their existing independently opened source/chunk checks.
 
+The grader checks answer correctness, claim support and citation support. The runner measures
+timing and tool activity separately and records them in the case report.
+
 Document grading uses the reviewed references for the fixed knowledge base. The runner checks the
 bound source inventory during setup and reads cited passages during evidence validation. It
 does not fetch documents for a separate reference-version check before each score. Changes to a

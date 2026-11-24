@@ -56,6 +56,7 @@ def summarize_rag(rows):
     answers = [(row['case_id'], row['rag'], answer) for row in rows if isinstance(row.get('rag'), dict)
                for answer in row['rag'].get('answers', []) if answer.get('evaluation_state') != 'context_only']
     states = Counter(answer.get('evaluation_state', 'unavailable') for _, _, answer in answers)
+    reviews = (answer.get('efficiency', {}).get('review', {}) for _, _, answer in answers)
     groups, corpora = defaultdict(list), defaultdict(list)
     for case_id, rag, answer in answers:
         corpora[rag['corpus']].append(answer)
@@ -70,8 +71,7 @@ def summarize_rag(rows):
             'by_corpus': {name: {'answers': len(values), 'metrics': _metrics(values),
                 'evaluation_states': dict(Counter(value.get('evaluation_state', 'unavailable') for value in values))}
                 for name, values in sorted(corpora.items())},
-            'efficiency': dict(Counter(answer.get('efficiency', {}).get('review', {}).get('assessment', 'unavailable')
-                                       for _, _, answer in answers)),
+            'efficiency': dict(Counter(review['assessment'] for review in reviews if review.get('assessment'))),
             'out_of_scope_chunks': sum(answer.get('observations', {}).get('out_of_scope_chunks', 0)
                                        for _, _, answer in answers),
             'comparisons': [{'group': key, 'answers': items,
@@ -117,8 +117,9 @@ def case_lines(result, cell):
         review = efficiency.get('review', {})
         lines += [f"工具调用 {cell(efficiency.get('tool_calls'))} 次，轮次 {cell(efficiency.get('tool_rounds'))}；"
                   f"完全相同参数的重复调用组 {len(efficiency.get('exact_repetitions', []))}；"
-                  f"连续检索未获得新片段的最长次数 {cell(efficiency.get('max_consecutive_retrievals_without_new_chunks'))}。",
-                  f"轨迹评估：{cell(review.get('assessment', 'unavailable'))}；{cell(review.get('summary'))}。"]
+                  f"连续检索未获得新片段的最长次数 {cell(efficiency.get('max_consecutive_retrievals_without_new_chunks'))}。"]
+        if review:
+            lines.append(f"轨迹评估：{cell(review.get('assessment'))}；{cell(review.get('summary'))}。")
         for finding in review.get('findings', []):
             lines.append(f"- {cell(finding['kind'])}：{cell(finding['reason'], 4000)}；调用 {cell(finding['call_ids'])}。")
         lines += ['', '**正确性**', '', '**实际最终回答**', '', answer.get('text', '')]
@@ -185,9 +186,11 @@ def aggregate_lines(report, cell):
              '。blocked 为依赖未就绪；out_of_scope 为原请求依赖知识库快照之外的能力，均未评分。', '',
              f"预期 {rag['answers_expected']} 个待评估回答，已记录 {rag['answers_observed']} 个，缺失 {rag['answers_missing']} 个；"
              f"评估状态：{cell(rag['evaluation_states'])}。",
-             '', '### 效率', '', f"轨迹评估：{cell(rag['efficiency'])}。",
-             '耗时、工具轮次和错误统计见上方；重复、发散及不收敛的具体证据见各 case 调用轨迹。',
-             '', '### 正确性', '',
+             '', '### 效率', '',
+             '耗时、工具轮次和错误统计见上方，具体调用见各 case 的轨迹。']
+    if rag['efficiency']:
+        lines.append(f"轨迹评估：{cell(rag['efficiency'])}。")
+    lines += ['', '### 正确性', '',
              '各比例仅统计有有效评估的对象，未评估项不按通过处理；完整状态与缺失原因见单 case 报告。', '',
              '| 质量维度 | 满足／已检查 | 比例 |', '|---|---:|---:|']
     for name, label in METRICS.items():

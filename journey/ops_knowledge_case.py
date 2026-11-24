@@ -7,7 +7,7 @@ from .hello import discover_workspace
 from .production import binding, bindings as production_bindings, is_production
 from .knowledge_case import KnowledgeExecution
 from .knowledge_sources import list_sources
-from .rag_quality import citation_integrity_metric, observe_rag
+from .rag_quality import JUDGE_PROTOCOL, citation_integrity_metric, observe_rag
 from .trajectory import task_trajectory
 from .version import start_version
 from .benchmark_store import canonical, digest
@@ -76,7 +76,7 @@ class OpsKnowledgeExecution(KnowledgeExecution):
             raise Failure('operations_clone_binding_mismatch')
         self.report['benchmark_agent_name'] = agent['name']
         self.report['rag'].update(target={'agent_id': target['agent_id'], 'corpora': [self.case['rag']['corpus']]},
-            evaluator={'method': 'workspace_model_json_schema', 'model': self.model, 'protocol': 3})
+            evaluator={'method': 'workspace_model_json_schema', 'model': self.model, 'protocol': JUDGE_PROTOCOL})
         self.report['rag']['corpus_inventory_matches'] = False
         self.evidence.write('knowledge/agent.json', agent)
         self.binding_context = []
