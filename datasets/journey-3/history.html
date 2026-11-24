@@ -33,6 +33,7 @@
   #legend button { color: inherit; background: white; border: 1px solid #dde2ec; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
   .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
   .chart-series polyline { fill: none; stroke: currentColor; stroke-width: 2; }
+  #quality_score-thresholds [data-series="平均分"] polyline { stroke-dasharray: 5 3; }
   .chart-series .partial-segment, .chart-series .gap-segment { stroke: currentColor; stroke-width: 2; stroke-dasharray: 4 3; }
   .chart-series circle { fill: currentColor; }
   .chart-series .partial-point { fill: white; stroke: currentColor; stroke-width: 2; }
@@ -221,10 +222,10 @@ function svgNode(parent, name, attributes, label) {
   return element;
 }
 
-function chartAxes(id, maximum, percent) {
+function chartAxes(id, maximum, percent, scoreAxis) {
   const svg = document.getElementById(id);
   svg.replaceChildren();
-  const left = 43, right = 454, top = 12, bottom = 137;
+  const left = 43, right = scoreAxis ? 435 : 454, top = 12, bottom = 137;
   const pointX = index => timeline.length <= 1 ? (left + right) / 2 :
     left + (right - left) * index / (timeline.length - 1);
   const pointY = value => bottom - (bottom - top) * value / maximum;
@@ -234,6 +235,7 @@ function chartAxes(id, maximum, percent) {
     svgNode(svg, 'line', {x1: left, x2: right, y1: y, y2: y, class: 'axis'});
     svgNode(svg, 'text', {x: left - 5, y: y + 4, 'text-anchor': 'end'},
       Number(value.toFixed(1)) + (percent ? '%' : ''));
+    if (scoreAxis) svgNode(svg, 'text', {x: right + 5, y: y + 4}, value + ' 分');
   }
   for (const index of tickIndexes) {
     const run = timeline[index];
@@ -247,10 +249,10 @@ function chartAxes(id, maximum, percent) {
 }
 
 function draw(id, series, metric, chartDomain, color,
-    {byCase = false, percent = false, describe, bridgeGaps = false} = {}) {
+    {byCase = false, percent = false, scoreAxis = false, describe, bridgeGaps = false} = {}) {
   const values = [...series.values()].flat().map(metric);
   const maximum = chartDomain ?? values.reduce((max, value) => Math.max(max, value ?? 0), 1);
-  const {svg, pointX, pointY} = chartAxes(id, maximum, percent);
+  const {svg, pointX, pointY} = chartAxes(id, maximum, percent, scoreAxis);
   if (!values.some(Number.isFinite)) svgNode(svg, 'text', {x: 250, y: 80, 'text-anchor': 'middle'}, '暂无数据');
   for (const [key, entries] of series) {
     const first = entries[0];
@@ -304,7 +306,17 @@ const metrics = [
   {id: 'tool_failure_rate', name: '工具失败率', unit: '%', maximum: 100, color: '#a96812', allCases: true,
     limits: [10, 20, 30, 40], value: toolFailureRate},
   {id: 'quality_score', name: '正常完成得分', unit: '分', maximum: 100, color: '#159f83',
-    limits: [20, 40, 60, 80], value: completedValue('quality_score')},
+    value: completedValue('quality_score'),
+    thresholds: [
+      {label: '0 分', matches: value => value === 0, color: '#ba322b'},
+      {label: '[0,50)', matches: value => value >= 0 && value < 50, color: '#a44b14'},
+      {label: '[50,80)', matches: value => value >= 50 && value < 80, color: '#2469ae'},
+      {label: '[80,90)', matches: value => value >= 80 && value < 90, color: '#088aaf'},
+      {label: '[90,100]', matches: value => value >= 90 && value <= 100, color: '#37823b'},
+      {label: '100 分', matches: value => value === 100, color: '#106b66'},
+    ],
+    average: {label: '平均分', color: '#203558'},
+  },
 ];
 const thresholdColors = ['#2469ae', '#088aaf', '#106b66', '#37823b', '#727621', '#9a7210',
   '#a44b14', '#a1336b', '#824ba4', '#494ead'];
@@ -324,9 +336,10 @@ function createMetricView(metric) {
 
   const thresholdPane = element('div');
   thresholdPane.className = 'threshold-plot';
-  thresholdPane.append(element('h4', '阈值占比趋势'));
+  const thresholdTitle = metric.average ? '得分占比与平均分趋势' : '阈值占比趋势';
+  thresholdPane.append(element('h4', thresholdTitle));
   const chart = svgNode(thresholdPane, 'svg', {id: metric.id + '-thresholds', viewBox: '0 0 480 170',
-    role: 'img', 'aria-label': metric.name + '阈值占比历史趋势'});
+    role: 'img', 'aria-label': metric.average ? thresholdTitle + '，左轴为占比，右轴为分数' : metric.name + '阈值占比历史趋势'});
   const controls = element('div');
   controls.className = 'plot-legend';
   controls.setAttribute('role', 'group');
@@ -340,15 +353,18 @@ function createMetricView(metric) {
   pair.append(thresholdPane, casePane);
 
   const suffix = metric.unit === '%' ? '%' : ' ' + metric.unit;
-  const thresholds = metric.limits.map((limit, index) => ({
+  const thresholds = metric.thresholds ?? metric.limits.map((limit, index) => ({
     label: '≤' + limit + suffix, matches: value => value <= limit, color: thresholdColors[index],
   }));
-  const last = metric.limits.at(-1);
-  thresholds.push({label: '≥' + last + suffix, matches: value => value >= last, color: '#ba322b'});
+  if (!metric.thresholds) {
+    const last = metric.limits.at(-1);
+    thresholds.push({label: '≥' + last + suffix, matches: value => value >= last, color: '#ba322b'});
+  }
 
-  const colorByLabel = new Map(thresholds.map(({label, color}) => [label, color]));
+  const legendItems = metric.average ? [...thresholds, metric.average] : thresholds;
+  const colorByLabel = new Map(legendItems.map(({label, color}) => [label, color]));
   const view = {metric, thresholdPane, chart, caption, thresholds, colorByLabel, active: null};
-  const buttons = thresholds.map(({label, color}) => {
+  const buttons = legendItems.map(({label, color}) => {
     const button = element('button');
     button.type = 'button';
     button.setAttribute('aria-pressed', 'false');
@@ -393,11 +409,19 @@ function drawThresholds(view, rows) {
       curves.get(label).push({run_id, run_attempt, label, total, measured: measured.length,
         count: measured.filter(matches).length});
     }
+    if (metric.average) {
+      const {label} = metric.average;
+      if (!curves.has(label)) curves.set(label, []);
+      const average = measured.reduce((sum, value) => sum + value, 0) / measured.length;
+      curves.get(label).push({run_id, run_attempt, label, average, total});
+    }
   }
 
-  draw(chart.id, curves, row => 100 * row.count / row.total, 100, label => colorByLabel.get(label), {
+  draw(chart.id, curves, row => row.average ?? 100 * row.count / row.total, 100, label => colorByLabel.get(label), {
     percent: true,
-    describe: ({label, count, total, measured}) =>
+    scoreAxis: Boolean(metric.average),
+    describe: ({label, count, total, measured, average}) => average !== undefined ?
+      label + ' ' + Number(average.toFixed(2)) + ' 分 · ' + total + ' 题' :
       label + ' · ' + count + ' / ' + total + ' 题（' + (100 * count / total).toFixed(1) + '%）' +
       (measured < total ? ' · 可计算 ' + measured + ' 题' : ''),
   });
