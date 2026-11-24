@@ -61,6 +61,9 @@ jobs:
       - run: npm run test:browser
   batch-artifact-smoke:
     name: batch-artifact-smoke (${{ matrix.workspace }})
+    permissions:
+      actions: read
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -109,10 +112,19 @@ jobs:
           path: published-results/
           if-no-files-found: error
           retention-days: 1
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: case-${{ matrix.workspace }}-group-smoke-attempt-${{ github.run_attempt }}
-          path: smoke-results
+      - name: Download the grouped evidence from this run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ARTIFACT_NAME: case-${{ matrix.workspace }}-group-smoke-attempt-${{ github.run_attempt }}
+        run: |
+          for delay in 0 5 15; do
+            sleep "$delay"
+            if gh run download "$GITHUB_RUN_ID" --name "$ARTIFACT_NAME" --dir smoke-results; then
+              exit 0
+            fi
+          done
+          exit 1
       - name: Verify independent case reports survived grouped upload and download
         run: |
           python3 - <<'PYVERIFY'
