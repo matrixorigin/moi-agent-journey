@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 5,
+      "expected_checks": 7,
       "turns": [
         {
           "phase": "question",
@@ -31,15 +31,23 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "No approved90day amendment exists in the corpus"
+                "text": "无法确认90天变更的签署人。"
               },
               {
                 "id": "C02",
-                "text": "Current ordinary retention45days, approvalARC-2026-093 belongs to45day policy, not a90day amendment"
+                "text": "无法确认90天变更的生效日。"
               },
               {
                 "id": "C03",
-                "text": "Do not invent signatory or effective date"
+                "text": "无法确认90天变更的批准号。"
+              },
+              {
+                "id": "C04",
+                "text": "现行正式v2的普通文件保留期是45天。"
+              },
+              {
+                "id": "C05",
+                "text": "不将ARC-2026-093或2026-09-01归属于90天变更。"
               }
             ],
             "evidence": [

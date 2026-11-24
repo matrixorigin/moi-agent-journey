@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 5,
+      "expected_checks": 6,
       "turns": [
         {
           "phase": "question",
@@ -31,15 +31,19 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "見積書・発注書等の定型帳票出力"
+                "text": "見積書・発注書などの定型帳票出力に使う。"
               },
               {
                 "id": "C02",
-                "text": "印刷、PDF、ファイル送信（FAX）"
+                "text": "印刷を出力方法として挙げる。"
               },
               {
                 "id": "C03",
-                "text": "ブラウザ上で動作、Edge推奨"
+                "text": "PDFを出力方法として挙げる。"
+              },
+              {
+                "id": "C04",
+                "text": "ファイル送信（FAX）を出力方法として挙げる。"
               }
             ],
             "evidence": [

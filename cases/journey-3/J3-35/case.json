@@ -22,7 +22,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 5,
+      "expected_checks": 6,
       "turns": [
         {
           "phase": "question",
@@ -32,15 +32,19 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "409 idempotency_payload_conflict"
+                "text": "同一幂等键用于不同请求内容时，HTTP 状态为409。"
               },
               {
                 "id": "C02",
-                "text": "67108864"
+                "text": "同一幂等键用于不同请求内容时，错误原因为idempotency_payload_conflict。"
               },
               {
                 "id": "C03",
-                "text": "单片非整个导出"
+                "text": "64 MiB等于67,108,864字节。"
+              },
+              {
+                "id": "C04",
+                "text": "64 MiB是单个可下载分片的上限。把它当作整个导出的上限则此项不通过。"
               }
             ],
             "evidence": [

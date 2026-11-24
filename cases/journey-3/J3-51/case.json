@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 7,
+      "expected_checks": 13,
       "turns": [
         {
           "phase": "question",
@@ -31,23 +31,47 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "MOI服务账号是独立应用身份，不继承创建者权限，需要配置产品授权和凭据"
+                "text": "服务账号是独立应用身份，不继承创建者个人权限。"
               },
               {
                 "id": "C02",
-                "text": "Genesis授权模型、额度或速率，AI Studio授权工作区和角色"
+                "text": "创建时设置初始Secret有效期。"
               },
               {
                 "id": "C03",
-                "text": "区分Secret与API Key，不把Grafana服务账号当作MOI凭据"
+                "text": "创建时至少添加一项产品权限。"
               },
               {
                 "id": "C04",
-                "text": "给出有文档依据的调用示例，凭据用占位符，不生成或索要真实Secret"
+                "text": "Genesis可授权全部或指定模型。"
               },
               {
                 "id": "C05",
-                "text": "资料中AI Studio支持的认证描述存在差异时说明差异，不能把已配置产品权限等同于已验证所有接口可调用"
+                "text": "Genesis可设置额度和速率限制。"
+              },
+              {
+                "id": "C06",
+                "text": "AI Studio授权需选工作区并绑定角色。"
+              },
+              {
+                "id": "C07",
+                "text": "Client ID与Client Secret配合OAuth获取访问令牌。"
+              },
+              {
+                "id": "C08",
+                "text": "Genesis API Key直接用于Genesis模型调用。"
+              },
+              {
+                "id": "C09",
+                "text": "示例以占位环境变量Bearer凭据调用Genesis模型列表端点，不暴露真实凭据。"
+              },
+              {
+                "id": "C10",
+                "text": "说明凭据页列AI Studio服务账号Client ID/Secret，API准备指南只列PAT的差异。"
+              },
+              {
+                "id": "C11",
+                "text": "不将产品授权等同于已验证所有AI Studio接口可调用。"
               }
             ],
             "evidence": [

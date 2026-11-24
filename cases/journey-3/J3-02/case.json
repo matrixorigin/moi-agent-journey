@@ -31,7 +31,7 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "VA02"
+                "text": "登録済み受注伝票の修正には VA02 を使うと答える。"
               }
             ],
             "evidence": [

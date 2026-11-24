@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 5,
+      "expected_checks": 4,
       "turns": [
         {
           "phase": "question",
@@ -31,15 +31,11 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "签字人无法确认"
+                "text": "所选资料无法确认Cedar 2028年度灾难恢复演练的最终签字人。"
               },
               {
                 "id": "C02",
-                "text": "RTO无法确认"
-              },
-              {
-                "id": "C03",
-                "text": "不从事故恢复27分钟推算RTO"
+                "text": "所选资料无法确认本次演练的正式RTO。若把其他事故的实际恢复耗时当成这个RTO，此项不通过。"
               }
             ],
             "evidence": [

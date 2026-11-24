@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 6,
+      "expected_checks": 8,
       "turns": [
         {
           "phase": "question",
@@ -31,19 +31,27 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "6 records / USD375"
+                "text": "这份逻辑台账的有效事件共6条，原表里同值的独立事件仍计数，印刷再掲的副本不重复计数。"
               },
               {
                 "id": "C02",
-                "text": "web4 / USD225"
+                "text": "该台账净金额为375美元。"
               },
               {
                 "id": "C03",
-                "text": "api2 / USD150"
+                "text": "web事件共4条。"
               },
               {
                 "id": "C04",
-                "text": "keep two equal web100 events, count mirrored logical table once"
+                "text": "web净金额为225美元。"
+              },
+              {
+                "id": "C05",
+                "text": "api事件共2条。"
+              },
+              {
+                "id": "C06",
+                "text": "api净金额为150美元。"
               }
             ],
             "evidence": [

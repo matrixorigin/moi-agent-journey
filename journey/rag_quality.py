@@ -101,16 +101,33 @@ def judge_chunks(chunks):
 
 JUDGE_TEXT_BUDGET = 60_000
 JUDGE_PROTOCOL = 4
+JUDGE_PASSAGE_CHARS = 800
 
 
-def answer_passages(text, prefix='A'):
+def bounded_passages(paragraph, max_chars):
+    while len(paragraph) > max_chars:
+        # Keep table rows and list items intact when possible.
+        end = paragraph.rfind('\n', 0, max_chars) + 1
+        if end < max_chars // 2:
+            end = paragraph.rfind(' ', max_chars // 2, max_chars) + 1 or max_chars
+        yield paragraph[:end]
+        paragraph = paragraph[end:]
+    if paragraph.strip():
+        yield paragraph
+
+
+def answer_passages(text, prefix='A', *, max_chars=None):
+    parts = re.split(r'\n\s*\n', text)
+    if max_chars is not None:
+        parts = (part for paragraph in parts for part in bounded_passages(paragraph, max_chars))
     return [{'id': prefix + str(index + 1), 'text': part}
-            for index, part in enumerate(re.split(r'\n\s*\n', text)) if part.strip()]
+            for index, part in enumerate(parts) if part.strip()]
 
 
 def judge_data(question, answer, reference, observed, conversation=()):
-    current = answer_passages(answer)
-    history = [{'question': turn['question'], 'answer': answer_passages(turn['text'], 'H' + str(i + 1) + '_')}
+    current = answer_passages(answer, max_chars=JUDGE_PASSAGE_CHARS)
+    history = [{'question': turn['question'], 'answer': answer_passages(
+                    turn['text'], 'H' + str(i + 1) + '_', max_chars=JUDGE_PASSAGE_CHARS)}
                for i, turn in enumerate(conversation)]
     data = {'protocol': JUDGE_PROTOCOL, 'question': question, 'answer': current, 'conversation': history,
             'criteria': reference['criteria'], 'reference_evidence': reference.get('evidence', []),
@@ -176,7 +193,9 @@ def judge_prompt(question, answer, reference, observed, conversation=()):
         'Produce valid JSON: escape any quotation marks inside strings. Paraphrase reasons without '
         'quoting source/answer text; keep each reason to one short sentence.\n'
         'criteria: exactly one {id, passed:boolean, reason, answer_ids:[]} per criterion. '
-        'A pass needs IDs substantiating the WHOLE criterion. Accept equivalent wording/languages; preserve '
+        'Use an empty reason for a passed criterion. Explain only why a criterion failed. '
+        'For every pass, answer_ids must contain the supplied passage IDs that support the WHOLE criterion. '
+        'Accept equivalent wording/languages; preserve '
         'identifiers, numbers, units, scope and uncertainty. Mentioning a value to reject it does not satisfy it. '
         'Evaluate the current question in its actual same-conversation history. Resolved background facts may be '
         'cited from H* answer IDs without requiring their repetition in a follow-up; the current answer must still '

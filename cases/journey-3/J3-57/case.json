@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 6,
+      "expected_checks": 12,
       "turns": [
         {
           "phase": "question",
@@ -31,19 +31,43 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "Data Branch 的快照、创建分支、Diff、Merge 工作流"
+                "text": "版本要求MatrixOne v4.1.0及以上。"
               },
               {
                 "id": "C02",
-                "text": "前提版本至少 MatrixOne v4.1.0"
+                "text": "Data Branch可创建独立分支进行数据修改。"
               },
               {
                 "id": "C03",
-                "text": "示例语法必须来自适用文档"
+                "text": "修改前可创建快照作为安全锚点。"
               },
               {
                 "id": "C04",
-                "text": "说明冲突处理，不执行用户没有要求的数据修改"
+                "text": "可从快照创建分支，并给出文档支持的语法或等价流程。"
+              },
+              {
+                "id": "C05",
+                "text": "合并前用DATA BRANCH DIFF审阅差异。"
+              },
+              {
+                "id": "C06",
+                "text": "用DATA BRANCH MERGE把分支变更合并回目标表。"
+              },
+              {
+                "id": "C07",
+                "text": "默认冲突报错。"
+              },
+              {
+                "id": "C08",
+                "text": "SKIP跳过冲突行并保留主表数据。"
+              },
+              {
+                "id": "C09",
+                "text": "ACCEPT使用分支数据覆盖主表冲突行。"
+              },
+              {
+                "id": "C10",
+                "text": "示例只作说明，不执行实际修改。"
               }
             ],
             "evidence": [

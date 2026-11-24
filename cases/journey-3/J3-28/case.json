@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 6,
+      "expected_checks": 8,
       "turns": [
         {
           "phase": "question",
@@ -31,19 +31,27 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "パターン⑥のMCA構成品ZMM5060在庫引当は7番目"
+                "text": "7番がMCA構成品のZMM5060在庫引当。"
               },
               {
                 "id": "C02",
-                "text": "直前6番は構成品購買発注ZMM0085、担当店販社"
+                "text": "7番の担当は仕入。"
               },
               {
                 "id": "C03",
-                "text": "7番の担当は仕入側（MCA）"
+                "text": "直前6番はZMM0085によるMCA構成品購買発注。"
               },
               {
                 "id": "C04",
-                "text": "直後8番は出荷伝票登録VL10B、担当仕入側（MCA）"
+                "text": "6番の担当は店販社。"
+              },
+              {
+                "id": "C05",
+                "text": "直後8番はVL10BによるMCA構成品の出荷伝票登録。"
+              },
+              {
+                "id": "C06",
+                "text": "8番の担当は仕入。"
               }
             ],
             "evidence": [

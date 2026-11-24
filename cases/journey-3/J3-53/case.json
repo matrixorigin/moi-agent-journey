@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 4,
+      "expected_checks": 9,
       "turns": [
         {
           "phase": "question",
@@ -31,11 +31,31 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "按资料解释Catalog是工作区资源组织/管理入口"
+                "text": "Catalog是工作区数据资源的目录／组织入口。"
               },
               {
                 "id": "C02",
-                "text": "区分目录、数据库/表、卷/文件的实际层次和访问边界，不把Catalog等同于某个单独的表，也不扩展成无关流程"
+                "text": "资源树包括Catalog、数据库、表及卷。"
+              },
+              {
+                "id": "C03",
+                "text": "数据库位于Catalog层级中。"
+              },
+              {
+                "id": "C04",
+                "text": "可在数据库中创建卷。"
+              },
+              {
+                "id": "C05",
+                "text": "卷可包含文件和文件夹，文件夹仍属于同一卷。"
+              },
+              {
+                "id": "C06",
+                "text": "资源树展示的是当前工作区可访问资源，而非全部资源。"
+              },
+              {
+                "id": "C07",
+                "text": "不把Catalog等同于一张表。"
               }
             ],
             "evidence": [

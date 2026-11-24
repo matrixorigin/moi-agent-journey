@@ -10,7 +10,7 @@ from journey.evidence import Evidence
 from journey.knowledge_case import KnowledgeExecution
 from journey.knowledge_sources import read_document
 from journey.knowledge_trace import cli_feedback, attach_selected_reads
-from journey.rag_quality import observe_rag, judge_data, judge_prompt, parse_verdict, summarize_verdict
+from journey.rag_quality import JUDGE_PASSAGE_CHARS, observe_rag, judge_data, judge_prompt, parse_verdict, summarize_verdict
 from journey.rag_report import summarize_rag
 import test_knowledge_journey as fixtures
 import test_journeys as report_fixtures
@@ -21,6 +21,18 @@ from test_knowledge_journey import page, chunk
 class EvaluationProtocolTests(unittest.TestCase):
     def fixture(self):
         return fixtures.RagEvidenceTests().verdict_fixture()
+
+    def test_long_table_rows_have_citable_passages_without_truncating_the_answer(self):
+        observed, reference, verdict = self.fixture()
+        text = '\n'.join(f'| {i} | 45 days |' for i in range(122))
+        passages = judge_data('', text, reference, observed)['answer']
+        self.assertGreater(len(passages), 1)
+        self.assertEqual(''.join(part['text'] for part in passages), text)
+        self.assertTrue(all(len(part['text']) <= JUDGE_PASSAGE_CHARS for part in passages))
+        self.assertTrue(all(part['text'].endswith('\n') for part in passages[:-1]))
+        verdict['criteria'][0]['answer_ids'] = [passages[-1]['id']]
+        parsed = parse_verdict(json.dumps(verdict), text, reference, observed)
+        self.assertEqual(parsed['criteria'][0]['answer_quote'], passages[-1]['text'])
 
     def test_citation_support_is_independent_of_missing_retrieval_capture(self):
         observed, reference, verdict = self.fixture()

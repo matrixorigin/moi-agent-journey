@@ -40,7 +40,7 @@ Pages 的发布源是 GitHub Actions。`journey-3-pages-data` 保存各环境的
 
 历史页默认叠画全部 case 的曲线。Case 菜单可切换到文档 job、运营 job 或单题。图例和鼠标提示标识各条曲线，版本变化后另起一条线。
 
-原有文档题集与参考复核记录见 [journey-3-qa-review.md](docs/journey-3-qa-review.md)。这 57 个 case 分为 SAP 29、Cedar 18、MOI 7、MatrixOne 3；包含连续追问、独立新会话及重复题对照，共 61 次被测请求，其中 58 次回答需要评估，其余用于建立业务上下文。
+文档题集与参考依据见 [Journey-3 文档题评分](docs/journey-3-qa-review.md)。57 个 case 覆盖 SAP 29、Cedar 18、MOI 7 和 MatrixOne 3。共 61 次被测请求，其中 58 次回答参与评分，其余用来建立对话上下文。
 
 原有 57 题使用 journey-3 现有的四个专用智能体及其绑定知识库；运行时不创建或修改智能体、知识库、索引和源资料。每个 case 创建独立会话；连续追问仅在本 case 内保留上下文。任务完成后采集事件、产物并归档测试会话。
 

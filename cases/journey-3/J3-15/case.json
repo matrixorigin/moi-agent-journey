@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 5,
+      "expected_checks": 7,
       "turns": [
         {
           "phase": "question",
@@ -31,15 +31,23 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "ERS=入庫請求自動決済"
+                "text": "ERSを入庫請求自動決済（Evaluated Receipt Settlement）と説明する。"
               },
               {
                 "id": "C02",
-                "text": "購買発注・入庫情報に基づく"
+                "text": "購買発注情報を基にする。"
               },
               {
                 "id": "C03",
-                "text": "仕入先の請求書を受領せず自動で買掛金計上"
+                "text": "入庫情報を基にする。"
+              },
+              {
+                "id": "C04",
+                "text": "買掛金を自動計上する。"
+              },
+              {
+                "id": "C05",
+                "text": "仕入先から請求書を受領しない。"
               }
             ],
             "evidence": [

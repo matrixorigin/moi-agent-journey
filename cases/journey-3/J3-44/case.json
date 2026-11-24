@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 8,
+      "expected_checks": 9,
       "turns": [
         {
           "phase": "question",
@@ -31,27 +31,31 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "36"
+                "text": "共有36个连接器。"
               },
               {
                 "id": "C02",
-                "text": "JSONL 18"
+                "text": "JSONL格式18个。"
               },
               {
                 "id": "C03",
-                "text": "Parquet 18"
+                "text": "Parquet格式18个。"
               },
               {
                 "id": "C04",
-                "text": "Atlas-01 7137"
+                "text": "最小单批上限是Atlas-01的7137条。"
               },
               {
                 "id": "C05",
-                "text": "Atlas-36 11932"
+                "text": "最大单批上限是Atlas-36的11932条。"
               },
               {
                 "id": "C06",
-                "text": "343242"
+                "text": "所有单批上限之和为343242条。"
+              },
+              {
+                "id": "C07",
+                "text": "算术总和不代表完整任务规模上限。"
               }
             ],
             "evidence": [

@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 5,
+      "expected_checks": 6,
       "turns": [
         {
           "phase": "question",
@@ -31,15 +31,19 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "2027无可靠依据"
+                "text": "无法确认2027版政策批准号。"
               },
               {
                 "id": "C02",
-                "text": "不捏造批准号"
+                "text": "无法确认90天普通留存已获批准。"
               },
               {
                 "id": "C03",
-                "text": "不能确认90天"
+                "text": "当前v2普通留存期是45天。"
+              },
+              {
+                "id": "C04",
+                "text": "ARC-2026-093属于现行v2，不冒充2027年90天变更的批准号。"
               }
             ],
             "evidence": [

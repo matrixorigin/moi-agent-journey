@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 5,
+      "expected_checks": 7,
       "turns": [
         {
           "phase": "question",
@@ -31,15 +31,23 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "支持 RC 和 SI"
+                "text": "MatrixOne支持读已提交（RC）。"
               },
               {
                 "id": "C02",
-                "text": "悲观事务默认 RC，乐观事务默认 SI"
+                "text": "MatrixOne支持快照隔离（SI）。"
               },
               {
                 "id": "C03",
-                "text": "兼容变量 transaction_isolation/tx_isolation 的默认 REPEATABLE-READ 不会改变真实隔离级别"
+                "text": "悲观事务默认使用RC。"
+              },
+              {
+                "id": "C04",
+                "text": "乐观事务默认使用SI。"
+              },
+              {
+                "id": "C05",
+                "text": "兼容变量显示REPEATABLE-READ不能据此认定实际事务采用了快照隔离。"
               }
             ],
             "evidence": [
