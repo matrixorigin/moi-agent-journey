@@ -16,9 +16,17 @@ Seven original requests depended on monitoring, GitHub, image delivery, old-task
 
 Historical answers are never goldens. Operations replays that read benchmark control tables or registered reference/evidence archives are explicitly unscored; reading a file listing alone is not treated as reading an archive. Reviewed SQL calculations run independently in DuckDB against the immutable exported TSV snapshot, with source checksums, row counts, explicit time units and a frozen clock. This keeps QA SQL-engine failures from corrupting the reference calculation. Historical SQL is only a review input: timestamp units, time zones, attribution, deduplication and requested populations are checked and corrected before independent execution.
 
-Complete SQL, calculated values, criteria and limitations stay in QA. Only the tested prompt/context reaches the agent; the golden reaches a separate tool-free model grader. Quality is `100 × satisfied reference criteria / evaluated criteria`. Equivalent wording and reasonable rounding are accepted. This is criterion coverage, with a coarse score for small rubrics, not an assertion of exact factual accuracy to one percentage point. Missing/invalid grading yields `NULL`, never zero or a pass.
+The private Journey-3 workspaces in QA and production store operations SQL, reference facts and evidence. The tested agent receives the prompt and conversation context. A separate model checks the delivered answer against the reviewed facts. The grader accepts equivalent wording and numeric representations within each fact's stated scope and units. The score is `100 × satisfied reference criteria / evaluated criteria`. Missing or invalid grading yields `NULL`.
 
 Correctness, observed grounding, citation integrity and citation support remain separate. Native SQL selection receipts plus the fixed table catalog attest source identity; they do not prove answer correctness. Without the source body, citation support and grounding can remain unavailable. SQL found in a citation is never executed by the validator. Document cases retain their existing independently opened source/chunk checks.
+
+The grader checks answer correctness, claim support and citation support. The runner measures
+timing and tool activity separately and records them in the case report.
+
+Document grading uses the reviewed references for the fixed knowledge base. The runner checks the
+bound source inventory during setup and reads cited passages during evidence validation. It
+does not fetch documents for a separate reference-version check before each score. Changes to a
+document case's reference answer or rubric produce a new case revision in history.
 
 The dataset manifest records expected source checksums, schemas, semantics and copy receipts. The migration seals it only after final QA row-count verification. Runtime checks manifest identity and completion state; this is not a fresh checksum of every QA cell. Snapshot tables must stay fixed. Data/schema/semantic changes require a new snapshot and golden revision; the historical series must not be spliced together.
 
@@ -26,12 +34,12 @@ Journey-3 gives every case a 30-minute task budget through its suite-wide timeou
 
 ## Private history and public downloads
 
-The runtime schema is in [history-schema.sql](../datasets/journey-3/history-schema.sql). QA `journey3_benchmark` contains:
+The runtime schema is in [history-schema.sql](../datasets/journey-3/history-schema.sql). The private Journey-3 workspace in each environment has these tables.
 
 | Table | Contents |
 |---|---|
-| `case_specs` | Versioned private questions, context, goldens and checksums |
-| `case_goldens` | QA catalog reference answers, rubric and evidence, grouped by catalog revision |
+| `case_specs` | Checksum-verified private questions, contexts and rubrics used by the runner |
+| `case_goldens` | The current reference facts, rubric and evidence for all 117 cases |
 | `dataset_snapshots` | Snapshot manifest, hash and readiness state |
 | `private_evidence_files` | Reference/evidence archive identities used to detect answer contamination |
 | `results` | Metrics, lookup IDs and HTML report details for each workflow run/attempt/revision |

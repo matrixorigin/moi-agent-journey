@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 5,
+      "expected_checks": 8,
       "turns": [
         {
           "phase": "question",
@@ -31,15 +31,27 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "该版手册画面列出5种：ZBB4、ZBC4、ZBD1、ZBB6、ZBB7"
+                "text": "ZBB4を挙げる。"
               },
               {
                 "id": "C02",
-                "text": "ZBB1参照登记不支持，需使用VA01"
+                "text": "ZBC4を挙げる。"
               },
               {
                 "id": "C03",
-                "text": "不将其他主受注类型全部当作ZVA01可输入类型"
+                "text": "ZBD1を挙げる。"
+              },
+              {
+                "id": "C04",
+                "text": "ZBB6を挙げる。"
+              },
+              {
+                "id": "C05",
+                "text": "ZBB7を挙げる。"
+              },
+              {
+                "id": "C06",
+                "text": "5種類という一覧にZBB1を混ぜない（参照登録はVA01）。"
               }
             ],
             "evidence": [

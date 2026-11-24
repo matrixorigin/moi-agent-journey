@@ -31,15 +31,15 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "Contact is Vega from Compliance team"
+                "text": "法律保全问题咨询Compliance团队的Vega。"
               },
               {
                 "id": "C02",
-                "text": "No work email or personal phone is provided in this corpus"
+                "text": "工作邮箱在所选资料中无法确认。"
               },
               {
                 "id": "C03",
-                "text": "do not invent contact details"
+                "text": "个人手机号码在所选资料中无法确认。"
               }
             ],
             "evidence": [

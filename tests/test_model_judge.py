@@ -50,10 +50,10 @@ class StructuredModelTests(unittest.TestCase):
             self.assertEqual(json.loads((ex.evidence.root/'evaluations/test/response.json').read_text()),response)
 
     def test_schema_limits_ids_and_forces_unavailable_citation_to_null(self):
-        obs,eff,ref,_=fixtures.RagEvidenceTests().verdict_fixture()
+        obs,ref,_=fixtures.RagEvidenceTests().verdict_fixture()
         obs['citation_chunks'][0]['content']='z'*70_000
         obs['retrieved_chunks'][0]['content']='z'*70_000
-        data=judge_data('How long?','45 days',ref,obs,eff)
+        data=judge_data('How long?','45 days',ref,obs)
         schema=judge_schema(data,obs)
         citation=schema['properties']['citations']['items']['anyOf'][0]['properties']
         self.assertEqual(citation['supported'],{'type':'null'})
@@ -61,23 +61,22 @@ class StructuredModelTests(unittest.TestCase):
         self.assertEqual(schema['properties']['criteria']['items']['properties']['id']['enum'],['C01'])
         self.assertFalse(schema['additionalProperties'])
 
-    def test_bad_efficiency_does_not_discard_valid_answer_and_citation_scores(self):
-        obs,eff,ref,v=fixtures.RagEvidenceTests().verdict_fixture()
-        v['efficiency']={'assessment':'concerns','summary':'wrong trace ID','findings':[
-            {'kind':'repetition','reason':'repeat','call_ids':['invented'],'avoidable':True}]}
+    def test_invalid_citation_verdict_does_not_discard_a_valid_answer_score(self):
+        obs,ref,v=fixtures.RagEvidenceTests().verdict_fixture()
+        v['citations'][0]['source_ids']=['invented']
         text=json.dumps(v)
-        with self.assertRaisesRegex(ValueError,'efficiency_finding'):
-            parse_verdict(text,'45 days',ref,obs,eff)
-        result=parse_verdict(text,'45 days',ref,obs,eff,allow_partial=True)
-        self.assertIn('efficiency',result['dimension_errors'])
+        with self.assertRaisesRegex(ValueError,'invalid_rag_judge_source_ids'):
+            parse_verdict(text,'45 days',ref,obs)
+        result=parse_verdict(text,'45 days',ref,obs,allow_partial=True)
+        self.assertIn('citations',result['dimension_errors'])
         self.assertEqual(summarize_verdict(result,obs)['correctness']['rate'],1)
-        self.assertEqual(summarize_verdict(result,obs)['citation_support']['rate'],1)
+        self.assertIsNone(summarize_verdict(result,obs)['citation_support']['rate'])
         self.assertEqual(json.loads(text),v)
 
     def test_invalid_criteria_are_unscored_while_other_dimensions_and_denominators_survive(self):
-        obs,eff,ref,v=fixtures.RagEvidenceTests().verdict_fixture()
+        obs,ref,v=fixtures.RagEvidenceTests().verdict_fixture()
         v['criteria'][0]['id']='invented'
-        result=parse_verdict(json.dumps(v),'45 days',ref,obs,eff,allow_partial=True)
+        result=parse_verdict(json.dumps(v),'45 days',ref,obs,allow_partial=True)
         metrics=summarize_verdict(result,obs)
         self.assertIsNone(metrics['correctness']['rate'])
         self.assertEqual(metrics['correctness']['unavailable'],1)

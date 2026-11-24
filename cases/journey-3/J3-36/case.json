@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 6,
+      "expected_checks": 12,
       "turns": [
         {
           "phase": "question",
@@ -31,19 +31,43 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "Atlas-03 7411 JSONL Team-4"
+                "text": "Atlas-03单批最多7,411条记录。"
               },
               {
                 "id": "C02",
-                "text": "Atlas-19 9603 JSONL Team-5"
+                "text": "Atlas-03归档格式是JSONL。"
               },
               {
                 "id": "C03",
-                "text": "Atlas-36 11932 Parquet Team-2"
+                "text": "Atlas-03由Team-4负责。"
               },
               {
                 "id": "C04",
-                "text": "只限单批"
+                "text": "Atlas-19单批最多9,603条记录。"
+              },
+              {
+                "id": "C05",
+                "text": "Atlas-19归档格式是JSONL。"
+              },
+              {
+                "id": "C06",
+                "text": "Atlas-19由Team-5负责。"
+              },
+              {
+                "id": "C07",
+                "text": "Atlas-36单批最多11,932条记录。"
+              },
+              {
+                "id": "C08",
+                "text": "Atlas-36归档格式是Parquet。"
+              },
+              {
+                "id": "C09",
+                "text": "Atlas-36由Team-2负责。"
+              },
+              {
+                "id": "C10",
+                "text": "这些上限限于单批传输，完整任务可以分批处理。"
               }
             ],
             "evidence": [

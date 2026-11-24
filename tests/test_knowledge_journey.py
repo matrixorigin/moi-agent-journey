@@ -27,42 +27,6 @@ def chunk(identity, content):
 
 
 class KnowledgeSourceTests(unittest.TestCase):
-    def test_production_reference_checks_use_the_migrated_source_identity(self):
-        with tempfile.TemporaryDirectory() as directory:
-            client = Mock()
-            execution = KnowledgeExecution(client, {'id': 'case', 'title': 'test', 'workspace': 'journey-3',
-                'timeout_seconds': 60}, Evidence(directory), directory, 'model')
-            execution.reference_etags = {'qa-source': 'qa-etag'}
-            execution.corpus = {'model_id': 2, 'source_id_map': {'qa-source': 'prod-source'},
-                                'source_etags': {'prod-source': 'prod-etag'}}
-            client.product.return_value = {'source': {'model_id': 2, 'row_id': 'prod-source',
-                                             'effective_enabled': True}, 'etag': 'prod-etag'}
-            with patch('journey.knowledge_case.is_production', return_value=True):
-                reference = {'evidence': [{'source_id': 'qa-source', 'etag': 'qa-etag'}]}
-                self.assertEqual(execution.check_reference(reference)['state'], 'matched')
-                client.product.assert_called_once_with('GET',
-                    '/semantic-models/2/sources/prod-source/document?page_size=1', expected_code='OK')
-                reference['evidence'][0]['etag'] = 'changed'
-                self.assertEqual(execution.check_reference(reference)['state'], 'changed')
-                self.assertEqual(client.product.call_count, 1)
-
-    def test_reference_drift_disabled_source_and_api_failure_are_explicitly_unscored(self):
-        with tempfile.TemporaryDirectory() as directory:
-            execution = KnowledgeExecution(Mock(), {'id': 'case', 'title': 'test', 'workspace': 'journey-3',
-                'timeout_seconds': 60}, Evidence(directory), directory, 'model')
-            execution.corpus = {'model_id': 1, 'source_etags': {'source': 'fixed'}}
-            execution.bound_corpora = [execution.corpus]
-            reference = {'verify_whole_corpus': True, 'evidence': []}
-            for enabled, etag, expected in [(True, 'fixed', 'matched'), (True, 'changed', 'changed'),
-                                            (False, 'fixed', 'changed')]:
-                execution.client.product.return_value = {'source': {'model_id': 1, 'row_id': 'source',
-                    'effective_enabled': enabled}, 'etag': etag}
-                self.assertEqual(execution.check_reference(reference)['state'], expected)
-            execution.client.product.side_effect = Failure('http_error', 503)
-            result = execution.check_reference(reference)
-            self.assertEqual(result['state'], 'unavailable')
-            self.assertEqual(result['sources'][0]['error']['http_status'], 503)
-
     def test_reads_nested_cursor_to_completion_and_excludes_recall_counters_from_hash(self):
         client = Mock()
         client.product.side_effect = [page([chunk('a', 'first')], 'cursor-a'), page([chunk('b', 'second')])]
@@ -176,32 +140,28 @@ class RagEvidenceTests(unittest.TestCase):
                     'citation_chunks': [{'evidence_id': 'C1', 'content': 'Files remain 45 days.'}],
                     'citations': [{'index': 1, 'integrity': True, 'source_evidence_ids': ['C1']}],
                     'citation_integrity': {'valid': 1, 'total': 1}}
-        efficiency = {'timeline': [{'call_id': 'real-call'}]}
         reference = {'criteria': [{'id': 'C01', 'text': '45 days'}]}
         verdict = {'criteria': [{'id': 'C01', 'passed': True, 'reason': 'correct', 'answer_ids': ['A1']}],
                    'claims': [{'answer_ids': ['A1'], 'supported': True, 'reason': 'in retrieval',
                                'source_ids': ['R1']}],
                    'citations': [{'index': 1, 'supported': True, 'reason': 'supported', 'answer_ids': ['A1'],
-                                  'source_ids': ['C1']}],
-                   'efficiency': {'assessment': 'efficient', 'summary': 'direct lookup', 'findings': []}}
-        return observed, efficiency, reference, verdict
+                                  'source_ids': ['C1']}]}
+        return observed, reference, verdict
 
-    def test_judge_cannot_invent_quotes_claim_grounding_citations_or_detours(self):
-        observed, efficiency, reference, valid = self.verdict_fixture()
-        self.assertTrue(parse_verdict(json.dumps(valid), '45 days', reference, observed, efficiency)['criteria'][0]['passed'])
+    def test_judge_cannot_invent_quotes_claim_grounding_or_citations(self):
+        observed, reference, valid = self.verdict_fixture()
+        self.assertTrue(parse_verdict(json.dumps(valid), '45 days', reference, observed)['criteria'][0]['passed'])
         mutations = [lambda v: v['criteria'][0].update(answer_ids=['invented']),
                      lambda v: v['criteria'].clear(),
                      lambda v: v['claims'][0].update(source_ids=['C1']),
-                     lambda v: v['citations'][0].update(source_ids=['invented']),
-                     lambda v: v['efficiency'].update(assessment='inefficient', findings=[
-                         {'kind': 'detour', 'reason': 'wrong', 'avoidable': True, 'call_ids': ['invented']}])]
+                     lambda v: v['citations'][0].update(source_ids=['invented'])]
         for mutation in mutations:
             value = copy.deepcopy(valid); mutation(value)
             with self.assertRaises(ValueError):
-                parse_verdict(json.dumps(value), '45 days', reference, observed, efficiency)
+                parse_verdict(json.dumps(value), '45 days', reference, observed)
 
     def test_unobserved_retrieval_and_missing_answers_do_not_become_perfect_scores(self):
-        observed, _, _, verdict = self.verdict_fixture()
+        observed, _, verdict = self.verdict_fixture()
         observed['retrieved_chunks'] = []
         metrics = summarize_verdict(verdict, observed)
         self.assertIsNone(metrics['faithfulness']['rate'])
@@ -216,39 +176,39 @@ class RagEvidenceTests(unittest.TestCase):
             'metrics': {'correctness': {'passed': 1, 'total': 0, 'rate': 1}}}]}))
 
     def test_json_envelope_does_not_repair_or_extract_a_verdict_from_other_text(self):
-        observed, efficiency, reference, verdict = self.verdict_fixture()
+        observed, reference, verdict = self.verdict_fixture()
         raw = json.dumps(verdict)
         for text in (raw, '  ```json\n' + raw + '\n```\n', '```\n' + raw + '\n```'):
-            self.assertTrue(parse_verdict(text, '45 days', reference, observed, efficiency)['criteria'][0]['passed'])
+            self.assertTrue(parse_verdict(text, '45 days', reference, observed)['criteria'][0]['passed'])
         for text in ('Result: ' + raw, '```json\n' + raw + '\n```\nextra',
                      '```python\n' + raw + '\n```', '```json\n' + raw + '\n```\n```json\n{}\n```'):
             with self.assertRaises(ValueError):
-                parse_verdict(text, '45 days', reference, observed, efficiency)
+                parse_verdict(text, '45 days', reference, observed)
 
     def test_canonical_quote_requires_actual_same_source_retrieval_not_just_source_availability(self):
-        observed, efficiency, reference, verdict = self.verdict_fixture()
+        observed, reference, verdict = self.verdict_fixture()
         identity = {'semantic_model_id': 1, 'source_row_id': 'source', 'file_id': 'file', 'chunk_id': 'chunk'}
         for evidence in observed['retrieved_chunks'] + observed['citation_chunks']:
             evidence.update(identity)
         verdict['claims'][0]['source_ids'] = ['C1']
-        self.assertTrue(parse_verdict(json.dumps(verdict), '45 days', reference, observed, efficiency)['criteria'][0]['passed'])
+        self.assertTrue(parse_verdict(json.dumps(verdict), '45 days', reference, observed)['criteria'][0]['passed'])
         for field in identity:
             changed = copy.deepcopy(observed)
             changed['retrieved_chunks'][0][field] = 'other'
             with self.assertRaisesRegex(ValueError, 'claim_not_in_observed_evidence'):
-                parse_verdict(json.dumps(verdict), '45 days', reference, changed, efficiency)
+                parse_verdict(json.dumps(verdict), '45 days', reference, changed)
         observed['retrieved_chunks'][0]['content'] = 'different retrieved text'
         with self.assertRaisesRegex(ValueError, 'claim_not_in_observed_evidence'):
-            parse_verdict(json.dumps(verdict), '45 days', reference, observed, efficiency)
+            parse_verdict(json.dumps(verdict), '45 days', reference, observed)
 
     def test_verified_bindings_support_context_claims_but_cannot_support_citations(self):
-        observed, efficiency, reference, verdict = self.verdict_fixture()
+        observed, reference, verdict = self.verdict_fixture()
         observed['context_evidence'] = [{'evidence_id': 'B1', 'content': '45 days'}]
         verdict['claims'][0]['source_ids'] = ['B1']
-        self.assertTrue(parse_verdict(json.dumps(verdict), '45 days', reference, observed, efficiency)['criteria'][0]['passed'])
+        self.assertTrue(parse_verdict(json.dumps(verdict), '45 days', reference, observed)['criteria'][0]['passed'])
         verdict['citations'][0]['source_ids'] = ['B1']
         with self.assertRaisesRegex(ValueError, 'quote_not_in_cited_source'):
-            parse_verdict(json.dumps(verdict), '45 days', reference, observed, efficiency)
+            parse_verdict(json.dumps(verdict), '45 days', reference, observed)
 
     def test_judge_view_deduplicates_only_identical_evidence_and_keeps_full_text(self):
         original = {'evidence_id': 'R1', 'semantic_model_id': 1, 'source_row_id': 's',
@@ -312,14 +272,14 @@ class KnowledgeDatasetTests(unittest.TestCase):
 
     def test_only_model_judge_sees_reference_and_replay_never_submits_an_agent_task(self):
         case = load_case('J3-30')
-        reference = {'status': 'reviewed', 'citation_required': False, 'evidence': [],
+        reference = {'status': 'reviewed', 'citation_required': False, 'evidence': [], 'verify_whole_corpus': True,
                      'criteria': [{'id': 'C01', 'text': 'SCORER-ONLY-GOLDEN'}]}
         case['sessions'] = [{'id': 'qa', 'delivery_kind': 'answer', 'expected_checks': 3,
                              'turns': [{'phase': 'question', 'prompt': 'How long?', 'rag_reference': reference}]}]
         corpus = json.loads((ROOT / 'datasets/journey-3/corpora.json').read_text())['cedar']
         client = Mock(); client.requests = 0
         def product(method, path, body=None, **kwargs):
-            if method == 'GET':
+            if method == 'GET' and path.startswith('/workspaces/workspace/agents/'):
                 return {'id': corpus['agent_id'], 'workspace_id': 'workspace', 'status': 'active',
                         'binding': {'knowledge_base_refs': [{'id': str(corpus['model_id']),
                             'workspace_id': 'workspace', 'status': 'active'}]}}
@@ -339,8 +299,7 @@ class KnowledgeDatasetTests(unittest.TestCase):
             return entry, {'status': {'state': 'completed', 'message': {'role': 'agent',
                              'parts': [{'kind': 'text', 'text': text}]}}}
         verdict = json.dumps({'criteria': [{'id': 'C01', 'passed': False, 'reason': 'incorrect', 'answer_ids': []}],
-                    'claims': [], 'citations': [],
-                    'efficiency': {'assessment': 'efficient', 'summary': 'direct', 'findings': []}})
+                    'claims': [], 'citations': []})
         with tempfile.TemporaryDirectory() as directory:
             evidence = Evidence(Path(directory) / 'results/J3-30')
             (evidence.root / 'events.jsonl').write_text('')
@@ -377,7 +336,12 @@ class KnowledgeDatasetTests(unittest.TestCase):
             self.assertEqual(sent[0][1]['agent_id'], corpus['agent_id'])
             self.assertNotIn('SCORER-ONLY-GOLDEN', sent[0][2])
             self.assertEqual(len(sent), 1)
-            self.assertIn('SCORER-ONLY-GOLDEN', model_judge.call_args.args[2])
+            prompt, schema = model_judge.call_args.args[2:]
+            self.assertIn('SCORER-ONLY-GOLDEN', prompt)
+            self.assertIn('Accept equivalent wording/languages', prompt)
+            self.assertNotIn('efficiency', json.loads(prompt.rsplit('\n', 1)[-1]))
+            self.assertEqual(set(schema['properties']), {'criteria', 'claims', 'citations'})
+            self.assertIn('task_seconds', result['rag']['answers'][0]['efficiency'])
             with patch('journey.report.load_case', return_value=case):
                 finalized = finish_case('J3-30', Path(directory) / 'results')
             self.assertEqual(finalized['test_status'], 'completed')

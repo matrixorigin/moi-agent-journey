@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 5,
+      "expected_checks": 6,
       "turns": [
         {
           "phase": "question",
@@ -31,15 +31,19 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "不能直接再融通"
+                "text": "明确直接再融通在运营规则上被禁止。"
               },
               {
                 "id": "C02",
-                "text": "先退回原处再向新地点融通"
+                "text": "必须先退回原融出方，再向新网点融通。"
               },
               {
                 "id": "C03",
-                "text": "系统没有强制约束检查"
+                "text": "系统不设置阻止再融通的控制。"
+              },
+              {
+                "id": "C04",
+                "text": "说明可通过对外销售结果向总部报告等运营手段牵制。"
               }
             ],
             "evidence": [

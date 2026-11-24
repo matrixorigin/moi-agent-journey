@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 6,
+      "expected_checks": 7,
       "turns": [
         {
           "phase": "question",
@@ -31,19 +31,23 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "森田"
+                "text": "普通导出故障初步负责人是森田。"
               },
               {
                 "id": "C02",
-                "text": "Chen"
+                "text": "普通导出故障升级至Export Runtime的Chen。"
               },
               {
                 "id": "C03",
-                "text": "Vega"
+                "text": "法律保全问题咨询Compliance的Vega。"
               },
               {
                 "id": "C04",
-                "text": "调查中未确定原因"
+                "text": "INC-20261012根因尚未确定。"
+              },
+              {
+                "id": "C05",
+                "text": "不能将DB故障作为已确认原因对外断言。"
               }
             ],
             "evidence": [

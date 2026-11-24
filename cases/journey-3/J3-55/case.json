@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 4,
+      "expected_checks": 15,
       "turns": [
         {
           "phase": "question",
@@ -31,11 +31,55 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "实际产品事务类型/隔离级别及限制"
+                "text": "支持显式事务和隐式事务。"
               },
               {
                 "id": "C02",
-                "text": "区分数据库通用分类与 MatrixOne 实际支持项"
+                "text": "支持乐观事务和悲观事务，两种分类维度可组合。"
+              },
+              {
+                "id": "C03",
+                "text": "显式事务使用BEGIN或START TRANSACTION开始并用COMMIT或ROLLBACK结束。"
+              },
+              {
+                "id": "C04",
+                "text": "AUTOCOMMIT=1时每条DML作为单独隐式事务立即提交。"
+              },
+              {
+                "id": "C05",
+                "text": "AUTOCOMMIT=0时隐式DML一般需显式提交或回滚。"
+              },
+              {
+                "id": "C06",
+                "text": "支持RC读已提交。"
+              },
+              {
+                "id": "C07",
+                "text": "支持SI快照隔离。"
+              },
+              {
+                "id": "C08",
+                "text": "悲观事务默认RC。"
+              },
+              {
+                "id": "C09",
+                "text": "乐观事务默认SI。"
+              },
+              {
+                "id": "C10",
+                "text": "显式事务不支持嵌套。"
+              },
+              {
+                "id": "C11",
+                "text": "显式事务中数据库及序列DDL、SET或管理类命令存在限制。"
+              },
+              {
+                "id": "C12",
+                "text": "乐观事务写写冲突中止后是否重试由应用层决定。"
+              },
+              {
+                "id": "C13",
+                "text": "兼容变量默认REPEATABLE-READ不改变实际隔离级别。"
               }
             ],
             "evidence": [

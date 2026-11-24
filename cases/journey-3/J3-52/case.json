@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 6,
+      "expected_checks": 11,
       "turns": [
         {
           "phase": "service-account-context",
@@ -35,15 +35,35 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "访问凭据文档明确AI Studio可选择工作区并绑定角色，Genesis授权模型/额度/速率"
+                "text": "AI Studio授权需选择目标工作区。"
               },
               {
                 "id": "C02",
-                "text": "区分产品授权和请求认证，不把Grafana Token用作MOI凭据"
+                "text": "服务账号需绑定该工作区中的角色。"
               },
               {
                 "id": "C03",
-                "text": "AI Studio指南仅列PAT与凭据页列Client ID/Secret之间存在文档差异，应限定证据而不能声称已实测所有调用方式"
+                "text": "服务账号不继承创建者个人权限。"
+              },
+              {
+                "id": "C04",
+                "text": "凭据页列AI Studio服务账号Client ID与Client Secret。"
+              },
+              {
+                "id": "C05",
+                "text": "Client ID和Client Secret用于OAuth获取令牌。"
+              },
+              {
+                "id": "C06",
+                "text": "另一API准备指南只列AI Studio个人访问令牌。"
+              },
+              {
+                "id": "C07",
+                "text": "明确两份资料的认证描述有差异，不能保证全部接口支持服务账号。"
+              },
+              {
+                "id": "C08",
+                "text": "产品授权与接口请求认证分开，不捏造OAuth接口或使用Grafana Token。"
               }
             ],
             "evidence": [

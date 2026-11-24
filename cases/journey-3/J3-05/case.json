@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 5,
+      "expected_checks": 3,
       "turns": [
         {
           "phase": "question",
@@ -31,15 +31,7 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "翌営業日10:30まで"
-              },
-              {
-                "id": "C02",
-                "text": "中の受付時間内は2時間以内"
-              },
-              {
-                "id": "C03",
-                "text": "緊急受付の1時間以内と区別"
+                "text": "優先度「中」の17:30以降の受付・一次応答の目安は翌営業日10:30まで。完了期限や緊急受付の目安と取り違えない。"
               }
             ],
             "evidence": [

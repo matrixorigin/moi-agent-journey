@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 6,
+      "expected_checks": 11,
       "turns": [
         {
           "phase": "question",
@@ -31,19 +31,39 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "先原幂等键查询"
+                "text": "超时后先用原幂等键查询任务状态。"
               },
               {
                 "id": "C02",
-                "text": "2/4/8秒"
+                "text": "已存在任务时继续轮询而非重建。"
               },
               {
                 "id": "C03",
-                "text": "森田到Chen"
+                "text": "仅因创建响应丢失不更换幂等键。"
               },
               {
                 "id": "C04",
-                "text": "续签不重生成"
+                "text": "503的重试等待依次是2、4、8秒。"
+              },
+              {
+                "id": "C05",
+                "text": "这些503重试后再次创建前检查任务状态。"
+              },
+              {
+                "id": "C06",
+                "text": "普通故障初步负责人是森田。"
+              },
+              {
+                "id": "C07",
+                "text": "升级给Export Runtime团队的Chen。"
+              },
+              {
+                "id": "C08",
+                "text": "续签同一任务的下载链接不重新生成数据。"
+              },
+              {
+                "id": "C09",
+                "text": "续签不延长文件留存。"
               }
             ],
             "evidence": [

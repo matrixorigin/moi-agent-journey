@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 6,
+      "expected_checks": 8,
       "turns": [
         {
           "phase": "question",
@@ -31,19 +31,27 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "普通45天"
+                "text": "普通导出文件保留45天。"
               },
               {
                 "id": "C02",
-                "text": "法律365天并需法务解除"
+                "text": "法律保全文件保留365天。"
               },
               {
                 "id": "C03",
-                "text": "12小时"
+                "text": "删除法律保全文件前需要法务解除保全。"
               },
               {
                 "id": "C04",
-                "text": "不延长"
+                "text": "普通文件到期后12小时内删除。"
+              },
+              {
+                "id": "C05",
+                "text": "重新下载文件不会延长文件保留期。"
+              },
+              {
+                "id": "C06",
+                "text": "续签下载链接不会延长文件保留期。"
               }
             ],
             "evidence": [
@@ -60,8 +68,8 @@
                 "source_id": "kb-source-4a7ad5a100122402870efe82",
                 "file_id": "140e699a-2674-4e0c-ad47-53b3aa867232",
                 "file_name": "Cedar-Export-API-Integration.md",
-                "segment_id": "doc_7016721bc0eb5e7a78b0e780a652c677",
-                "quote": "8864 bytes (64 MiB). Larger exports are split into parts. This limit is not a cap on the total export size. Download URLs expire after 15 minutes; renew the URL for the same task. URL renewal does not reg",
+                "segment_id": "doc_13b017489b17308da86f504bc702e333",
+                "quote": "URL renewal does not regenerate data or extend file retention.",
                 "etag": "986f80473a16577a025993011a8f3f581553fe37df3d1159015483c6064f5d0b",
                 "document_sha256": "c14f71377f8b8739681b66a7273983854dc029b1411bee9c46ab2e0e191ff506"
               }

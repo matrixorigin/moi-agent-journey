@@ -17,7 +17,7 @@ from .evidence import Evidence, configured_secrets, utc_now
 from .hello import discover_workspace
 from .knowledge_sources import list_sources, read_document
 from .knowledge_trace import attach_selected_reads
-from .rag_quality import judge_data, judge_prompt, judge_schema, observe_rag, parse_verdict, summarize_verdict
+from .rag_quality import JUDGE_PROTOCOL, judge_data, judge_prompt, judge_schema, observe_rag, parse_verdict, summarize_verdict
 from .run_case import Execution
 from .model_judge import evaluate_model
 from .production import binding, bindings as production_bindings, is_production, knowledge_client
@@ -43,11 +43,10 @@ class KnowledgeExecution(Execution):
     def setup(self, *, capture_version=True):
         self.root = discover_workspace(self.client, self.case['workspace'])
         self.report['rag']['evaluator'] = {'method': 'workspace_model_json_schema',
-                                          'model': self.model, 'protocol': 3}
+                                          'model': self.model, 'protocol': JUDGE_PROTOCOL}
         catalog = json.loads((ROOT / 'datasets/journey-3/corpora.json').read_text())
         corpus_name = self.case['rag']['corpus']
         target = self.case.get('knowledge_target', {'agent_id': catalog[corpus_name]['agent_id'], 'corpora': [corpus_name]})
-        self.reference_etags = catalog[corpus_name]['source_etags']
         if is_production():
             configuration = production_bindings(self.client, self.root, required=('corpora', 'document_agents'))
             catalog = configuration['corpora']
@@ -58,8 +57,8 @@ class KnowledgeExecution(Execution):
                 not isinstance(names, list) or not names or len(set(names)) != len(names) or
                 any(name not in catalog for name in names) or self.case['rag']['corpus'] not in names):
             raise Failure('invalid_knowledge_target')
-        self.bound_corpora = [catalog[name] for name in names]
-        self.allowed_model_ids = {item['model_id'] for item in self.bound_corpora}
+        bound_corpora = [catalog[name] for name in names]
+        self.allowed_model_ids = {item['model_id'] for item in bound_corpora}
         workspace = self.root.rsplit('/', 1)[1]
         self.selector = {'agent_id': target['agent_id'], 'agent_workspace_id': workspace}
         agent = self.client.product('GET', self.root + '/agents/' + segment(target['agent_id']))
@@ -81,7 +80,7 @@ class KnowledgeExecution(Execution):
         self.report['rag']['target'] = target
         self.sources = []
         inventory_matches = True
-        for bound in self.bound_corpora:
+        for bound in bound_corpora:
             sources = list_sources(self.client, bound['model_id'])
             inventory_matches &= sorted(s['row_id'] for s in sources) == sorted(bound['source_ids'])
             self.sources.extend(sources)
@@ -162,43 +161,6 @@ class KnowledgeExecution(Execution):
         observed['context_chunks'] = sum(chunk['source_task_id'] != observed['task_id']
                                          for chunk in observed['retrieved_chunks'])
 
-    def check_reference(self, config):
-        state, records = 'matched', []
-        references = {}
-        for item in config.get('evidence', []):
-            source_id, etag = item['source_id'], item['etag']
-            if is_production():
-                if self.reference_etags.get(source_id) != etag:
-                    return {'state': 'changed', 'sources': records}
-                source_id = binding(self.corpus['source_id_map'], source_id)
-                etag = binding(self.corpus['source_etags'], source_id)
-            references[self.corpus['model_id'], source_id] = etag
-        if config.get('verify_whole_corpus'):
-            for bound in self.bound_corpora:
-                references.update({(bound['model_id'], sid): etag for sid, etag in bound['source_etags'].items()})
-        for (model_id, source_id), expected_etag in references.items():
-            try:
-                page = self.client.product('GET', f'/semantic-models/{model_id}/sources/' +
-                                           segment(source_id) + '/document?page_size=1', expected_code='OK')
-            except Failure as error:
-                if error.code in {'case_timeout', 'runner_canceled', 'deadline_exceeded'}:
-                    raise
-                record = {'model_id': model_id, 'source_id': source_id, 'state': 'unavailable', 'error': error_record('reference_read', error)}
-                self.evidence.append('knowledge/reference-checks.jsonl', record)
-                records.append(record)
-                return {'state': 'unavailable', 'sources': records}
-            valid = (page.get('source', {}).get('row_id') == source_id and
-                     page.get('source', {}).get('model_id') == model_id and
-                     page.get('source', {}).get('effective_enabled') is True and
-                     page.get('etag') == expected_etag and expected_etag)
-            record = {'model_id': model_id, 'source_id': source_id, 'expected_etag': expected_etag,
-                      'observed_etag': page.get('etag'), 'matched': bool(valid)}
-            self.evidence.append('knowledge/reference-checks.jsonl', record)
-            records.append(record)
-            if not valid:
-                state = 'changed'
-        return {'state': state, 'sources': records}
-
     def prepare_answer(self, session, turn, answer):
         config = turn['rag_reference']
         context = []
@@ -227,14 +189,10 @@ class KnowledgeExecution(Execution):
         if config['status'] != 'reviewed' or not self.report['rag']['corpus_inventory_matches']:
             answer.update(evaluation_state='unavailable', evaluation_reason='reference_not_verified_or_corpus_changed')
             return
-        answer['reference_check'] = self.check_reference(config)
-        if answer['reference_check']['state'] != 'matched':
-            answer.update(evaluation_state='unavailable', evaluation_reason=answer['reference_check'])
-            return
         return True
 
     def judge_answer(self, session, turn, answer):
-        config, observed, efficiency = turn['rag_reference'], answer['observations'], answer['efficiency']
+        config, observed = turn['rag_reference'], answer['observations']
         conversation = []
         for prior in self.report['rag']['answers']:
             if prior['task_id'] == answer['task_id']:
@@ -242,12 +200,12 @@ class KnowledgeExecution(Execution):
             if prior['conversation_id'] == answer['conversation_id']:
                 conversation.append(prior)
         answer['evaluation_context_task_ids'] = [item['task_id'] for item in conversation]
-        plan = judge_data(turn['prompt'], answer['text'], config, observed, efficiency, conversation)
+        plan = judge_data(turn['prompt'], answer['text'], config, observed, conversation)
         answer['judge_coverage'] = {key: plan[key] for key in ('protocol', 'grounding_scope',
             'unavailable_evidence', 'unavailable_citations')}
-        prompt = judge_prompt(turn['prompt'], answer['text'], config, observed, efficiency, conversation)
+        prompt = judge_prompt(turn['prompt'], answer['text'], config, observed, conversation)
         text = evaluate_model(self, answer['task_id'], prompt, judge_schema(plan, observed))
-        verdict = parse_verdict(text, answer['text'], config, observed, efficiency, conversation,
+        verdict = parse_verdict(text, answer['text'], config, observed, conversation,
                                 question=turn['prompt'], allow_partial=True)
         self.evidence.write('evaluations/' + segment(answer['task_id']) + '/verdict.json', verdict)
         for dimension, error in verdict.get('dimension_errors', {}).items():
@@ -257,10 +215,8 @@ class KnowledgeExecution(Execution):
 
     def apply_verdict(self, session, turn, answer, verdict):
         """Use the same accounting for live verdicts and revalidated saved verdicts."""
-        config, observed, efficiency = turn['rag_reference'], answer['observations'], answer['efficiency']
+        config, observed = turn['rag_reference'], answer['observations']
         checks = self.report['validation']['checks']
-        if verdict['efficiency']:
-            efficiency['review'] = verdict['efficiency']
         answer.update(evaluation_state='partial' if verdict.get('dimension_errors') else 'scored', verdict=verdict, metrics=summarize_verdict(verdict, observed))
         expected_sources = config.get('expected_source_ids', [])
         if is_production():

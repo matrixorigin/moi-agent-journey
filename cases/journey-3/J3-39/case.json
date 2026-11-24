@@ -21,7 +21,7 @@
     {
       "id": "qa",
       "delivery_kind": "answer",
-      "expected_checks": 4,
+      "expected_checks": 5,
       "turns": [
         {
           "phase": "question",
@@ -31,11 +31,15 @@
             "criteria": [
               {
                 "id": "C01",
-                "text": "Corpus has no September2026production success-rate/P99monitoring report"
+                "text": "无法确认2026年9月每日导出成功率的实测数值及窗口。"
               },
               {
                 "id": "C02",
-                "text": "Do not treat incident timestamps, API size limits or connector capacities as measured telemetry"
+                "text": "无法确认2026年9月下载P99的实测数值、单位及窗口。"
+              },
+              {
+                "id": "C03",
+                "text": "不把10月事故时间或API限制当作9月实测指标。"
               }
             ],
             "evidence": [
