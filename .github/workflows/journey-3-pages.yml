@@ -71,10 +71,28 @@ jobs:
             git -C pages-state push origin HEAD:refs/heads/journey-3-pages-data
           fi
       - name: Upload GitHub Pages site
+        id: site-artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           name: github-pages-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/pages
+      - name: Wait for this attempt's Pages artifact
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAGES_ARTIFACT_ID: ${{ steps.site-artifact.outputs.artifact_id }}
+          PAGES_ARTIFACT_NAME: github-pages-attempt-${{ github.run_attempt }}
+        run: |
+          for delay in 0 2 4 8 16 20; do
+            sleep "$delay"
+            if visible_id=$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
+              -f "name=$PAGES_ARTIFACT_NAME" --jq '.artifacts[] | select(.expired == false) | .id') &&
+              [[ -n "$PAGES_ARTIFACT_ID" && "$visible_id" == "$PAGES_ARTIFACT_ID" ]]; then
+              exit 0
+            fi
+          done
+          echo '::error::The uploaded Pages artifact is still not visible to this run.'
+          exit 1
       - name: Deploy GitHub Pages site
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

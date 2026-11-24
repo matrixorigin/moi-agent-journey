@@ -8,6 +8,7 @@ from .failure_categories import failure_counts
 
 
 LEGACY_TIMING_FIELDS = {'completed_seconds', 'answer_timing'}
+EVALUATOR_VERSION = 'correctness-facts-v2'
 
 
 def model_rounds(path, tasks):
@@ -129,7 +130,7 @@ def history_record(result, case, events):
             for answer in result.get('rag', {}).get('answers', [])]),
         'harness_state': result.get('test_status', 'error'), 'model': case['model'],
         'qa_version': canonical(result.get('qa_version_start', {})),
-        'workflow_commit': os.environ.get('GITHUB_SHA', ''), 'evaluator_version': 'correctness-criteria-v1'}
+        'workflow_commit': os.environ.get('GITHUB_SHA', ''), 'evaluator_version': EVALUATOR_VERSION}
 
 
 def history_identity(result, case):

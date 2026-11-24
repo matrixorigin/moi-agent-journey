@@ -315,8 +315,8 @@ class BenchmarkTests(unittest.TestCase):
             self.assertFalse(out.exists())
         store.upload_private.assert_called_once()
 
-    def test_production_report_stages_pages_details_and_a_metrics_download(self):
-        details = {'run_id': '44', 'attempt': 1, 'errors': [['J3-01', 'private-session', 'private-trace', 'private-fact']],
+    def test_production_report_stages_pages_details_and_a_metrics_download_with_ids(self):
+        details = {'run_id': '44', 'attempt': 1, 'errors': [['J3-01', 'session-fixture', 'trace-fixture', 'private-fact']],
                    'timeouts': [], 'tools': [], 'scores': []}
         store = Mock()
         rows = [metrics_row(['J3-01', '2026-11-18 00:00:00', 12.5, None, 4, 3, 'abnormal',
@@ -332,8 +332,7 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(missing, [])
         self.assertIn(b'private-fact', store.upload_private.call_args.args[1])
         self.assertNotIn(b'private-fact', published)
-        self.assertNotIn(b'private-session', published)
-        self.assertNotIn(b'private-trace', published)
+        self.assertIn(b'"locations": {"errors": [["J3-01", "session-fixture", "trace-fixture"]]', published)
         self.assertIn(b'"environment": "Production"', published)
         self.assertIn(b'"report_error_cases": 1', published)
         self.assertIn(b'"metrics_only": true', published)

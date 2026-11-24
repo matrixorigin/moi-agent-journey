@@ -17,7 +17,14 @@ BASE_FIELDS = ['case_id','evaluated_at','duration_seconds','quality_score','tool
           'model_key','benchmark_state','run_id','run_attempt']
 OBSERVATION_FIELDS = ['qa_outcome', 'completed_model_rounds', 'tool_succeeded', 'tool_failed']
 FIELDS = BASE_FIELDS + OBSERVATION_FIELDS
-SELECT_FIELDS = [field if field != 'model_key' else 'MD5(model) AS model_key' for field in BASE_FIELDS]
+# The row identity still references the original execution. A verified
+# historical regrade compares the answer under the current case rubric.
+HISTORY_PROJECTIONS = {
+    'case_revision': ("COALESCE(JSON_UNQUOTE(JSON_EXTRACT(report_json,"
+                      "'$.historical_regrade.comparison_case_revision')),case_revision) AS case_revision"),
+    'model_key': 'MD5(model) AS model_key',
+}
+SELECT_FIELDS = [HISTORY_PROJECTIONS.get(field, field) for field in BASE_FIELDS]
 OBSERVATIONS_SQL = "JSON_EXTRACT(report_json,'$.history_observations')"
 RUN_ID = re.compile(r'[1-9][0-9]{0,23}')
 
