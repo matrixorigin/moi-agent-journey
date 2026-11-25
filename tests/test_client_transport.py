@@ -153,6 +153,17 @@ class ClientTransportTests(unittest.TestCase):
             self.assertIsNone(raised.exception.details)
             self.assertNotIn('private-', str(raised.exception))
 
+    def test_http_failure_keeps_the_media_type_for_query_diagnostics(self):
+        client = Client('https://example.invalid', 'synthetic-pat')
+        headers = Message()
+        headers['Content-Type'] = 'text/html; charset=UTF-8'
+        client.opener.open = Mock(side_effect=urllib.error.HTTPError(
+            'https://example.invalid/query/run', 405, 'Method Not Allowed', headers,
+            io.BytesIO(b'private-response-body')))
+        with self.assertRaises(Failure) as raised:
+            client.request('POST', '/query/run', {'query': 'INSERT INTO fixture VALUES (1)'})
+        self.assertEqual(raised.exception.http_status, 405)
+        self.assertEqual(raised.exception.details, {'content_type': 'text/html'})
 
 if __name__ == '__main__':
     unittest.main()
