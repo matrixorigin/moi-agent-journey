@@ -170,10 +170,12 @@ class Client:
         except urllib.error.HTTPError as error:
             status = error.code
             trace_headers = request_trace_headers(error.headers)
+            content_type = (error.headers or {}).get('Content-Type', '').split(';', 1)[0].strip().lower()
+            details = {'content_type': content_type} if content_type in {'text/html', 'text/plain', 'application/json'} else None
             payload = error.read(65536).decode("utf-8", errors="replace")
             observe(status, {"error_body": payload}, dict(error.headers))
             error.close()
-            raise Failure("http_error", status, trace_headers=trace_headers) from None
+            raise Failure("http_error", status, details=details, trace_headers=trace_headers) from None
         except (TimeoutError, socket.timeout) as error:
             raise Failure("deadline_exceeded", details=transport_details(error)) from None
         except (urllib.error.URLError, OSError, http.client.HTTPException) as error:
