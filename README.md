@@ -4,6 +4,8 @@
 
 已保存的 J2 结果可以通过[离线检查点评分与运行对比](docs/j2-scoring.md)生成模块分、覆盖率及自包含 HTML 报告。该入口须显式运行，不调用产品任务或裁判模型。
 
+需要 MOI 原生展示时，可再通过[报告发布入口](docs/moi-dashboard-publication.md)将表数据写入独立数据库并创建、核验看板。此操作须显式指定工作区和全新报告库名。
+
 ## 执行方式
 
 `Agent journeys` 通过 GitHub Actions 手动运行，默认测试 QA。PR 执行 `Offline tests`，验证执行框架、浏览器场景与验收器。QA 使用 GitHub `qa` environment 的 `MOI_BASE_URL` 和 `MOI_PAT` secrets。浏览器 case 还使用 `MOI_UI_BASE_URL`、`MOI_UI_AUTH_ORIGIN`、`MOI_UI_ACCOUNT` 和 `MOI_UI_PASSWORD`。
