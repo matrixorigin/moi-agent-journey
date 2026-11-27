@@ -6,13 +6,87 @@ import shlex
 from .shell_output import split_reported_exit, strip_exit_echo
 
 
+def strip_diagnostic_replay(parts):
+    """Accept bounded file redirection and replay after an explicit exit status."""
+    def path(value):
+        return isinstance(value, str) and re.fullmatch(r'[A-Za-z0-9_./-]+', value)
+
+    def redirect(prefix, operator):
+        if len(prefix) >= 2 and prefix[-2] == operator:
+            return prefix[:-2], prefix[-1]
+        if prefix and prefix[-1].startswith(operator) and not prefix[-1].startswith(operator + '&'):
+            return prefix[:-1], prefix[-1][len(operator):]
+        return None, None
+
+    def replay_setup(prefix):
+        remaining = prefix
+        for _ in range(3):
+            if ';' not in remaining:
+                return remaining
+            boundary = remaining.index(';')
+            command, remaining = remaining[:boundary], remaining[boundary + 1:]
+            if (len(command) in {2, 3} and command[0] == 'cd' and path(command[1]) and
+                    (len(command) == 2 or command[2] == '2>/dev/null')):
+                continue
+            if len(command) == 3 and command[:2] == ['mkdir', '-p'] and path(command[2]):
+                continue
+            return None
+        return remaining
+
+    for index in range(len(parts) - 2):
+        if parts[index:index + 2] != [';', 'echo']:
+            continue
+        match = re.fullmatch(r'([A-Za-z_][A-Za-z0-9_]*)=\$\?',
+                             parts[index + 2])
+        if not match:
+            continue
+        cursor = index + 3
+        replays = []
+        while cursor < len(parts):
+            header = None
+            if cursor + 2 < len(parts) and parts[cursor:cursor + 2] == [';', 'echo']:
+                header = parts[cursor + 2]
+                cursor += 3
+            if cursor + 2 < len(parts) and parts[cursor:cursor + 2] == [';', 'cat']:
+                replays.append((header, parts[cursor + 2]))
+                cursor += 3
+            else:
+                return parts, None
+        if len(replays) not in {1, 2}:
+            return parts, None
+        prefix = parts[:index]
+        prefix, stderr_path = redirect(prefix, '2>')
+        if prefix is None or not path(stderr_path):
+            return parts, None
+        stdout_path = None
+        if len(replays) == 2:
+            prefix, stdout_path = redirect(prefix, '>')
+            if prefix is None or not path(stdout_path):
+                return parts, None
+        sql = replay_setup(prefix)
+        if sql is None:
+            return parts, None
+        if len(replays) == 1:
+            if replays[0][1] != stderr_path:
+                return parts, None
+            return sql, {'label': match.group(1)}
+        stdout_header, stdout_replay = replays[0]
+        stderr_header, stderr_replay = replays[1]
+        if (stdout_replay != stdout_path or stderr_replay != stderr_path or
+                not stdout_header or not stderr_header or stdout_header == stderr_header):
+            return parts, None
+        return sql, {'label': match.group(1),
+                     'stdout_header': stdout_header, 'stderr_header': stderr_header}
+    return parts, None
+
+
 def is_output_limit_tail(parts):
-    """Accept a stderr merge and an optional, numeric head limit only."""
+    """Accept a stderr merge and one positive numeric head/tail limit."""
     if parts and parts[0] == '2>&1':
         parts = parts[1:]
     if not parts:
         return True
-    if parts[:2] != ['|', 'head']:
+    if len(parts) < 2 or parts[0] != '|' or parts[1] not in {'head', 'tail'}:
         return False
     args = parts[2:]
     return (len(args) == 1 and bool(re.fullmatch(r'-[1-9]\d*', args[0]))) or (
@@ -62,6 +136,8 @@ def cli_query(command):
         lexer.whitespace_split = True
         lexer.commenters = ''
         parts, capture_exit = strip_exit_echo(list(lexer))
+        parts, diagnostic_exit = strip_diagnostic_replay(parts)
+        capture_exit = diagnostic_exit or capture_exit
         parts = strip_directory_setup(parts)
     except ValueError:
         return 'unverifiable', None, False
@@ -108,6 +184,19 @@ def cli_output(output, capture_exit):
         return None, None
     if not capture_exit:
         return stdout, output.get('exit_code')
+    if isinstance(capture_exit, dict):
+        match = re.search(r'(?:^|\n)' + re.escape(capture_exit['label']) + r'=(\d+)(?:\n|\s*\Z)', stdout)
+        if not match:
+            return None, None
+        if capture_exit.get('stdout_header'):
+            trailing = stdout[match.end():]
+            sections = re.match(
+                r'\s*' + re.escape(capture_exit['stdout_header']) + r'\s*\n(?P<stdout>.*?)\n?' +
+                re.escape(capture_exit['stderr_header']) + r'(?:\n|\Z)', trailing, re.S)
+            if not sections:
+                return None, None
+            return sections.group('stdout').strip('\n'), int(match.group(1))
+        return stdout[:match.start()], int(match.group(1))
     return split_reported_exit(stdout, capture_exit)
 
 
@@ -181,6 +270,9 @@ def evaluate_sql(path, task_id, session_id, expected_query, expected_column, exp
             continue
         try:
             if kind == 'cli':
+                if output.get('output_truncated') is True:
+                    unknown = True
+                    continue
                 if type(output.get('exit_code')) is not int:
                     unknown = True
                     continue
@@ -240,7 +332,8 @@ def evaluate_sql_failure(path, task_id, session_id, expected_query, error_marker
         wrapper = payload.get('output')
         output = wrapper.get('output') if isinstance(wrapper, dict) else None
         if kind == 'cli':
-            if not isinstance(output, dict) or type(output.get('exit_code')) is not int:
+            if (not isinstance(output, dict) or type(output.get('exit_code')) is not int or
+                    output.get('output_truncated') is True):
                 unknown = True
                 continue
             stdout, cli_status = cli_output(output, capture_exit)
@@ -248,7 +341,8 @@ def evaluate_sql_failure(path, task_id, session_id, expected_query, error_marker
                 unknown = True
                 continue
             stderr = output.get('stderr')
-            error_text = next((text for text in (stderr, stdout)
+            diagnostic_stdout = output.get('stdout') if isinstance(capture_exit, dict) else stdout
+            error_text = next((text for text in (stderr, diagnostic_stdout)
                                if matches_error(text, error_marker)), None)
             if cli_status != 0 and error_text is not None:
                 verified = []

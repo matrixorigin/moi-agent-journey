@@ -1,0 +1,44 @@
+{
+  "source_run": "production-agent76-deepseek-20261126-01",
+  "source_file": "results/J2-13/events.jsonl",
+  "source_sha256": "cab2d3049f5b16f715e9e655d7d56ca169a21a6f5285e5aa481d76a772d01993",
+  "source_sequences": [
+    37,
+    41
+  ],
+  "sanitization": "Retain only verifier inputs; replace task/call/query/statement IDs, sandbox path and temporary database name.",
+  "task_id": "task-j2-13",
+  "workspace_id": "ws",
+  "query": "SELECT 17 * 19 AS product",
+  "events": [
+    {
+      "seq": 37,
+      "kind": "tool_call",
+      "task_id": "task-j2-13",
+      "payload": {
+        "call_id": "call-j2-13",
+        "tool_id": "mcp__moi-tools__bash",
+        "arguments": {
+          "command": "moi-cli sql run --query \"SELECT 17 * 19 AS product\" 2>&1 | tail -30"
+        }
+      }
+    },
+    {
+      "seq": 41,
+      "kind": "tool_result",
+      "task_id": "task-j2-13",
+      "payload": {
+        "call_id": "call-j2-13",
+        "success": true,
+        "output": {
+          "output": {
+            "exit_code": 0,
+            "stdout": "{\n  \"query_id\": \"query-or-statement-id\",\n  \"statement_id\": \"query-or-statement-id\",\n  \"status\": \"success\",\n  \"limit\": 1000,\n  \"total\": 1,\n  \"columns\": [\n    {\n      \"name\": \"product\",\n      \"type\": \"BIGINT\"\n    }\n  ],\n  \"result\": [\n    [\n      {\n        \"String\": \"323\",\n        \"Valid\": true\n      }\n    ]\n  ]\n}\n",
+            "stderr": "",
+            "output_truncated": false
+          }
+        }
+      }
+    }
+  ]
+}

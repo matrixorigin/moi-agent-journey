@@ -1,0 +1,44 @@
+{
+  "source_run": "agent-score60-production-03-j2-93-recheck-04",
+  "source_file": "results/J2-93/events.jsonl",
+  "source_sha256": "cb86303b91698794c474030065762c2600ccb42e41053ec4938fae69c1b2f7c1",
+  "source_sequences": [
+    36,
+    40
+  ],
+  "sanitization": "Retain only verifier inputs; replace task/call/query/statement IDs, sandbox path and temporary database name.",
+  "task_id": "task-j2-93",
+  "workspace_id": "ws",
+  "query": "SELEC SUM(amount) FROM journey_db.orders",
+  "events": [
+    {
+      "seq": 36,
+      "kind": "tool_call",
+      "task_id": "task-j2-93",
+      "payload": {
+        "call_id": "call-j2-93",
+        "tool_id": "mcp__moi-tools__bash",
+        "arguments": {
+          "command": "cd /sandbox/.moi/workspace 2>/dev/null; mkdir -p scratch/tmp; moi-cli sql run --query \"SELEC SUM(amount) FROM journey_db.orders\" > scratch/tmp/sql_out.txt 2> scratch/tmp/sql_err.txt; echo \"EXIT=$?\"; echo \"--- STDOUT ---\"; cat scratch/tmp/sql_out.txt; echo \"--- STDERR ---\"; cat scratch/tmp/sql_err.txt"
+        }
+      }
+    },
+    {
+      "seq": 40,
+      "kind": "tool_result",
+      "task_id": "task-j2-93",
+      "payload": {
+        "call_id": "call-j2-93",
+        "success": true,
+        "output": {
+          "output": {
+            "exit_code": 0,
+            "stdout": "EXIT=1\n--- STDOUT ---\n{\n  \"query_id\": \"query-or-statement-id\",\n  \"statement_id\": \"query-or-statement-id\",\n  \"status\": \"failed\",\n  \"err_msg\": \"Error 1064 (42000): SQL parser error: You have an error in your SQL syntax; check the manual that corresponds to your MatrixOne server version for the right syntax to use. syntax error at line 1 column 23 near \\\" SELEC SUM(amount) FROM journey_db.orders\\\";\",\n  \"limit\": 1000\n}\n--- STDERR ---\nError: failed: Error 1064 (42000): SQL parser error: You have an error in your SQL syntax; check the manual that corresponds to your MatrixOne server version for the right syntax to use. syntax error at line 1 column 23 near \" SELEC SUM(amount) FROM journey_db.orders\";\n",
+            "stderr": "",
+            "output_truncated": false
+          }
+        }
+      }
+    }
+  ]
+}
