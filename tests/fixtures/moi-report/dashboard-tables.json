@@ -1,0 +1,264 @@
+{
+  "schema_version": "j2-dashboard-tables-v1",
+  "scope": {
+    "suite": "synthetic",
+    "note": "offline fixture only"
+  },
+  "tables": {
+    "case_results": [
+      {
+        "case_id": "J2-21",
+        "module_key": "tools",
+        "module_name": "工具与沙箱",
+        "batch_label": "initial_3",
+        "title": "在沙箱中执行 Python 计算",
+        "verdict": "PASS",
+        "baseline_bps": 10000,
+        "current_bps": 10000,
+        "delta_bps": 0,
+        "comparability": "comparable",
+        "passed_checks": 4,
+        "expected_checks": 4,
+        "functional_bps": 10000,
+        "path_factor_bps": 100,
+        "path_classification": "original_functional",
+        "scoring_policy": "functional_v1",
+        "baseline_ms": 27786,
+        "current_ms": 35913,
+        "duration_delta_ms": 8127,
+        "task_id": "synthetic-task_id",
+        "trace_id": "synthetic-trace_id",
+        "version": "5.2.3-bce00d40-20261123",
+        "excluded_reason": null,
+        "result_sha256": "synthetic-result_sha256"
+      },
+      {
+        "case_id": "J2-13",
+        "module_key": "tools",
+        "module_name": "工具与沙箱",
+        "batch_label": "initial_3",
+        "title": "工作区 SQL 查询并读取结果",
+        "verdict": "PARTIAL",
+        "baseline_bps": 10000,
+        "current_bps": 5000,
+        "delta_bps": null,
+        "comparability": "case_definition_changed",
+        "passed_checks": 4,
+        "expected_checks": 4,
+        "functional_bps": 10000,
+        "path_factor_bps": 50,
+        "path_classification": "secondary_async",
+        "scoring_policy": "sql-path-score-v1",
+        "baseline_ms": 31827,
+        "current_ms": 55121,
+        "duration_delta_ms": null,
+        "task_id": "synthetic-task_id",
+        "trace_id": "synthetic-trace_id",
+        "version": "5.2.3-bce00d40-20261123",
+        "excluded_reason": null,
+        "result_sha256": "synthetic-result_sha256"
+      }
+    ],
+    "module_summary": [
+      {
+        "module_name": "工具与沙箱",
+        "case_count": 7,
+        "baseline_scored": 4,
+        "current_scored": 7,
+        "coverage_bps": 10000,
+        "baseline_bps": 10000,
+        "current_bps": 9286,
+        "paired_count": 3,
+        "paired_baseline_bps": 10000,
+        "paired_current_bps": 10000,
+        "delta_bps": 0
+      },
+      {
+        "module_name": "成果交付",
+        "case_count": 4,
+        "baseline_scored": 4,
+        "current_scored": 4,
+        "coverage_bps": 10000,
+        "baseline_bps": 7813,
+        "current_bps": 9375,
+        "paired_count": 4,
+        "paired_baseline_bps": 7813,
+        "paired_current_bps": 9375,
+        "delta_bps": 1563
+      }
+    ],
+    "overview": [
+      {
+        "selected_cases": 76,
+        "active_suite_cases": 76,
+        "remaining_cases": 0,
+        "module_count": 10,
+        "scored_cases": 75,
+        "coverage_bps": 9868,
+        "comparable_cases": 70,
+        "pass_cases": 43,
+        "partial_cases": 32,
+        "fail_cases": 0,
+        "blocked_cases": 0,
+        "framework_errors": 1,
+        "timeout_cases": 0,
+        "within_100_bps": 8816,
+        "within_200_bps": 9737
+      }
+    ],
+    "duration_curve": [
+      {
+        "threshold_seconds": 0,
+        "baseline_bps": 0,
+        "current_bps": 0
+      },
+      {
+        "threshold_seconds": 2,
+        "baseline_bps": 132,
+        "current_bps": 132
+      },
+      {
+        "threshold_seconds": 100,
+        "baseline_bps": 10000,
+        "current_bps": 10000
+      },
+      {
+        "threshold_seconds": 200,
+        "baseline_bps": 10000,
+        "current_bps": 10000
+      }
+    ],
+    "failed_checks": [
+      {
+        "case_id": "J2-57",
+        "module_name": "成果交付",
+        "session_name": "pdf",
+        "rule_text": "实际调用指定 Skill 并成功 (moi.agent.momo.skill.pdf)",
+        "detail_text": "skill_call_not_successful",
+        "evidence_origin": "原始检查",
+        "unreached": 0
+      },
+      {
+        "case_id": "J2-64",
+        "module_name": "Skill",
+        "session_name": "enabled",
+        "rule_text": "实际调用指定 Skill 并成功 (j2-skill-1c7276e4cf284d45bf9ee7665b21fde4)",
+        "detail_text": "skill_call_not_successful",
+        "evidence_origin": "原始检查",
+        "unreached": 0
+      }
+    ],
+    "v2_summary": [
+      {
+        "checkpoint_id": "evidence.task_trace_complete",
+        "eligible": 67,
+        "scored": 67,
+        "passed": 67,
+        "failed": 0,
+        "unscored": 0,
+        "not_applicable": 9,
+        "coverage_bps": 10000,
+        "pass_rate_bps": 10000
+      },
+      {
+        "checkpoint_id": "tools.result_pairs_complete",
+        "eligible": 67,
+        "scored": 67,
+        "passed": 67,
+        "failed": 0,
+        "unscored": 0,
+        "not_applicable": 9,
+        "coverage_bps": 10000,
+        "pass_rate_bps": 10000
+      }
+    ],
+    "v2_details": [
+      {
+        "case_id": "J2-21",
+        "checkpoint_id": "evidence.task_trace_complete",
+        "status": "PASS",
+        "reason_text": "",
+        "evidence_refs": "[\"result.json\", \"events.jsonl\"]"
+      },
+      {
+        "case_id": "J2-21",
+        "checkpoint_id": "tools.result_pairs_complete",
+        "status": "PASS",
+        "reason_text": "",
+        "evidence_refs": "[\"events.jsonl\", \"result.json\"]"
+      }
+    ],
+    "provenance": [
+      {
+        "batch_label": "historical_baseline",
+        "source_run": "production-agent76-e2e-v2-deepseek-20261126-01-base",
+        "case_count": 76,
+        "model_name": "deepseek-v4.1-flash",
+        "versions": "5.2.3-bce00d40-20261123",
+        "scope_note": "历史实测，仅比较同口径配对样本"
+      },
+      {
+        "batch_label": "initial_3",
+        "source_run": "test-artifacts/test-runs/20261126T091714Z-moi-direct-api-pilot/case-run",
+        "case_count": 1,
+        "model_name": "deepseek-v4.1-flash",
+        "versions": "5.2.3-bce00d40-20261123",
+        "scope_note": "不同用例的累计迁移验证，不冒充单次全量运行"
+      }
+    ],
+    "path_scoring": [
+      {
+        "case_id": "J2-13",
+        "functional_bps": 10000,
+        "path_factor_bps": 50,
+        "current_bps": 5000,
+        "path_classification": "secondary_async",
+        "scoring_policy": "sql-path-score-v1"
+      }
+    ],
+    "cause_summary": [
+      {
+        "category": "次优路径按规则折算",
+        "case_count": 1,
+        "scored_count": 1,
+        "unscored_count": 0,
+        "case_ids": "J2-13"
+      },
+      {
+        "category": "Skill内容已读但入口验收不一致",
+        "case_count": 8,
+        "scored_count": 8,
+        "unscored_count": 0,
+        "case_ids": "J2-57,J2-64,J2-116,J2-122,J2-66,J2-78,J2-60,J2-22"
+      }
+    ],
+    "case_attribution": [
+      {
+        "case_id": "J2-13",
+        "score_bps": 5000,
+        "grading_state": "scored",
+        "category": "次优路径按规则折算",
+        "reason_text": "SQL及323结果均有真实关联证据，功能4/4为100分；execute异步路径按用户确认的0.5系数得到50分。",
+        "confidence": "已确认；sql-path-score-v1",
+        "secondary_text": "原评分器曾漏认异步命令；本报告使用单独标记的新规则，原记录保留。",
+        "failed_check_count": 0,
+        "unreached_count": 0,
+        "task_count": 1,
+        "source_sha256": "synthetic-source_sha256"
+      },
+      {
+        "case_id": "J2-57",
+        "score_bps": 7500,
+        "grading_state": "scored",
+        "category": "Skill内容已读但入口验收不一致",
+        "reason_text": "内容或交付物的其他检查通过，实际使用文件式SKILL.md路径；失败点要求通用skill工具成功，未认可该入口。",
+        "confidence": "实际文件读取和失败检查点已核对",
+        "secondary_text": "只确认入口合同差异，不认定路径更优、不自动补分；失败尝试和探索仍保留。",
+        "failed_check_count": 1,
+        "unreached_count": 0,
+        "task_count": 1,
+        "source_sha256": "synthetic-source_sha256"
+      }
+    ]
+  }
+}

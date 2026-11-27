@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>生产 Case 前后运行对比</title>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --surface: #ffffff;
+      --text: #1c252f;
+      --muted: #5d6874;
+      --border: #dce1e7;
+      --blue: #2f6fed;
+      --orange: #c26118;
+      --green: #18734d;
+      --red: #b42318;
+      --neutral: #8a94a3;
+      --warning-bg: #fff5e8;
+      --warning-text: #7a3d00;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+    button, select { font: inherit; }
+    .shell { max-width: 1440px; margin: 0 auto; padding: 24px; }
+    header { padding: 8px 0 20px; }
+    h1 { margin: 0 0 10px; font-size: 26px; font-weight: 650; }
+    h2 { margin: 0 0 14px; font-size: 19px; font-weight: 650; }
+    h3 { margin: 22px 0 10px; font-size: 16px; font-weight: 650; }
+    p { margin: 6px 0; line-height: 1.65; }
+    .muted { color: var(--muted); }
+    .warning {
+      margin: 16px 0;
+      padding: 12px 14px;
+      background: var(--warning-bg);
+      color: var(--warning-text);
+      border-left: 3px solid var(--orange);
+      line-height: 1.65;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 12px;
+      padding: 14px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .field { display: grid; gap: 6px; }
+    .field label { color: var(--muted); font-size: 12px; }
+    select {
+      min-width: 220px;
+      min-height: 40px;
+      padding: 7px 32px 7px 10px;
+      color: var(--text);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    .links { display: flex; gap: 12px; align-items: center; min-height: 40px; }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 18px 0;
+    }
+    .stat {
+      padding: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    .stat-label { color: var(--muted); font-size: 12px; }
+    .stat-value { margin-top: 6px; font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .stat-context { margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .band { padding: 24px 0; border-top: 1px solid var(--border); }
+    .band-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .chart-wrap { position: relative; width: 100%; height: 420px; margin-top: 12px; }
+    .chart-wrap.tall { height: 520px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0; color: var(--muted); }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .swatch { width: 12px; height: 12px; display: inline-block; }
+    .swatch.blue { background: var(--blue); border-radius: 50%; }
+    .swatch.orange { background: var(--orange); transform: rotate(45deg); }
+    .table-scroll { width: 100%; overflow-x: auto; margin-top: 12px; }
+    table { width: 100%; border-collapse: collapse; background: var(--surface); font-variant-numeric: tabular-nums; }
+    th, td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+    th { color: var(--muted); font-size: 12px; font-weight: 600; }
+    td.title { min-width: 240px; white-space: normal; }
+    td.num, th.num { text-align: right; }
+    .delta-down { color: var(--red); }
+    .delta-up { color: var(--green); }
+    .heat-cell { font-weight: 650; text-align: right; }
+    .matrix td:not(:first-child), .matrix th:not(:first-child) { text-align: center; min-width: 88px; }
+    .module-section { padding: 26px 0; border-top: 1px solid var(--border); }
+    .module-meta { display: flex; flex-wrap: wrap; gap: 8px 22px; color: var(--muted); line-height: 1.6; }
+    .status-note { margin-top: 8px; color: var(--muted); }
+    .count-note { margin-left: auto; align-self: center; color: var(--muted); }
+    footer { padding: 24px 0 8px; border-top: 1px solid var(--border); color: var(--muted); }
+    @media (max-width: 760px) {
+      .shell { padding: 16px; }
+      h1 { font-size: 22px; }
+      .summary-grid { grid-template-columns: 1fr; }
+      .toolbar { align-items: stretch; }
+      .field, select { width: 100%; }
+      .count-note { margin-left: 0; }
+      .chart-wrap { height: 360px; }
+      th, td { padding: 8px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <h1>生产 Case 前后运行对比</h1>
+      <p id="run-labels" class="muted"></p>
+      <p>按能力模块展示，不计算 MOI 整体质量分；分差仅供人工判断。</p>
+      <div id="comparability-warning" class="warning"></div>
+    </header>
+
+    <div class="toolbar">
+      <div class="field">
+        <label for="domain-filter">能力模块</label>
+        <select id="domain-filter" aria-label="按能力模块筛选"></select>
+      </div>
+      <div class="links">
+        <a href="comparison.json">结构化数据</a>
+        <a href="report.md">Markdown 报告</a>
+      </div>
+      <span id="visible-count" class="count-note" aria-live="polite"></span>
+    </div>
+
+    <section class="summary-grid" aria-label="运行摘要">
+      <div class="stat">
+        <div class="stat-label">上次计分覆盖</div>
+        <div id="baseline-coverage" class="stat-value"></div>
+        <div id="baseline-versions" class="stat-context"></div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">本次计分覆盖</div>
+        <div id="current-coverage" class="stat-value"></div>
+        <div id="current-versions" class="stat-context"></div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">可直接计算分差的 Case</div>
+        <div id="paired-count" class="stat-value"></div>
+        <div class="stat-context">定义一致、版本完整、两次均出分</div>
+      </div>
+    </section>
+
+    <section class="band" aria-labelledby="heatmap-title">
+      <div class="band-head">
+        <h2 id="heatmap-title">模块指标变化热力图</h2>
+        <span class="muted">同口径均分；红色下降，绿色上升</span>
+      </div>
+      <div id="module-heatmap" class="table-scroll"></div>
+    </section>
+
+
+
+    <section class="band" aria-labelledby="score-title">
+      <div class="band-head">
+        <h2 id="score-title">Case 分数变化</h2>
+        <span class="muted">仅显示可直接计算分差的 Case</span>
+      </div>
+      <div id="score-chart-wrap" class="chart-wrap tall">
+        <canvas id="score-chart" role="img" aria-label="每个 Case 当前版本减基线版本的分数变化条形图"></canvas>
+      </div>
+    </section>
+
+    <section class="band" aria-labelledby="duration-title">
+      <div class="band-head">
+        <h2 id="duration-title">每 Case 耗时配对图</h2>
+        <span class="muted">同一 Case 两个点连线；虚线表示定义已变化</span>
+      </div>
+      <div class="legend" aria-label="版本图例">
+        <span class="legend-item"><span class="swatch blue"></span>上次生产</span>
+        <span class="legend-item"><span class="swatch orange"></span>本次生产</span>
+      </div>
+      <div class="chart-wrap tall">
+        <canvas id="duration-chart" role="img" aria-label="每个 Case 两次生产运行的任务耗时配对点图"></canvas>
+      </div>
+    </section>
+
+    <section class="band" aria-labelledby="cumulative-title">
+      <div class="band-head">
+        <h2 id="cumulative-title">累计耗时折线图</h2>
+        <span class="muted">纵轴：在该秒内完成的 Case 占全部 Case 的比例</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="cumulative-chart" role="img" aria-label="两次生产运行在一百秒和二百秒等阈值内完成的 Case 比例折线图"></canvas>
+      </div>
+    </section>
+
+    <section class="band" aria-labelledby="modules-title">
+      <h2 id="modules-title">分模块 Case 明细</h2>
+      <p class="muted">每个 Case 只出现在所属模块中。版本列使用 Git commit。</p>
+      <div id="module-sections"></div>
+    </section>
+
+    <footer>
+      <p>未评分不补 0；版本不完整或 Case 定义变化时不计算直接分差。</p>
+    </footer>
+  </main>
+
+  <script>/*__CHART_JS__*/</script>
+  <script>
+    const report = /*__REPORT_DATA__*/;
+    const domainFilter = document.getElementById('domain-filter');
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const colors = {
+      text: '#1c252f', muted: '#5d6874', border: '#dce1e7', blue: '#2f6fed',
+      orange: '#c26118', green: '#18734d', red: '#b42318', neutral: '#8a94a3'
+    };
+    let charts = [];
+
+    function esc(value) {
+      return String(value ?? '—').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[ch]));
+    }
+    function status(item) { return item.verdict || item.excluded_reason; }
+    function score(value) { return value ?? '—'; }
+    function seconds(value) { return value ?? '—'; }
+    function isNumber(value) { return typeof value === 'number' && Number.isFinite(value); }
+    function selectedDomain() { return domainFilter.value; }
+    function visibleCases() {
+      return report.cases.filter(item => selectedDomain() === 'all' || item.domain === selectedDomain());
+    }
+    function visibleModules() {
+      return report.modules.filter(item => selectedDomain() === 'all' || item.domain === selectedDomain());
+    }
+    function checks(item) {
+      return isNumber(item.passed_checks) && isNumber(item.expected_checks)
+        ? `${item.passed_checks}/${item.expected_checks}` : '—';
+    }
+    function version(item) {
+      const value = item.qa_version_start || {};
+      const suffix = item.qa_version_start !== item.qa_version_end ? '（结束不一致）' : '';
+      return (value.git_commit || value.version || '—') + suffix;
+    }
+    function deltaClass(value) {
+      if (value === null || value === undefined) return '';
+      return Number(value) < 0 ? 'delta-down' : Number(value) > 0 ? 'delta-up' : '';
+    }
+    function baseOptions() {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: reducedMotion ? false : { duration: 300 },
+        interaction: { mode: 'nearest', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1c252f',
+            titleColor: '#ffffff',
+            bodyColor: '#ffffff',
+            padding: 10
+          }
+        },
+        scales: {
+          x: { ticks: { color: colors.muted }, grid: { color: colors.border }, title: { color: colors.muted } },
+          y: { ticks: { color: colors.muted }, grid: { color: colors.border }, title: { color: colors.muted } }
+        }
+      };
+    }
+    function replaceChart(id, config) {
+      const chart = new Chart(document.getElementById(id), config);
+      charts.push(chart);
+      return chart;
+    }
+
+    function renderHeatmap() {
+      const rows = visibleModules().map(module => {
+        const delta = module.paired_delta === null ? null : Number(module.paired_delta);
+        let background = 'transparent';
+        if (delta !== null && delta < 0) background = `rgba(180,35,24,${Math.min(0.28, 0.07 + Math.abs(delta) / 180)})`;
+        if (delta !== null && delta > 0) background = `rgba(24,115,77,${Math.min(0.25, 0.07 + delta / 120)})`;
+        return `<tr>
+          <td>${esc(module.label)}</td>
+          <td class="num">${esc(module.baseline_score)}（${module.baseline_scored}/${module.total}）</td>
+          <td class="num">${esc(module.current_score)}（${module.current_scored}/${module.total}）</td>
+          <td class="num">${module.paired_count}</td>
+          <td class="num">${esc(module.paired_baseline_score)}</td>
+          <td class="num">${esc(module.paired_current_score)}</td>
+          <td class="heat-cell ${deltaClass(delta)}" style="background:${background}">${esc(module.paired_delta)}</td>
+        </tr>`;
+      }).join('');
+      document.getElementById('module-heatmap').innerHTML = `<table aria-label="模块指标变化热力图">
+        <thead><tr><th>模块</th><th class="num">上次原始分（覆盖）</th><th class="num">本次原始分（覆盖）</th>
+        <th class="num">同口径数</th><th class="num">上次同口径</th><th class="num">本次同口径</th><th class="num">差值</th></tr></thead>
+        <tbody>${rows}</tbody></table>`;
+    }
+
+    function renderScoreChart() {
+      const cases = visibleCases().filter(item => item.score_delta_current_minus_baseline !== null)
+        .sort((a, b) => Number(a.score_delta_current_minus_baseline) - Number(b.score_delta_current_minus_baseline));
+      document.getElementById('score-chart-wrap').style.height = `${Math.max(300, cases.length * 27 + 90)}px`;
+      const values = cases.map(item => Number(item.score_delta_current_minus_baseline));
+      replaceChart('score-chart', {
+        type: 'bar',
+        data: {
+          labels: cases.map(item => item.case_id),
+          datasets: [{
+            data: values,
+            backgroundColor: values.map(value => value < 0 ? colors.red : value > 0 ? colors.green : colors.neutral),
+            borderSkipped: false,
+            maxBarThickness: 18
+          }]
+        },
+        options: {
+          ...baseOptions(), indexAxis: 'y',
+          plugins: {
+            ...baseOptions().plugins,
+            tooltip: {
+              ...baseOptions().plugins.tooltip,
+              callbacks: {
+                title: items => cases[items[0].dataIndex].title,
+                label: context => {
+                  const item = cases[context.dataIndex];
+                  return `${item.case_id}: ${score(item.baseline.score)} → ${score(item.current.score)}（${context.formattedValue}）`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ...baseOptions().scales.x,
+              title: { display: true, text: '本次分数 − 上次分数', color: colors.muted }
+            },
+            y: { ...baseOptions().scales.y, ticks: { color: colors.muted, autoSkip: false } }
+          }
+        }
+      });
+    }
+
+    function renderDurationChart() {
+      const cases = visibleCases().filter(item => isNumber(item.baseline.task_seconds) && isNumber(item.current.task_seconds));
+      const datasets = cases.map((item, index) => ({
+        label: item.case_id,
+        caseId: item.case_id,
+        title: item.title,
+        data: [
+          { x: index, y: item.baseline.task_seconds, run: '上次生产' },
+          { x: index, y: item.current.task_seconds, run: '本次生产' }
+        ],
+        showLine: true,
+        borderColor: colors.neutral,
+        borderWidth: 1.5,
+        borderDash: item.same_case_definition ? [] : [5, 4],
+        pointRadius: 4,
+        pointHoverRadius: 7,
+        pointStyle: ['circle', 'rectRot'],
+        pointBackgroundColor: [colors.blue, colors.orange],
+        pointBorderColor: [colors.blue, colors.orange]
+      }));
+      replaceChart('duration-chart', {
+        type: 'scatter', data: { datasets },
+        options: {
+          ...baseOptions(),
+          plugins: {
+            ...baseOptions().plugins,
+            tooltip: {
+              ...baseOptions().plugins.tooltip,
+              callbacks: {
+                title: items => `${items[0].dataset.caseId} · ${items[0].dataset.title}`,
+                label: context => `${context.raw.run}: ${context.raw.y.toFixed(3)} 秒`
+              }
+            }
+          },
+          scales: {
+            x: {
+              ...baseOptions().scales.x, min: -0.6, max: Math.max(0.6, cases.length - 0.4),
+              afterBuildTicks(scale) {
+                scale.ticks = cases.map((_, index) => ({ value: index }));
+              },
+              ticks: {
+                color: colors.muted, maxRotation: 60, minRotation: 45, autoSkip: true, maxTicksLimit: 8,
+                callback: value => cases[value] ? cases[value].case_id : ''
+              },
+              title: { display: true, text: 'Case', color: colors.muted }
+            },
+            y: {
+              ...baseOptions().scales.y, beginAtZero: true,
+              title: { display: true, text: '任务耗时（秒）', color: colors.muted }
+            }
+          }
+        }
+      });
+    }
+
+    const thresholdPlugin = {
+      id: 'durationThresholds',
+      afterDatasetsDraw(chart) {
+        const scale = chart.scales.x;
+        if (!scale) return;
+        [100, 200].forEach(threshold => {
+          if (threshold < scale.min || threshold > scale.max) return;
+          const x = scale.getPixelForValue(threshold);
+          const { ctx, chartArea } = chart;
+          ctx.save();
+          ctx.strokeStyle = colors.neutral;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(x, chartArea.top);
+          ctx.lineTo(x, chartArea.bottom);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = colors.muted;
+          ctx.textAlign = 'center';
+          ctx.fillText(`${threshold}s`, x, chartArea.top + 12);
+          ctx.restore();
+        });
+      }
+    };
+
+    function cumulativeSeries(cases, side, thresholds) {
+      const values = cases.map(item => item[side].task_seconds).filter(isNumber);
+      return thresholds.map(threshold => ({
+        x: threshold,
+        y: cases.length ? 100 * values.filter(value => value <= threshold).length / cases.length : 0,
+        count: values.filter(value => value <= threshold).length,
+        total: cases.length
+      }));
+    }
+
+    function renderCumulativeChart() {
+      const cases = visibleCases();
+      const allValues = cases.flatMap(item => [item.baseline.task_seconds, item.current.task_seconds]).filter(isNumber);
+      const max = Math.max(200, ...allValues);
+      const thresholds = [...new Set([0, 100, 200, ...allValues].map(value => Math.ceil(value)))].sort((a, b) => a - b);
+      const series = [
+        { label: '上次生产', side: 'baseline', color: colors.blue, pointStyle: 'circle' },
+        { label: '本次生产', side: 'current', color: colors.orange, pointStyle: 'rectRot' }
+      ].filter(item => item.side !== 'baseline' || report.baseline_available !== false);
+      replaceChart('cumulative-chart', {
+        type: 'line',
+        data: {
+          datasets: series.map(item => ({
+            label: item.label,
+            data: cumulativeSeries(cases, item.side, thresholds),
+            borderColor: item.color,
+            backgroundColor: item.color,
+            pointBackgroundColor: item.color,
+            pointStyle: item.pointStyle,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            borderWidth: 2,
+            stepped: true
+          }))
+        },
+        options: {
+          ...baseOptions(),
+          interaction: { mode: 'nearest', intersect: false },
+          plugins: {
+            legend: { display: true, position: 'bottom', labels: { color: colors.text, usePointStyle: true } },
+            tooltip: {
+              ...baseOptions().plugins.tooltip,
+              callbacks: {
+                title: items => `耗时阈值：${items[0].raw.x} 秒`,
+                label: context => `${context.dataset.label}: ${context.raw.count}/${context.raw.total}（${context.raw.y.toFixed(1)}%）`
+              }
+            }
+          },
+          scales: {
+            x: {
+              ...baseOptions().scales.x, type: 'linear', min: 0, max,
+              ticks: { color: colors.muted, maxTicksLimit: 9 },
+              title: { display: true, text: '耗时阈值（秒）', color: colors.muted }
+            },
+            y: {
+              ...baseOptions().scales.y, min: 0, max: 100,
+              ticks: { color: colors.muted, callback: value => `${value}%` },
+              title: { display: true, text: '完成 Case 占比', color: colors.muted }
+            }
+          }
+        },
+        plugins: [thresholdPlugin]
+      });
+    }
+
+    function renderModuleSections() {
+      document.getElementById('module-sections').innerHTML = report.modules.map(module => {
+        const cases = report.cases.filter(item => item.domain === module.domain);
+        const rows = cases.map(item => `<tr>
+          <td>${esc(item.case_id)}</td><td class="title">${esc(item.title)}</td>
+          <td class="num">${esc(item.baseline.score)}</td><td class="num">${esc(item.current.score)}</td>
+          <td class="num ${deltaClass(item.score_delta_current_minus_baseline)}">${esc(item.score_delta_current_minus_baseline)}</td>
+          <td>${esc(status(item.baseline))}</td><td>${esc(status(item.current))}</td>
+          <td class="num">${esc(checks(item.baseline))}</td><td class="num">${esc(checks(item.current))}</td>
+          <td class="num">${esc(seconds(item.baseline.task_seconds))}</td><td class="num">${esc(seconds(item.current.task_seconds))}</td>
+          <td class="num">${esc(seconds(item.task_seconds_delta_current_minus_baseline))}</td>
+          <td>${esc(version(item.current))}</td><td>${esc(item.comparison_status)}</td>
+        </tr>`).join('');
+        return `<section class="module-section" data-domain="${esc(module.domain)}" aria-labelledby="module-${esc(module.domain)}">
+          <h3 id="module-${esc(module.domain)}">${esc(module.label)}（${esc(module.domain)}）</h3>
+          <div class="module-meta">
+            <span>上次：${esc(module.baseline_score)}（${module.baseline_scored}/${module.total}）</span>
+            <span>本次：${esc(module.current_score)}（${module.current_scored}/${module.total}）</span>
+            <span>同口径：${esc(module.paired_baseline_score)} → ${esc(module.paired_current_score)}</span>
+            <span class="${deltaClass(module.paired_delta)}">差值：${esc(module.paired_delta)}</span>
+          </div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>Case</th><th>简介</th><th class="num">上次分</th><th class="num">本次分</th><th class="num">分差</th>
+            <th>上次结果</th><th>本次结果</th><th class="num">上次检查点</th><th class="num">本次检查点</th>
+            <th class="num">上次秒数</th><th class="num">本次秒数</th><th class="num">秒数差</th><th>本次版本</th><th>比较状态</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table></div>
+        </section>`;
+      }).join('');
+    }
+
+    function updateVisibility() {
+      document.querySelectorAll('.module-section').forEach(section => {
+        section.hidden = selectedDomain() !== 'all' && section.dataset.domain !== selectedDomain();
+      });
+      document.getElementById('visible-count').textContent = `当前显示 ${visibleCases().length} / ${report.cases.length} 条 Case`;
+    }
+
+    function renderCharts() {
+      charts.forEach(chart => chart.destroy());
+      charts = [];
+      renderHeatmap();
+      renderScoreChart();
+      renderDurationChart();
+      renderCumulativeChart();
+      updateVisibility();
+    }
+
+    function initialize() {
+      if (report.baseline_available === false) {
+        document.querySelector('h1').textContent = '生产 Case 首轮基线';
+      }
+      document.getElementById('run-labels').textContent = `基线：${report.baseline.run} ｜ 当前：${report.current.run} ｜ 模型：${report.model}`;
+      const warnings = [];
+      if (report.baseline_available === false) warnings.push('首轮基线：没有可配对的历史运行');
+      if (report.current.derived_from) {
+        warnings.push(`当前结果由多个 Run 派生合并，采用复跑证据的 Case：${report.current.derived_from.replaced_cases.join('、')}；原始 blocked 结果保留在来源 Run 中`);
+      }
+      if (report.comparability.current_version_changed_during_run) warnings.push('本次运行期间生产版本发生变化');
+      if (report.comparability.case_definition_changed.length) warnings.push(`${report.comparability.case_definition_changed.length} 条 Case 定义变化，不计算直接分差`);
+      if (report.comparability.version_mismatch.length) warnings.push(`版本不完整：${report.comparability.version_mismatch.join('、')}`);
+      (report.excluded_scenarios || []).forEach(item => {
+        warnings.push(`暂不评测：${item.domains.join('、')}，不计入覆盖率分母`);
+      });
+      document.getElementById('comparability-warning').textContent = warnings.join('；') || '两次运行满足直接比较条件。';
+      document.getElementById('baseline-coverage').textContent = report.baseline_available === false
+        ? '无基线' : `${report.baseline.scored}/${report.baseline.total}`;
+      document.getElementById('baseline-versions').textContent = report.baseline_available === false
+        ? '下一次同配置 Run 开始配对比较' : report.baseline.versions.join(' / ');
+      document.getElementById('current-coverage').textContent = `${report.current.scored}/${report.current.total}`;
+      document.getElementById('current-versions').textContent = report.current.versions.join(' / ');
+      document.getElementById('paired-count').textContent = report.comparability.fully_comparable_scored_cases;
+      domainFilter.innerHTML = '<option value="all">全部模块</option>' + report.modules.map(module =>
+        `<option value="${esc(module.domain)}">${esc(module.label)}（${module.domain}）</option>`).join('');
+      domainFilter.addEventListener('change', renderCharts);
+      renderModuleSections();
+      renderCharts();
+    }
+
+    initialize();
+  </script>
+</body>
+</html>
