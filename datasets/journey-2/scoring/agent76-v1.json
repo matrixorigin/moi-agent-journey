@@ -1,0 +1,403 @@
+{
+  "schema_version": "j2-scoring-suite-v1",
+  "suite_id": "agent-score76-quality-comparison-v1",
+  "cases": [
+    {
+      "id": "J2-132",
+      "domain": "conversation",
+      "executor": "persistent"
+    },
+    {
+      "id": "J2-129",
+      "domain": "conversation",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-130",
+      "domain": "conversation",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-116",
+      "domain": "skill",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-117",
+      "domain": "skill",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-120",
+      "domain": "skill",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-124",
+      "domain": "skill",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-95",
+      "domain": "agent_lifecycle",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-99",
+      "domain": "agent_lifecycle",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-121",
+      "domain": "agent_lifecycle",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-122",
+      "domain": "agent_lifecycle",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-127",
+      "domain": "agent_lifecycle",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-131",
+      "domain": "agent_lifecycle",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-113",
+      "domain": "custom_tool",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-114",
+      "domain": "custom_tool",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-119",
+      "domain": "custom_tool",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-123",
+      "domain": "custom_tool",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-52",
+      "domain": "agent_lifecycle",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-85",
+      "domain": "agent_lifecycle",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-96",
+      "domain": "agent_lifecycle",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-97",
+      "domain": "agent_lifecycle",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-98",
+      "domain": "agent_lifecycle",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-63",
+      "domain": "skill",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-64",
+      "domain": "skill",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-66",
+      "domain": "skill",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-78",
+      "domain": "skill",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-71",
+      "domain": "custom_tool",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-72",
+      "domain": "custom_tool",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-73",
+      "domain": "custom_tool",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-86",
+      "domain": "custom_tool",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-20",
+      "domain": "web_search",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-02",
+      "domain": "multimodal",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-03",
+      "domain": "conversation",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-06",
+      "domain": "multimodal",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-07",
+      "domain": "delivery",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-10",
+      "domain": "multimodal",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-11",
+      "domain": "conversation",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-13",
+      "domain": "tools",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-17",
+      "domain": "conversation",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-21",
+      "domain": "tools",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-23",
+      "domain": "conversation",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-24",
+      "domain": "multimodal",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-26",
+      "domain": "conversation",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-29",
+      "domain": "conversation",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-31",
+      "domain": "multimodal",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-32",
+      "domain": "tools",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-33",
+      "domain": "tools",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-35",
+      "domain": "conversation",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-36",
+      "domain": "conversation",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-37",
+      "domain": "feedback",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-38",
+      "domain": "conversation",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-51",
+      "domain": "feedback",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-54",
+      "domain": "multimodal",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-55",
+      "domain": "multimodal",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-56",
+      "domain": "multimodal",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-57",
+      "domain": "delivery",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-58",
+      "domain": "delivery",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-59",
+      "domain": "multimodal",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-60",
+      "domain": "multimodal",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-61",
+      "domain": "interaction",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-62",
+      "domain": "interaction",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-68",
+      "domain": "tools",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-69",
+      "domain": "interaction",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-74",
+      "domain": "interaction",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-75",
+      "domain": "interaction",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-87",
+      "domain": "multimodal",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-92",
+      "domain": "tools",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-22",
+      "domain": "multimodal",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-25",
+      "domain": "multimodal",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-83",
+      "domain": "conversation",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-84",
+      "domain": "conversation",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-88",
+      "domain": "multimodal",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-90",
+      "domain": "delivery",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-93",
+      "domain": "tools",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-94",
+      "domain": "interaction",
+      "executor": "functional"
+    },
+    {
+      "id": "J2-67",
+      "domain": "feedback",
+      "executor": "functional"
+    }
+  ],
+  "checkpoint_registry": "checkpoints-v3.json",
+  "excluded_cases": [
+    "J2-05",
+    "J2-40",
+    "J2-41",
+    "J2-42",
+    "J2-48",
+    "J2-126"
+  ],
+  "policy": {
+    "checkpoint_weight": "equal",
+    "case_weight_within_domain": "equal",
+    "unscored": "exclude_and_report_coverage",
+    "overall_score": false,
+    "sql_path_multiplier": "not_included",
+    "supplemental_v2": "not_included"
+  }
+}
