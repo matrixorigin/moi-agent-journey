@@ -203,6 +203,79 @@ class SqlEvidenceTests(unittest.TestCase):
                     self.assertEqual(analysis['metrics']['failed'], 1)
                     self.assertTrue(all(error.get('expected') for error in analysis['errors'][0]['errors']))
 
+    def test_stderr_file_replay_preserves_sql_result_and_syntax_error(self):
+        query = 'SELECT 17 * 19 AS product'
+        command = ('moi-cli sql run --query "' + query +
+                   '" 2>query-error.txt; echo "EXIT=$?"; echo "---STDERR---"; cat query-error.txt')
+        success = self.result()
+        success['payload']['output']['output']['stdout'] += '\nEXIT=0\n---STDERR---\n'
+        checks, blocked = self.evaluate([self.call(command), success])
+        self.assertTrue(all(item['passed'] for item in checks))
+        self.assertIsNone(blocked)
+
+        bad_query = 'SELEC SUM(amount) FROM journey_db.orders'
+        failure_command = ('moi-cli sql run --query "' + bad_query +
+                           '" 2>query-error.txt; echo "EXIT=$?"; echo "---STDERR---"; cat query-error.txt')
+        failure = self.result()
+        failure['payload']['output']['output'].update({
+            'exit_code': 0,
+            'stdout': '{"status":"failed","err_msg":"SQL parser error: syntax error near SELEC"}\n'
+                      'EXIT=1\n---STDERR---\nError: SQL syntax error near SELEC',
+            'stderr': '',
+        })
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'events.jsonl'
+            path.write_text(''.join(json.dumps(event) + '\n' for event in
+                                    (self.call(failure_command), failure)))
+            checks, blocked = evaluate_sql_failure(path, 'task', 'sql', bad_query, 'SELEC', 'ws',
+                                                   error_kind='syntax')
+        self.assertTrue(checks[0]['passed'])
+        self.assertIsNone(blocked)
+        self.assertEqual(checks[0]['expected_tool_errors'][0]['kind'], 'captured_command_exit')
+
+        mismatched = failure_command.replace('cat query-error.txt', 'cat other.txt')
+        checks, blocked = self.evaluate([self.call(mismatched), success])
+        self.assertFalse(checks[0]['passed'])
+        self.assertEqual(blocked, 'sql_command_unverifiable')
+
+    def test_separate_stdout_stderr_file_replays_preserve_sql_evidence(self):
+        query = 'SELECT 17 * 19 AS product'
+        command = ('cd /sandbox/.moi 2>/dev/null; mkdir -p scratch/tmp; '
+                   'moi-cli sql run --query "' + query + '" > scratch/tmp/sql_out.txt '
+                   '2> scratch/tmp/sql_err.txt; echo "EXIT=$?"; '
+                   'echo "--- STDOUT ---"; cat scratch/tmp/sql_out.txt; '
+                   'echo "--- STDERR ---"; cat scratch/tmp/sql_err.txt')
+        success = self.result()
+        success['payload']['output']['output']['stdout'] = (
+            'EXIT=0\n--- STDOUT ---\n' + success['payload']['output']['output']['stdout'] +
+            '\n--- STDERR ---\n')
+        checks, blocked = self.evaluate([self.call(command), success])
+        self.assertTrue(all(item['passed'] for item in checks))
+        self.assertIsNone(blocked)
+
+        bad_query = 'SELEC SUM(amount) FROM journey_db.orders'
+        failure_command = command.replace(query, bad_query)
+        failure = self.result()
+        failure['payload']['output']['output'].update({
+            'exit_code': 0,
+            'stdout': 'EXIT=1\n--- STDOUT ---\n\n--- STDERR ---\n'
+                      'Error 1064: SQL parser error: syntax error near SELEC',
+            'stderr': '',
+        })
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'events.jsonl'
+            path.write_text(''.join(json.dumps(event) + '\n' for event in
+                                    (self.call(failure_command), failure)))
+            checks, blocked = evaluate_sql_failure(path, 'task', 'sql', bad_query, 'SELEC', 'ws',
+                                                   error_kind='syntax')
+        self.assertTrue(checks[0]['passed'])
+        self.assertIsNone(blocked)
+
+        mismatched = failure_command.replace('cat scratch/tmp/sql_err.txt', 'cat scratch/tmp/other.txt')
+        checks, blocked = self.evaluate([self.call(mismatched), success])
+        self.assertFalse(checks[0]['passed'])
+        self.assertEqual(blocked, 'sql_command_unverifiable')
+
 
 if __name__ == '__main__':
     unittest.main()

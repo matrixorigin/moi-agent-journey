@@ -1,0 +1,15 @@
+{
+  "source_run": "production-agent77-deepseek-20261124-01",
+  "source_file": "results/J2-130/message-admission-http.jsonl",
+  "source_sha256": "40480d2880aefd92150386842673499fffdd8e42c282946e8a22dac3312ff111",
+  "sanitization": "Retain status and structured runtime error; replace request identity and omit headers and message content.",
+  "exchange": {
+    "request": {
+      "id": "request-j2-130"
+    },
+    "status": 409,
+    "response": {
+      "error_body": "{\"jsonrpc\": \"2.0\", \"id\": \"request-j2-130\", \"error\": {\"code\": -32006, \"message\": \"The previous turn is still running. Wait for it to finish or cancel it before sending another message.\", \"data\": {\"domain\": \"moi-core.agent_runtime\", \"reason\": \"ACTIVE_TURN_CONFLICT\", \"reason_display\": {\"default_text\": \"The previous turn is still running. Wait for it to finish or cancel it before sending another message.\", \"i18n_key\": \"err.agent_runtime.active_turn_conflict\"}}}}"
+    }
+  }
+}

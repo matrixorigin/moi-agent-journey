@@ -15,6 +15,9 @@ from .message_controls import conversation_task_ids
 from .native_skill_cleanup import cleanup_artifacts, cleanup_sandbox, same_python_command
 
 
+ADMISSION_CONFLICT_REASONS = {'CONFLICT', 'CONVERSATION_BUSY', 'ACTIVE_TURN_CONFLICT'}
+
+
 def rpc_rejection(exchange):
     """Only a matching structured runtime rejection can prove non-admission."""
     response = exchange.get('response') or {}
@@ -27,9 +30,10 @@ def rpc_rejection(exchange):
             envelope.get('id') != (exchange.get('request') or {}).get('id')):
         return None
     data = error.get('data') or {}
+    reason = data.get('reason') if isinstance(data, dict) else None
     if (not isinstance(data, dict) or data.get('domain') != 'moi-core.agent_runtime' or
-            (error.get('code'), data.get('reason')) not in {
-                (-32603, 'INTERNAL'), (-32006, 'CONFLICT'), (-32006, 'CONVERSATION_BUSY')}):
+            not ((error.get('code') == -32603 and reason == 'INTERNAL') or
+                 (error.get('code') == -32006 and reason in ADMISSION_CONFLICT_REASONS))):
         return None
     return error
 
@@ -158,7 +162,8 @@ class MessageAdmissionJourney:
         else:
             details = (error or {}).get('details') or {}
             rejected = (error is not None and ((error.get('reason') == 'rpc_error' and
-                details.get('code') == -32006 and (details.get('data') or {}).get('reason') in {'CONFLICT', 'CONVERSATION_BUSY'}) or
+                details.get('code') == -32006 and
+                (details.get('data') or {}).get('reason') in ADMISSION_CONFLICT_REASONS) or
                 error.get('http_status') == 409))
             self.record('不同消息在会话忙碌时明确返回冲突', rejected, 'busy_message_not_rejected_as_conflict')
         self.record('运行中探测没有额外创建任务', conversation_task_ids(self.execution, cid) == {task_id},

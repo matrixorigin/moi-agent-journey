@@ -23,6 +23,13 @@ def rejection_exchange():
             'code': -32603, 'data': {'domain': 'moi-core.agent_runtime', 'reason': 'INTERNAL'}}})}}
 
 
+def active_turn_conflict_exchange():
+    return {'request': {'id': 'rpc'}, 'status': 409, 'headers': {'X-Trace-Id': 'trace-active'},
+        'response': {'error_body': json.dumps({'jsonrpc': '2.0', 'id': 'rpc', 'error': {
+            'code': -32006, 'message': 'The previous turn is still running.',
+            'data': {'domain': 'moi-core.agent_runtime', 'reason': 'ACTIVE_TURN_CONFLICT'}}})}}
+
+
 class MessageAdmissionTests(unittest.TestCase):
     def journey(self, mode='replay'):
         directory = tempfile.TemporaryDirectory()
@@ -48,6 +55,22 @@ class MessageAdmissionTests(unittest.TestCase):
             item['response']['error_body'] = json.dumps(body)
         for item in defects:
             self.assertIsNone(rpc_rejection(item))
+
+    def test_active_turn_conflict_is_a_structured_busy_rejection(self):
+        journey, execution = self.journey('busy')
+        exchange = active_turn_conflict_exchange()
+        error = json.loads(exchange['response']['error_body'])['error']
+        self.assertEqual(rpc_rejection(exchange), error)
+        execution.client.rpc.return_value = {
+            'kind': 'task', 'id': 'task', 'contextId': 'cid', 'status': {'state': 'working'}}
+        with patch.object(journey, 'control', return_value=(
+                None, {'reason': 'http_error', 'http_status': 409, 'details': error})), \
+                patch('journey.message_admission.conversation_task_ids', return_value={'task'}):
+            journey.admitted({'conversation_id': 'cid', 'task_id': 'task'},
+                             {'message': {'contextId': 'cid', 'messageId': 'probe'}})
+        self.assertEqual([check['rule'] for check in journey.checks], [
+            '并发探测前原任务已受理且尚未结束', '不同消息在会话忙碌时明确返回冲突', '运行中探测没有额外创建任务'])
+        self.assertTrue(all(check['passed'] for check in journey.checks))
 
     def test_transport_loss_retains_pending_identity_and_never_retries(self):
         journey, execution = self.journey()
