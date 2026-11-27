@@ -1,0 +1,5178 @@
+{
+  "schema_version": "journey-checkpoint-registry-v1",
+  "evidence_type": "static_definition_audit",
+  "real_execution": false,
+  "checkpoint_weight": "equal",
+  "cases": [
+    {
+      "case_id": "J2-95",
+      "case_sha256": "47200da9fd5458e9e995f2671a783dd217b41d4ab75ec61c76697b88f5e108fd",
+      "checkpoint_count": 15,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-95.candidate.original.present",
+          "session": "builder",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-95.candidate.original.valid",
+          "session": "builder",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-95.candidate.original.absent_before_commit",
+          "session": "builder",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-95.race.single_winner",
+          "session": "builder",
+          "match": {
+            "rule": "并发修改只有一个成功且另一请求返回冲突"
+          },
+          "source": "journey.builder_edge_journey.BuilderEdgeJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-95.candidate.winner.present",
+          "session": "builder",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-95.candidate.winner.valid",
+          "session": "builder",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-95.candidate.winner.absent_before_commit",
+          "session": "builder",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-95.candidate.winner.new_version",
+          "session": "builder",
+          "match": {
+            "rule": "替代候选保留身份并生成新版本和摘要"
+          },
+          "source": "journey.builder_edge_journey.BuilderEdgeJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-95.candidate.original.stale_commit_rejected",
+          "session": "builder",
+          "match": {
+            "rule": "并发修改后的旧候选不能发布"
+          },
+          "source": "journey.builder_edge_journey.BuilderEdgeJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-95.candidate.original.not_published",
+          "session": "builder",
+          "match": {
+            "rule": "拒绝旧版本后没有发布智能体"
+          },
+          "source": "journey.builder_edge_journey.BuilderEdgeJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-95.candidate.winner.publish.commit",
+          "session": "builder",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-95.candidate.winner.publish.readback",
+          "session": "builder",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-95.candidate.winner.publish.configuration",
+          "session": "builder",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-95.conversation.final_reply",
+          "session": "builder",
+          "match": {
+            "rule": "use:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/builder/replies/use.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-95.conversation.assertion_1",
+          "session": "builder",
+          "match": {
+            "rule": "新发布智能体实际完成对话"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/builder/replies/use.json"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-99",
+      "case_sha256": "37a61ab72eb1b116dda1a22f4b3f6d5d6bf0f87fb9d699f9e432ced92fc82c35",
+      "checkpoint_count": 9,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-99.initial.runnable",
+          "session": "package",
+          "match": {
+            "rule": "导入包得到本次可运行版本"
+          },
+          "source": "journey.agent_package_journey.AgentPackageJourney.prepare",
+          "evidence": [
+            "package-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-99.initial.agent_identity",
+          "session": "package",
+          "match": {
+            "rule": "导入后智能体身份及状态正确"
+          },
+          "source": "journey.agent_package_journey.AgentPackageJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-99.initial.only_version",
+          "session": "package",
+          "match": {
+            "rule": "初始版本列表只包含本次版本"
+          },
+          "source": "journey.agent_package_journey.AgentPackageJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-99.damaged.rejected",
+          "session": "package",
+          "match": {
+            "rule": "拒绝智能体包 damaged"
+          },
+          "source": "journey.agent_package_journey.AgentPackageJourney.prepare",
+          "evidence": [
+            "package-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-99.damaged.versions_unchanged",
+          "session": "package",
+          "match": {
+            "rule": "拒绝后版本和默认值不变 damaged"
+          },
+          "source": "journey.agent_package_journey.AgentPackageJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-99.conflict.rejected",
+          "session": "package",
+          "match": {
+            "rule": "拒绝智能体包 conflict"
+          },
+          "source": "journey.agent_package_journey.AgentPackageJourney.prepare",
+          "evidence": [
+            "package-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-99.conflict.versions_unchanged",
+          "session": "package",
+          "match": {
+            "rule": "拒绝后版本和默认值不变 conflict"
+          },
+          "source": "journey.agent_package_journey.AgentPackageJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-99.conversation.final_reply",
+          "session": "package",
+          "match": {
+            "rule": "use:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/package/replies/use.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-99.conversation.assertion_1",
+          "session": "package",
+          "match": {
+            "rule": "实际对话使用正确的默认版本指令"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/package/replies/use.json"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-121",
+      "case_sha256": "e352f24b9d5baab2a47037d93d6d73b70e4140926c542aa3301195ecc8aaddd0",
+      "checkpoint_count": 31,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-121.primary.tool_created",
+          "session": "before",
+          "match": {
+            "rule_prefix": "自定义工具创建后可回读且可绑定 "
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.primary.agent_candidate.present",
+          "session": "before",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.primary.agent_candidate.valid",
+          "session": "before",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.primary.agent_candidate.absent_before_commit",
+          "session": "before",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.primary.candidate_binding",
+          "session": "before",
+          "match": {
+            "rule_prefix": "候选绑定指定工具 "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.primary.agent_publish.commit",
+          "session": "before",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.primary.agent_publish.readback",
+          "session": "before",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.primary.agent_publish.configuration",
+          "session": "before",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.primary.published_binding",
+          "session": "before",
+          "match": {
+            "rule": "发布后的绑定包含全部本次工具"
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.baseline.reply.final_reply",
+          "session": "before",
+          "match": {
+            "rule": "baseline:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/before/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.baseline.reply.assertion_1",
+          "session": "before",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/before/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.baseline.call",
+          "session": "before",
+          "match": {
+            "rule": "本任务实际调用指定 HTTP 工具且参数正确"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.baseline.result",
+          "session": "before",
+          "match": {
+            "rule": "对应工具结果包含预期 HTTP 状态和内容"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.disable.archive_agent.identity",
+          "session": "before",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.disable.archive_agent.state_preserved",
+          "session": "before",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 archived"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.disable.resource_disabled",
+          "session": "before",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'disabled'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.disable.restore_rejected.rejected",
+          "session": "before",
+          "match": {
+            "rule_prefix": "操作按公开错误契约拒绝 PATCH /agents/"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.reject",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.disable.restore_rejected.agent_unchanged",
+          "session": "before",
+          "match": {
+            "rule": "恢复被拒绝后仍归档且历史定义不变"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.reject_reactivation",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.disable.resource_active",
+          "session": "before",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'active'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.disable.restore_agent.identity",
+          "session": "before",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.disable.restore_agent.state_preserved",
+          "session": "before",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 active"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.delete.reply.final_reply",
+          "session": "restored",
+          "match": {
+            "rule": "use:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/restored/replies/use.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.delete.reply.assertion_1",
+          "session": "restored",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/restored/replies/use.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.delete.baseline.call",
+          "session": "restored",
+          "match": {
+            "rule": "本任务实际调用指定 HTTP 工具且参数正确"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.delete.baseline.result",
+          "session": "restored",
+          "match": {
+            "rule": "对应工具结果包含预期 HTTP 状态和内容"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.delete.archive_agent.identity",
+          "session": "restored",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.delete.archive_agent.state_preserved",
+          "session": "restored",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 archived"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.delete.resource.absent",
+          "session": "restored",
+          "match": {
+            "rule": "删除后资源查询返回不存在"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.delete_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.delete.resource.agent_history_preserved",
+          "session": "restored",
+          "match": {
+            "rule": "资源删除没有改写归档智能体历史"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.delete_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.delete.restore_rejected.rejected",
+          "session": "restored",
+          "match": {
+            "rule_prefix": "操作按公开错误契约拒绝 PATCH /agents/"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.reject",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-121.delete.restore_rejected.agent_unchanged",
+          "session": "restored",
+          "match": {
+            "rule": "恢复被拒绝后仍归档且历史定义不变"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.reject_reactivation",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-122",
+      "case_sha256": "cfff792a5c884a31832033473376fe8dc420f3f749302a379b0afaadd5a60a1d",
+      "checkpoint_count": 29,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-122.primary.skill_created",
+          "session": "before",
+          "match": {
+            "rule": "自定义 Skill 创建后身份和初始版本正确"
+          },
+          "source": "journey.skill_journey.SkillJourney.prepare",
+          "evidence": [
+            "skill-http.jsonl",
+            "skill-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.primary.agent_candidate.present",
+          "session": "before",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.primary.agent_candidate.valid",
+          "session": "before",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.primary.agent_candidate.absent_before_commit",
+          "session": "before",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.primary.candidate_binding",
+          "session": "before",
+          "match": {
+            "rule_prefix": "候选绑定指定Skill "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.primary.agent_publish.commit",
+          "session": "before",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.primary.agent_publish.readback",
+          "session": "before",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.primary.agent_publish.configuration",
+          "session": "before",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.primary.published_binding",
+          "session": "before",
+          "match": {
+            "rule": "智能体绑定了本次创建的 Skill"
+          },
+          "source": "journey.owned_skill_journey.OwnedSkillJourney.check_binding",
+          "evidence": [
+            "skill-http.jsonl",
+            "skill-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.baseline.reply.final_reply",
+          "session": "before",
+          "match": {
+            "rule": "baseline:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/before/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.baseline.reply.assertion_1",
+          "session": "before",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/before/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.baseline.call",
+          "session": "before",
+          "match": {
+            "rule_prefix": "实际调用指定 Skill 并成功 ("
+          },
+          "source": "journey.skill_checks.check_skill_call",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.disable.archive_agent.identity",
+          "session": "before",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.disable.archive_agent.state_preserved",
+          "session": "before",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 archived"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.disable.resource_disabled",
+          "session": "before",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'disabled'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.disable.restore_rejected.rejected",
+          "session": "before",
+          "match": {
+            "rule_prefix": "操作按公开错误契约拒绝 PATCH /agents/"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.reject",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.disable.restore_rejected.agent_unchanged",
+          "session": "before",
+          "match": {
+            "rule": "恢复被拒绝后仍归档且历史定义不变"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.reject_reactivation",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.disable.resource_active",
+          "session": "before",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'active'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.disable.restore_agent.identity",
+          "session": "before",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.disable.restore_agent.state_preserved",
+          "session": "before",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 active"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.delete.reply.final_reply",
+          "session": "restored",
+          "match": {
+            "rule": "use:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/restored/replies/use.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.delete.reply.assertion_1",
+          "session": "restored",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/restored/replies/use.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.delete.baseline.call",
+          "session": "restored",
+          "match": {
+            "rule_prefix": "实际调用指定 Skill 并成功 ("
+          },
+          "source": "journey.skill_checks.check_skill_call",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.delete.archive_agent.identity",
+          "session": "restored",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.delete.archive_agent.state_preserved",
+          "session": "restored",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 archived"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.delete.resource.absent",
+          "session": "restored",
+          "match": {
+            "rule": "删除后资源查询返回不存在"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.delete_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.delete.resource.agent_history_preserved",
+          "session": "restored",
+          "match": {
+            "rule": "资源删除没有改写归档智能体历史"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.delete_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.delete.restore_rejected.rejected",
+          "session": "restored",
+          "match": {
+            "rule_prefix": "操作按公开错误契约拒绝 PATCH /agents/"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.reject",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-122.delete.restore_rejected.agent_unchanged",
+          "session": "restored",
+          "match": {
+            "rule": "恢复被拒绝后仍归档且历史定义不变"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.reject_reactivation",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-127",
+      "case_sha256": "2902a22dee1e9adf7fe570f5afdbf42a4d43c12f71261c5269fcfbcda660e198",
+      "checkpoint_count": 12,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-127.candidate.present",
+          "session": "live",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-127.candidate.valid",
+          "session": "live",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-127.candidate.absent_before_commit",
+          "session": "live",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-127.concurrent_commit.same_version",
+          "session": "live",
+          "match": {
+            "rule": "并发确认至少一次成功且所有成功响应指向同一版本"
+          },
+          "source": "journey.builder_recovery.BuilderRecoveryJourney.concurrent_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-127.publish.commit",
+          "session": "live",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-127.publish.readback",
+          "session": "live",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-127.publish.configuration",
+          "session": "live",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-127.publish.single_runnable_version",
+          "session": "live",
+          "match": {
+            "rule": "确认后仅产生一个可运行版本"
+          },
+          "source": "journey.builder_recovery.BuilderRecoveryJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-127.repeat_commit.rejected",
+          "session": "live",
+          "match": {
+            "rule": "已确认候选再次提交被拒绝"
+          },
+          "source": "journey.builder_recovery.BuilderRecoveryJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-127.repeat_commit.versions_unchanged",
+          "session": "live",
+          "match": {
+            "rule": "再次确认不会改变已发布版本链"
+          },
+          "source": "journey.builder_recovery.BuilderRecoveryJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-127.conversation.final_reply",
+          "session": "live",
+          "match": {
+            "rule": "use:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/use.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-127.conversation.assertion_1",
+          "session": "live",
+          "match": {
+            "rule": "智能体实际完成对话"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/use.json"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-131",
+      "case_sha256": "1047f960c16fc1169045c1b7a1e91b8aabe949b4d577dfdc67bb4d0113783083",
+      "checkpoint_count": 25,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-131.initial.candidate.present",
+          "session": "editor",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.initial.candidate.valid",
+          "session": "editor",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.initial.candidate.absent_before_commit",
+          "session": "editor",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.initial.publish.commit",
+          "session": "editor",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.initial.publish.readback",
+          "session": "editor",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.initial.publish.configuration",
+          "session": "editor",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.first.valid_revision",
+          "session": "editor",
+          "match": {
+            "rule": "当前版本编辑产生有效且同身份的修订候选"
+          },
+          "source": "journey.published_conflict.PublishedConflictJourney.propose",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.first.publish.commit",
+          "session": "editor",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.first.publish.readback",
+          "session": "editor",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.first.publish.configuration",
+          "session": "editor",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.first.only_requested_fields",
+          "session": "editor",
+          "match": {
+            "rule": "修订仅改变请求字段并保留其他配置"
+          },
+          "source": "journey.published_conflict.PublishedConflictJourney.commit_revision",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.source_version.rejected",
+          "session": "editor",
+          "match": {
+            "rule": "过期编辑明确返回版本冲突"
+          },
+          "source": "journey.published_conflict.PublishedConflictJourney.propose",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.source_version.versions_unchanged",
+          "session": "editor",
+          "match": {
+            "rule": "拒绝过期编辑后版本链不变 source_version"
+          },
+          "source": "journey.published_conflict.PublishedConflictJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.source_version.configuration_unchanged",
+          "session": "editor",
+          "match": {
+            "rule": "拒绝过期编辑后已发布配置不变 source_version"
+          },
+          "source": "journey.published_conflict.PublishedConflictJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.base_revision.rejected",
+          "session": "editor",
+          "match": {
+            "rule": "过期编辑明确返回版本冲突"
+          },
+          "source": "journey.published_conflict.PublishedConflictJourney.propose",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.base_revision.versions_unchanged",
+          "session": "editor",
+          "match": {
+            "rule": "拒绝过期编辑后版本链不变 base_revision"
+          },
+          "source": "journey.published_conflict.PublishedConflictJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.base_revision.configuration_unchanged",
+          "session": "editor",
+          "match": {
+            "rule": "拒绝过期编辑后已发布配置不变 base_revision"
+          },
+          "source": "journey.published_conflict.PublishedConflictJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.latest.valid_revision",
+          "session": "editor",
+          "match": {
+            "rule": "当前版本编辑产生有效且同身份的修订候选"
+          },
+          "source": "journey.published_conflict.PublishedConflictJourney.propose",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.latest.publish.commit",
+          "session": "editor",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.latest.publish.readback",
+          "session": "editor",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.latest.publish.configuration",
+          "session": "editor",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.latest.only_requested_fields",
+          "session": "editor",
+          "match": {
+            "rule": "修订仅改变请求字段并保留其他配置"
+          },
+          "source": "journey.published_conflict.PublishedConflictJourney.commit_revision",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.latest.complete_history",
+          "session": "editor",
+          "match": {
+            "rule": "刷新后成功修改且保留完整三版本历史"
+          },
+          "source": "journey.published_conflict.PublishedConflictJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.conversation.final_reply",
+          "session": "editor",
+          "match": {
+            "rule": "latest:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/editor/replies/latest.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-131.conversation.assertion_1",
+          "session": "editor",
+          "match": {
+            "rule": "最终发布指令在实际对话生效"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/editor/replies/latest.json"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-113",
+      "case_sha256": "6c29bfd7cfd1ca4358a3c030252ca1c334f1fd3ce7607b9e5e09498d97a2236a",
+      "checkpoint_count": 41,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-113.primary.tool_created",
+          "session": "live",
+          "match": {
+            "rule_prefix": "自定义工具创建后可回读且可绑定 "
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.primary.agent_candidate.present",
+          "session": "live",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.primary.agent_candidate.valid",
+          "session": "live",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.primary.agent_candidate.absent_before_commit",
+          "session": "live",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.primary.candidate_binding",
+          "session": "live",
+          "match": {
+            "rule_prefix": "候选绑定指定工具 "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.primary.agent_publish.commit",
+          "session": "live",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.primary.agent_publish.readback",
+          "session": "live",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.primary.agent_publish.configuration",
+          "session": "live",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.primary.published_binding",
+          "session": "live",
+          "match": {
+            "rule": "发布后的绑定包含全部本次工具"
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.healthy.tool_created",
+          "session": "live",
+          "match": {
+            "rule_prefix": "自定义工具创建后可回读且可绑定 "
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.healthy.agent_candidate.present",
+          "session": "live",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.healthy.agent_candidate.valid",
+          "session": "live",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.healthy.agent_candidate.absent_before_commit",
+          "session": "live",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.healthy.candidate_binding",
+          "session": "live",
+          "match": {
+            "rule_prefix": "候选绑定指定工具 "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.healthy.agent_publish.commit",
+          "session": "live",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.healthy.agent_publish.readback",
+          "session": "live",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.healthy.agent_publish.configuration",
+          "session": "live",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.healthy.published_binding",
+          "session": "live",
+          "match": {
+            "rule": "发布后的绑定包含全部本次工具"
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.healthy.cross_binding",
+          "session": "live",
+          "match": {
+            "rule": "本次对照/共享资源已精确绑定"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.prepare",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.baseline.reply.final_reply",
+          "session": "live",
+          "match": {
+            "rule": "baseline:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.baseline.reply.assertion_1",
+          "session": "live",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.baseline.call",
+          "session": "live",
+          "match": {
+            "rule": "本任务实际调用指定 HTTP 工具且参数正确"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.baseline.result",
+          "session": "live",
+          "match": {
+            "rule": "对应工具结果包含预期 HTTP 状态和内容"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.primary.inactive",
+          "session": "live",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'disabled'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.unaffected.reply.final_reply",
+          "session": "live",
+          "match": {
+            "rule": "unaffected:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/unaffected.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.unaffected.reply.assertion_1",
+          "session": "live",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/unaffected.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.unaffected.reply.assertion_2",
+          "session": "live",
+          "match": {
+            "rule": "资源失效不阻断普通对话"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/unaffected.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.unaffected.healthy.call",
+          "session": "live",
+          "match": {
+            "rule": "本任务实际调用指定 HTTP 工具且参数正确"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.unaffected.healthy.result",
+          "session": "live",
+          "match": {
+            "rule": "对应工具结果包含预期 HTTP 状态和内容"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.unaffected.primary_unavailable",
+          "session": "live",
+          "match": {
+            "rule": "失效资源没有成功执行或留下未结算调用"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.evaluate",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.unavailable.reply.final_reply",
+          "session": "fresh",
+          "match": {
+            "rule": "unavailable:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/unavailable.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.unavailable.reply.assertion_1",
+          "session": "fresh",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/unavailable.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.unavailable.reply.assertion_2",
+          "session": "fresh",
+          "match": {
+            "rule": "明确说明失效资源不可用"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/unavailable.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.unavailable.healthy.call",
+          "session": "fresh",
+          "match": {
+            "rule": "本任务实际调用指定 HTTP 工具且参数正确"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.unavailable.healthy.result",
+          "session": "fresh",
+          "match": {
+            "rule": "对应工具结果包含预期 HTTP 状态和内容"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.unavailable.primary_unavailable",
+          "session": "fresh",
+          "match": {
+            "rule": "失效资源没有成功执行或留下未结算调用"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.evaluate",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.primary.active",
+          "session": "fresh",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'active'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.restored.reply.final_reply",
+          "session": "fresh",
+          "match": {
+            "rule": "restored:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/restored.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.restored.reply.assertion_1",
+          "session": "fresh",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/restored.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.restored.primary.call",
+          "session": "fresh",
+          "match": {
+            "rule": "本任务实际调用指定 HTTP 工具且参数正确"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-113.restored.primary.result",
+          "session": "fresh",
+          "match": {
+            "rule": "对应工具结果包含预期 HTTP 状态和内容"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-114",
+      "case_sha256": "6d78564b28d7212f249fdc56440a89f50d8027a84faed75cd8c3eccb2a247ea4",
+      "checkpoint_count": 41,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-114.primary.tool_created",
+          "session": "live",
+          "match": {
+            "rule_prefix": "自定义工具创建后可回读且可绑定 "
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.primary.agent_candidate.present",
+          "session": "live",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.primary.agent_candidate.valid",
+          "session": "live",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.primary.agent_candidate.absent_before_commit",
+          "session": "live",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.primary.candidate_binding",
+          "session": "live",
+          "match": {
+            "rule_prefix": "候选绑定指定工具 "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.primary.agent_publish.commit",
+          "session": "live",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.primary.agent_publish.readback",
+          "session": "live",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.primary.agent_publish.configuration",
+          "session": "live",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.primary.published_binding",
+          "session": "live",
+          "match": {
+            "rule": "发布后的绑定包含全部本次工具"
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.healthy.tool_created",
+          "session": "live",
+          "match": {
+            "rule_prefix": "自定义工具创建后可回读且可绑定 "
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.healthy.agent_candidate.present",
+          "session": "live",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.healthy.agent_candidate.valid",
+          "session": "live",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.healthy.agent_candidate.absent_before_commit",
+          "session": "live",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.healthy.candidate_binding",
+          "session": "live",
+          "match": {
+            "rule_prefix": "候选绑定指定工具 "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.healthy.agent_publish.commit",
+          "session": "live",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.healthy.agent_publish.readback",
+          "session": "live",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.healthy.agent_publish.configuration",
+          "session": "live",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.healthy.published_binding",
+          "session": "live",
+          "match": {
+            "rule": "发布后的绑定包含全部本次工具"
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.healthy.cross_binding",
+          "session": "live",
+          "match": {
+            "rule": "本次对照/共享资源已精确绑定"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.prepare",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.baseline.reply.final_reply",
+          "session": "live",
+          "match": {
+            "rule": "baseline:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.baseline.reply.assertion_1",
+          "session": "live",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.baseline.call",
+          "session": "live",
+          "match": {
+            "rule": "本任务实际调用指定 HTTP 工具且参数正确"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.baseline.result",
+          "session": "live",
+          "match": {
+            "rule": "对应工具结果包含预期 HTTP 状态和内容"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.primary.inactive",
+          "session": "live",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'archived'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.unaffected.reply.final_reply",
+          "session": "live",
+          "match": {
+            "rule": "unaffected:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/unaffected.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.unaffected.reply.assertion_1",
+          "session": "live",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/unaffected.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.unaffected.reply.assertion_2",
+          "session": "live",
+          "match": {
+            "rule": "资源失效不阻断普通对话"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/unaffected.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.unaffected.healthy.call",
+          "session": "live",
+          "match": {
+            "rule": "本任务实际调用指定 HTTP 工具且参数正确"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.unaffected.healthy.result",
+          "session": "live",
+          "match": {
+            "rule": "对应工具结果包含预期 HTTP 状态和内容"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.unaffected.primary_unavailable",
+          "session": "live",
+          "match": {
+            "rule": "失效资源没有成功执行或留下未结算调用"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.evaluate",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.unavailable.reply.final_reply",
+          "session": "fresh",
+          "match": {
+            "rule": "unavailable:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/unavailable.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.unavailable.reply.assertion_1",
+          "session": "fresh",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/unavailable.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.unavailable.reply.assertion_2",
+          "session": "fresh",
+          "match": {
+            "rule": "明确说明失效资源不可用"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/unavailable.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.unavailable.healthy.call",
+          "session": "fresh",
+          "match": {
+            "rule": "本任务实际调用指定 HTTP 工具且参数正确"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.unavailable.healthy.result",
+          "session": "fresh",
+          "match": {
+            "rule": "对应工具结果包含预期 HTTP 状态和内容"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.unavailable.primary_unavailable",
+          "session": "fresh",
+          "match": {
+            "rule": "失效资源没有成功执行或留下未结算调用"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.evaluate",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.primary.active",
+          "session": "fresh",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'active'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.restored.reply.final_reply",
+          "session": "fresh",
+          "match": {
+            "rule": "restored:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/restored.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.restored.reply.assertion_1",
+          "session": "fresh",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/restored.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.restored.primary.call",
+          "session": "fresh",
+          "match": {
+            "rule": "本任务实际调用指定 HTTP 工具且参数正确"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-114.restored.primary.result",
+          "session": "fresh",
+          "match": {
+            "rule": "对应工具结果包含预期 HTTP 状态和内容"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-119",
+      "case_sha256": "6f1d3d4ceb43d8be571bda28bf8fd360da0c88a3c0ee68c50bfa55f6086a914c",
+      "checkpoint_count": 44,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-119.primary.tool_created",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "自定义工具创建后可回读且可绑定 "
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.agent_candidate.present",
+          "session": "shared",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.agent_candidate.valid",
+          "session": "shared",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.agent_candidate.absent_before_commit",
+          "session": "shared",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.candidate_binding",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "候选绑定指定工具 "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.agent_publish.commit",
+          "session": "shared",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.agent_publish.readback",
+          "session": "shared",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.agent_publish.configuration",
+          "session": "shared",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.published_binding",
+          "session": "shared",
+          "match": {
+            "rule": "发布后的绑定包含全部本次工具"
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.tool_created",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "自定义工具创建后可回读且可绑定 "
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.agent_candidate.present",
+          "session": "shared",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.agent_candidate.valid",
+          "session": "shared",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.agent_candidate.absent_before_commit",
+          "session": "shared",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.candidate_binding",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "候选绑定指定工具 "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.agent_publish.commit",
+          "session": "shared",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.agent_publish.readback",
+          "session": "shared",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.agent_publish.configuration",
+          "session": "shared",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.published_binding",
+          "session": "shared",
+          "match": {
+            "rule": "发布后的绑定包含全部本次工具"
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.shared_binding",
+          "session": "shared",
+          "match": {
+            "rule": "本次对照/共享资源已精确绑定"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.prepare",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.baseline.reply.final_reply",
+          "session": "shared",
+          "match": {
+            "rule": "baseline:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/shared/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.baseline.reply.assertion_1",
+          "session": "shared",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/shared/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.baseline.call",
+          "session": "shared",
+          "match": {
+            "rule": "本任务实际调用指定 HTTP 工具且参数正确"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.baseline.result",
+          "session": "shared",
+          "match": {
+            "rule": "对应工具结果包含预期 HTTP 状态和内容"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.archive.identity",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.archive.state_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 archived"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.active.identity",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.active.state_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 active"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.active.delete_rejected",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "操作按公开错误契约拒绝 DELETE /tools/"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.protected_delete",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.active.resource_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "拒绝删除后资源完整保留"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.protected_delete",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.draft.identity",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.draft.state_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 draft"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.draft.delete_rejected",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "操作按公开错误契约拒绝 DELETE /tools/"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.protected_delete",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.draft.resource_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "拒绝删除后资源完整保留"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.protected_delete",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.disabled.identity",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.disabled.state_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 disabled"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.disabled.delete_rejected",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "操作按公开错误契约拒绝 DELETE /tools/"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.protected_delete",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.disabled.resource_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "拒绝删除后资源完整保留"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.protected_delete",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.archive.identity",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.peer.archive.state_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 archived"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.description_update",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'description': 'Edited after all referencing Agents were archived.'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.disabled",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'disabled'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.active",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'active'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.delete.absent",
+          "session": "shared",
+          "match": {
+            "rule": "删除后资源查询返回不存在"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.delete_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-119.primary.delete.agent_history_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "资源删除没有改写归档智能体历史"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.delete_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-123",
+      "case_sha256": "a00af5d7fa722fb5375ccd1023f425bb9ceaf8aabc47af01750d73a0bfc515ef",
+      "checkpoint_count": 28,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-123.primary.tool_created",
+          "session": "live",
+          "match": {
+            "rule_prefix": "自定义工具创建后可回读且可绑定 "
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.primary.agent_candidate.present",
+          "session": "live",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.primary.agent_candidate.valid",
+          "session": "live",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.primary.agent_candidate.absent_before_commit",
+          "session": "live",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.primary.candidate_binding",
+          "session": "live",
+          "match": {
+            "rule_prefix": "候选绑定指定工具 "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.primary.agent_publish.commit",
+          "session": "live",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.primary.agent_publish.readback",
+          "session": "live",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.primary.agent_publish.configuration",
+          "session": "live",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.primary.published_binding",
+          "session": "live",
+          "match": {
+            "rule": "发布后的绑定包含全部本次工具"
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.healthy.tool_created",
+          "session": "live",
+          "match": {
+            "rule_prefix": "自定义工具创建后可回读且可绑定 "
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.healthy.agent_candidate.present",
+          "session": "live",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.healthy.agent_candidate.valid",
+          "session": "live",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.healthy.agent_candidate.absent_before_commit",
+          "session": "live",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.healthy.candidate_binding",
+          "session": "live",
+          "match": {
+            "rule_prefix": "候选绑定指定工具 "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.healthy.agent_publish.commit",
+          "session": "live",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.healthy.agent_publish.readback",
+          "session": "live",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.healthy.agent_publish.configuration",
+          "session": "live",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.healthy.published_binding",
+          "session": "live",
+          "match": {
+            "rule": "发布后的绑定包含全部本次工具"
+          },
+          "source": "journey.tool_journey.ToolJourney.prepare",
+          "evidence": [
+            "tool-http.jsonl",
+            "tool-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.baseline.reply.final_reply",
+          "session": "live",
+          "match": {
+            "rule": "baseline:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.baseline.call",
+          "session": "live",
+          "match": {
+            "rule": "本任务实际调用指定 HTTP 工具且参数正确"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.baseline.result",
+          "session": "live",
+          "match": {
+            "rule": "对应工具结果包含预期 HTTP 状态和内容"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.primary.disabled",
+          "session": "live",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'disabled'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.repair.agent_edit_allowed",
+          "session": "live",
+          "match": {
+            "rule": "失效依赖不阻断名称及描述编辑"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.apply",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.repair.resource_replaced",
+          "session": "live",
+          "match": {
+            "rule": "失效资源可解绑并替换成健康资源"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.apply",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.repaired.reply.final_reply",
+          "session": "live",
+          "match": {
+            "rule": "repaired:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/repaired.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.repaired.healthy.call",
+          "session": "live",
+          "match": {
+            "rule": "本任务实际调用指定 HTTP 工具且参数正确"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.repaired.healthy.result",
+          "session": "live",
+          "match": {
+            "rule": "对应工具结果包含预期 HTTP 状态和内容"
+          },
+          "source": "journey.tool_journey.evaluate_http_tool",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-123.repaired.primary_unavailable",
+          "session": "live",
+          "match": {
+            "rule": "失效资源没有成功执行或留下未结算调用"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.evaluate",
+          "evidence": [
+            "events.jsonl"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-116",
+      "case_sha256": "28d12173739b8169e3044af23171879d3f39a063a818268e9cfc7182f511cd72",
+      "checkpoint_count": 37,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-116.primary.skill_created",
+          "session": "live",
+          "match": {
+            "rule": "自定义 Skill 创建后身份和初始版本正确"
+          },
+          "source": "journey.skill_journey.SkillJourney.prepare",
+          "evidence": [
+            "skill-http.jsonl",
+            "skill-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.primary.agent_candidate.present",
+          "session": "live",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.primary.agent_candidate.valid",
+          "session": "live",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.primary.agent_candidate.absent_before_commit",
+          "session": "live",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.primary.candidate_binding",
+          "session": "live",
+          "match": {
+            "rule_prefix": "候选绑定指定Skill "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.primary.agent_publish.commit",
+          "session": "live",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.primary.agent_publish.readback",
+          "session": "live",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.primary.agent_publish.configuration",
+          "session": "live",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.primary.published_binding",
+          "session": "live",
+          "match": {
+            "rule": "智能体绑定了本次创建的 Skill"
+          },
+          "source": "journey.owned_skill_journey.OwnedSkillJourney.check_binding",
+          "evidence": [
+            "skill-http.jsonl",
+            "skill-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.healthy.skill_created",
+          "session": "live",
+          "match": {
+            "rule": "自定义 Skill 创建后身份和初始版本正确"
+          },
+          "source": "journey.skill_journey.SkillJourney.prepare",
+          "evidence": [
+            "skill-http.jsonl",
+            "skill-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.healthy.agent_candidate.present",
+          "session": "live",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.healthy.agent_candidate.valid",
+          "session": "live",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.healthy.agent_candidate.absent_before_commit",
+          "session": "live",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.healthy.candidate_binding",
+          "session": "live",
+          "match": {
+            "rule_prefix": "候选绑定指定Skill "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.healthy.agent_publish.commit",
+          "session": "live",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.healthy.agent_publish.readback",
+          "session": "live",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.healthy.agent_publish.configuration",
+          "session": "live",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.healthy.published_binding",
+          "session": "live",
+          "match": {
+            "rule": "智能体绑定了本次创建的 Skill"
+          },
+          "source": "journey.owned_skill_journey.OwnedSkillJourney.check_binding",
+          "evidence": [
+            "skill-http.jsonl",
+            "skill-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.healthy.cross_binding",
+          "session": "live",
+          "match": {
+            "rule": "本次对照/共享资源已精确绑定"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.prepare",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.baseline.reply.final_reply",
+          "session": "live",
+          "match": {
+            "rule": "baseline:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.baseline.reply.assertion_1",
+          "session": "live",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.baseline.call",
+          "session": "live",
+          "match": {
+            "rule_prefix": "实际调用指定 Skill 并成功 ("
+          },
+          "source": "journey.skill_checks.check_skill_call",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.primary.inactive",
+          "session": "live",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'disabled'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.unaffected.reply.final_reply",
+          "session": "live",
+          "match": {
+            "rule": "unaffected:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/unaffected.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.unaffected.reply.assertion_1",
+          "session": "live",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/unaffected.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.unaffected.reply.assertion_2",
+          "session": "live",
+          "match": {
+            "rule": "资源失效不阻断普通对话"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/unaffected.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.unaffected.healthy.call",
+          "session": "live",
+          "match": {
+            "rule_prefix": "实际调用指定 Skill 并成功 ("
+          },
+          "source": "journey.skill_checks.check_skill_call",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.unaffected.primary_unavailable",
+          "session": "live",
+          "match": {
+            "rule": "失效资源没有成功执行或留下未结算调用"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.evaluate",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.unavailable.reply.final_reply",
+          "session": "fresh",
+          "match": {
+            "rule": "unavailable:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/unavailable.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.unavailable.reply.assertion_1",
+          "session": "fresh",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/unavailable.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.unavailable.reply.assertion_2",
+          "session": "fresh",
+          "match": {
+            "rule": "明确说明失效资源不可用"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/unavailable.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.unavailable.healthy.call",
+          "session": "fresh",
+          "match": {
+            "rule_prefix": "实际调用指定 Skill 并成功 ("
+          },
+          "source": "journey.skill_checks.check_skill_call",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.unavailable.primary_unavailable",
+          "session": "fresh",
+          "match": {
+            "rule": "失效资源没有成功执行或留下未结算调用"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.evaluate",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.primary.active",
+          "session": "fresh",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'active'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.restored.reply.final_reply",
+          "session": "fresh",
+          "match": {
+            "rule": "restored:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/restored.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.restored.reply.assertion_1",
+          "session": "fresh",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/restored.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-116.restored.primary.call",
+          "session": "fresh",
+          "match": {
+            "rule_prefix": "实际调用指定 Skill 并成功 ("
+          },
+          "source": "journey.skill_checks.check_skill_call",
+          "evidence": [
+            "events.jsonl"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-117",
+      "case_sha256": "8c9820f5409be5ea607153ab7c585251a5510dec0df09ee6bf05cc92b3318bf7",
+      "checkpoint_count": 37,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-117.primary.skill_created",
+          "session": "live",
+          "match": {
+            "rule": "自定义 Skill 创建后身份和初始版本正确"
+          },
+          "source": "journey.skill_journey.SkillJourney.prepare",
+          "evidence": [
+            "skill-http.jsonl",
+            "skill-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.primary.agent_candidate.present",
+          "session": "live",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.primary.agent_candidate.valid",
+          "session": "live",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.primary.agent_candidate.absent_before_commit",
+          "session": "live",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.primary.candidate_binding",
+          "session": "live",
+          "match": {
+            "rule_prefix": "候选绑定指定Skill "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.primary.agent_publish.commit",
+          "session": "live",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.primary.agent_publish.readback",
+          "session": "live",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.primary.agent_publish.configuration",
+          "session": "live",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.primary.published_binding",
+          "session": "live",
+          "match": {
+            "rule": "智能体绑定了本次创建的 Skill"
+          },
+          "source": "journey.owned_skill_journey.OwnedSkillJourney.check_binding",
+          "evidence": [
+            "skill-http.jsonl",
+            "skill-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.healthy.skill_created",
+          "session": "live",
+          "match": {
+            "rule": "自定义 Skill 创建后身份和初始版本正确"
+          },
+          "source": "journey.skill_journey.SkillJourney.prepare",
+          "evidence": [
+            "skill-http.jsonl",
+            "skill-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.healthy.agent_candidate.present",
+          "session": "live",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.healthy.agent_candidate.valid",
+          "session": "live",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.healthy.agent_candidate.absent_before_commit",
+          "session": "live",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.healthy.candidate_binding",
+          "session": "live",
+          "match": {
+            "rule_prefix": "候选绑定指定Skill "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.healthy.agent_publish.commit",
+          "session": "live",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.healthy.agent_publish.readback",
+          "session": "live",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.healthy.agent_publish.configuration",
+          "session": "live",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.healthy.published_binding",
+          "session": "live",
+          "match": {
+            "rule": "智能体绑定了本次创建的 Skill"
+          },
+          "source": "journey.owned_skill_journey.OwnedSkillJourney.check_binding",
+          "evidence": [
+            "skill-http.jsonl",
+            "skill-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.healthy.cross_binding",
+          "session": "live",
+          "match": {
+            "rule": "本次对照/共享资源已精确绑定"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.prepare",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.baseline.reply.final_reply",
+          "session": "live",
+          "match": {
+            "rule": "baseline:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.baseline.reply.assertion_1",
+          "session": "live",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.baseline.call",
+          "session": "live",
+          "match": {
+            "rule_prefix": "实际调用指定 Skill 并成功 ("
+          },
+          "source": "journey.skill_checks.check_skill_call",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.primary.inactive",
+          "session": "live",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'archived'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.unaffected.reply.final_reply",
+          "session": "live",
+          "match": {
+            "rule": "unaffected:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/unaffected.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.unaffected.reply.assertion_1",
+          "session": "live",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/unaffected.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.unaffected.reply.assertion_2",
+          "session": "live",
+          "match": {
+            "rule": "资源失效不阻断普通对话"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/live/replies/unaffected.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.unaffected.healthy.call",
+          "session": "live",
+          "match": {
+            "rule_prefix": "实际调用指定 Skill 并成功 ("
+          },
+          "source": "journey.skill_checks.check_skill_call",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.unaffected.primary_unavailable",
+          "session": "live",
+          "match": {
+            "rule": "失效资源没有成功执行或留下未结算调用"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.evaluate",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.unavailable.reply.final_reply",
+          "session": "fresh",
+          "match": {
+            "rule": "unavailable:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/unavailable.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.unavailable.reply.assertion_1",
+          "session": "fresh",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/unavailable.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.unavailable.reply.assertion_2",
+          "session": "fresh",
+          "match": {
+            "rule": "明确说明失效资源不可用"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/unavailable.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.unavailable.healthy.call",
+          "session": "fresh",
+          "match": {
+            "rule_prefix": "实际调用指定 Skill 并成功 ("
+          },
+          "source": "journey.skill_checks.check_skill_call",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.unavailable.primary_unavailable",
+          "session": "fresh",
+          "match": {
+            "rule": "失效资源没有成功执行或留下未结算调用"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.evaluate",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.primary.active",
+          "session": "fresh",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'active'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.restored.reply.final_reply",
+          "session": "fresh",
+          "match": {
+            "rule": "restored:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/restored.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.restored.reply.assertion_1",
+          "session": "fresh",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/fresh/replies/restored.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-117.restored.primary.call",
+          "session": "fresh",
+          "match": {
+            "rule_prefix": "实际调用指定 Skill 并成功 ("
+          },
+          "source": "journey.skill_checks.check_skill_call",
+          "evidence": [
+            "events.jsonl"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-120",
+      "case_sha256": "dc003b3629a18bfd79577eee2844e4f5dac1b4f301fc62170495456411fa841d",
+      "checkpoint_count": 43,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-120.primary.skill_created",
+          "session": "shared",
+          "match": {
+            "rule": "自定义 Skill 创建后身份和初始版本正确"
+          },
+          "source": "journey.skill_journey.SkillJourney.prepare",
+          "evidence": [
+            "skill-http.jsonl",
+            "skill-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.agent_candidate.present",
+          "session": "shared",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.agent_candidate.valid",
+          "session": "shared",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.agent_candidate.absent_before_commit",
+          "session": "shared",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.candidate_binding",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "候选绑定指定Skill "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.agent_publish.commit",
+          "session": "shared",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.agent_publish.readback",
+          "session": "shared",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.agent_publish.configuration",
+          "session": "shared",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.published_binding",
+          "session": "shared",
+          "match": {
+            "rule": "智能体绑定了本次创建的 Skill"
+          },
+          "source": "journey.owned_skill_journey.OwnedSkillJourney.check_binding",
+          "evidence": [
+            "skill-http.jsonl",
+            "skill-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.skill_created",
+          "session": "shared",
+          "match": {
+            "rule": "自定义 Skill 创建后身份和初始版本正确"
+          },
+          "source": "journey.skill_journey.SkillJourney.prepare",
+          "evidence": [
+            "skill-http.jsonl",
+            "skill-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.agent_candidate.present",
+          "session": "shared",
+          "match": {
+            "rule": "指定名称的候选已产生"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.agent_candidate.valid",
+          "session": "shared",
+          "match": {
+            "rule": "候选有效"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.agent_candidate.absent_before_commit",
+          "session": "shared",
+          "match": {
+            "rule": "确认前没有发布智能体"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.remember_candidate",
+          "evidence": [
+            "result.json#/validation/checks"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.candidate_binding",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "候选绑定指定Skill "
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.require_resource",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.agent_publish.commit",
+          "session": "shared",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.agent_publish.readback",
+          "session": "shared",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.agent_publish.configuration",
+          "session": "shared",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.published_binding",
+          "session": "shared",
+          "match": {
+            "rule": "智能体绑定了本次创建的 Skill"
+          },
+          "source": "journey.owned_skill_journey.OwnedSkillJourney.check_binding",
+          "evidence": [
+            "skill-http.jsonl",
+            "skill-operations.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.shared_binding",
+          "session": "shared",
+          "match": {
+            "rule": "本次对照/共享资源已精确绑定"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.prepare",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.baseline.reply.final_reply",
+          "session": "shared",
+          "match": {
+            "rule": "baseline:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/shared/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.baseline.reply.assertion_1",
+          "session": "shared",
+          "match": {
+            "rule": "答复包含本次资源实际内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/shared/replies/baseline.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.baseline.call",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "实际调用指定 Skill 并成功 ("
+          },
+          "source": "journey.skill_checks.check_skill_call",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.archive.identity",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.archive.state_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 archived"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.active.identity",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.active.state_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 active"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.active.delete_rejected",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "操作按公开错误契约拒绝 DELETE /skills/"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.protected_delete",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.active.resource_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "拒绝删除后资源完整保留"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.protected_delete",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.draft.identity",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.draft.state_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 draft"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.draft.delete_rejected",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "操作按公开错误契约拒绝 DELETE /skills/"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.protected_delete",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.draft.resource_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "拒绝删除后资源完整保留"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.protected_delete",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.disabled.identity",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.disabled.state_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 disabled"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.disabled.delete_rejected",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "操作按公开错误契约拒绝 DELETE /skills/"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.protected_delete",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.disabled.resource_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "拒绝删除后资源完整保留"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.protected_delete",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.archive.identity",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "变更对象是本次智能体 "
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.peer.archive.state_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "智能体状态改变且保留历史定义 archived"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.agent_status",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.description_update",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'description': 'Edited after all referencing Agents were archived.'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.disabled",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'disabled'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.active",
+          "session": "shared",
+          "match": {
+            "rule_prefix": "资源修改持久化且保留其他定义 ",
+            "rule_contains": [
+              "'status': 'active'"
+            ]
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.update_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.delete.absent",
+          "session": "shared",
+          "match": {
+            "rule": "删除后资源查询返回不存在"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.delete_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-120.primary.delete.agent_history_preserved",
+          "session": "shared",
+          "match": {
+            "rule": "资源删除没有改写归档智能体历史"
+          },
+          "source": "journey.resource_lifecycle.ResourceLifecycleJourney.delete_resource",
+          "evidence": [
+            "lifecycle-http.jsonl"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-124",
+      "case_sha256": "21098dd462809c64259cebd7ac08d689e0bd5da0a955070c42415b763efe8ce8",
+      "checkpoint_count": 21,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-124.initial.runnable",
+          "session": "embedded",
+          "match": {
+            "rule": "导入包得到本次可运行版本"
+          },
+          "source": "journey.agent_package_journey.AgentPackageJourney.prepare",
+          "evidence": [
+            "package-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.initial.agent_identity",
+          "session": "embedded",
+          "match": {
+            "rule": "导入后智能体身份及状态正确"
+          },
+          "source": "journey.agent_package_journey.AgentPackageJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.initial.only_version",
+          "session": "embedded",
+          "match": {
+            "rule": "初始版本列表只包含本次版本"
+          },
+          "source": "journey.agent_package_journey.AgentPackageJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.initial.single_embedded_skill",
+          "session": "embedded",
+          "match": {
+            "rule": "包内 Skill 仅安装一次"
+          },
+          "source": "journey.embedded_skill.EmbeddedSkillJourney.prepare",
+          "evidence": [
+            "skill-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.revision_1.valid_candidate",
+          "session": "embedded",
+          "match": {
+            "rule": "提示词修订保留智能体身份并生成有效候选 1"
+          },
+          "source": "journey.embedded_skill.EmbeddedSkillJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.revision_1.publish.commit",
+          "session": "embedded",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.revision_1.publish.readback",
+          "session": "embedded",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.revision_1.publish.configuration",
+          "session": "embedded",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.revision_1.prompt_only",
+          "session": "embedded",
+          "match": {
+            "rule": "仅修改提示词且其他可编辑配置保留 1"
+          },
+          "source": "journey.embedded_skill.EmbeddedSkillJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.revision_1.no_duplicate_skill",
+          "session": "embedded",
+          "match": {
+            "rule": "提示词修改不累积重复的已安装 Skill 1"
+          },
+          "source": "journey.embedded_skill.EmbeddedSkillJourney.prepare",
+          "evidence": [
+            "embedded-skills/revision-1.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.revision_1.single_active_binding",
+          "session": "embedded",
+          "match": {
+            "rule": "当前绑定只有一个有效包内 Skill 1"
+          },
+          "source": "journey.embedded_skill.EmbeddedSkillJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.revision_2.valid_candidate",
+          "session": "embedded",
+          "match": {
+            "rule": "提示词修订保留智能体身份并生成有效候选 2"
+          },
+          "source": "journey.embedded_skill.EmbeddedSkillJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.revision_2.publish.commit",
+          "session": "embedded",
+          "match": {
+            "rule": "候选发布成功"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.revision_2.publish.readback",
+          "session": "embedded",
+          "match": {
+            "rule": "发布的智能体可回读"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.revision_2.publish.configuration",
+          "session": "embedded",
+          "match": {
+            "rule": "发布版本保留指定配置"
+          },
+          "source": "journey.builder_flow.AgentBuilderFlow.verify_commit",
+          "evidence": [
+            "builder-published/",
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.revision_2.prompt_only",
+          "session": "embedded",
+          "match": {
+            "rule": "仅修改提示词且其他可编辑配置保留 2"
+          },
+          "source": "journey.embedded_skill.EmbeddedSkillJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.revision_2.no_duplicate_skill",
+          "session": "embedded",
+          "match": {
+            "rule": "提示词修改不累积重复的已安装 Skill 2"
+          },
+          "source": "journey.embedded_skill.EmbeddedSkillJourney.prepare",
+          "evidence": [
+            "embedded-skills/revision-2.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.revision_2.single_active_binding",
+          "session": "embedded",
+          "match": {
+            "rule": "当前绑定只有一个有效包内 Skill 2"
+          },
+          "source": "journey.embedded_skill.EmbeddedSkillJourney.prepare",
+          "evidence": [
+            "agent-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.conversation.final_reply",
+          "session": "embedded",
+          "match": {
+            "rule": "use:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/embedded/replies/use.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.conversation.assertion_1",
+          "session": "embedded",
+          "match": {
+            "rule": "答复来自包内 Skill 内容"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/embedded/replies/use.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-124.conversation.skill.call",
+          "session": "embedded",
+          "match": {
+            "rule_prefix": "实际调用指定 Skill 并成功 ("
+          },
+          "source": "journey.skill_checks.check_skill_call",
+          "evidence": [
+            "events.jsonl"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-129",
+      "case_sha256": "e6e1447ce754da2fbeabc3f2700ae443e6ab941dc8aa5026fea8bd46de37dc15",
+      "checkpoint_count": 14,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-129.write.reply.final_reply",
+          "session": "replay",
+          "match": {
+            "rule": "write:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/replay/replies/write.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-129.write.reply.assertion_1",
+          "session": "replay",
+          "match": {
+            "rule": "原始写入任务正常完成"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/replay/replies/write.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-129.probe.original_active",
+          "session": "replay",
+          "match": {
+            "rule": "并发探测前原任务已受理且尚未结束"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.admitted",
+          "evidence": [
+            "message-admission-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-129.probe.inflight_replay",
+          "session": "replay",
+          "match": {
+            "rule": "运行中重放同一消息返回原任务"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.admitted",
+          "evidence": [
+            "message-admission-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-129.probe.no_additional_task",
+          "session": "replay",
+          "match": {
+            "rule": "运行中探测没有额外创建任务"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.admitted",
+          "evidence": [
+            "message-admission-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-129.completion.replay_same_result",
+          "session": "replay",
+          "match": {
+            "rule": "完成后重放返回同一任务及原答复"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.finish",
+          "evidence": [
+            "message-admission-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-129.completion.runtime_and_tools_unchanged",
+          "session": "replay",
+          "match": {
+            "rule": "重放保留原 trace、运行快照且不重复调用工具"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.finish",
+          "evidence": [
+            "events.jsonl",
+            "tasks/"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-129.original.command_once",
+          "session": "replay",
+          "match": {
+            "rule": "原任务准确执行一次指定工具命令"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.finish",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-129.write_ledger.tasks",
+          "session": "replay",
+          "match": {
+            "rule": "会话任务恰好对应本次正常发送轮次"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.ledger",
+          "evidence": [
+            "sessions/replay/admission-history-1.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-129.write_ledger.messages",
+          "session": "replay",
+          "match": {
+            "rule": "重放或被拒消息不重复写入对话历史"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.ledger",
+          "evidence": [
+            "sessions/replay/admission-history-1.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-129.verify.reply.final_reply",
+          "session": "replay",
+          "match": {
+            "rule": "verify:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/replay/replies/verify.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-129.verify.single_write_and_deleted",
+          "session": "replay",
+          "match": {
+            "rule": "重试后写入仅发生一次且本次文件已删除"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.finish",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-129.verify_ledger.tasks",
+          "session": "replay",
+          "match": {
+            "rule": "会话任务恰好对应本次正常发送轮次"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.ledger",
+          "evidence": [
+            "sessions/replay/admission-history-2.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-129.verify_ledger.messages",
+          "session": "replay",
+          "match": {
+            "rule": "重放或被拒消息不重复写入对话历史"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.ledger",
+          "evidence": [
+            "sessions/replay/admission-history-2.json"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-130",
+      "case_sha256": "cfd5168dfced9044f5916988bb52797cbddb37a75670fb0845045fa43c770b72",
+      "checkpoint_count": 12,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-130.first.reply.final_reply",
+          "session": "busy",
+          "match": {
+            "rule": "first:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/busy/replies/first.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-130.first.reply.assertion_1",
+          "session": "busy",
+          "match": {
+            "rule": "并发请求不替换原始任务的指令"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/busy/replies/first.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-130.probe.original_active",
+          "session": "busy",
+          "match": {
+            "rule": "并发探测前原任务已受理且尚未结束"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.admitted",
+          "evidence": [
+            "message-admission-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-130.probe.busy_rejected",
+          "session": "busy",
+          "match": {
+            "rule": "不同消息在会话忙碌时明确返回冲突"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.admitted",
+          "evidence": [
+            "message-admission-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-130.probe.no_additional_task",
+          "session": "busy",
+          "match": {
+            "rule": "运行中探测没有额外创建任务"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.admitted",
+          "evidence": [
+            "message-admission-http.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-130.original.command_once",
+          "session": "busy",
+          "match": {
+            "rule": "原任务准确执行一次指定工具命令"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.finish",
+          "evidence": [
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-130.write_ledger.tasks",
+          "session": "busy",
+          "match": {
+            "rule": "会话任务恰好对应本次正常发送轮次"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.ledger",
+          "evidence": [
+            "sessions/busy/admission-history-1.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-130.write_ledger.messages",
+          "session": "busy",
+          "match": {
+            "rule": "重放或被拒消息不重复写入对话历史"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.ledger",
+          "evidence": [
+            "sessions/busy/admission-history-1.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-130.followup.reply.final_reply",
+          "session": "busy",
+          "match": {
+            "rule": "followup:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/busy/replies/followup.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-130.followup.reply.assertion_1",
+          "session": "busy",
+          "match": {
+            "rule": "忙碌拒绝后正常新消息可继续"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/busy/replies/followup.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-130.followup_ledger.tasks",
+          "session": "busy",
+          "match": {
+            "rule": "会话任务恰好对应本次正常发送轮次"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.ledger",
+          "evidence": [
+            "sessions/busy/admission-history-2.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-130.followup_ledger.messages",
+          "session": "busy",
+          "match": {
+            "rule": "重放或被拒消息不重复写入对话历史"
+          },
+          "source": "journey.message_admission.MessageAdmissionJourney.ledger",
+          "evidence": [
+            "sessions/busy/admission-history-2.json"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "J2-132",
+      "case_sha256": "467d6b4fcf2478ab9968c24e825739a9b721c3c1a7b318bb1f3ba4f35f804314",
+      "checkpoint_count": 9,
+      "checkpoints": [
+        {
+          "checkpoint_id": "J2-132.conversation.identity_active",
+          "session": "persistent",
+          "match": {
+            "rule": "固定持久会话身份和状态正确"
+          },
+          "source": "journey.persistent_case.PersistentExecution.attach_conversation",
+          "evidence": [
+            "persistent/conversation-before.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-132.recall.final_reply",
+          "session": "persistent",
+          "match": {
+            "rule": "recall:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/persistent/replies/recall.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-132.recall.checkpoint_correct",
+          "session": "persistent",
+          "match": {
+            "rule_any": [
+              "跨运行记住上次检查编号",
+              "已有会话保留历史检查点",
+              "首次初始化答复正确"
+            ]
+          },
+          "source": "journey.persistent_case.PersistentExecution.run",
+          "evidence": [
+            "persistent/history-before.json",
+            "persistent/previous-checkpoint.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-132.exercise.final_reply",
+          "session": "persistent",
+          "match": {
+            "rule": "exercise:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/persistent/replies/exercise.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-132.exercise.answer_correct",
+          "session": "persistent",
+          "match": {
+            "rule_prefix": "本轮 ",
+            "rule_contains": [
+              " 答复正确"
+            ]
+          },
+          "source": "journey.persistent_case.PersistentExecution.exercise",
+          "evidence": [
+            "persistent/exercise-source.json",
+            "persistent/exercise-history.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-132.exercise.input_and_execution_evidence",
+          "session": "persistent",
+          "match": {
+            "rule": "本轮输入和实际执行证据可回读"
+          },
+          "source": "journey.persistent_case.PersistentExecution.exercise",
+          "evidence": [
+            "persistent/exercise-history.json",
+            "events.jsonl"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-132.checkpoint.final_reply",
+          "session": "persistent",
+          "match": {
+            "rule": "checkpoint:有最终回复"
+          },
+          "source": "journey.functional_case.check_reply",
+          "evidence": [
+            "sessions/persistent/replies/checkpoint.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-132.checkpoint.acknowledged",
+          "session": "persistent",
+          "match": {
+            "rule": "确认本次新检查编号"
+          },
+          "source": "journey.persistent_case.PersistentExecution.run",
+          "evidence": [
+            "persistent/history-after.json"
+          ]
+        },
+        {
+          "checkpoint_id": "J2-132.checkpoint.persisted_same_conversation",
+          "session": "persistent",
+          "match": {
+            "rule": "检查点已写入同一会话的真实用户历史"
+          },
+          "source": "journey.persistent_case.PersistentExecution.run",
+          "evidence": [
+            "persistent/history-after.json"
+          ]
+        }
+      ]
+    }
+  ]
+}
